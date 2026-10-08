@@ -479,6 +479,16 @@ const RecordPayment = ({ student, students = [], onClose, branchProfile = null }
   )
     ? activeStudent.installmentSchedule
     : [];
+  // Course-scoped Sequential payments keep the package-wide installment
+  // numbers for backend updates, but receipts should show numbering local to
+  // the selected course (e.g. Course 2 starts at Installment 1).
+  const receiptInstallments = shouldUseCoursePaymentData
+    ? installments.map((installment, index) => ({
+      ...installment,
+      installmentNumber: index + 1,
+      number: index + 1,
+    }))
+    : installments;
 
   const previouslyPaid = installments.length
     ? installments.reduce((sum, installment) => {
@@ -893,7 +903,8 @@ const RecordPayment = ({ student, students = [], onClose, branchProfile = null }
   const validateForm = () => {
     const newErrors = {};
 
-    if (!activeStudent?.id) {
+    const branchStudentId = String(activeStudent?.branchStudentId || activeStudent?.id || '').trim();
+    if (!branchStudentId) {
       newErrors.student =
         "Please select a valid student.";
     }
@@ -1002,7 +1013,8 @@ const RecordPayment = ({ student, students = [], onClose, branchProfile = null }
       return true;
     }
 
-    if (!activeStudent?.id) {
+    const branchStudentId = String(activeStudent?.branchStudentId || activeStudent?.id || '').trim();
+    if (!branchStudentId) {
       alert(
         "Student information is missing. Payment cannot be saved."
       );
@@ -1014,7 +1026,7 @@ const RecordPayment = ({ student, students = [], onClose, branchProfile = null }
 
     try {
       const response = await request(
-        `/branch-students/${activeStudent.id}/payments`,
+        `/branch-students/${encodeURIComponent(branchStudentId)}/payments`,
         {
           method: "POST",
 
@@ -1723,7 +1735,7 @@ const RecordPayment = ({ student, students = [], onClose, branchProfile = null }
       totalPaid,
       balance,
       amountInWords,
-      installments,
+      installments: receiptInstallments,
       paymentAlreadyApplied: paymentSaved,
     });
 

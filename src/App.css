@@ -27641,3 +27641,16 @@ canvas {
   align-items: flex-start;
   gap: 6px;
 }
+
+.student-course-pending-discount-summary {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 12px;
+  line-height: 1.5;
+}
+
+.student-course-pending-discount-summary > span {
+  display: block;
+}

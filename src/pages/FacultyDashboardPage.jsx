@@ -5952,7 +5952,10 @@ const nextName = trimmedValue
                                 const studentIdLabel = String(student.studentId || student.id || '-').trim()
                                 const studentName = String(student.studentName || '-').trim()
                                 const emailLabel = String(student.emailAddress || '-').trim()
-                                const paymentProgress = getStudentPaymentProgress(student)
+                                const paymentProgress = getStudentPaymentProgress(student, {
+                                  courseId: student.courseId || selectedStudentsCourse?.id || selectedStudentsCourse?.courseId,
+                                  courseName: student.courseInterested || student.courseName || selectedStudentsCourse?.name || selectedStudentsCourse?.courseName,
+                                })
                                 const paidAmountLabel = formatCourseAmount(paymentProgress.paidAmount)
                                 const studentKey = normalizeWorkStudentId(student.id || student.studentId || '')
                                 // Attendance is independent from course progress. An absent

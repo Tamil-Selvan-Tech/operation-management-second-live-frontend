@@ -14230,6 +14230,18 @@ body.branch-notification-menu-open .main-area {
 .branch-students-table-shell .branch-course-table td:nth-child(3) { width: 8%; min-width: 100px; }
 .branch-students-table-shell .branch-course-table th:nth-child(4),
 .branch-students-table-shell .branch-course-table td:nth-child(4) { width: 8%; min-width: 90px; }
+.branch-students-table-shell .branch-course-table th:nth-child(3),
+.branch-students-table-shell .branch-course-table td:nth-child(3) { min-width: 132px; }
+.branch-students-table-shell .branch-course-table th:nth-child(4),
+.branch-students-table-shell .branch-course-table td:nth-child(4) { min-width: 124px; }
+.branch-students-table-shell .branch-course-table td:nth-child(3) > strong,
+.branch-students-table-shell .branch-course-table td:nth-child(4) > strong {
+  display: inline-block;
+  min-width: max-content;
+  overflow: visible;
+  text-overflow: clip;
+  white-space: nowrap;
+}
 .branch-students-table-shell .branch-course-table th:nth-child(5),
 .branch-students-table-shell .branch-course-table td:nth-child(5) { width: 11%; min-width: 130px; }
 .branch-students-table-shell .branch-course-table th:nth-child(6),

@@ -191,13 +191,9 @@ function BranchCourseFilterSelect({ value, options, onChange, ariaLabel, width =
   )
 }
 
-function BranchNotificationDropdownSkeleton() {
-  return <div className="branch-notification-dropdown-skeleton" role="status" aria-label="Loading notifications">{[1, 2, 3].map(item => <div className="branch-notification-skeleton-item" key={item}><span className="branch-notification-skeleton-icon" /><span className="branch-notification-skeleton-copy"><span className="branch-notification-skeleton-line title" /><span className="branch-notification-skeleton-line body" /><span className="branch-notification-skeleton-line time" /></span></div>)}</div>
-}
-
-function BranchNotificationPageSkeleton() {
-  return <div className="branch-notification-page-skeleton" role="status" aria-label="Loading notifications">{[1, 2, 3, 4].map(item => <div className="branch-notification-page-skeleton-card" key={item}><span className="branch-notification-skeleton-icon" /><span className="branch-notification-skeleton-copy"><span className="branch-notification-skeleton-line title" /><span className="branch-notification-skeleton-line body" /></span><span className="branch-notification-skeleton-line time" /></div>)}</div>
-}
+// Notifications are supplementary to the dashboard. They must never keep the
+// whole section in a skeleton state when the notifications API is unavailable.
+const BRANCH_NOTIFICATIONS_TIMEOUT_MS = 5000
 
 function BranchProfileSkeleton() {
   return <div className="branch-profile-skeleton" role="status" aria-label="Loading profile"><div className="branch-profile-skeleton-identity"><span className="branch-profile-skeleton-avatar" /><span><i /><i /><i /></span></div><div className="branch-profile-skeleton-heading" /><div className="branch-profile-skeleton-card"><i /><i /><i /><i /></div><div className="branch-profile-skeleton-heading short" /><div className="branch-profile-skeleton-card security"><i /><i /></div></div>
@@ -2560,7 +2556,7 @@ function createBranchInstallmentAmounts(count = 3, value = '') {
 
 function buildBalancedBranchInstallmentAmounts(totalFee = 0, count = 3) {
   const safeCount = Math.max(1, Number(count) || 1)
-  const safeTotal = Math.max(0, Number(totalFee) || 0)
+  const safeTotal = Math.max(0, Math.round(Number(totalFee) || 0))
   if (safeCount === 1) {
     return [String(safeTotal)]
   }
@@ -3858,7 +3854,6 @@ const BRANCH_PAYMENT_HISTORY_PER_PAGE = 5
   const [isNotificationMenuOpen, setIsNotificationMenuOpen] = useState(false)
   const [processingBranchNotification, setProcessingBranchNotification] = useState({ id: '', action: '' })
   const [branchNotificationRecords, setBranchNotificationRecords] = useState(() => loadNotifications())
-  const [isBranchNotificationsLoading, setIsBranchNotificationsLoading] = useState(false)
   const [branchNotificationSearch, setBranchNotificationSearch] = useState('')
   const [branchNotificationMonthFilter, setBranchNotificationMonthFilter] = useState(() => {
     const today = new Date()
@@ -4124,15 +4119,13 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
 }, [])
 
   const loadBranchNotifications = useCallback(async () => {
-    // Keep cached notifications visible while the API is warming up.
-    if (!loadNotifications().length) setIsBranchNotificationsLoading(true)
     if (branchNotificationsRequestRef.current) {
       return branchNotificationsRequestRef.current
     }
 
     const requestPromise = (async () => {
       const controller = new AbortController()
-      const timeoutId = window.setTimeout(() => controller.abort(), 12000)
+      const timeoutId = window.setTimeout(() => controller.abort(), BRANCH_NOTIFICATIONS_TIMEOUT_MS)
       try {
         const response = await request('/notifications?limit=100&page=1', {
           method: 'GET',
@@ -4173,12 +4166,13 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
         setBranchNotificationRecords(nextNotifications)
         saveNotifications(nextNotifications, { emit: false })
       } catch (error) {
-        console.error('Failed to load branch notifications:', error)
+        if (error?.name !== 'AbortError') {
+          console.error('Failed to load branch notifications:', error)
+        }
         const fallbackNotifications = mergeNotificationsWithStoredState(loadNotifications())
         setBranchNotificationRecords(fallbackNotifications)
       } finally {
         window.clearTimeout(timeoutId)
-        setIsBranchNotificationsLoading(false)
         branchNotificationsRequestRef.current = null
       }
     })()
@@ -4765,6 +4759,11 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
     const paymentStudent = courseRow ? {
       ...student,
       ...(courseRow.entry || {}),
+      // A course-enrollment row may have its own `id`; payment APIs need the
+      // parent BranchStudent database id, never the enrollment id.
+      id: student?.id || student?.branchStudentId || student?._recordId || student?.recordId || '',
+      branchStudentId: student?.branchStudentId || student?.id || student?._recordId || student?.recordId || '',
+      studentId: student?.studentId || '',
       courseId: courseRow.courseId || courseRow.entry?.courseId || '',
       courseName: courseRow.courseName || courseRow.entry?.courseName || '',
       courseAmount: courseRow.amount,
@@ -4982,7 +4981,6 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
   const openBranchNotifications = async () => {
     markNotificationsAsDropdownViewed()
     setIsNotificationMenuOpen(false)
-    setIsBranchNotificationsLoading(true)
     goToBranchSection('notifications')
     void loadBranchNotifications()
   }
@@ -9670,7 +9668,7 @@ useEffect(() => {
                 </div>
 
                 <div className="notification-dropdown-list">
-                  {isBranchNotificationsLoading ? <BranchNotificationDropdownSkeleton /> : branchNotificationPreviewItems.length ? (
+                  {branchNotificationPreviewItems.length ? (
                     branchNotificationPreviewItems.map((item) => {
                       const Icon = item.icon
                       const isCourseEditRequest =
@@ -10281,7 +10279,7 @@ useEffect(() => {
                       <p className="eyebrow">Notifications</p>
                       <h2>Notifications</h2>
                       <p>
-                        You have <strong>{isBranchNotificationsLoading ? '...' : branchNotificationTotalCount}</strong> notifications to go through
+                        You have <strong>{branchNotificationTotalCount}</strong> notifications to go through
                         {branchPageUnreadNotificationCount ? (
                           <span> and {branchPageUnreadNotificationCount} unread items</span>
                         ) : null}{' '}
@@ -10299,7 +10297,7 @@ useEffect(() => {
                         Back to dashboard
                       </button>
 
-                      <button type="button" className="notifications-mark-read" onClick={markAllBranchNotificationsAsRead} disabled={isBranchNotificationsLoading}>
+                      <button type="button" className="notifications-mark-read" onClick={markAllBranchNotificationsAsRead} disabled={!branchPageUnreadNotificationCount}>
                         <CheckCircle2 size={16} strokeWidth={2.2} aria-hidden="true" focusable="false" />
                         Mark all as read
                       </button>
@@ -10352,7 +10350,7 @@ useEffect(() => {
                   </div>
 
                   <div className="notifications-feed">
-                    {isBranchNotificationsLoading ? <BranchNotificationPageSkeleton /> : branchNotificationSections.length ? (
+                    {branchNotificationSections.length ? (
                       branchNotificationSections.map((section) => (
                         <BranchNotificationGroup
                           key={section.label}
@@ -10732,6 +10730,13 @@ else {
               const isPendingSequentialCourse = isSequentialArrangement
                 && courseId !== firstCourseId
                 && String(entry.status || '').trim().toUpperCase() === 'PENDING'
+              const configuredPaymentPlans = Array.isArray(catalogCourse?.paymentPlans)
+                ? catalogCourse.paymentPlans
+                : Array.isArray(catalogCourse?.paymentPlanSelections)
+                  ? catalogCourse.paymentPlanSelections
+                  : []
+              const selectedPaymentPlan = configuredPaymentPlans.find((plan) => [plan?.id, plan?.templateId, plan?.paymentPlanId]
+                .some((id) => String(id || '').trim() === String(entry.paymentPlanId || '').trim()))
               return {
                 entry,
                 courseId,
@@ -10739,6 +10744,7 @@ else {
                 courseName: entry.courseName || entry.name || entry.course?.name || catalogCourse?.name || 'Course',
                 courseCode: entry.courseCode || entry.course?.courseCode || catalogCourse?.courseCode || '',
                 isPendingSequentialCourse,
+                installmentCount: Math.max(0, Number(selectedPaymentPlan?.installmentCount || selectedPaymentPlan?.installments?.length || entry.installmentSchedule?.length || 0)),
                 amount: isPendingSequentialCourse
                   ? 0
                   : Number(String(entry.finalCourseAmount ?? entry.totalCourseAmount ?? entry.courseAmount ?? entry.totalAmount ?? entry.afterDiscount ?? catalogCourse?.amount ?? 0).replace(/,/g, '')) || 0,
@@ -10758,6 +10764,9 @@ else {
             const paidByCourse = courseAmounts.map(() => 0)
             const installmentRowsByCourse = courseAmounts.map(() => [])
             const scheduledByCourse = courseAmounts.map(() => 0)
+            const hasSequentialInstallmentCounts = isSequentialArrangement
+              && courseAmounts.filter((item) => !item.isPendingSequentialCourse).every((item) => item.installmentCount > 0)
+              && courseAmounts.filter((item) => !item.isPendingSequentialCourse).reduce((sum, item) => sum + item.installmentCount, 0) === installments.length
 
             const allocateSequentially = (amount, capacities) => {
               let remaining = Math.max(Number(amount) || 0, 0)
@@ -10768,7 +10777,7 @@ else {
               })
             }
 
-            installments.forEach((installment) => {
+            installments.forEach((installment, installmentIndex) => {
               const installmentAmount = Number(installment.amount ?? installment.installmentAmount ?? 0)
               const installmentPaid = Math.min(installmentAmount, Number(installment.paidAmount ?? installment.amountPaid ?? 0))
               const savedAllocations = Array.isArray(installment.courseAllocations) ? installment.courseAllocations : []
@@ -10779,7 +10788,19 @@ else {
                 ))
                 return Number(savedAllocation?.allocatedAmount ?? savedAllocation?.amount ?? 0) || item.amount
               })
-              const allocatedAmounts = savedAllocations.length
+              let sequentialCourseIndex = -1
+              if (hasSequentialInstallmentCounts) {
+                let courseInstallmentOffset = installmentIndex
+                sequentialCourseIndex = courseAmounts.findIndex((item) => {
+                  if (item.isPendingSequentialCourse) return false
+                  if (courseInstallmentOffset < item.installmentCount) return true
+                  courseInstallmentOffset -= item.installmentCount
+                  return false
+                })
+              }
+              const allocatedAmounts = hasSequentialInstallmentCounts
+                ? courseAmounts.map((_, index) => index === sequentialCourseIndex ? installmentAmount : 0)
+                : savedAllocations.length
                 ? courseAmounts.map((item, index) => {
                   const savedAllocation = savedAllocations.find((allocation) => (
                     String(allocation.courseId || '').trim() === item.courseId ||
@@ -10791,7 +10812,9 @@ else {
                   ? allocateSequentially(installmentAmount, courseAmounts.map((item, index) => item.amount - scheduledByCourse[index]))
                   : distributeAmount(installmentAmount, courseAmounts.map((item) => item.amount))
               const paidAmounts = isSequentialArrangement
-                ? allocateSequentially(installmentPaid, allocatedAmounts)
+                ? hasSequentialInstallmentCounts
+                  ? courseAmounts.map((_, index) => index === sequentialCourseIndex ? installmentPaid : 0)
+                  : allocateSequentially(installmentPaid, allocatedAmounts)
                 : distributeAmount(installmentPaid, weights)
 
               courseAmounts.forEach((item, index) => {
@@ -10836,17 +10859,32 @@ else {
                   courseName: item.courseName,
                 })
                 : null
-              const progressValue = Number.isFinite(savedProgress)
-                ? Math.min(100, Math.max(0, savedProgress))
-                : Number.isFinite(Number(progressSummary?.courseProgress))
-                  ? Math.min(100, Math.max(0, Number(progressSummary.courseProgress)))
+              const computedProgress = Number(progressSummary?.courseProgress)
+              // Sequential course enrollment records may contain a default
+              // courseProgress: 0 even after faculty has logged work for that
+              // course. Prefer the course-specific work summary in that case
+              // so a stale zero does not hide the faculty's progress.
+              const progressValue = Number.isFinite(computedProgress)
+                ? Math.min(100, Math.max(0, Math.max(Number.isFinite(savedProgress) ? savedProgress : 0, computedProgress)))
+                : Number.isFinite(savedProgress)
+                  ? Math.min(100, Math.max(0, savedProgress))
                   : 0
               const courseInstallments = installmentRowsByCourse[index]
               const nextCourseInstallment = courseInstallments.find((installment) => Number(installment.paidAmount || 0) < Number(installment.amount || 0))
               const nextCourseDueDate = nextCourseInstallment?.dueDate || nextCourseInstallment?.date || ''
               const coursePaidAmount = Math.min(item.amount, paidByCourse[index])
               const paidPercentage = item.amount > 0 ? Math.min(100, (coursePaidAmount / item.amount) * 100) : 0
+              const courseStartDate = item.entry.courseStartDate || item.entry.startDate || ''
+              const parsedCourseStartDate = courseStartDate
+                ? new Date(`${String(courseStartDate).slice(0, 10)}T00:00:00`)
+                : null
+              const isSequentialCourseNotStarted = isSequentialArrangement
+                && parsedCourseStartDate
+                && !Number.isNaN(parsedCourseStartDate.getTime())
+                && parsedCourseStartDate >= today
               const courseStatus = item.isPendingSequentialCourse
+                ? 'Upcoming'
+                : isSequentialCourseNotStarted
                 ? 'Upcoming'
                 : coursePaidAmount >= item.amount && item.amount > 0
                 ? 'Completed'
@@ -11005,7 +11043,7 @@ else {
                               onClick={(event) => event.stopPropagation()}
                             >
                               <button type="button" role="menuitem" onClick={() => { setStudentActionMenuId(''); setStudentActionMenuPosition({ top: 0, left: 0 }); openStudentViewDrawer(stu) }}><Eye size={15} /><span>View</span></button>
-                              <button type="button" role="menuitem" onClick={() => { setStudentActionMenuId(''); setStudentActionMenuPosition({ top: 0, left: 0 }); setAttendanceReportTarget({ mode: 'student', record: stu }) }}><Download size={15} /><span>Download Attendance</span></button>
+                              <button type="button" role="menuitem" onClick={() => { setStudentActionMenuId(''); setStudentActionMenuPosition({ top: 0, left: 0 }); setAttendanceReportTarget({ mode: 'student', record: stu, courseId: isSequentialArrangement ? courseRow.courseId : '' }) }}><Download size={15} /><span>Download Attendance</span></button>
                               <button type="button" role="menuitem" onClick={() => { setStudentActionMenuId(''); setStudentActionMenuPosition({ top: 0, left: 0 }); openEditStudentForm({ ...stu }) }}><Pencil size={15} /><span>Edit</span></button>
                               <button type="button" role="menuitem" onClick={() => { setStudentActionMenuId(''); setStudentActionMenuPosition({ top: 0, left: 0 }); openRecordPaymentConfirmation(stu, courseRow) }}><Wallet size={15} /><span>Record Payment</span></button>
                               <button type="button" className="is-danger" role="menuitem" onClick={() => { setStudentActionMenuId(''); setStudentActionMenuPosition({ top: 0, left: 0 }); setStudentDeleteTarget({ ...stu }) }}><Trash2 size={15} /><span>Delete</span></button>
@@ -17237,7 +17275,7 @@ else {
                 {isSequentialPending ? (
                   <>
                     <p className="student-course-card-pending-copy">Upcoming course. Select its schedule, mode, batch, and start date after the first course is completed.</p>
-                    {(() => { const summary = getAllocatedStudentDiscount(courseId, draft, studentSelectedCourseIds, studentArrangementType, studentCommonDiscount, course?.amount || 0); const sharePercent = studentCommonDiscount.type === 'PERCENTAGE' ? ` (${(Number(studentCommonDiscount.value || 0) / studentSelectedCourseIds.length).toFixed(2)}%)` : ''; return <div className="student-course-discount-summary"><span>Course Amount <strong>{formatBranchRupees(summary.totalCourseAmount)}</strong></span><span>Discount Share <strong>{formatBranchRupees(summary.discountAmount)}{sharePercent}</strong></span><span>Final Course Amount <strong>{formatBranchRupees(summary.finalCourseAmount)}</strong></span></div> })()}
+                    {(() => { const summary = getAllocatedStudentDiscount(courseId, draft, studentSelectedCourseIds, studentArrangementType, studentCommonDiscount, course?.amount || 0); const sharePercent = studentCommonDiscount.type === 'PERCENTAGE' ? ` (${(Number(studentCommonDiscount.value || 0) / studentSelectedCourseIds.length).toFixed(2)}%)` : ''; return <div className="student-course-discount-summary student-course-pending-discount-summary"><span>Course Amount <strong>{formatBranchRupees(summary.totalCourseAmount)}</strong></span><span>Discount Share <strong>{formatBranchRupees(summary.discountAmount)}{sharePercent}</strong></span><span>Final Course Amount <strong>{formatBranchRupees(summary.finalCourseAmount)}</strong></span></div> })()}
                   </>
                 ) : <div className="student-course-card-grid">
                   <Field label="Class Schedule" required>
@@ -17662,9 +17700,11 @@ else {
           </div>
         ) : null}
         <BranchAttendanceReportModal
+          key={`${attendanceReportTarget?.mode || ''}:${attendanceReportTarget?.record?.id || attendanceReportTarget?.record?.studentId || attendanceReportTarget?.record?.batchId || ''}:${attendanceReportTarget?.courseId || ''}`}
           isOpen={Boolean(attendanceReportTarget)}
           mode={attendanceReportTarget?.mode || 'student'}
           record={attendanceReportTarget?.record}
+          courseId={attendanceReportTarget?.courseId || ''}
           branchId={branchProfile?.id || branchProfile?.branchId || branchData?.id || branchData?.branchId || ''}
           onClose={() => setAttendanceReportTarget(null)}
         />

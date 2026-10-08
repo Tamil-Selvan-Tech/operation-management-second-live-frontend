@@ -61,11 +61,15 @@ function isFacultyWorkEntryForStudent(entry = {}, student = {}) {
 
   const applyToAllStudents = Boolean(entry.applyToAllStudents)
   const entryStudentIds = getWorkStudentIds(entry)
-  const studentId = normalizeWorkStudentId(student.id || student.studentId || '')
+  const studentIds = Array.from(new Set([
+    student.id,
+    student.studentId,
+    student.studentCode,
+  ].map(normalizeWorkStudentId).filter(Boolean)))
   const studentCourseId = normalizeWorkStudentId(student.courseId || student.course?.id || '')
   const entryCourseId = normalizeWorkStudentId(entry.courseId || '')
 
-  const isTargetedStudent = applyToAllStudents || (studentId && entryStudentIds.includes(studentId))
+  const isTargetedStudent = applyToAllStudents || studentIds.some((studentId) => entryStudentIds.includes(studentId))
   if (!isTargetedStudent) return false
 
   if (entryCourseId && studentCourseId && entryCourseId !== studentCourseId) {

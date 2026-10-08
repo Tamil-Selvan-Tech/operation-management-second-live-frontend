@@ -3,12 +3,90 @@ function clampPercentage(value) {
   return Math.min(100, Math.max(0, value))
 }
 
-export function getStudentPaymentProgress(student = {}) {
+export function getStudentPaymentProgress(student = {}, courseScope = {}) {
   const installments = Array.isArray(student.installmentSchedule)
     ? student.installmentSchedule
     : Array.isArray(student.paymentPlan?.installments)
       ? student.paymentPlan.installments
       : []
+
+  // Sequential enrollments share one installment schedule at the student
+  // level. Attribute each installment to courses in sequence so a payment
+  // made for an earlier course is not shown against a later course's batch.
+  const courseEnrollments = Array.isArray(student.courseEnrollments)
+    ? [...student.courseEnrollments].sort((left, right) => Number(left?.sequenceOrder || 0) - Number(right?.sequenceOrder || 0))
+    : Array.isArray(student.courses)
+      ? [...student.courses].sort((left, right) => Number(left?.sequenceOrder || 0) - Number(right?.sequenceOrder || 0))
+      : []
+  const sequential = String(student.arrangementType || student.enrollmentType || '').trim().toUpperCase() === 'SEQUENTIAL'
+  const scopeCourseId = String(courseScope.courseId || '').trim()
+  const scopeCourseName = String(courseScope.courseName || '').trim().toLowerCase()
+  const scopedEnrollmentIndex = courseEnrollments.findIndex((enrollment) => {
+    const enrollmentCourseId = String(enrollment?.courseId || enrollment?.course?.id || enrollment?.id || '').trim()
+    const enrollmentCourseName = String(enrollment?.courseName || enrollment?.course?.name || enrollment?.name || '').trim().toLowerCase()
+    return (scopeCourseId && enrollmentCourseId === scopeCourseId) || (!scopeCourseId && scopeCourseName && enrollmentCourseName === scopeCourseName)
+  })
+
+  if (sequential && courseEnrollments.length > 1 && scopedEnrollmentIndex >= 0 && installments.length) {
+    const courseAmounts = courseEnrollments.map((enrollment) => Math.max(Number(
+      enrollment?.finalCourseAmount ??
+      enrollment?.totalCourseAmount ??
+      enrollment?.courseAmount ??
+      enrollment?.totalAmount ??
+      enrollment?.afterDiscount ??
+      0,
+    ) || 0, 0))
+    const paidByCourse = courseAmounts.map(() => 0)
+    const scheduledByCourse = courseAmounts.map(() => 0)
+
+    const allocateSequentially = (amount, capacities) => {
+      let remaining = Math.max(Number(amount) || 0, 0)
+      return capacities.map((capacity) => {
+        const allocated = Math.min(remaining, Math.max(Number(capacity) || 0, 0))
+        remaining -= allocated
+        return allocated
+      })
+    }
+
+    installments.forEach((installment) => {
+      const amount = Math.max(Number(installment?.amount ?? installment?.installmentAmount ?? 0) || 0, 0)
+      const paid = Math.min(amount, Math.max(Number(installment?.paidAmount ?? installment?.amountPaid ?? 0) || 0, 0))
+      const savedAllocations = Array.isArray(installment?.courseAllocations) ? installment.courseAllocations : []
+      let allocations
+
+      if (savedAllocations.length) {
+        allocations = courseEnrollments.map((enrollment, index) => {
+          const enrollmentCourseId = String(enrollment?.courseId || enrollment?.course?.id || enrollment?.id || '').trim()
+          const enrollmentCourseName = String(enrollment?.courseName || enrollment?.course?.name || enrollment?.name || '').trim().toLowerCase()
+          const saved = savedAllocations.find((allocation) => (
+            (enrollmentCourseId && String(allocation?.courseId || '').trim() === enrollmentCourseId) ||
+            (enrollmentCourseName && String(allocation?.courseName || '').trim().toLowerCase() === enrollmentCourseName)
+          ))
+          return Math.min(Math.max(Number(saved?.allocatedAmount ?? saved?.amount ?? 0) || 0, 0), Math.max(courseAmounts[index] - scheduledByCourse[index], 0))
+        })
+      } else {
+        allocations = allocateSequentially(amount, courseAmounts.map((total, index) => total - scheduledByCourse[index]))
+      }
+
+      const paidAllocations = allocateSequentially(paid, allocations)
+      allocations.forEach((allocation, index) => {
+        scheduledByCourse[index] += allocation
+        paidByCourse[index] += Math.min(allocation, paidAllocations[index])
+      })
+    })
+
+    const totalFee = courseAmounts[scopedEnrollmentIndex]
+    const paidAmount = Math.min(totalFee, paidByCourse[scopedEnrollmentIndex])
+    const percentage = totalFee > 0 ? (paidAmount / totalFee) * 100 : 0
+    return {
+      totalFee,
+      paidAmount,
+      paidInstallments: 0,
+      totalInstallments: 0,
+      paidInstallmentPercentage: clampPercentage(percentage),
+      pendingAmount: Math.max(totalFee - paidAmount, 0),
+    }
+  }
 
   const statusFields = [
     student.firstInstallmentStatus,

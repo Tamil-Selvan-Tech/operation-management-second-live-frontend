@@ -160,6 +160,17 @@
 .student360-assignment-fields label { display: grid; gap: 6px; color: #475569; font-size: 11px; font-weight: 750; }
 .student360-assignment-fields input, .student360-assignment-fields select { width: 100%; min-height: 38px; box-sizing: border-box; padding: 0 10px; border: 1px solid #dbe5f2; border-radius: 9px; color: #0f172a; background: #fff; font: inherit; font-size: 12px; }
 .student360-assignment-fields input[readonly] { background: #f8fafc; }
+.student360-assignment-payment-schedule { margin-top: 14px; padding: 12px; border: 1px solid #dbe5f2; border-radius: 12px; background: #fff; }
+.student360-assignment-payment-schedule-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; margin-bottom: 10px; }
+.student360-assignment-payment-schedule-heading > div { display: grid; gap: 4px; }
+.student360-assignment-payment-schedule-heading h3 { margin: 0; color: #0f172a; font-size: 14px; }
+.student360-assignment-payment-schedule-heading span { color: #64748b; font-size: 12px; }
+.student360-assignment-payment-schedule-heading strong { color: #0f172a; font-size: 13px; }
+.student360-assignment-payment-table-wrap { overflow-x: auto; }
+.student360-assignment-payment-table-wrap table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.student360-assignment-payment-table-wrap th, .student360-assignment-payment-table-wrap td { padding: 9px 8px; border-bottom: 1px solid #e8edf5; text-align: left; }
+.student360-assignment-payment-table-wrap th { color: #64748b; background: #f8fafc; font-weight: 750; }
+.student360-assignment-payment-table-wrap td:last-child, .student360-assignment-payment-table-wrap th:last-child { text-align: right; }
 .student360-assignment-error, .student360-assignment-hint { margin: 14px 0 0; color: #b42318; font-size: 12px; }
 .student360-assignment-hint { color: #64748b; }
 .student360-assignment-actions { display: flex; justify-content: flex-end; gap: 9px; margin-top: 14px; }

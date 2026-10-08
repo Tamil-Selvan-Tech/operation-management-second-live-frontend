@@ -21,7 +21,7 @@ import { attendanceToday } from '../lib/branchAttendanceSummary'
 import { getBranchStudentSyllabusReports } from '../services/examService'
 import { getBranchStudentAcademicReports } from '../services/academicTestService'
 import { buildFacultyTodayWorkProgressSummary } from '../lib/facultyProgress'
-import { saveBranchStudent } from '../lib/branchStudentStore'
+import { previewBranchStudentFeePlan, saveBranchStudent } from '../lib/branchStudentStore'
 
 import './Student360Page.css'
 
@@ -60,6 +60,19 @@ function calculateEnrollmentFinalFee(enrollment = {}, baseAmount = 0) {
   return Math.max(Math.round((total - discountAmount) * 100) / 100, 0)
 }
 
+function buildSequentialInstallmentAmounts(totalFee = 0, count = 1) {
+  const safeCount = Math.max(1, Number(count) || 1)
+  const safeTotal = Math.max(0, Math.round(Number(totalFee) || 0))
+  if (safeCount === 1) return [safeTotal]
+
+  let installmentAmount = Math.round((safeTotal / safeCount) / 1000) * 1000
+  while (installmentAmount > 0 && installmentAmount * (safeCount - 1) > safeTotal) {
+    installmentAmount -= 1000
+  }
+  const finalInstallmentAmount = Math.round((safeTotal - installmentAmount * (safeCount - 1)) * 100) / 100
+  return [...Array.from({ length: safeCount - 1 }, () => installmentAmount), finalInstallmentAmount]
+}
+
 function getStudentKeys(student = {}) {
   return [student.id, student._id, student.studentId, student.recordId]
     .map((value) => String(value || '').trim().toLowerCase())
@@ -83,6 +96,27 @@ function getPaymentSchedule(student = {}) {
       status: student[`${number === 1 ? 'first' : number === 2 ? 'second' : number === 3 ? 'third' : 'fourth'}InstallmentStatus`] || 'Pending',
     }))
     .filter((item) => item.amount || item.dueDate)
+}
+
+function getEnrollmentInstallmentCount(enrollment = {}, branchCourseCards = []) {
+  const courseId = String(enrollment.courseId || enrollment.id || '').trim()
+  const courseName = String(enrollment.courseName || enrollment.name || '').trim().toLowerCase()
+  const course = branchCourseCards.find((item) => (
+    (courseId && String(item?.id || item?.courseId || '').trim() === courseId) ||
+    (courseName && String(item?.name || '').trim().toLowerCase() === courseName)
+  ))
+  const plans = Array.isArray(course?.paymentPlans)
+    ? course.paymentPlans
+    : Array.isArray(course?.paymentPlanSelections)
+      ? course.paymentPlanSelections
+      : []
+  const selectedPlan = plans.find((plan) => [plan?.id, plan?.templateId, plan?.paymentPlanId]
+    .some((id) => String(id || '').trim() === String(enrollment.paymentPlanId || '').trim()))
+  const planLabelCount = String(enrollment.paymentPlan || enrollment.paymentPlanName || '').match(/(\d+)\s*installment/i)
+  return Math.max(0, Number(
+    selectedPlan?.installmentCount || selectedPlan?.installments?.length ||
+    enrollment.installmentCount || enrollment.installmentSchedule?.length || planLabelCount?.[1] || 0,
+  ) || 0)
 }
 
 function getAcademicTestProgress(profile = {}, report = {}) {
@@ -568,6 +602,96 @@ function SectionCard({ title, description, actions, children, className = '', id
   )
 }
 
+function SequentialCoursePaymentSchedule({ courseId, batch, startDate, amount, installmentCount, paymentPlan, onPreview }) {
+  const [dueDates, setDueDates] = useState([])
+  const [deadline, setDeadline] = useState('')
+  const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false)
+  const paymentPlanId = paymentPlan?.id || ''
+
+  useEffect(() => {
+    if (!paymentPlan || !batch?.batchId || !startDate || !(amount > 0) || !installmentCount) {
+      let cancelled = false
+      queueMicrotask(() => {
+        if (cancelled) return
+        setDueDates([])
+        setDeadline('')
+        setError('')
+        setLoading(false)
+        onPreview?.({ dueDates: [], deadline: '', error: '', loading: false })
+      })
+      return () => { cancelled = true }
+    }
+
+    let cancelled = false
+    const installmentAmounts = buildSequentialInstallmentAmounts(amount, installmentCount)
+
+    queueMicrotask(() => {
+      if (cancelled) return
+      setDueDates([])
+      setDeadline('')
+      setError('')
+      setLoading(true)
+      onPreview?.({ dueDates: [], deadline: '', error: '', loading: true })
+    })
+    void previewBranchStudentFeePlan({
+      courseId,
+      batchId: batch.batchId,
+      admissionDate: startDate,
+      courseStartDate: startDate,
+      courseMode: batch.mode,
+      courseAmount: amount,
+      feeFirstPaymentDate: startDate,
+      installmentSchedule: installmentAmounts.map((installmentAmount, index) => ({
+        installmentNumber: index + 1,
+        amount: installmentAmount,
+      })),
+    }).then((preview) => {
+      if (cancelled) return
+      const installments = Array.isArray(preview?.installmentSchedule) ? preview.installmentSchedule : []
+      const nextDueDates = installments.map((item) => String(item?.dueDate || '').slice(0, 10))
+      const nextDeadline = String(preview?.feePaymentDeadline || preview?.fee70ProgressDate || '').slice(0, 10)
+      const nextError = !installments.length || nextDueDates.some((date) => !date)
+        ? 'Unable to calculate installment dates for this batch.'
+        : ''
+      setDueDates(nextDueDates)
+      setDeadline(nextDeadline)
+      setError(nextError)
+      onPreview?.({ dueDates: nextDueDates, deadline: nextDeadline, error: nextError, loading: false })
+    }).catch((previewError) => {
+      if (cancelled) return
+      const nextError = previewError?.message || 'Unable to calculate the 70% payment deadline for this batch.'
+      setDueDates([])
+      setDeadline('')
+      setError(nextError)
+      onPreview?.({ dueDates: [], deadline: '', error: nextError, loading: false })
+    }).finally(() => {
+      if (!cancelled) setLoading(false)
+    })
+
+    return () => { cancelled = true }
+  }, [amount, batch?.batchId, batch?.mode, courseId, installmentCount, onPreview, paymentPlan, paymentPlanId, startDate])
+
+  if (!paymentPlan) return null
+
+  return (
+    <section className="student360-assignment-payment-schedule">
+      <div className="student360-assignment-payment-schedule-heading">
+        <div><h3>Payment Schedule</h3><span>{paymentPlan.templateName || paymentPlan.name || 'Selected Payment Plan'}</span></div>
+        <div><span>70% Payment Deadline</span><strong>{deadline ? formatDate(deadline) : loading ? 'Calculating…' : '-'}</strong></div>
+      </div>
+      <div className="student360-assignment-payment-table-wrap">
+        <table><thead><tr><th>Installment</th><th>Amount</th><th>Due Date</th></tr></thead><tbody>
+          {buildSequentialInstallmentAmounts(amount, installmentCount).map((installmentAmount, index) => (
+            <tr key={`assignment-installment-${index}`}><td>Installment {index + 1}</td><td>{formatCurrency(installmentAmount)}</td><td>{dueDates[index] ? formatDate(dueDates[index]) : loading ? 'Calculating…' : '-'}</td></tr>
+          ))}
+        </tbody></table>
+      </div>
+      {error ? <p className="student360-assignment-error" role="alert">{error}</p> : null}
+    </section>
+  )
+}
+
 export function Student360Page({
   studentId = '',
   student: initialStudent = null,
@@ -594,7 +718,15 @@ export function Student360Page({
   const [assignmentModalOpen, setAssignmentModalOpen] = useState(false)
   const [assignmentSaving, setAssignmentSaving] = useState(false)
   const [assignmentError, setAssignmentError] = useState('')
+  const [assignmentInstallmentDueDates, setAssignmentInstallmentDueDates] = useState([])
+  const [assignmentPreviewError, setAssignmentPreviewError] = useState('')
+  const [assignmentPreviewLoading, setAssignmentPreviewLoading] = useState(false)
   const [assignmentForm, setAssignmentForm] = useState({ schedule: '', mode: '', batchId: '', startDate: '', endDate: '', totalCourseAmount: '', paymentPlanId: '' })
+  const handleAssignmentPreview = useCallback((preview = {}) => {
+    if (Object.hasOwn(preview, 'dueDates')) setAssignmentInstallmentDueDates(preview.dueDates)
+    if (Object.hasOwn(preview, 'error')) setAssignmentPreviewError(preview.error)
+    if (Object.hasOwn(preview, 'loading')) setAssignmentPreviewLoading(preview.loading)
+  }, [])
 
   useEffect(() => {
     initialStudentRef.current = initialStudent
@@ -666,6 +798,21 @@ export function Student360Page({
       String(course?.name || '').trim().toLowerCase() === String(selectedCourse.courseName || '').trim().toLowerCase()
     ))
     : null
+  const isSequentialMultiCourseStudent = isMultiCourseStudent
+    && String(student.arrangementType || '').trim().toUpperCase() === 'SEQUENTIAL'
+  const courseInstallmentCounts = isSequentialMultiCourseStudent
+    ? courseEnrollments.map((enrollment) => getEnrollmentInstallmentCount(enrollment, branchCourseCards))
+    : []
+  const selectedCourseInstallmentOffset = isSequentialMultiCourseStudent
+    ? courseInstallmentCounts.slice(0, selectedCourseIndex).reduce((sum, count) => sum + count, 0)
+    : 0
+  const selectedCourseInstallmentCount = isSequentialMultiCourseStudent
+    ? courseInstallmentCounts[selectedCourseIndex] || 0
+    : 0
+  const displayedSchedule = isSequentialMultiCourseStudent
+    ? schedule.slice(selectedCourseInstallmentOffset, selectedCourseInstallmentOffset + selectedCourseInstallmentCount)
+      .map((item, index) => ({ ...item, sourceInstallmentNumber: item.installmentNumber || item.number || selectedCourseInstallmentOffset + index + 1, installmentNumber: index + 1, number: index + 1 }))
+    : schedule
   const priorCoursesCompleted = selectedCourseIndex > 0 && courseEnrollments.slice(0, selectedCourseIndex).every((enrollment) => {
     const isPrimaryEnrollment = String(enrollment.courseId || '') === String(student.courseId || student.course?.id || '')
     const savedProgress = enrollment.courseProgress ?? (isPrimaryEnrollment ? student.courseProgress : null)
@@ -685,6 +832,12 @@ export function Student360Page({
   })
   const isSelectedCoursePending = String(selectedCourse.status || '').toUpperCase() === 'PENDING'
   const isAwaitingSelectedCourseSchedule = isSelectedCoursePending && priorCoursesCompleted
+  const isEditingSelectedCourseAssignment = selectedCourseIndex > 0
+    && String(selectedCourse.status || '').toUpperCase() === 'ACTIVE'
+    && Boolean(selectedCourse.batchId)
+  const canManageSelectedCourseSchedule = selectedCourseIndex > 0
+    && priorCoursesCompleted
+    && (isSelectedCoursePending || isEditingSelectedCourseAssignment)
   const selectedCourseRealBatches = branchBatchGroups
     .filter((group) => String(group?.courseId || group?.branchCourseId || '').trim() === String(selectedCourse.courseId || '').trim())
     .filter((group) => String(group?.status || 'ACTIVE').toUpperCase() === 'ACTIVE')
@@ -723,6 +876,11 @@ export function Student360Page({
     ? (assignmentForm.endDate || resolveCourseEndDate?.(assignmentForm.startDate, selectedAssignmentBatch, selectedCourseCatalog) || selectedAssignmentBatch.courseEndDate || '')
     : ''
   const selectableAssignmentBatches = matchingAssignmentBatches.filter((batch) => !isAssignmentBatchFull?.(batch))
+  const assignmentBatchOptions = isEditingSelectedCourseAssignment && selectedAssignmentBatch
+    && !selectableAssignmentBatches.some((batch) => batch.batchId === selectedAssignmentBatch.batchId)
+    ? [selectedAssignmentBatch, ...selectableAssignmentBatches]
+    : selectableAssignmentBatches
+
   const selectedCourseProgressSummary = isMultiCourseStudent && selectedCourseCatalog
     ? buildFacultyTodayWorkProgressSummary(facultyTodayWorkEntries, selectedCourseCatalog, {
       ...student,
@@ -737,25 +895,100 @@ export function Student360Page({
   const selectedCourseProgressValue = Number.isFinite(selectedCourseProgress)
     ? Math.min(100, Math.max(0, selectedCourseProgress))
     : null
-  const totalFee = Number(student.finalFee ?? student.courseAmount ?? student.totalAmount ?? student.afterDiscount ?? 0)
-  const paidAmount = schedule.length
-    ? schedule.reduce((sum, item) => sum + Number(item.paidAmount ?? item.amountPaid ?? 0), 0)
-    : Number(student.paidAmount ?? student.totalPaid ?? student.amountPaid ?? 0)
-  const feeProgress = totalFee > 0 ? Math.min(100, Math.max(0, (paidAmount / totalFee) * 100)) : 0
-  const studentPayments = paymentHistory.filter((payment) => {
+  const allStudentPayments = paymentHistory.filter((payment) => {
     const paymentKeys = getStudentKeys({ studentId: payment.studentId })
     return paymentKeys.some((key) => studentKeys.includes(key))
   })
+  const getGlobalPaymentInstallmentNumber = (payment = {}) => {
+    const installmentId = String(payment.installmentId || payment.installment?.id || '').trim()
+    const linkedInstallment = installmentId
+      ? schedule.find((item) => String(item.id || '').trim() === installmentId)
+      : null
+    if (linkedInstallment) return Number(linkedInstallment.installmentNumber || linkedInstallment.number || 0)
+    const payAgainstMatch = String(payment.payAgainst || '').match(/installment\s+(\d+)/i)
+    return Number(
+      payment.installment?.installmentNumber ?? payment.installmentNumber ?? payment.paymentInstallmentNumber ?? payAgainstMatch?.[1] ?? 0,
+    )
+  }
+  const studentPayments = isSequentialMultiCourseStudent
+    ? allStudentPayments.filter((payment) => {
+      const globalInstallmentNumber = getGlobalPaymentInstallmentNumber(payment)
+      if (globalInstallmentNumber > 0) {
+        return globalInstallmentNumber > selectedCourseInstallmentOffset
+          && globalInstallmentNumber <= selectedCourseInstallmentOffset + selectedCourseInstallmentCount
+      }
+      const installmentId = String(payment.installmentId || payment.installment?.id || '').trim()
+      return Boolean(installmentId && displayedSchedule.some((item) => String(item.id || '').trim() === installmentId))
+    }).map((payment) => {
+      const globalInstallmentNumber = getGlobalPaymentInstallmentNumber(payment)
+      return globalInstallmentNumber > 0
+        ? { ...payment, installmentNumber: globalInstallmentNumber - selectedCourseInstallmentOffset }
+        : payment
+    })
+    : allStudentPayments
+  const totalFee = isSequentialMultiCourseStudent
+    ? Number(selectedCourse.finalCourseAmount ?? selectedCourse.totalAmount ?? selectedCourse.afterDiscount ?? calculateEnrollmentFinalFee(
+      selectedCourse,
+      Number(selectedCourse.totalCourseAmount ?? selectedCourse.courseAmount ?? 0),
+    )) || 0
+    : Number(student.finalFee ?? student.courseAmount ?? student.totalAmount ?? student.afterDiscount ?? 0)
+  const paidAmount = isSequentialMultiCourseStudent
+    ? displayedSchedule.length
+      ? displayedSchedule.reduce((sum, item) => sum + Number(item.paidAmount ?? item.amountPaid ?? 0), 0)
+      : studentPayments.reduce((sum, payment) => sum + Number(payment.amount || 0), 0)
+    : schedule.length
+      ? schedule.reduce((sum, item) => sum + Number(item.paidAmount ?? item.amountPaid ?? 0), 0)
+      : Number(student.paidAmount ?? student.totalPaid ?? student.amountPaid ?? 0)
+  const feeProgress = totalFee > 0 ? Math.min(100, Math.max(0, (paidAmount / totalFee) * 100)) : 0
+  const ledgerEntries = studentPayments.length
+    ? studentPayments
+    : displayedSchedule
+      .filter((item) => Number(item.paidAmount ?? item.amountPaid ?? 0) > 0 || String(item.status || '').toLowerCase() === 'paid')
+      .map((item, index) => ({
+        id: item.id || `installment-${index + 1}`,
+        amount: item.paidAmount ?? item.amountPaid ?? item.amount,
+        date: item.paidDate || item.paymentDate || item.date,
+        paymentMode: item.paymentMode || item.mode,
+        installmentNumber: item.installmentNumber || item.number || index + 1,
+      }))
+  const paymentStudentContext = isSequentialMultiCourseStudent
+    ? {
+      ...student,
+      courseId: selectedCourse.courseId,
+      courseName: selectedCourse.courseName,
+      courseAmount: totalFee,
+      totalCourseFee: totalFee,
+      finalFee: totalFee,
+      totalAmount: totalFee,
+      paidAmount,
+      totalPaid: paidAmount,
+      paymentCourseScoped: true,
+      paymentCourseId: selectedCourse.courseId,
+      installmentSchedule: displayedSchedule,
+    }
+    : student
   const openScheduleBatchModal = () => {
     setAssignmentError('')
+    setAssignmentPreviewError('')
+    setAssignmentInstallmentDueDates([])
     const defaultFee = selectedCourse.totalCourseAmount ?? selectedCourse.courseAmount ?? selectedCourseCatalog?.amount ?? selectedCourseCatalog?.actualFees ?? selectedCourseCatalog?.afterDiscount ?? ''
     const defaultPlan = selectedCourse.paymentPlanId || selectedCourseCatalog?.paymentPlans?.[0]?.id || ''
-    setAssignmentForm({ schedule: '', mode: '', batchId: '', startDate: String(selectedCourse.courseStartDate || '').slice(0, 10), endDate: String(selectedCourse.courseEndDate || '').slice(0, 10), totalCourseAmount: String(defaultFee || ''), paymentPlanId: String(defaultPlan || '') })
+    const savedSchedule = String(selectedCourse.weekType || selectedCourse.scheduleType || selectedCourse.classSchedule || '').toUpperCase()
+    const savedMode = String(selectedCourse.mode || selectedCourse.courseMode || '').toUpperCase()
+    setAssignmentForm({
+      schedule: savedSchedule.includes('WEEKEND') ? 'WEEKEND' : savedSchedule.includes('WEEKDAY') ? 'WEEKDAY' : '',
+      mode: savedMode,
+      batchId: String(selectedCourse.batchId || ''),
+      startDate: String(selectedCourse.startDate || selectedCourse.courseStartDate || '').slice(0, 10),
+      endDate: String(selectedCourse.endDate || selectedCourse.courseEndDate || '').slice(0, 10),
+      totalCourseAmount: String(defaultFee || ''),
+      paymentPlanId: String(defaultPlan || ''),
+    })
     setAssignmentModalOpen(true)
   }
   const saveScheduleBatchAssignment = async (event) => {
     event.preventDefault()
-    if (!selectedAssignmentBatch || !assignmentForm.startDate || !assignmentEndDate || !(selectedCourseFee > 0) || !selectedAssignmentPaymentPlan) {
+    if (!selectedAssignmentBatch || !assignmentForm.startDate || !assignmentEndDate || !(selectedCourseFee > 0) || !selectedAssignmentPaymentPlan || assignmentPreviewLoading || assignmentPreviewError || assignmentInstallmentDueDates.length !== selectedPaymentInstallmentCount) {
       setAssignmentError('Select a schedule, mode, available batch, course fee, payment plan and course dates.')
       return
     }
@@ -768,20 +1001,67 @@ export function Student360Page({
       remarks: item.remarks || null,
       paidAt: item.paidAt || null,
     }))
-    const feeParts = Array.from({ length: selectedPaymentInstallmentCount }, (_, index) => {
-      const baseAmount = Math.floor(selectedCourseFinalFee / selectedPaymentInstallmentCount)
-      const amount = index === selectedPaymentInstallmentCount - 1
-        ? selectedCourseFinalFee - baseAmount * (selectedPaymentInstallmentCount - 1)
-        : baseAmount
+    const feeParts = buildSequentialInstallmentAmounts(selectedCourseFinalFee, selectedPaymentInstallmentCount).map((amount, index) => {
       const dueDate = new Date(`${assignmentForm.startDate}T00:00:00`)
       dueDate.setMonth(dueDate.getMonth() + index)
       return {
-        installmentNumber: existingInstallments.length + index + 1,
+        installmentNumber: index + 1,
         amount,
-        dueDate: `${dueDate.getFullYear()}-${String(dueDate.getMonth() + 1).padStart(2, '0')}-${String(dueDate.getDate()).padStart(2, '0')}`,
+        dueDate: assignmentInstallmentDueDates[index] || `${dueDate.getFullYear()}-${String(dueDate.getMonth() + 1).padStart(2, '0')}-${String(dueDate.getDate()).padStart(2, '0')}`,
         status: 'Pending',
       }
     })
+    const previousCourseInstallmentCount = courseEnrollments
+      .slice(0, selectedCourseIndex)
+      .reduce((total, enrollment, index) => {
+        const catalog = branchCourseCards.find((course) => (
+          String(course?.id || course?.courseId || '').trim() === String(enrollment.courseId || '').trim()
+          || String(course?.name || '').trim().toLowerCase() === String(enrollment.courseName || '').trim().toLowerCase()
+        ))
+        const planId = enrollment.paymentPlanId || (index === 0 ? student.paymentPlanId : '')
+        const plan = catalog?.paymentPlans?.find((item) => [item.id, item.templateId, item.paymentPlanId]
+          .some((id) => String(id || '').trim() === String(planId || '').trim()))
+        return total + Math.max(0, Number(plan?.installmentCount || plan?.installments?.length || 0))
+      }, 0)
+    const oldSelectedPlanCount = Math.max(0, Number(selectedCourseCatalog?.paymentPlans?.find((item) => [item.id, item.templateId, item.paymentPlanId]
+      .some((id) => String(id || '').trim() === String(selectedCourse.paymentPlanId || '').trim()))?.installmentCount || 0))
+    const previousCoursesFinalFee = courseEnrollments.slice(0, selectedCourseIndex).reduce((total, item) => {
+      const grossAmount = Number(item.totalCourseAmount ?? item.courseAmount ?? item.totalAmount ?? 0) || 0
+      return total + calculateEnrollmentFinalFee(item, grossAmount)
+    }, 0)
+    const existingScheduleTotal = existingInstallments.reduce((total, item) => total + item.amount, 0)
+    const existingScheduleIncludesSelectedCourse = existingScheduleTotal > previousCoursesFinalFee + 0.01
+    const installmentStartIndex = isEditingSelectedCourseAssignment
+      ? previousCourseInstallmentCount || (existingScheduleIncludesSelectedCourse && existingInstallments.length >= oldSelectedPlanCount
+        ? existingInstallments.length - oldSelectedPlanCount
+        : existingInstallments.length)
+      : existingInstallments.length
+    const existingSelectedCourseInstallmentCount = Math.max(existingInstallments.length - installmentStartIndex, 0)
+    const oldSelectedInstallmentCount = oldSelectedPlanCount
+      ? Math.min(oldSelectedPlanCount, existingSelectedCourseInstallmentCount)
+      : existingSelectedCourseInstallmentCount
+    const updatedInstallments = isEditingSelectedCourseAssignment
+      ? [
+        ...existingInstallments.slice(0, installmentStartIndex),
+        ...feeParts.map((item, index) => {
+          const previous = existingInstallments[installmentStartIndex + index]
+          return {
+            ...previous,
+            ...item,
+            installmentNumber: installmentStartIndex + index + 1,
+            status: previous?.status || item.status,
+            paidAmount: previous?.paidAmount ?? previous?.amountPaid,
+            paidAt: previous?.paidAt || null,
+            paymentMethod: previous?.paymentMethod || null,
+            remarks: previous?.remarks || null,
+          }
+        }),
+        ...existingInstallments.slice(installmentStartIndex + oldSelectedInstallmentCount).map((item, index) => ({
+          ...item,
+          installmentNumber: installmentStartIndex + selectedPaymentInstallmentCount + index + 1,
+        })),
+      ]
+      : [...existingInstallments, ...feeParts.map((item, index) => ({ ...item, installmentNumber: existingInstallments.length + index + 1 }))]
     const enrollment = {
       ...selectedCourse,
       courseId: selectedCourse.courseId,
@@ -826,7 +1106,8 @@ export function Student360Page({
         firstCourseId: student.firstCourseId || courseEnrollments[0]?.courseId || '',
         courseEnrollments: nextEnrollments,
         courses: nextEnrollments,
-        installmentSchedule: [...existingInstallments, ...feeParts],
+        installmentSchedule: updatedInstallments,
+        ...(isEditingSelectedCourseAssignment ? { preserveInstallmentDates: true, sequentialCourseActivation: true } : {}),
       })
       setStudentRecord({ studentId: resolvedStudentId, data: savedStudent })
       setAssignmentModalOpen(false)
@@ -836,17 +1117,6 @@ export function Student360Page({
       setAssignmentSaving(false)
     }
   }
-  const ledgerEntries = studentPayments.length
-    ? studentPayments
-    : schedule
-      .filter((item) => Number(item.paidAmount ?? item.amountPaid ?? 0) > 0 || String(item.status || '').toLowerCase() === 'paid')
-      .map((item, index) => ({
-        id: item.id || `installment-${index + 1}`,
-        amount: item.paidAmount ?? item.amountPaid ?? item.amount,
-        date: item.paidDate || item.paymentDate || item.date,
-        paymentMode: item.paymentMode || item.mode,
-        installmentNumber: item.installmentNumber || item.number || index + 1,
-      }))
   const initials = studentName.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]).join('').toUpperCase()
   const status = displayValue(student.status || student.currentStatus, 'Active')
 
@@ -921,7 +1191,7 @@ export function Student360Page({
             <article className="student360-summary-card student360-summary-progress-card"><span className="student360-summary-icon green"><CheckCircle2 size={19} /></span><div><span>Course Progress</span><strong>{Math.round(courseProgress)}%</strong><div className="student360-summary-progress-track"><span style={{ width: `${courseProgress}%` }} /></div><small>{student.courseEndDate ? `End date: ${formatDate(student.courseEndDate)}` : 'End date not set'}</small></div></article>
           </>
         )}
-        <article className={`student360-summary-card student360-summary-academic-progress-card${isSelectedCoursePending ? ' is-upcoming-course' : ''}`}><span className="student360-summary-icon violet"><GraduationCap size={19} /></span><div><span>Academic Test Progress</span>{academicTestProgress ? <><strong>{academicTestProgress.completedTests} / {academicTestProgress.totalTests} Completed</strong><div className="student360-summary-progress-track"><span style={{ width: `${Math.min(100, Math.max(0, Number(academicTestProgress.percentage) || 0))}%` }} /></div><small>{academicTestProgress.totalTests ? `${academicTestProgress.pendingTests} Pending · ${academicTestProgress.percentage}%` : 'No Academic Tests · 0%'}</small></> : <><strong className="student360-summary-loading">{academicTestProgressError ? 'Unavailable' : 'Loading...'}</strong><small>{academicTestProgressError || 'Academic test progress'}</small></>}</div>{isSelectedCoursePending ? priorCoursesCompleted ? <button type="button" className="student360-upcoming-badge student360-schedule-batch-trigger" onClick={openScheduleBatchModal}>Schedule &amp; Batch</button> : <span className="student360-upcoming-badge">Upcoming</span> : null}</article>
+        <article className={`student360-summary-card student360-summary-academic-progress-card${isSelectedCoursePending ? ' is-upcoming-course' : ''}`}><span className="student360-summary-icon violet"><GraduationCap size={19} /></span><div><span>Academic Test Progress</span>{academicTestProgress ? <><strong>{academicTestProgress.completedTests} / {academicTestProgress.totalTests} Completed</strong><div className="student360-summary-progress-track"><span style={{ width: `${Math.min(100, Math.max(0, Number(academicTestProgress.percentage) || 0))}%` }} /></div><small>{academicTestProgress.totalTests ? `${academicTestProgress.pendingTests} Pending · ${academicTestProgress.percentage}%` : 'No Academic Tests · 0%'}</small></> : <><strong className="student360-summary-loading">{academicTestProgressError ? 'Unavailable' : 'Loading...'}</strong><small>{academicTestProgressError || 'Academic test progress'}</small></>}</div>{canManageSelectedCourseSchedule ? <button type="button" className="student360-upcoming-badge student360-schedule-batch-trigger" onClick={openScheduleBatchModal}>{isEditingSelectedCourseAssignment ? 'Edit Schedule & Batch' : 'Schedule & Batch'}</button> : isSelectedCoursePending ? <span className="student360-upcoming-badge">Upcoming</span> : null}</article>
       </section>
 
       <div className="student360-content-grid">
@@ -983,7 +1253,7 @@ export function Student360Page({
             </div>
           </SectionCard>
 
-          <SectionCard title="Fee & Payment Overview" description="Existing payment information for this student." className="student360-anchor-card">
+          <SectionCard title={isSequentialMultiCourseStudent ? `Fee & Payment Overview · ${selectedCourse.courseName}` : 'Fee & Payment Overview'} description="Existing payment information for this student." className="student360-anchor-card">
             <div className="student360-fee-total"><span>Total Fee</span><strong>{formatCurrency(totalFee)}</strong></div>
             <div className="student360-fee-stats"><div><span>Paid</span><strong>{formatCurrency(paidAmount)}</strong></div><div><span>Balance</span><strong>{formatCurrency(Math.max(totalFee - paidAmount, 0))}</strong></div></div>
             <div className="student360-progress-label"><span>Fee Progress</span><strong>{Math.round(feeProgress)}%</strong></div>
@@ -991,27 +1261,27 @@ export function Student360Page({
             <div className="student360-fee-status"><Wallet size={15} /> {displayValue(student.paymentMode, 'Installment')} · {totalFee > 0 && paidAmount >= totalFee ? 'Completed' : 'Pending'}</div>
           </SectionCard>
 
-          <SectionCard title="Installment Schedule" description="Due dates and current status." className="student360-anchor-card">
-            {schedule.length ? <div className="student360-installment-list">{schedule.map((item, index) => <div className="student360-installment-row" key={`${item.id || item.number || index}`}><div><strong>Installment {item.installmentNumber || item.number || index + 1}</strong><span>{formatDate(item.dueDate || item.date)}</span></div><strong>{formatCurrency(item.amount ?? item.installmentAmount)}</strong><span className={`student360-payment-status ${String(item.status || 'Pending').toLowerCase()}`}>{item.status || 'Pending'}</span></div>)}</div> : <div className="student360-no-data">No installment schedule found.</div>}
+          <SectionCard title={isSequentialMultiCourseStudent ? `Installment Schedule · ${selectedCourse.courseName}` : 'Installment Schedule'} description="Due dates and current status." className="student360-anchor-card">
+            {displayedSchedule.length ? <div className="student360-installment-list">{displayedSchedule.map((item, index) => <div className="student360-installment-row" key={`${item.id || item.number || index}`}><div><strong>Installment {item.installmentNumber || item.number || index + 1}</strong><span>{formatDate(item.dueDate || item.date)}</span></div><strong>{formatCurrency(item.amount ?? item.installmentAmount)}</strong><span className={`student360-payment-status ${String(item.status || 'Pending').toLowerCase()}`}>{item.status || 'Pending'}</span></div>)}</div> : <div className="student360-no-data">No installment schedule found.</div>}
           </SectionCard>
 
-          <SectionCard title="Fee Ledger & Invoices" description="Recorded payments and downloadable receipts." className="student360-fee-ledger-card" id="payments">
+          <SectionCard title={isSequentialMultiCourseStudent ? `Fee Ledger & Invoices · ${selectedCourse.courseName}` : 'Fee Ledger & Invoices'} description="Recorded payments and downloadable receipts." className="student360-fee-ledger-card" id="payments">
             <div className="student360-ledger-heading"><div><span>Total: {formatCurrency(totalFee)} ({feeProgress >= 100 ? '100% Cleared' : `${Math.round(feeProgress)}% Cleared`})</span><strong>{feeProgress >= 100 ? 'Paid in Full' : 'Payment in Progress'}</strong></div><span className={`student360-ledger-pill ${feeProgress >= 100 ? 'is-paid' : ''}`}>{feeProgress >= 100 ? 'Paid in Full' : 'Pending'}</span></div>
-            {ledgerEntries.length ? <div className="student360-payment-list">{ledgerEntries.slice(0, 6).map((payment, index) => <div className="student360-payment-row student360-ledger-row" key={payment.id || `${payment.date}-${payment.amount}`}><div className="student360-ledger-number">{payment.installmentNumber || index + 1}</div><div><strong>{formatDate(getPaymentDateValue(payment))}</strong><span>{displayValue(payment.paymentMode || payment.mode, 'Payment')}</span></div><strong>{formatCurrency(payment.amount)} <b className="student360-payment-check">✓</b></strong><button type="button" className="student360-receipt-icon" title="Download receipt" aria-label="Download receipt" onClick={() => onDownloadPaymentReceipt?.(payment, student)}><Download size={15} /></button></div>)}</div> : <div className="student360-no-data">No payment history found.</div>}
-            {ledgerEntries.length ? <button type="button" className="student360-invoice-button" onClick={() => onDownloadPaymentReceipt?.(ledgerEntries[0], student)}><FileText size={16} /> Download Tax Invoice Receipts</button> : null}
+            {ledgerEntries.length ? <div className="student360-payment-list">{ledgerEntries.slice(0, 6).map((payment, index) => <div className="student360-payment-row student360-ledger-row" key={payment.id || `${payment.date}-${payment.amount}`}><div className="student360-ledger-number">{payment.installmentNumber || index + 1}</div><div><strong>{formatDate(getPaymentDateValue(payment))}</strong><span>{displayValue(payment.paymentMode || payment.mode, 'Payment')}</span></div><strong>{formatCurrency(payment.amount)} <b className="student360-payment-check">✓</b></strong><button type="button" className="student360-receipt-icon" title="Download receipt" aria-label="Download receipt" onClick={() => onDownloadPaymentReceipt?.(payment, paymentStudentContext)}><Download size={15} /></button></div>)}</div> : <div className="student360-no-data">No payment history found.</div>}
+            {ledgerEntries.length ? <button type="button" className="student360-invoice-button" onClick={() => onDownloadPaymentReceipt?.(ledgerEntries[0], paymentStudentContext)}><FileText size={16} /> Download Tax Invoice Receipts</button> : null}
           </SectionCard>
         </aside>
       </div>
       {assignmentModalOpen ? createPortal((
         <div className="student360-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !assignmentSaving) setAssignmentModalOpen(false) }}>
           <section className="student360-assignment-modal" role="dialog" aria-modal="true" aria-labelledby="student360-assignment-title">
-            <div className="student360-assignment-heading"><div><span>SEQUENTIAL COURSE</span><h2 id="student360-assignment-title">Schedule &amp; Batch Assignment</h2><p>Assign this course using an existing active batch.</p></div><button type="button" aria-label="Close" onClick={() => setAssignmentModalOpen(false)} disabled={assignmentSaving}>×</button></div>
+            <div className="student360-assignment-heading"><div><span>SEQUENTIAL COURSE</span><h2 id="student360-assignment-title">{isEditingSelectedCourseAssignment ? 'Edit Schedule & Batch' : 'Schedule & Batch Assignment'}</h2><p>{isEditingSelectedCourseAssignment ? 'Update this course assignment and payment schedule.' : 'Assign this course using an existing active batch.'}</p></div><button type="button" aria-label="Close" onClick={() => setAssignmentModalOpen(false)} disabled={assignmentSaving}>×</button></div>
             <form onSubmit={saveScheduleBatchAssignment}>
               <div className="student360-assignment-fields">
                 <label>Course Name<input value={selectedCourse.courseName || ''} readOnly /></label>
                 <label>Course Schedule<select required value={assignmentForm.schedule} onChange={(event) => setAssignmentForm((form) => ({ ...form, schedule: event.target.value, mode: '', batchId: '' }))}><option value="">Select schedule</option>{availableSchedules.map((scheduleName) => <option key={scheduleName} value={scheduleName}>{scheduleName === 'WEEKEND' ? 'Weekend' : 'Weekday'}</option>)}</select></label>
                 <label>Course Mode<select required value={assignmentForm.mode} onChange={(event) => setAssignmentForm((form) => ({ ...form, mode: event.target.value, batchId: '' }))} disabled={!assignmentForm.schedule}><option value="">Select mode</option>{availableModes.map((mode) => <option key={mode} value={mode}>{mode.charAt(0) + mode.slice(1).toLowerCase()}</option>)}</select></label>
-                <label>Select Batch<select required value={assignmentForm.batchId} onChange={(event) => { const batch = selectableAssignmentBatches.find((item) => item.batchId === event.target.value); const startDate = String(batch?.courseStartDate || assignmentForm.startDate || '').slice(0, 10); setAssignmentForm((form) => ({ ...form, batchId: event.target.value, startDate, endDate: String(batch?.courseEndDate || resolveCourseEndDate?.(startDate, batch, selectedCourseCatalog) || form.endDate || '').slice(0, 10) })) }} disabled={!assignmentForm.mode || !selectableAssignmentBatches.length}><option value="">{assignmentForm.mode ? 'Select available batch' : 'Select schedule and mode first'}</option>{selectableAssignmentBatches.map((batch) => <option key={batch.batchId} value={batch.batchId}>{batch.batchName} · {batch.batchTiming || 'Timing unavailable'}</option>)}</select></label>
+                <label>Select Batch<select required value={assignmentForm.batchId} onChange={(event) => { const batch = assignmentBatchOptions.find((item) => item.batchId === event.target.value); const startDate = String(batch?.courseStartDate || assignmentForm.startDate || '').slice(0, 10); setAssignmentForm((form) => ({ ...form, batchId: event.target.value, startDate, endDate: String(batch?.courseEndDate || resolveCourseEndDate?.(startDate, batch, selectedCourseCatalog) || form.endDate || '').slice(0, 10) })) }} disabled={!assignmentForm.mode || !assignmentBatchOptions.length}><option value="">{assignmentForm.mode ? 'Select available batch' : 'Select schedule and mode first'}</option>{assignmentBatchOptions.map((batch) => <option key={batch.batchId} value={batch.batchId}>{batch.batchName} · {batch.batchTiming || 'Timing unavailable'}</option>)}</select></label>
                 <label>Batch Timing<input value={selectedAssignmentBatch?.batchTiming || ''} readOnly placeholder="Auto-filled from selected batch" /></label>
                 <label>Faculty<input value={selectedAssignmentBatch?.facultyName || ''} readOnly placeholder="Auto-filled from selected batch" /></label>
                 <label>Total Course Amount<input type="number" min="1" required value={assignmentForm.totalCourseAmount} onChange={(event) => setAssignmentForm((form) => ({ ...form, totalCourseAmount: event.target.value }))} /></label>
@@ -1023,9 +1293,18 @@ export function Student360Page({
                 <label>Start Date<input type="date" required value={assignmentForm.startDate} onChange={(event) => { const startDate = event.target.value; setAssignmentForm((form) => ({ ...form, startDate, endDate: String(resolveCourseEndDate?.(startDate, selectedAssignmentBatch, selectedCourseCatalog) || selectedAssignmentBatch?.courseEndDate || form.endDate || '').slice(0, 10) })) }} /></label>
                 <label>End Date<input type="date" required value={String(assignmentEndDate || '').slice(0, 10)} onChange={(event) => setAssignmentForm((form) => ({ ...form, endDate: event.target.value }))} /></label>
               </div>
+              <SequentialCoursePaymentSchedule
+                courseId={selectedCourse.courseId}
+                batch={selectedAssignmentBatch}
+                startDate={assignmentForm.startDate}
+                amount={selectedCourseFinalFee}
+                installmentCount={selectedPaymentInstallmentCount}
+                paymentPlan={selectedAssignmentPaymentPlan}
+                onPreview={handleAssignmentPreview}
+              />
               {assignmentError ? <p className="student360-assignment-error" role="alert">{assignmentError}</p> : null}
               {!selectedCourseRealBatches.length ? <p className="student360-assignment-hint">No active course batches with timing and faculty assignment are available.</p> : null}
-              <div className="student360-assignment-actions"><button type="button" className="student360-secondary-button" onClick={() => setAssignmentModalOpen(false)} disabled={assignmentSaving}>Cancel</button><button type="submit" className="student360-primary-button" disabled={assignmentSaving || !selectedAssignmentBatch || !selectedCoursePaymentPlans.length}>{assignmentSaving ? 'Saving…' : 'Save Assignment'}</button></div>
+              <div className="student360-assignment-actions"><button type="button" className="student360-secondary-button" onClick={() => setAssignmentModalOpen(false)} disabled={assignmentSaving}>Cancel</button><button type="submit" className="student360-primary-button" disabled={assignmentSaving || assignmentPreviewLoading || Boolean(assignmentPreviewError) || assignmentInstallmentDueDates.length !== selectedPaymentInstallmentCount || !selectedAssignmentBatch || !selectedCoursePaymentPlans.length}>{assignmentSaving ? 'Saving…' : 'Save Assignment'}</button></div>
             </form>
           </section>
         </div>
