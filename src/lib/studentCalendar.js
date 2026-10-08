@@ -1,4 +1,4 @@
-import { getGovernmentHolidaysForRange } from '../data/governmentHolidays'
+import { getGovernmentHolidaysForRange } from '../data/governmentHolidays.js'
 
 const WEEKDAY_DAYS = new Set([1, 2, 3, 4, 5])
 const WEEKEND_DAYS = new Set([0, 6])
@@ -731,15 +731,19 @@ function buildMultiCourseCalendar(student, courseCalendars) {
 
   if (!calendars.length) return { ...buildStudentCourseCalendar(student), isMultiCourse: true }
 
-  const startDate = calendars.map(({ calendar }) => calendar.startDate).sort()[0]
-  const endDate = calendars.map(({ calendar }) => calendar.endDate).sort().at(-1)
+  const startDate = calendars.map(({ calendar }) => calendar.startDate).sort((left, right) => left.getTime() - right.getTime())[0]
+  const endDate = calendars.map(({ calendar }) => calendar.endDate).sort((left, right) => left.getTime() - right.getTime()).at(-1)
   const rangeStart = startOfCalendarMonth(startDate)
   const rangeEnd = startOfCalendarMonth(endDate)
   const rangeCalendarDays = new Map()
   calendars.forEach(({ source, calendar }) => {
     const name = source.courseName || source.course?.name || 'Course'
     calendar.months.forEach((month) => month.days.forEach((day) => {
-      if (day.dateKey) {
+      // Month grids include cells outside a course's own enrollment dates.
+      // Do not add those placeholder No Class cells to the multi-course view:
+      // after a sequential course ends it must disappear, not remain listed
+      // beside the next course for the rest of the month.
+      if (day.dateKey && day.isWithinRange) {
         const list = rangeCalendarDays.get(day.dateKey) || []
         list.push({ source, name, day })
         rangeCalendarDays.set(day.dateKey, list)

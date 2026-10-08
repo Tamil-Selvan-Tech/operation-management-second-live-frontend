@@ -19379,6 +19379,23 @@ td .faculty-my-batches-empty {
   gap: 12px;
 }
 
+.student-course-assignment-grid {
+  margin-top: 10px;
+}
+
+.student-course-assignment-block + .student-course-assignment-block {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #e8eef7;
+}
+
+.student-course-assignment-block h5 {
+  margin: 0 0 9px;
+  color: #1f5ee8;
+  font-size: 13px;
+  font-weight: 800;
+}
+
 .student-detail-item {
   gap: 6px;
   padding: 12px 14px;
