@@ -14854,7 +14854,8 @@ body.branch-notification-menu-open .main-area {
 .student-course-selection-help { display: block; margin-top: 7px; color: #64748b; font-size: 11px; line-height: 1.4; }
 .student-course-arrangement-controls { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 14px; }
 .student-course-arrangement-controls label { display: grid; gap: 6px; min-width: 190px; color: #536985; font-size: 12px; font-weight: 700; }
-.student-course-arrangement-controls select { min-height: 38px; padding: 0 10px; border: 1px solid #cbd5e1; border-radius: 8px; background: #fff; color: #0f172a; }
+.student-course-arrangement-controls select, .student-course-arrangement-controls input { min-height: 38px; padding: 0 10px; border: 1px solid #cbd5e1; border-radius: 8px; background: #fff; color: #0f172a; }
+.student-course-arrangement-controls small { color: #70839d; font-size: 11px; font-weight: 500; }
 .student-course-cards { display: grid; gap: 16px; }
 .student-course-card { padding: 18px; border: 1px solid #dbe4ee; border-radius: 14px; background: #fff; box-shadow: 0 6px 18px rgba(15, 23, 42, .05); }
 .student-course-card.is-pending { background: #f8fafc; border-style: dashed; }

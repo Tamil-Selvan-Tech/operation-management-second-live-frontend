@@ -14,6 +14,7 @@ import {
   Wallet,
 } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { getBranchStudent, getStudentAttendanceSummary } from '../services/studentService'
 import { getBranchAttendanceOverview } from '../services/attendanceService'
 import { attendanceToday } from '../lib/branchAttendanceSummary'
@@ -48,6 +49,15 @@ function formatCurrency(value) {
   const amount = Number(value || 0)
   if (!Number.isFinite(amount) || amount <= 0) return '-'
   return `₹${amount.toLocaleString('en-IN')}`
+}
+
+function calculateEnrollmentFinalFee(enrollment = {}, baseAmount = 0) {
+  const total = Number(baseAmount) || 0
+  const discountValue = Number(enrollment.discountValue) || 0
+  const discountAmount = String(enrollment.discountType || '').toUpperCase() === 'PERCENTAGE'
+    ? total * discountValue / 100
+    : discountValue
+  return Math.max(Math.round((total - discountAmount) * 100) / 100, 0)
 }
 
 function getStudentKeys(student = {}) {
@@ -586,6 +596,12 @@ export function Student360Page({
   const [assignmentForm, setAssignmentForm] = useState({ schedule: '', mode: '', batchId: '', startDate: '', endDate: '', totalCourseAmount: '', paymentPlanId: '' })
 
   useEffect(() => {
+    if (!assignmentModalOpen) return undefined
+    document.body.classList.add('student360-assignment-open')
+    return () => document.body.classList.remove('student360-assignment-open')
+  }, [assignmentModalOpen])
+
+  useEffect(() => {
     let active = true
     if (!resolvedStudentId) return undefined
     Promise.allSettled([
@@ -691,7 +707,12 @@ export function Student360Page({
   const selectedAssignmentBatch = matchingAssignmentBatches.find((batch) => batch.batchId === assignmentForm.batchId)
   const selectedCoursePaymentPlans = Array.isArray(selectedCourseCatalog?.paymentPlans) ? selectedCourseCatalog.paymentPlans : []
   const selectedAssignmentPaymentPlan = selectedCoursePaymentPlans.find((plan) => String(plan.id || '').trim() === String(assignmentForm.paymentPlanId || '').trim())
+  const firstCourseEnrollment = courseEnrollments[0] || {}
+  const selectedCourseDiscountType = String(selectedCourse.discountType || firstCourseEnrollment.discountType || 'FIXED').toUpperCase()
+  const selectedCourseDiscountValue = Number(selectedCourse.discountValue ?? firstCourseEnrollment.discountValue ?? 0) || 0
   const selectedCourseFee = Number(String(assignmentForm.totalCourseAmount || '').replace(/,/g, '')) || 0
+  const selectedCourseFinalFee = calculateEnrollmentFinalFee({ discountType: selectedCourseDiscountType, discountValue: selectedCourseDiscountValue }, selectedCourseFee)
+  const selectedCourseDiscountAmount = Math.max(Math.round((selectedCourseFee - selectedCourseFinalFee) * 100) / 100, 0)
   const selectedPaymentInstallmentCount = Math.max(1, Number(selectedAssignmentPaymentPlan?.installmentCount || selectedAssignmentPaymentPlan?.installments?.length || 1))
   const assignmentEndDate = selectedAssignmentBatch
     ? (assignmentForm.endDate || resolveCourseEndDate?.(assignmentForm.startDate, selectedAssignmentBatch, selectedCourseCatalog) || selectedAssignmentBatch.courseEndDate || '')
@@ -722,7 +743,7 @@ export function Student360Page({
   })
   const openScheduleBatchModal = () => {
     setAssignmentError('')
-    const defaultFee = selectedCourse.totalCourseAmount ?? selectedCourse.courseAmount ?? selectedCourseCatalog?.afterDiscount ?? selectedCourseCatalog?.amount ?? selectedCourseCatalog?.actualFees ?? ''
+    const defaultFee = selectedCourse.totalCourseAmount ?? selectedCourse.courseAmount ?? selectedCourseCatalog?.amount ?? selectedCourseCatalog?.actualFees ?? selectedCourseCatalog?.afterDiscount ?? ''
     const defaultPlan = selectedCourse.paymentPlanId || selectedCourseCatalog?.paymentPlans?.[0]?.id || ''
     setAssignmentForm({ schedule: '', mode: '', batchId: '', startDate: String(selectedCourse.courseStartDate || '').slice(0, 10), endDate: String(selectedCourse.courseEndDate || '').slice(0, 10), totalCourseAmount: String(defaultFee || ''), paymentPlanId: String(defaultPlan || '') })
     setAssignmentModalOpen(true)
@@ -743,9 +764,9 @@ export function Student360Page({
       paidAt: item.paidAt || null,
     }))
     const feeParts = Array.from({ length: selectedPaymentInstallmentCount }, (_, index) => {
-      const baseAmount = Math.floor(selectedCourseFee / selectedPaymentInstallmentCount)
+      const baseAmount = Math.floor(selectedCourseFinalFee / selectedPaymentInstallmentCount)
       const amount = index === selectedPaymentInstallmentCount - 1
-        ? selectedCourseFee - baseAmount * (selectedPaymentInstallmentCount - 1)
+        ? selectedCourseFinalFee - baseAmount * (selectedPaymentInstallmentCount - 1)
         : baseAmount
       const dueDate = new Date(`${assignmentForm.startDate}T00:00:00`)
       dueDate.setMonth(dueDate.getMonth() + index)
@@ -777,6 +798,12 @@ export function Student360Page({
       courseEndDate: assignmentEndDate,
       totalCourseAmount: selectedCourseFee,
       courseAmount: selectedCourseFee,
+      discountType: selectedCourseDiscountType,
+      discountValue: selectedCourseDiscountValue,
+      discountAmount: Math.round((selectedCourseFee - selectedCourseFinalFee) * 100) / 100,
+      finalCourseAmount: selectedCourseFinalFee,
+      totalAmount: selectedCourseFinalFee,
+      afterDiscount: selectedCourseFinalFee,
       paymentPlanId: selectedAssignmentPaymentPlan.id,
       paymentPlan: selectedAssignmentPaymentPlan.templateName || selectedAssignmentPaymentPlan.name || '',
       weeklyOffDay: selectedAssignmentBatch.weeklyOffDay || '',
@@ -970,7 +997,7 @@ export function Student360Page({
           </SectionCard>
         </aside>
       </div>
-      {assignmentModalOpen ? (
+      {assignmentModalOpen ? createPortal((
         <div className="student360-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !assignmentSaving) setAssignmentModalOpen(false) }}>
           <section className="student360-assignment-modal" role="dialog" aria-modal="true" aria-labelledby="student360-assignment-title">
             <div className="student360-assignment-heading"><div><span>SEQUENTIAL COURSE</span><h2 id="student360-assignment-title">Schedule &amp; Batch Assignment</h2><p>Assign this course using an existing active batch.</p></div><button type="button" aria-label="Close" onClick={() => setAssignmentModalOpen(false)} disabled={assignmentSaving}>×</button></div>
@@ -982,7 +1009,11 @@ export function Student360Page({
                 <label>Select Batch<select required value={assignmentForm.batchId} onChange={(event) => { const batch = selectableAssignmentBatches.find((item) => item.batchId === event.target.value); const startDate = String(batch?.courseStartDate || assignmentForm.startDate || '').slice(0, 10); setAssignmentForm((form) => ({ ...form, batchId: event.target.value, startDate, endDate: String(batch?.courseEndDate || resolveCourseEndDate?.(startDate, batch, selectedCourseCatalog) || form.endDate || '').slice(0, 10) })) }} disabled={!assignmentForm.mode || !selectableAssignmentBatches.length}><option value="">{assignmentForm.mode ? 'Select available batch' : 'Select schedule and mode first'}</option>{selectableAssignmentBatches.map((batch) => <option key={batch.batchId} value={batch.batchId}>{batch.batchName} · {batch.batchTiming || 'Timing unavailable'}</option>)}</select></label>
                 <label>Batch Timing<input value={selectedAssignmentBatch?.batchTiming || ''} readOnly placeholder="Auto-filled from selected batch" /></label>
                 <label>Faculty<input value={selectedAssignmentBatch?.facultyName || ''} readOnly placeholder="Auto-filled from selected batch" /></label>
-                <label>Total Fee<input type="number" min="1" required value={assignmentForm.totalCourseAmount} onChange={(event) => setAssignmentForm((form) => ({ ...form, totalCourseAmount: event.target.value }))} /></label>
+                <label>Total Course Amount<input type="number" min="1" required value={assignmentForm.totalCourseAmount} onChange={(event) => setAssignmentForm((form) => ({ ...form, totalCourseAmount: event.target.value }))} /></label>
+                <label>Discount Type<input value={selectedCourseDiscountType === 'PERCENTAGE' ? 'Percentage' : 'Fixed Amount'} readOnly /></label>
+                <label>Discount Value ({selectedCourseDiscountType === 'PERCENTAGE' ? '%' : '₹'})<input value={selectedCourseDiscountValue} readOnly /></label>
+                <label>Discount Amount<input value={formatCurrency(selectedCourseDiscountAmount)} readOnly /></label>
+                <label>Final Course Amount<input value={formatCurrency(selectedCourseFinalFee)} readOnly /></label>
                 <label>Payment Plan<select required value={assignmentForm.paymentPlanId} onChange={(event) => setAssignmentForm((form) => ({ ...form, paymentPlanId: event.target.value }))}><option value="">Select payment plan</option>{selectedCoursePaymentPlans.map((plan) => <option key={plan.id} value={plan.id}>{plan.templateName || plan.name || 'Payment plan'}</option>)}</select></label>
                 <label>Start Date<input type="date" required value={assignmentForm.startDate} onChange={(event) => { const startDate = event.target.value; setAssignmentForm((form) => ({ ...form, startDate, endDate: String(resolveCourseEndDate?.(startDate, selectedAssignmentBatch, selectedCourseCatalog) || selectedAssignmentBatch?.courseEndDate || form.endDate || '').slice(0, 10) })) }} /></label>
                 <label>End Date<input type="date" required value={String(assignmentEndDate || '').slice(0, 10)} onChange={(event) => setAssignmentForm((form) => ({ ...form, endDate: event.target.value }))} /></label>
@@ -993,7 +1024,7 @@ export function Student360Page({
             </form>
           </section>
         </div>
-      ) : null}
+      ), document.body) : null}
     </main>
   )
 }
