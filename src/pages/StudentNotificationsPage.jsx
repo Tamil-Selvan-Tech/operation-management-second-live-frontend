@@ -4,14 +4,11 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth/useAuth'
 import { request } from '../services/apiClient'
 import { NotificationBell } from '../components/NotificationBell'
+import { unwrapNotifications } from '../services/notificationService'
 import '../styles/StudentNewDashboardPage.css'
 import '../styles/StudentNotificationsPage.css'
 
 const formatAcademicNotification = (message) => String(message || '').replace(/from (\d{1,2}):(\d{2}) to (\d{1,2}):(\d{2})/g, (_, startHour, startMinute, endHour, endMinute) => { const format = (hour, minute) => `${String(Number(hour) % 12 || 12).padStart(2, '0')}:${minute} ${Number(hour) >= 12 ? 'PM' : 'AM'}`; return `from ${format(startHour, startMinute)} to ${format(endHour, endMinute)}` })
-
-function unwrap(response) {
-  return response?.data && !Array.isArray(response.data) ? response : response
-}
 
 export function StudentNotificationsPage() {
   const navigate = useNavigate()
@@ -51,9 +48,9 @@ export function StudentNotificationsPage() {
   const load = useCallback(async () => {
     try {
       const response = await request('/notifications?limit=100&page=1')
-      const body = unwrap(response)
-      setItems(Array.isArray(body?.data) ? body.data : [])
-      setUnreadCount(Number(body?.meta?.unreadCount || 0))
+      const body = unwrapNotifications(response)
+      setItems(body.data)
+      setUnreadCount(Number(body.meta?.unreadCount || 0))
       setError('')
     } catch (err) {
       setError(err.message || 'Unable to load notifications')
@@ -88,6 +85,24 @@ export function StudentNotificationsPage() {
       })
       await load()
     } catch (err) { setError(err.message || 'Unable to update notifications') }
+  }
+
+  const openNotification = async (item) => {
+    try {
+      await request('/notifications/mark-read', {
+        method: 'PATCH',
+        body: JSON.stringify({ notificationIds: [item.id] }),
+      })
+    } catch (err) {
+      setError(err.message || 'Unable to update notification')
+    }
+
+    const kind = String(item?.kind || '').toUpperCase()
+    const description = String(item?.requestDescription || '').toUpperCase()
+    if (kind === 'STUDENT_DISCONTINUATION' || description.startsWith('DISCONTINUATION_')) {
+      navigate('/student-new-dashboard?section=profile&open=discontinuation')
+      return
+    }
   }
 
   return <div className={`student-notifications-layout student-new-shell ${isSidebarCollapsed ? 'is-sidebar-collapsed' : ''}`.trim()}>
@@ -133,7 +148,7 @@ export function StudentNotificationsPage() {
     <section className="student-notifications-list" aria-label="All notifications">
       {loading ? <p className="student-notifications-empty">Loading notifications…</p> : null}
       {!loading && !visibleItems.length ? <p className="student-notifications-empty">No notifications found.</p> : null}
-      {visibleItems.map((item) => <article key={item.id} className={`student-notification-card ${item.read ? '' : 'is-unread'}`.trim()}><span className="student-notification-icon"><Bell size={20} /></span><div><div className="student-notification-title"><h2>{item.title}</h2><time>{new Date(item.createdAt).toLocaleString()}</time></div><p>{formatAcademicNotification(item.message)}</p></div>{!item.read ? <span className="student-notification-unread"><CircleAlert size={14} /> Unread</span> : null}</article>)}
+      {visibleItems.map((item) => <button type="button" key={item.id} className={`student-notification-card ${item.read ? '' : 'is-unread'}`.trim()} onClick={() => void openNotification(item)}><span className="student-notification-icon"><Bell size={20} /></span><div><div className="student-notification-title"><h2>{item.title}</h2><time>{new Date(item.createdAt).toLocaleString()}</time></div><p>{formatAcademicNotification(item.message)}</p><small className="student-notification-action-label">{String(item.kind || '').toUpperCase() === 'STUDENT_DISCONTINUATION' ? 'Open discontinuation request' : 'View notification'}</small></div>{!item.read ? <span className="student-notification-unread"><CircleAlert size={14} /> Unread</span> : null}</button>)}
     </section>
     </main>
     {isLogoutModalOpen ? <div className="student-new-logout-overlay" role="presentation">

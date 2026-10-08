@@ -27772,13 +27772,63 @@ canvas {
 .student-discontinuation-review-modal {
   position: relative;
   width: min(100%, 540px);
-  display: grid;
+  max-height: calc(100vh - 36px);
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
   gap: 14px;
   padding: 28px;
   border: 1px solid #dce7f6;
   border-radius: 18px;
   background: #fff;
   box-shadow: 0 24px 70px rgba(23, 52, 92, .24);
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.student-discontinuation-review-scroll {
+  min-height: 0;
+  display: grid;
+  gap: 14px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 8px;
+  scrollbar-width: thin;
+  scrollbar-color: #9bb8df transparent;
+}
+
+.student-discontinuation-review-scroll::-webkit-scrollbar {
+  width: 8px;
+}
+
+.student-discontinuation-review-scroll::-webkit-scrollbar-thumb {
+  border: 2px solid #fff;
+  border-radius: 999px;
+  background: #9bb8df;
+}
+
+.student-discontinuation-review-backdrop {
+  align-items: flex-start;
+  overflow-y: auto;
+  padding: 18px;
+}
+
+.student-discontinuation-review-modal {
+  flex: 0 0 auto;
+  scrollbar-width: thin;
+  scrollbar-color: #9bb8df transparent;
+}
+
+.student-discontinuation-review-modal::-webkit-scrollbar {
+  width: 8px;
+}
+
+.student-discontinuation-review-modal::-webkit-scrollbar-thumb {
+  border: 2px solid #fff;
+  border-radius: 999px;
+  background: #9bb8df;
 }
 
 .student-discontinuation-review-kicker {
@@ -27825,14 +27875,48 @@ canvas {
   resize: vertical;
 }
 
+.student-discontinuation-review-finance-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.student-discontinuation-refund-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  color: #536b8d;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.student-discontinuation-refund-option input {
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+  margin-top: 1px;
+  accent-color: #2563df;
+}
+
 .student-discontinuation-review-actions {
   display: flex;
   justify-content: flex-end;
   gap: 10px;
   margin-top: 4px;
+  position: sticky;
+  bottom: -1px;
+  z-index: 1;
+  padding-top: 12px;
+  background: #fff;
 }
 
 @media (max-width: 640px) {
+  .student-discontinuation-review-modal {
+    width: min(100%, calc(100vw - 24px));
+    max-height: calc(100vh - 24px);
+    padding: 22px 18px;
+  }
+
   .student-discontinuation-panel {
     align-items: stretch;
     flex-direction: column;
@@ -27857,5 +27941,9 @@ canvas {
 
   .student-discontinuation-review-actions > button {
     width: 100%;
+  }
+
+  .student-discontinuation-review-finance-grid {
+    grid-template-columns: 1fr;
   }
 }

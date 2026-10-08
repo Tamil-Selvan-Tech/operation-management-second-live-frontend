@@ -93,7 +93,7 @@ const normalizeNotification = (notification = {}) => {
     kind,
     tone,
     title: normalizeNotificationTitle(notification.title),
-    message: String(notification.message || '').trim(),
+    message: String(notification.message || '').trim().replace(/\bINR\b/gi, '₹'),
     summary: String(notification.summary || '').trim(),
     actionLabel: String(notification.actionLabel || '').trim(),
     branchId: String(notification.branchId || '').trim(),

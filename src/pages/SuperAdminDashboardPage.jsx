@@ -43,6 +43,7 @@ import { getStudentAttendanceOverview, getStudentCalendar } from '../services/st
 import { request, setImpersonateBranchId } from '../services/apiClient'
 import { SuperAdminOverallDashboard } from '../components/SuperAdminOverallDashboard'
 import { SuperAdminSidebarNav } from '../components/SuperAdminSidebarNav'
+import { SuperAdminDiscontinuationPage } from './SuperAdminDiscontinuationPage'
 import { loadBranchStudents } from '../lib/branchStudentStore'
 import { loadBranchPaymentHistoryEntries } from '../lib/branchPaymentHistoryStore'
 import { buildModernPaymentReceiptHtml } from '../components/payments/RecordPayment'
@@ -462,7 +463,7 @@ function validateBranchForm(form, existingBranches = [], ignoreBranchId = null) 
 function getInitialSuperAdminSection(search = '') {
   const params = new URLSearchParams(search)
   const section = params.get('section')
-  return ['branches', 'branch-admin', 'faculty', 'students', 'leave-management', 'faculty-leave'].includes(section) ? section : 'dashboard'
+  return ['branches', 'branch-admin', 'faculty', 'students', 'leave-management', 'faculty-leave', 'discontinuations'].includes(section) ? section : 'dashboard'
 }
 
 export function SuperAdminDashboardPage() {
@@ -2128,6 +2129,10 @@ const filteredBranches = useMemo(() => {
                           <span className="super-admin-sidebar-branch-dot" aria-hidden="true" />
                           <span>Faculty Leave Request</span>
                         </button>
+                        <button type="button" className="super-admin-sidebar-branch-name" onClick={() => { setIsSidebarFlyoutDismissed(true); setActiveSection('discontinuations'); setIsMobileSidebarOpen(false) }}>
+                          <span className="super-admin-sidebar-branch-dot" aria-hidden="true" />
+                          <span>Student Discontinuation</span>
+                        </button>
                       </div>
                     ) : null}
                   </div>
@@ -2135,7 +2140,7 @@ const filteredBranches = useMemo(() => {
               </div>
               <button
                 type="button"
-                className={`super-admin-sidebar-section-toggle ${['students', 'leave-management', 'faculty-leave'].includes(activeSection) ? 'is-active' : ''}`.trim()}
+                className={`super-admin-sidebar-section-toggle ${['students', 'leave-management', 'faculty-leave', 'discontinuations'].includes(activeSection) ? 'is-active' : ''}`.trim()}
                 aria-expanded={isAcademicOperationsExpanded}
                 onClick={() => setIsAcademicOperationsExpanded((current) => !current)}
               >
@@ -2156,7 +2161,7 @@ const filteredBranches = useMemo(() => {
                 className={`super-admin-sidebar-branch-nav super-admin-sidebar-academic-leave ${isSidebarFlyoutDismissed ? 'is-flyout-dismissed' : ''}`.trim()}
                 onMouseLeave={() => setIsSidebarFlyoutDismissed(false)}
               >
-                <div className={`super-admin-sidebar-item ${['leave-management', 'faculty-leave'].includes(activeSection) ? 'is-active' : ''}`.trim()} data-tooltip="Leave Management">
+                <div className={`super-admin-sidebar-item ${['leave-management', 'faculty-leave', 'discontinuations'].includes(activeSection) ? 'is-active' : ''}`.trim()} data-tooltip="Leave Management">
                   <button
                     type="button"
                     className="super-admin-sidebar-branch-link"
@@ -2180,6 +2185,9 @@ const filteredBranches = useMemo(() => {
                     <div className="super-admin-sidebar-branch-list-title">Leave Management</div>
                     <button type="button" className="super-admin-sidebar-branch-name" onClick={() => { setIsSidebarFlyoutDismissed(true); setActiveSection('faculty-leave'); setIsMobileSidebarOpen(false) }}>
                       <span className="super-admin-sidebar-branch-dot" aria-hidden="true" /><span>Faculty Leave Request</span>
+                    </button>
+                    <button type="button" className="super-admin-sidebar-branch-name" onClick={() => { setIsSidebarFlyoutDismissed(true); setActiveSection('discontinuations'); setIsMobileSidebarOpen(false) }}>
+                      <span className="super-admin-sidebar-branch-dot" aria-hidden="true" /><span>Student Discontinuation</span>
                     </button>
                   </div>
                 ) : null}
@@ -2755,6 +2763,8 @@ const filteredBranches = useMemo(() => {
                  </tbody></table></div>
                  {filteredGlobalStudents.length > globalRowsPerPage ? <PaginationBar className="super-admin-pagination" currentPage={safeGlobalStudentPage} totalPages={globalStudentTotalPages} onPageChange={setGlobalStudentPage} label="Student pagination" previousLabel="Prev" nextLabel="Next" visiblePageCount={3} /> : null}</>}
                </section>
+            ) : activeSection === 'discontinuations' ? (
+              <SuperAdminDiscontinuationPage />
             ) : ['leave-management', 'faculty-leave'].includes(activeSection) ? (
               <section className="super-admin-global-panel">
                 <div className="super-admin-global-header"><div><p className="branch-management-kicker">Academic Operations</p><h1>Faculty Leave Management</h1><p>Faculty leave requests across every active branch.</p></div><div className="super-admin-global-header-actions"><label className="super-admin-student-search"><input type="search" value={globalLeaveSearch} onChange={(event) => setGlobalLeaveSearch(event.target.value)} placeholder="Search faculty, reason or branch" aria-label="Search faculty leave requests" /></label><SuperAdminOptionSelect value={globalLeaveSort} onChange={setGlobalLeaveSort} ariaLabel="Sort faculty leave requests" options={[{ value: 'createdAt', label: 'Newest' }, { value: 'oldest', label: 'Oldest' }, { value: 'person', label: 'Faculty' }, { value: 'status', label: 'Status' }]} width={116} /><SuperAdminOptionSelect value={globalLeaveStatusFilter} onChange={setGlobalLeaveStatusFilter} ariaLabel="Filter faculty leave request status" options={[{ value: 'all', label: 'All status' }, { value: 'pending', label: 'Pending' }, { value: 'approved', label: 'Approved' }, { value: 'rejected', label: 'Rejected' }]} width={128} /><span className="super-admin-global-count">{filteredGlobalLeaves.length} requests</span></div></div>

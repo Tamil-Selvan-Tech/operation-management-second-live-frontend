@@ -744,6 +744,7 @@ function StudentDiscontinuationPanel({ student }) {
   const [isOpen, setIsOpen] = useState(false)
   const [reason, setReason] = useState('')
   const [details, setDetails] = useState('')
+  const [refundRequested, setRefundRequested] = useState(false)
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
@@ -776,11 +777,12 @@ function StudentDiscontinuationPanel({ student }) {
     setSubmitting(true)
     setError('')
     try {
-      const saved = await createStudentDiscontinuationRequest({ reason: reason.trim(), details: details.trim() })
+      const saved = await createStudentDiscontinuationRequest({ reason: reason.trim(), details: details.trim(), refundRequested })
       setRequest(saved)
       setIsOpen(false)
       setReason('')
       setDetails('')
+      setRefundRequested(false)
     } catch (submitError) {
       setError(submitError?.message || 'Unable to submit the request. Please try again.')
     } finally {
@@ -837,6 +839,10 @@ function StudentDiscontinuationPanel({ student }) {
             <label>
               Additional details
               <textarea value={details} onChange={(event) => setDetails(event.target.value)} rows={4} placeholder="Share any information that will help the branch support you." />
+            </label>
+            <label className="student-discontinuation-refund-option">
+              <input type="checkbox" checked={refundRequested} onChange={(event) => setRefundRequested(event.target.checked)} />
+              <span>Request refund review for any amount paid above the completed course progress.</span>
             </label>
             {error ? <p className="student-discontinuation-error">{error}</p> : null}
             <div className="student-discontinuation-actions">

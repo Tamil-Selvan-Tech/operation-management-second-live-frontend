@@ -497,6 +497,15 @@ export function StudentNewDashboardPage() {
  }, [isExamsRoute])
 
  useEffect(() => {
+   const params = new URLSearchParams(location.search)
+   const requestedSection = params.get('section')
+   const shouldOpenDiscontinuation = params.get('open') === 'discontinuation'
+   if (requestedSection === 'profile' && !isExamsRoute) setActiveSection('profile')
+   if (shouldOpenDiscontinuation) setDiscontinuationOpenSignal((current) => current + 1)
+   if (requestedSection || shouldOpenDiscontinuation) navigate('/student-new-dashboard', { replace: true })
+ }, [isExamsRoute, location.search, navigate])
+
+ useEffect(() => {
    try { window.localStorage.setItem('cispro.student-sidebar-collapsed', String(isSidebarCollapsed)) } catch { /* ignore storage failures */ }
  }, [isSidebarCollapsed])
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false)
@@ -1285,6 +1294,11 @@ const handleLogoutConfirm = async () => {
                     </div>
                   </aside>
                 </div>
+
+                <StudentDiscontinuationPanel
+                  showPanel={false}
+                  openSignal={discontinuationOpenSignal}
+                />
               </section>
             ) : null}
 
@@ -1340,11 +1354,6 @@ const handleLogoutConfirm = async () => {
             {!isLoading && !loadError && activeSection === 'calendar' ? (
               <StudentCalendarPanel student={student} />
             ) : null}
-
-            <StudentDiscontinuationPanel
-              showPanel={activeSection === 'dashboard' && !isExamsRoute && !isLoading && !loadError}
-              openSignal={discontinuationOpenSignal}
-            />
 
           </main>
         </div>
@@ -1418,6 +1427,7 @@ function StudentDiscontinuationPanel({ showPanel = true, openSignal = 0 }) {
   const [isOpen, setIsOpen] = useState(false)
   const [reason, setReason] = useState('')
   const [details, setDetails] = useState('')
+  const [refundRequested, setRefundRequested] = useState(false)
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
@@ -1459,11 +1469,13 @@ function StudentDiscontinuationPanel({ showPanel = true, openSignal = 0 }) {
       const saved = await createStudentDiscontinuationRequest({
         reason: reason.trim(),
         details: details.trim(),
+        refundRequested,
       })
       setRequest(saved)
       setIsOpen(false)
       setReason('')
       setDetails('')
+      setRefundRequested(false)
     } catch (submitError) {
       setError(submitError?.message || 'Unable to submit the request. Please try again.')
     } finally {
@@ -1543,6 +1555,10 @@ function StudentDiscontinuationPanel({ showPanel = true, openSignal = 0 }) {
             <label>
               Additional details
               <textarea value={details} onChange={(event) => setDetails(event.target.value)} rows={4} placeholder="Share any information that will help the branch support you." />
+            </label>
+            <label className="student-discontinuation-refund-option">
+              <input type="checkbox" checked={refundRequested} onChange={(event) => setRefundRequested(event.target.checked)} />
+              <span>Request refund review for any amount paid above the completed course progress.</span>
             </label>
             {error ? <p className="student-discontinuation-error">{error}</p> : null}
             <div className="student-discontinuation-actions">
