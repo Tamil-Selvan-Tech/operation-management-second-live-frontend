@@ -1024,14 +1024,26 @@ function getFacultyBatchProgressStudents(batch = {}, course = {}, students = [],
     const studentBatchId = String(student?.batchId || student?.batchEntryId || context?.batchId || '').trim().toLowerCase()
     const studentBatchName = normalizeCourseKey(student?.batchName || student?.batch || context?.batchName || '')
 
-    const matchesCourse =
-      (!courseId || !studentCourseId || studentCourseId === courseId) &&
-      (!courseName || !studentCourseName || studentCourseName === courseName)
+    // Branch-course ids and master-course ids can differ even though they
+    // represent the same course. Prefer an id match when available, but keep
+    // the course name as the compatibility key so assigned students are not
+    // hidden when the two APIs use different course identifiers.
+    const matchesCourse = !courseId && !courseName
+      ? true
+      : Boolean(
+        (courseId && studentCourseId && studentCourseId === courseId) ||
+        (courseName && studentCourseName && studentCourseName === courseName) ||
+        (!studentCourseId && courseName && studentCourseName === courseName),
+      )
     if (!matchesCourse) return false
 
     // Once a real batch ID exists, it is the only valid relationship. A
     // duplicate batch name must never make a student appear in another batch.
-    if (batchId) return studentBatchId === batchId
+    // Some branch APIs expose the internal batch row id while student records
+    // store the public batch code, so a matching batch name is a safe fallback.
+    if (batchId) {
+      return studentBatchId === batchId || Boolean(batchName && studentBatchName === batchName)
+    }
 
     return Boolean(batchName && studentBatchName && studentBatchName === batchName)
   }))
@@ -2222,13 +2234,11 @@ export function FacultyDashboardPage() {
     const syncStudents = () => void loadCourseData()
     window.addEventListener('cispro:students-changed', syncStudents)
     window.addEventListener('cispro:branch-students-changed', syncStudents)
-    window.addEventListener('cispro:faculty-dashboard-refresh', syncStudents)
 
     return () => {
       isMounted = false
       window.removeEventListener('cispro:students-changed', syncStudents)
       window.removeEventListener('cispro:branch-students-changed', syncStudents)
-      window.removeEventListener('cispro:faculty-dashboard-refresh', syncStudents)
     }
   }, [user?.email, user?.id, user?.role, user?.userCode, user?.userId, userRole])
 
