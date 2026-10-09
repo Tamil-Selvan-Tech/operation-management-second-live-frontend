@@ -4837,6 +4837,7 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
   const normalizedBranchNotifications = useMemo(
     () => {
       const seenCourseEditNotifications = new Set()
+      const seenFacultyLoginNotifications = new Set()
       return branchNotificationRecords
         .map(normalizeBranchNotification)
         .filter(
@@ -4849,6 +4850,23 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
             ),
         )
         .filter((notification) => doesBranchNotificationBelongToBranch(notification, branchScope))
+        .filter((notification) => {
+          const kind = String(notification.kind || '').trim()
+          if (kind !== 'branch-faculty-login') return true
+
+          const facultyKey = [
+            notification.facultyId,
+            notification.facultyEmail,
+            notification.facultyName,
+          ].map((value) => String(value || '').trim().toLowerCase()).find(Boolean)
+
+          if (!facultyKey) return true
+
+          const dedupeKey = 'faculty-login:' + facultyKey
+          if (seenFacultyLoginNotifications.has(dedupeKey)) return false
+          seenFacultyLoginNotifications.add(dedupeKey)
+          return true
+        })
         .filter((notification) => {
           const kind = String(notification.kind || '').trim()
           const requestId = String(notification.requestId || '').trim()

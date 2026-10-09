@@ -6,7 +6,7 @@ const MAX_STORED_NOTIFICATIONS = 250
 
 const isFacultyLoginNotification = (notification = {}) => {
   const kind = String(notification.kind || '').trim().toLowerCase()
-  return kind === 'faculty-login' || kind === 'branch-faculty-login'
+  return kind === 'faculty-login'
 }
 
 const isBrowser = () => typeof window !== 'undefined' && Boolean(window.localStorage)
