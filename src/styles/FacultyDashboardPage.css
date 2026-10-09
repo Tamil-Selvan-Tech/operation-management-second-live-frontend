@@ -1140,6 +1140,62 @@ body.faculty-notification-menu-open .super-admin-content {
   font-weight: 600;
 }
 
+.super-admin-page .faculty-students-batch-toolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.super-admin-page .faculty-students-batch-search {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: min(100%, 300px);
+  min-height: 46px;
+  padding: 0 14px;
+  border: 1px solid #d7e2f0;
+  border-radius: 12px;
+  background: #fff;
+  color: #64748b;
+}
+
+.super-admin-page .faculty-students-batch-search:focus-within {
+  border-color: #d7e2f0;
+  box-shadow: none;
+}
+
+.super-admin-page .faculty-students-batch-search input {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: #0f172a;
+  font: inherit;
+}
+
+.super-admin-page .faculty-students-batch-search input:focus,
+.super-admin-page .faculty-students-batch-search input:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
+
+.super-admin-page .faculty-students-batch-search input::placeholder {
+  color: #94a3b8;
+}
+
+.super-admin-page .faculty-students-batch-week-filter {
+  width: min(100%, 180px);
+  min-height: 46px;
+  padding: 0 12px;
+  border: 1px solid #d7e2f0;
+  border-radius: 12px;
+  background: #fff;
+  color: #334155;
+  font: inherit;
+}
+
 .super-admin-page .faculty-students-flow-shell {
   margin-top: 0;
 }

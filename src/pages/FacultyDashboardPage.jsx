@@ -1968,6 +1968,9 @@ export function FacultyDashboardPage() {
   const [selectedCourseId, setSelectedCourseId] = useState('')
   const [selectedStudentsCourseId, setSelectedStudentsCourseId] = useState('')
   const [selectedStudentsBatchId, setSelectedStudentsBatchId] = useState('')
+  const [studentsBatchSearch, setStudentsBatchSearch] = useState('')
+  const [studentsBatchWeekTypeFilter, setStudentsBatchWeekTypeFilter] = useState('all')
+  const [studentsCourseBatchPage, setStudentsCourseBatchPage] = useState(1)
   const [temporarySessionContext, setTemporarySessionContext] = useState(null)
   const [viewStudentDrawer, setViewStudentDrawer] = useState(null)
   const [expandedCourseModuleIds, setExpandedCourseModuleIds] = useState([])
@@ -3013,6 +3016,17 @@ export function FacultyDashboardPage() {
     }]
   }, [facultyBatchRows, selectedStudentsBatchId, selectedStudentsCourse, temporarySessionContext])
 
+  const filteredStudentsCourseBatches = useMemo(() => {
+    const query = studentsBatchSearch.trim().toLowerCase()
+    return selectedStudentsCourseBatches.filter((batch) => {
+      const batchName = String(batch.batchName || batch.name || batch.code || '').toLowerCase()
+      const weekType = String(batch.weekType || batch.weekdayType || '').trim().toLowerCase()
+      const matchesSearch = !query || batchName.includes(query)
+      const matchesWeekType = studentsBatchWeekTypeFilter === 'all' || weekType === studentsBatchWeekTypeFilter
+      return matchesSearch && matchesWeekType
+    })
+  }, [selectedStudentsCourseBatches, studentsBatchSearch, studentsBatchWeekTypeFilter])
+
   const selectedStudentsBatch = useMemo(() => {
     const normalizedBatchId = String(selectedStudentsBatchId || '').trim()
     if (!normalizedBatchId) return null
@@ -3229,6 +3243,14 @@ export function FacultyDashboardPage() {
     return studentsFlowVisibleStudents.slice(startIndex, startIndex + studentsPerPage)
   }, [safeStudentsPage, studentsFlowVisibleStudents])
 
+  const studentsCourseBatchesPerPage = 5
+  const studentsCourseBatchTotalPages = Math.max(1, Math.ceil(filteredStudentsCourseBatches.length / studentsCourseBatchesPerPage))
+  const safeStudentsCourseBatchPage = Math.min(Math.max(1, studentsCourseBatchPage), studentsCourseBatchTotalPages)
+  const paginatedStudentsCourseBatches = useMemo(() => {
+    const startIndex = (safeStudentsCourseBatchPage - 1) * studentsCourseBatchesPerPage
+    return filteredStudentsCourseBatches.slice(startIndex, startIndex + studentsCourseBatchesPerPage)
+  }, [filteredStudentsCourseBatches, safeStudentsCourseBatchPage])
+
   const filteredStudentRecords = useMemo(() => {
     const query = studentRecordsSearch.trim().toLowerCase()
     if (!query) return completedStudents
@@ -3265,6 +3287,14 @@ export function FacultyDashboardPage() {
   useEffect(() => {
     setStudentsPage(1)
   }, [selectedStudentsBatchId, selectedStudentsCourseId])
+
+  useEffect(() => {
+    setStudentsCourseBatchPage(1)
+  }, [studentsBatchSearch, studentsBatchWeekTypeFilter, selectedStudentsCourseId])
+
+  useEffect(() => {
+    setStudentsCourseBatchPage((current) => Math.min(Math.max(1, current), studentsCourseBatchTotalPages))
+  }, [studentsCourseBatchTotalPages])
 
   const batchesPerPage = 5
   const totalBatchPages = Math.max(1, Math.ceil(facultyBatchRows.length / batchesPerPage))
@@ -5812,6 +5842,8 @@ const nextName = trimmedValue
                         onClick={() => {
                           setSelectedStudentsCourseId('')
                           setSelectedStudentsBatchId('')
+                          setStudentsBatchSearch('')
+                          setStudentsBatchWeekTypeFilter('all')
                         }}
                       >
                         <ArrowLeft size={16} />
@@ -5823,7 +5855,30 @@ const nextName = trimmedValue
                         <span>{selectedStudentsCourse?.courseCode || selectedStudentsCourse?.id || '-'}</span>
                       </div>
 
-                      {selectedStudentsCourseBatches.length ? (
+                      <div className="faculty-students-batch-toolbar">
+                        <label className="faculty-students-batch-search">
+                          <Search size={18} aria-hidden="true" />
+                          <input
+                            type="search"
+                            value={studentsBatchSearch}
+                            onChange={(event) => setStudentsBatchSearch(event.target.value)}
+                            placeholder="Search batch name"
+                            aria-label="Search batches by name"
+                          />
+                        </label>
+                        <select
+                          className="faculty-students-batch-week-filter"
+                          value={studentsBatchWeekTypeFilter}
+                          onChange={(event) => setStudentsBatchWeekTypeFilter(event.target.value)}
+                          aria-label="Filter batches by week type"
+                        >
+                          <option value="all">All</option>
+                          <option value="weekday">Weekday</option>
+                          <option value="weekend">Weekend</option>
+                        </select>
+                      </div>
+
+                      {filteredStudentsCourseBatches.length ? (
                         <div className="branch-dashboard-table-shell faculty-students-table-shell faculty-students-flow-shell faculty-students-batches-shell">
                           <table className="branch-dashboard-table">
                             <thead>
@@ -5839,7 +5894,7 @@ const nextName = trimmedValue
                               </tr>
                             </thead>
                             <tbody>
-                              {selectedStudentsCourseBatches.map((batch, index) => {
+                              {paginatedStudentsCourseBatches.map((batch, index) => {
                                 const batchProgress = selectedCourseBatchProgress.get(getFacultyFlowBatchKey(batch)) || 0
                                 const batchStudents = getFacultyBatchProgressStudents(
                                   batch,
@@ -5869,7 +5924,7 @@ const nextName = trimmedValue
                                     }
                                   }}
                                 >
-                                  <td>{index + 1}</td>
+                                  <td>{(safeStudentsCourseBatchPage - 1) * studentsCourseBatchesPerPage + index + 1}</td>
                                   <td><strong>{batch.batchName || batch.code || batch.timing || '-'}</strong></td>
                                   <td>{String(batch.weekType || batch.weekdayType || '').toUpperCase() === 'WEEKEND' ? 'Weekend' : String(batch.weekType || batch.weekdayType || '').toUpperCase() === 'WEEKDAY' ? 'Weekday' : '-'}</td>
                                   <td>{batchStudents.length}</td>
@@ -5899,11 +5954,22 @@ const nextName = trimmedValue
                               })}
                             </tbody>
                           </table>
+                          {filteredStudentsCourseBatches.length > studentsCourseBatchesPerPage ? (
+                            <div className="faculty-students-pagination-wrap">
+                              <PaginationBar
+                                currentPage={safeStudentsCourseBatchPage}
+                                totalPages={studentsCourseBatchTotalPages}
+                                onPageChange={setStudentsCourseBatchPage}
+                                className="faculty-students-pagination"
+                                label="Batch list pagination"
+                              />
+                            </div>
+                          ) : null}
                         </div>
                       ) : (
                         <div className="faculty-my-batches-empty faculty-students-flow-empty">
-                          <strong>No batches found</strong>
-                          <p>This course does not have any mapped batches yet.</p>
+                          <strong>{studentsBatchSearch.trim() ? 'No matching batches' : 'No batches found'}</strong>
+                          <p>{studentsBatchSearch.trim() ? 'Try another batch name.' : 'This course does not have any mapped batches yet.'}</p>
                         </div>
                       )}
                     </div>

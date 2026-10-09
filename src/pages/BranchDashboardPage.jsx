@@ -10975,7 +10975,7 @@ else {
                     <td>
                       {courseRow.isPendingSequentialCourse ? <span className="faculty-today-work-empty-label">-</span> : (
                         <div className="branch-student-paid-cell">
-                          <span className="branch-student-paid-progress-label">{formatBranchPercentage(courseRow.paidPercentage)}% Paid</span>
+                          <span className="branch-student-paid-progress-label">{Math.round(courseRow.paidPercentage)}% Paid</span>
                           <div className="branch-student-paid-progress"><div className="branch-student-paid-progress-bar"><span className="branch-student-paid-progress-fill" style={{ width: `${courseRow.paidPercentage}%` }} /></div></div>
                         </div>
                       )}

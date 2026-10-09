@@ -381,6 +381,21 @@ function getPaymentEntryCourseKey(entry = {}) {
   return String(entry.courseId || entry.branchCourseId || entry.courseName || entry.course || '').trim().toLowerCase()
 }
 
+function getEnrollmentPaymentEntries(entries = [], enrollments = [], enrollment = {}) {
+  const courseId = String(enrollment.courseId || '').trim().toLowerCase()
+  const courseName = String(enrollment.courseName || '').trim().toLowerCase()
+  const keyed = entries.filter((entry) => {
+    const key = getPaymentEntryCourseKey(entry)
+    return key && (key === courseId || key === courseName || (courseName && key.includes(courseName)))
+  })
+
+  // Legacy ledger rows without a course reference are attributed to Course 1.
+  if (enrollments.indexOf(enrollment) === 0) {
+    return [...keyed, ...entries.filter((entry) => !getPaymentEntryCourseKey(entry))]
+  }
+  return keyed
+}
+
 function getEnrollmentInstallmentCount(enrollment = {}) {
   const directCount = Number(enrollment.installmentCount || enrollment.paymentPlanInstallmentCount || enrollment.paymentPlan?.installmentCount)
   if (Number.isFinite(directCount) && directCount > 0) return Math.floor(directCount)
@@ -417,6 +432,22 @@ function getSequentialCourseInstallments(student = {}, enrollments = [], selecte
   const count = counts[selectedIndex]
   if (!count) return []
   return allInstallments.slice(start, start + count)
+}
+
+function getSequentialCoursePaymentSummary(student = {}, enrollments = [], enrollment = {}, paymentEntries = []) {
+  const fee = getEnrollmentPaymentFee(enrollment)
+  const courseEntries = getEnrollmentPaymentEntries(paymentEntries, enrollments, enrollment)
+  const installments = getSequentialCourseInstallments(student, enrollments, enrollment)
+  const scheduledPaid = installments.reduce((sum, installment) => sum + asAmount(installment.paidAmount || installment.amountPaid), 0)
+  const paid = courseEntries.length
+    ? courseEntries.reduce((sum, entry) => sum + asAmount(entry.amount || entry.credit), 0)
+    : asAmount(enrollment.paidAmount || enrollment.amountPaid || scheduledPaid)
+
+  return {
+    fee,
+    paid,
+    percentage: fee > 0 ? Math.min(Math.round((paid / fee) * 100), 100) : 0,
+  }
 }
 
 function formatPaymentTime(value) {
@@ -883,17 +914,7 @@ export function StudentNewDashboardPage() {
  const paymentHistoryRows = useMemo(() => [...paymentEntries].sort((a, b) => new Date(b.dateRaw || b.date).getTime() - new Date(a.dateRaw || a.date).getTime()), [paymentEntries])
  const coursePaymentEntries = useMemo(() => {
    if (!isSequentialMultiCourse || !selectedPaymentCourse) return paymentEntries
-   const courseId = String(selectedPaymentCourse.courseId || '').trim().toLowerCase()
-   const courseName = String(selectedPaymentCourse.courseName || '').trim().toLowerCase()
-   const keyed = paymentEntries.filter((entry) => {
-     const key = getPaymentEntryCourseKey(entry)
-     return key && (key === courseId || key === courseName || key.includes(courseName))
-   })
-   // Older ledger entries without a course reference belong to the first sequential course.
-   if (dashboardCourses.indexOf(selectedPaymentCourse) === 0) {
-     return [...keyed, ...paymentEntries.filter((entry) => !getPaymentEntryCourseKey(entry))]
-   }
-   return keyed
+   return getEnrollmentPaymentEntries(paymentEntries, dashboardCourses, selectedPaymentCourse)
  }, [isSequentialMultiCourse, selectedPaymentCourse, paymentEntries, dashboardCourseIdsKey])
  const paymentStudent = isSequentialMultiCourse && selectedPaymentCourse
    ? { ...selectedPaymentCourse, installmentSchedule: getSequentialCourseInstallments(student || {}, dashboardCourses, selectedPaymentCourse), paymentPlan: selectedPaymentCourse.paymentPlan || {} }
@@ -1368,7 +1389,20 @@ const handleLogoutConfirm = async () => {
                   })}
                   {upcomingDashboardCourses.map((course, index) => <article className="student-dashboard-summary-card student-dashboard-upcoming-course-card" key={`upcoming-course-${course.courseId || index}`}><span className="student-dashboard-icon"><BookOpen size={21} /></span><div><small>MY COURSE {dashboardCourses.findIndex((item) => item.courseId === course.courseId) + 1}</small><strong>{formatValue(course.courseName)}</strong><span className="student-course-upcoming-badge">Upcoming</span></div></article>)}
                   {!activeDashboardCourses.length ? <article className="student-dashboard-summary-card"><span className="student-dashboard-icon green"><CalendarCheck size={21} /></span><div><small>ATTENDANCE</small><strong>{attendanceLoading ? 'Loading...' : attendanceOverview?.overall?.percentage === undefined ? 'Not available' : `${attendanceOverview.overall.percentage}%`}</strong><span>{attendanceOverview?.overall ? `${attendanceOverview.overall.present} Present / ${attendanceOverview.overall.absent} Absent` : 'Attendance records not available'}</span></div></article> : null}
-                  <article className="student-dashboard-summary-card"><span className="student-dashboard-icon amber"><CreditCard size={21} /></span><div><small>PAYMENT PROGRESS</small><strong>{totalFee > 0 ? `${paymentProgress}%` : 'Not available'}</strong><span>{totalFee > 0 ? `${formatPaymentAmount(paidAmount)} paid` : 'Payment data not available'}</span></div></article>
+                  {isSequentialMultiCourse
+                    ? dashboardCourses.map((course, index) => {
+                      const coursePayment = getSequentialCoursePaymentSummary(student || {}, dashboardCourses, course, paymentEntries)
+                      return <article className="student-dashboard-summary-card" key={`payment-progress-${course.courseId || index}`}>
+                        <span className="student-dashboard-icon amber"><CreditCard size={21} /></span>
+                        <div>
+                          <small>PAYMENT PROGRESS · COURSE {index + 1}</small>
+                          <strong>{coursePayment.fee > 0 ? `${coursePayment.percentage}%` : 'Not available'}</strong>
+                          <span>{course.courseName}</span>
+                          <span>{coursePayment.fee > 0 ? `${formatPaymentAmount(coursePayment.paid)} paid · ${formatPaymentAmount(coursePayment.fee)} total` : 'Payment data not available'}</span>
+                        </div>
+                      </article>
+                    })
+                    : <article className="student-dashboard-summary-card"><span className="student-dashboard-icon amber"><CreditCard size={21} /></span><div><small>PAYMENT PROGRESS</small><strong>{totalFee > 0 ? `${paymentProgress}%` : 'Not available'}</strong><span>{totalFee > 0 ? `${formatPaymentAmount(paidAmount)} paid` : 'Payment data not available'}</span></div></article>}
                 </section>
 
 
