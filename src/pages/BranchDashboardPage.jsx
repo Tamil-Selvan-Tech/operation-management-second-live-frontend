@@ -3415,7 +3415,7 @@ function writeBranchCourseDraft(identifier = '', draft = null) {
   }
 }
 
-export function BranchDashboardPage({ embeddedMode = false, branchData = null, initialSection = 'dashboard', initialStudentEditId = '', onInitialStudentEditSaved, onEmbeddedStudentSaved, onEmbeddedStudent360Back }) {
+export function BranchDashboardPage({ embeddedMode = false, branchData = null, initialSection = 'dashboard', initialStudentEditId = '', initialStudent360Id = '', onInitialStudentEditSaved, onEmbeddedStudentSaved, onEmbeddedStudent360Back }) {
   const location = useLocation()
   const navigate = useNavigate()
   const routeParams = useParams()
@@ -3424,7 +3424,7 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
   const branchViewStudentId = embeddedMode ? String(branchViewParams.get('student') || '') : ''
   const isStudentCalendarRoute = /\/branch-dashboard\/students\/[^/]+\/calendar\/?$/.test(location.pathname)
   const student360Id = !isStudentCalendarRoute
-    ? routeParams.studentId || location.pathname.match(/^\/branch-dashboard\/students\/([^/]+)\/?$/)?.[1] || (branchViewParams.get('section') === 'student-360' ? branchViewStudentId : '')
+    ? initialStudent360Id || routeParams.studentId || location.pathname.match(/^\/branch-dashboard\/students\/([^/]+)\/?$/)?.[1] || (branchViewParams.get('section') === 'student-360' ? branchViewStudentId : '')
     : ''
   const studentCalendarId = isStudentCalendarRoute
     ? routeParams.studentId || location.pathname.match(/\/branch-dashboard\/students\/([^/]+)\/calendar\/?$/)?.[1] || (branchViewParams.get('section') === 'student-calendar' ? branchViewStudentId : '')
@@ -4872,10 +4872,17 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
             String(notification.kind || '').trim() !== 'branch-login' && (
               String(notification.kind || '').startsWith('branch-') ||
               String(notification.kind || '').startsWith('faculty-') ||
-              String(notification.kind || '').startsWith('course-edit-')
+              String(notification.kind || '').startsWith('course-edit-') ||
+              String(notification.kind || '') === 'sequential-course-scheduling-required'
             ),
         )
-        .filter((notification) => doesBranchNotificationBelongToBranch(notification, branchScope))
+        // The API is already tenant-scoped. Keep sequential scheduling alerts
+        // visible even for legacy rows that were saved before branch IDs were
+        // normalized to the canonical branch primary key.
+        .filter((notification) => (
+          String(notification.kind || '').trim() === 'sequential-course-scheduling-required' ||
+          doesBranchNotificationBelongToBranch(notification, branchScope)
+        ))
         .filter((notification) => {
           const kind = String(notification.kind || '').trim()
           if (kind !== 'branch-faculty-login') return true
@@ -10957,12 +10964,17 @@ else {
                 && parsedCourseStartDate
                 && !Number.isNaN(parsedCourseStartDate.getTime())
                 && parsedCourseStartDate >= today
-              const courseStatus = item.isPendingSequentialCourse
+              // A fully paid course is completed even when the next
+              // sequential course is still pending or has not started.
+              const isCoursePaymentCompleted = item.amount > 0 && (
+                paidPercentage >= 100 || coursePaidAmount >= item.amount
+              )
+              const courseStatus = isCoursePaymentCompleted
+                ? 'Completed'
+                : item.isPendingSequentialCourse
                 ? 'Upcoming'
                 : isSequentialCourseNotStarted
                 ? 'Upcoming'
-                : coursePaidAmount >= item.amount && item.amount > 0
-                ? 'Completed'
                 : nextCourseDueDate && new Date(`${String(nextCourseDueDate).slice(0, 10)}T00:00:00`) < today
                   ? 'Overdue'
                   : coursePaidAmount > 0
@@ -11117,7 +11129,7 @@ else {
                               style={{ position: 'fixed', top: `${studentActionMenuPosition.top}px`, left: `${studentActionMenuPosition.left}px`, zIndex: 999999, display: 'block' }}
                               onClick={(event) => event.stopPropagation()}
                             >
-                              <button type="button" role="menuitem" onClick={() => { setStudentActionMenuId(''); setStudentActionMenuPosition({ top: 0, left: 0 }); openStudentViewDrawer(stu) }}><Eye size={15} /><span>View</span></button>
+                              <button type="button" role="menuitem" onClick={(event) => { event.preventDefault(); event.stopPropagation(); setStudentActionMenuId(''); setStudentActionMenuPosition({ top: 0, left: 0 }); openStudentViewDrawer(stu) }}><Eye size={15} /><span>View</span></button>
                               <button type="button" role="menuitem" onClick={() => { setStudentActionMenuId(''); setStudentActionMenuPosition({ top: 0, left: 0 }); setAttendanceReportTarget({ mode: 'student', record: stu, courseId: isSequentialArrangement ? courseRow.courseId : '' }) }}><Download size={15} /><span>Download Attendance</span></button>
                               <button type="button" role="menuitem" onClick={() => { setStudentActionMenuId(''); setStudentActionMenuPosition({ top: 0, left: 0 }); openEditStudentForm({ ...stu }) }}><Pencil size={15} /><span>Edit</span></button>
                               <button type="button" role="menuitem" onClick={() => { setStudentActionMenuId(''); setStudentActionMenuPosition({ top: 0, left: 0 }); openRecordPaymentConfirmation(stu, courseRow) }}><Wallet size={15} /><span>Record Payment</span></button>
@@ -11292,7 +11304,9 @@ else {
                       <button
                         type="button"
                         role="menuitem"
-                        onClick={() => {
+                        onClick={(event) => {
+                          event.preventDefault()
+                          event.stopPropagation()
                           setStudentActionMenuId('')
                           setStudentActionMenuPosition({ top: 0, left: 0 })
                           openStudentViewDrawer(stu)

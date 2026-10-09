@@ -7,6 +7,7 @@ import {
   Routes,
   useLocation,
   useNavigate,
+  useParams,
 } from 'react-router-dom'
 import { useAuth } from '../auth/useAuth'
 import { courseAccessRoles, roleDashboards, dashboardPathByRole } from '../data/authData'
@@ -84,6 +85,11 @@ const FacultyExamsPage = lazyNamed(() => import('../pages/FacultyExamsPage'), 'F
 const FacultyExamReportsPage = lazyNamed(() => import('../pages/FacultyExamReportsPage'), 'FacultyExamReportsPage')
 const FacultyStudentExamReportPage = lazyNamed(() => import('../pages/FacultyStudentExamReportPage'), 'FacultyStudentExamReportPage')
 const StudentExamsPage = lazyNamed(() => import('../pages/StudentExamsPage'), 'StudentExamsPage')
+
+function BranchStudent360Route() {
+  const { studentId = '' } = useParams()
+  return <BranchDashboardPage initialSection="student-360" initialStudent360Id={studentId} />
+}
 
 const routeChunks = [
   AuthShell,
@@ -355,7 +361,7 @@ export function AppRouter() {
 
           <Route element={<BranchProtectedRoute />}>
             <Route path="/branch-dashboard" element={<BranchDashboardPage />} />
-            <Route path="/branch-dashboard/students/:studentId" element={<BranchDashboardPage />} />
+            <Route path="/branch-dashboard/students/:studentId" element={<BranchStudent360Route />} />
             <Route path="/branch-dashboard/students/:studentId/calendar" element={<BranchDashboardPage />} />
             <Route path="/branch-dashboard/notifications" element={<BranchNotificationsPage />} />
           </Route>

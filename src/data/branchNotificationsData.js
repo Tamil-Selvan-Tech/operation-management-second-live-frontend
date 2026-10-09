@@ -69,6 +69,7 @@ export function normalizeBranchNotification(notification = {}) {
   const isProgressStatus =
     kind === 'faculty-progress-status' || kind === 'branch-progress-status'
   const isFacultyReportShared = kind === 'faculty-report-shared'
+  const isSequentialCourseScheduling = kind === 'sequential-course-scheduling-required'
   const branchId = String(notification.branchId || notification.targetBranchId || '').trim()
   const branchEmail = String(notification.targetBranchEmail || '').trim().toLowerCase()
 
@@ -76,7 +77,7 @@ export function normalizeBranchNotification(notification = {}) {
     id: String(notification.id || '').trim(),
     kind: kind || 'general',
     tone:
-      String(notification.tone || (isCourseEditAccepted ? 'green' : isCourseEditUpdated ? 'amber' : isFacultyLogin ? 'green' : 'blue'))
+      String(notification.tone || (isCourseEditAccepted ? 'green' : isCourseEditUpdated || isSequentialCourseScheduling ? 'amber' : isFacultyLogin ? 'green' : 'blue'))
         .trim() || 'blue',
     title:
       title ||
@@ -90,8 +91,10 @@ export function normalizeBranchNotification(notification = {}) {
               ? `${notification.courseName || 'Course'} updated`
               : isProgressStatus
                 ? 'Progress Status Notification'
-        : isFacultyReportShared
+                : isFacultyReportShared
           ? 'Faculty report shared'
+          : isSequentialCourseScheduling
+            ? 'Schedule the student\'s next course'
           : 'Notification'),
     message:
       message ||
@@ -128,6 +131,8 @@ export function normalizeBranchNotification(notification = {}) {
                 ? String(notification.statusLabel || 'Progress Status').trim() || 'Progress Status'
                 : isFacultyReportShared
                   ? 'Faculty report'
+                  : isSequentialCourseScheduling
+                    ? 'Course scheduling'
                   : isFacultyLogin
                   ? 'Faculty'
                   : String(notification.actionLabel || '').trim() || 'View',
@@ -141,6 +146,8 @@ export function normalizeBranchNotification(notification = {}) {
         ? 'courses'
         : isFacultyReportShared
           ? 'exams-results'
+        : isSequentialCourseScheduling
+          ? 'students'
         : isFacultyLogin
           ? 'faculty'
           : 'batches'),
@@ -173,10 +180,14 @@ export function normalizeBranchNotification(notification = {}) {
 
 export function doesBranchNotificationBelongToBranch(notification = {}, branch = {}) {
   const normalizedNotification = normalizeBranchNotification(notification)
-  const normalizedBranchId = String(branch.id || branch.branchId || '').trim()
+  const normalizedBranchIds = new Set(
+    [branch.id, branch.branchId]
+      .map((value) => String(value || '').trim())
+      .filter(Boolean),
+  )
   const normalizedBranchEmail = String(branch.branchEmail || '').trim().toLowerCase()
 
-  if (!normalizedBranchId && !normalizedBranchEmail) {
+  if (!normalizedBranchIds.size && !normalizedBranchEmail) {
     return false
   }
 
@@ -185,8 +196,8 @@ export function doesBranchNotificationBelongToBranch(notification = {}, branch =
   ).trim()
   const notificationBranchEmail = String(normalizedNotification.targetBranchEmail || '').trim().toLowerCase()
 
-  if (normalizedBranchId && notificationBranchId) {
-    return notificationBranchId === normalizedBranchId
+  if (normalizedBranchIds.size && notificationBranchId) {
+    return normalizedBranchIds.has(notificationBranchId)
   }
 
   if (normalizedBranchEmail && notificationBranchEmail) {

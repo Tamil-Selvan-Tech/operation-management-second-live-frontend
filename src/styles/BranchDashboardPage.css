@@ -11396,6 +11396,11 @@ body.branch-notification-menu-open .main-area {
   color: #15803d;
 }
 
+.branch-student-payment-status.completed {
+  background: #dcfce7;
+  color: #15803d;
+}
+
 .branch-student-payment-status.partially-paid {
   background: #dbeafe;
   color: #2563eb;
