@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from 'react'
+import { createPortal } from 'react-dom'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { ArrowLeft, Ban, CalendarClock, Download, Eye, MoreVertical, Plus, Save, Trash2, X } from 'lucide-react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { cancelFacultyScheduledAcademicTest, downloadQuestionPaperPdf, evaluateFacultyAssessment, getAcademicTestPreparation, getFacultyAcademicTestResults, getFacultyAssessment, getFacultyProjectFile, getFacultyProjectPreview, gradeFacultyProject, listFacultyScheduledAcademicTests, saveAcademicTestProject, saveQuestionPaper, scheduleFacultyAcademicTestRetest, updateAcademicTestProject, updateFacultyScheduledAcademicTest, updateQuestionPaper } from '../services/academicTestService'
@@ -30,6 +31,53 @@ const validateQuestionPaper = (questions, marksPerQuestion, passMark, status) =>
     if (incompleteIndex >= 0) return `Complete all fields for question ${incompleteIndex + 1}.`
   }
   return ''
+}
+
+function RetestActionMenu({ retest, retestStarted, onEditRetestSchedule, onEditRetestQuestions, onCancelRetest }) {
+  const triggerRef = useRef(null)
+  const popoverRef = useRef(null)
+  const [open, setOpen] = useState(false)
+  const [position, setPosition] = useState({ top: 0, left: 0 })
+
+  useEffect(() => {
+    if (!open) return undefined
+    const updatePosition = () => {
+      const rect = triggerRef.current?.getBoundingClientRect()
+      if (!rect) return
+      const menuHeight = 132
+      const openAbove = rect.bottom + menuHeight > window.innerHeight - 8
+      setPosition({
+        top: Math.max(8, openAbove ? rect.top - menuHeight - 6 : rect.bottom + 6),
+        left: Math.min(Math.max(8, rect.right - 190), window.innerWidth - 198),
+      })
+    }
+    const closeOnOutsideClick = (event) => {
+      if (!triggerRef.current?.contains(event.target) && !popoverRef.current?.contains(event.target)) setOpen(false)
+    }
+    updatePosition()
+    document.addEventListener('pointerdown', closeOnOutsideClick)
+    window.addEventListener('resize', updatePosition)
+    window.addEventListener('scroll', updatePosition, true)
+    return () => {
+      document.removeEventListener('pointerdown', closeOnOutsideClick)
+      window.removeEventListener('resize', updatePosition)
+      window.removeEventListener('scroll', updatePosition, true)
+    }
+  }, [open])
+
+  const popover = open ? createPortal(
+    <div ref={popoverRef} className="academic-preparation-retest-popover" style={{ top: position.top, left: position.left }}>
+      <button type="button" disabled={retestStarted} title={retestStarted ? 'Retest has already started' : 'Edit retest schedule'} onClick={() => { setOpen(false); onEditRetestSchedule(retest.schedule) }}>Edit Retest Schedule</button>
+      <button type="button" onClick={() => { setOpen(false); onEditRetestQuestions(retest.schedule) }}>Edit Retest Questions</button>
+      <button type="button" className="is-danger" disabled={retestStarted} title={retestStarted ? 'Retest has already started' : 'Cancel retest'} onClick={() => { setOpen(false); onCancelRetest(retest.schedule) }}>Cancel Retest</button>
+    </div>,
+    document.body,
+  ) : null
+
+  return <>
+    <button ref={triggerRef} type="button" className="academic-preparation-retest-menu-trigger" aria-label="Retest actions" aria-expanded={open} onClick={() => setOpen((current) => !current)}><MoreVertical size={16} /></button>
+    {popover}
+  </>
 }
 
 function ScheduleEditorModal({ schedule, form, saving, onChange, onClose, onSave }) {
@@ -123,7 +171,7 @@ function ScheduleResultModal({ result, loading, onClose, onScheduleRetest, onEdi
                 <td>{entry.student.studentId || '-'}</td>
                 {resultTab === 'project' ? <><td><span className={`academic-preparation-result-status is-${(entry.projectSubmission?.status || 'NOT_SUBMITTED').toLowerCase().replaceAll('_', '-')}`}>{entry.projectSubmission?.status === 'GRADED' ? 'Graded' : entry.projectSubmission?.status === 'SUBMITTED' ? 'Submitted' : 'Not Submitted'}</span></td><td>{entry.projectSubmission?.marksAwarded == null ? '-' : `${entry.projectSubmission.marksAwarded} / ${schedule.projectMarks || 0}`}</td><td>{entry.projectSubmission?.marksAwarded == null || !schedule.projectMarks ? '-' : `${((entry.projectSubmission.marksAwarded / schedule.projectMarks) * 100).toFixed(2)}%`}</td><td><div className="academic-project-evaluation-actions">{entry.projectSubmission?.filePath && <button type="button" className="academic-preparation-retest-button" onClick={() => openProjectPreview(entry)}>View Project</button>}{entry.projectSubmission?.status && entry.projectSubmission.status !== 'NOT_SUBMITTED' && <><div><input type="number" min="0" max={schedule.projectMarks || 0} disabled={entry.projectSubmission.status === 'GRADED'} value={projectGrades[entry.student.id] ?? entry.projectSubmission.marksAwarded ?? ''} onChange={(event) => { const value = event.target.value; setProjectGrades((current) => ({ ...current, [entry.student.id]: value })); setProjectGradeErrors((current) => ({ ...current, [entry.student.id]: Number(value) > Number(schedule.projectMarks || 0) ? `Mark cannot exceed ${schedule.projectMarks || 0}.` : '' })) }} placeholder="Mark" />{projectGradeErrors[entry.student.id] && <small className="academic-project-grade-error">{projectGradeErrors[entry.student.id]}</small>}</div><button type="button" className="academic-preparation-retest-button" disabled={entry.projectSubmission.status === 'GRADED' || savingProjectId === entry.student.id || Boolean(projectGradeErrors[entry.student.id])} onClick={async () => { setSavingProjectId(entry.student.id); try { await onGradeProject(schedule.id, entry.student.id, projectGrades[entry.student.id] ?? entry.projectSubmission.marksAwarded) } finally { setSavingProjectId('') } }}>{savingProjectId === entry.student.id ? 'Saving...' : 'Save Mark'}</button></>}</div></td><td>{entry.projectSubmission?.filePath ? <button type="button" className="academic-preparation-retest-button" onClick={() => onDownloadProject(schedule.id, entry.student.id, entry.projectSubmission.fileName)}>Download</button> : '-'}</td></> : <><td><span className={`academic-preparation-result-status is-${statusClass}`}>{displayStatus}</span></td><td>{display.attemptedCount ?? 0}</td>{!schedule.hasAssessment && <><td>{display.correctCount ?? 0}</td><td>{display.wrongCount ?? 0}</td></>}<td>{display.unmarkedCount ?? schedule.totalQuestions}</td><td>{assessmentPending ? 'Pending' : display.obtainedMarks == null ? '-' : `${display.obtainedMarks} / ${display.totalMarks || schedule.totalMarks}`}</td><td><span className={`academic-preparation-result-value is-${String(displayResult || 'none').toLowerCase()}`}>{assessmentPending ? 'Pending' : displayResult || '-'}</span></td><td>{assessmentPending ? <button type="button" className="academic-preparation-retest-button" onClick={() => onViewAssessment(retestCompleted ? retest.schedule.id : schedule.id, entry.student.id)}>View Assessment</button> : <>{display.percentage == null && !retest ? '-' : display.percentage == null ? null : `${Number(display.percentage).toFixed(2)}%`}
                   {canRetest && <button type="button" className="academic-preparation-retest-button" onClick={() => onScheduleRetest({ ...entry, retestSource: retest?.schedule || null })}>Retest</button>}
-                  {retest && !retestCompleted && <div className="academic-preparation-retest-actions"><span className="academic-preparation-retest-chip" data-tooltip={`Retest scheduled date: ${scheduleDateLabel(retest.schedule?.testDate)}\nRetest scheduled time: ${scheduleTimeLabel(retest.schedule?.startTime)} - ${scheduleTimeLabel(retest.schedule?.endTime)}`} aria-label={`Retest scheduled date: ${scheduleDateLabel(retest.schedule?.testDate)}; Retest scheduled time: ${scheduleTimeLabel(retest.schedule?.startTime)} - ${scheduleTimeLabel(retest.schedule?.endTime)}`}>Retest Assigned</span><details className="academic-preparation-retest-menu"><summary aria-label="Retest actions"><MoreVertical size={16} /></summary><div><button type="button" disabled={retestStarted} title={retestStarted ? 'Retest has already started' : 'Edit retest schedule'} onClick={() => onEditRetestSchedule(retest.schedule)}>Edit Retest Schedule</button><button type="button" onClick={() => onEditRetestQuestions(retest.schedule)}>Edit Retest Questions</button><button type="button" className="is-danger" disabled={retestStarted} title={retestStarted ? 'Retest has already started' : 'Cancel retest'} onClick={() => onCancelRetest(retest.schedule)}>Cancel Retest</button></div></details></div>}
+                  {retest && !retestCompleted && <div className="academic-preparation-retest-actions"><span className="academic-preparation-retest-chip" data-tooltip={`Retest scheduled date: ${scheduleDateLabel(retest.schedule?.testDate)}\nRetest scheduled time: ${scheduleTimeLabel(retest.schedule?.startTime)} - ${scheduleTimeLabel(retest.schedule?.endTime)}`} aria-label={`Retest scheduled date: ${scheduleDateLabel(retest.schedule?.testDate)}; Retest scheduled time: ${scheduleTimeLabel(retest.schedule?.startTime)} - ${scheduleTimeLabel(retest.schedule?.endTime)}`}>Retest Assigned</span><RetestActionMenu retest={retest} retestStarted={retestStarted} onEditRetestSchedule={onEditRetestSchedule} onEditRetestQuestions={onEditRetestQuestions} onCancelRetest={onCancelRetest} /></div>}
                 </>}</td></>}
               </tr>
             }) : <tr><td colSpan={resultTab === 'project' ? 7 : schedule.hasAssessment ? 7 : 9} className="academic-test-empty">No active students found for this batch.</td></tr>}

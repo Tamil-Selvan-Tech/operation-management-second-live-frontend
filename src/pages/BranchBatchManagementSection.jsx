@@ -759,7 +759,9 @@ export function BranchBatchManagementSection({
   const refreshBatchGroups = useCallback(async () => {
     setIsLoading(true)
     try {
-      const result = await listBranchBatches()
+      // The API defaults to the first 10 records. Batch Management owns the
+      // client-side filters and pagination, so load the complete branch list.
+      const result = await listBranchBatches({ limit: 100 })
       const backendGroups = Array.isArray(result?.data) ? result.data : []
       const localGroups = loadBranchBatchGroups(branchId)
       const mergedGroups = [

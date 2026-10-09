@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { CalendarDays } from 'lucide-react'
 import { BranchAttendanceChart } from './BranchAttendanceChart'
 import { BranchAttendanceInsights } from './BranchAttendanceInsights'
@@ -11,6 +11,7 @@ export function BranchStudentAttendance({ branchId }) {
   const [data, setData] = useState(null)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
+  const lastLoadedAtRef = useRef(0)
   useEffect(() => {
     if (!branchId) {
       setLoading(false)
@@ -20,13 +21,15 @@ export function BranchStudentAttendance({ branchId }) {
     }
     let active = true
     let pending = false
-    async function load() {
+    async function load(force = false) {
       if (pending) return
+      if (!force && lastLoadedAtRef.current && Date.now() - lastLoadedAtRef.current < 30000) return
       pending = true
       setLoading(true)
       try {
         const result = await getBranchAttendanceOverview(attendanceToday(), branchId)
         if (String(result.branchId) !== String(branchId)) throw new Error('Attendance branch does not match the current dashboard.')
+        lastLoadedAtRef.current = Date.now()
         if (active) { setData(result); setError('') }
       } catch (err) {
         if (active) { setData(null); setError(err.message || 'Unable to load attendance. Please retry.') }
@@ -35,16 +38,18 @@ export function BranchStudentAttendance({ branchId }) {
         if (active) setLoading(false)
       }
     }
-    load()
-    const reload = () => { if (document.visibilityState === 'visible') load() }
+    load(true)
+    const reload = (force = false) => { if (document.visibilityState === 'visible') load(force) }
     const timer = window.setInterval(reload, 60000)
-    window.addEventListener('focus', reload)
-    window.addEventListener(FACULTY_ATTENDANCE_SYNC_EVENT, reload)
+    const reloadOnFocus = () => reload(false)
+    window.addEventListener('focus', reloadOnFocus)
+    const forceReload = () => reload(true)
+    window.addEventListener(FACULTY_ATTENDANCE_SYNC_EVENT, forceReload)
     return () => {
       active = false
       window.clearInterval(timer)
-      window.removeEventListener('focus', reload)
-      window.removeEventListener(FACULTY_ATTENDANCE_SYNC_EVENT, reload)
+      window.removeEventListener('focus', reloadOnFocus)
+      window.removeEventListener(FACULTY_ATTENDANCE_SYNC_EVENT, forceReload)
     }
   }, [branchId])
   const hasData = data && data.date === attendanceToday() && String(data.branchId) === String(branchId)

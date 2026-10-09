@@ -2936,7 +2936,8 @@ function createBranchCourseErrors(form) {
   if (!String(form.registrationFees || '').trim()) basic.registrationFees = 'Registration Fee is required.'
   if (!String(form.status || '').trim()) basic.status = 'Status is required.'
   if (String(form.discount || '').trim() && Number(form.discount) < 0) basic.discount = 'Discount must be zero or greater.'
-  if (String(form.academicTestCount || '').trim() && (!Number.isInteger(Number(form.academicTestCount)) || Number(form.academicTestCount) < 0)) basic.academicTestCount = 'Academic Test Count must be a whole number of zero or greater.'
+  if (!String(form.academicTestCount || '').trim()) basic.academicTestCount = 'Academic Test Count is required.'
+  else if (!Number.isInteger(Number(form.academicTestCount)) || Number(form.academicTestCount) < 1) basic.academicTestCount = 'Academic Test Count must be at least 1.'
 
   const normalizedModels = normalizeBranchCourseModels(form.models)
   if (!normalizedModels.length) {
@@ -3293,7 +3294,7 @@ function createInitialBranchCourseForm() {
     actualFees: '0',
     registrationFees: '',
     discount: '',
-    academicTestCount: '0',
+    academicTestCount: '',
     status: 'Active',
     models: [],
     paymentPlans: [],
@@ -3956,6 +3957,7 @@ const BRANCH_PAYMENT_HISTORY_PER_PAGE = 5
   }, [])
   const profileMenuRef = useRef(null)
   const notificationMenuRef = useRef(null)
+  const notificationDropdownRef = useRef(null)
   const courseActionCloseTimer = useRef(null)
   const branchNotificationsRequestRef = useRef(null)
   const branchNotificationsRefreshTimerRef = useRef(null)
@@ -4324,7 +4326,7 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
     const onPointerDown = (event) => {
       const target = event.target
       if (!(target instanceof Element)) return
-      if (notificationMenuRef.current?.contains(target)) return
+      if (notificationMenuRef.current?.contains(target) || notificationDropdownRef.current?.contains(target)) return
       setIsNotificationMenuOpen(false)
     }
 
@@ -4336,14 +4338,14 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
 
       const scrollKeys = [' ', 'PageUp', 'PageDown', 'Home', 'End', 'ArrowUp', 'ArrowDown']
       const target = event.target
-      if (scrollKeys.includes(event.key) && !(target instanceof Element && notificationMenuRef.current?.contains(target))) {
+      if (scrollKeys.includes(event.key) && !(target instanceof Element && (notificationMenuRef.current?.contains(target) || notificationDropdownRef.current?.contains(target)))) {
         event.preventDefault()
       }
     }
 
     const preventBackgroundScroll = (event) => {
       const target = event.target
-      if (target instanceof Element && notificationMenuRef.current?.contains(target)) return
+      if (target instanceof Element && (notificationMenuRef.current?.contains(target) || notificationDropdownRef.current?.contains(target))) return
       event.preventDefault()
     }
 
@@ -9648,8 +9650,8 @@ useEffect(() => {
               {branchUnreadNotificationCount > 0 ? <b>{branchUnreadNotificationCount}</b> : null}
             </button>
 
-            {isNotificationMenuOpen && !isProfileMenuOpen ? (
-              <div className="notification-dropdown" role="menu" aria-label="Notifications">
+            {isNotificationMenuOpen && !isProfileMenuOpen && typeof document !== 'undefined' ? createPortal(
+              <div ref={notificationDropdownRef} className="notification-dropdown" role="menu" aria-label="Notifications">
                 <div className="notification-dropdown-head">
                   <strong>Notifications</strong>
                   <div className="notification-dropdown-head-actions">
@@ -9762,7 +9764,8 @@ useEffect(() => {
                 <button className="notification-dropdown-footer" type="button" onClick={openBranchNotifications}>
                   View all notifications
                 </button>
-              </div>
+              </div>,
+              document.body,
             ) : null}
           </div>
         </>
@@ -13664,7 +13667,8 @@ else {
 
                   <Field
                     label="Academic Test Count"
-                    hint="Whole number; 0 means not configured"
+                    required
+                    hint="Required whole number; minimum 1"
                     error={shouldShowBasicAddCourseError('academicTestCount') ? addCourseValidationErrors.basic.academicTestCount : ''}
                   >
                     <input
