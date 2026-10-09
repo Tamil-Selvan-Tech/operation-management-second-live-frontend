@@ -196,6 +196,19 @@ export function doesBranchNotificationBelongToBranch(notification = {}, branch =
   return false
 }
 
+export function isProgressGeneratedCourseModuleNotification(notification = {}) {
+  const normalized = normalizeBranchNotification(notification)
+  const kind = String(normalized.kind || '').trim().toLowerCase()
+  const message = String(normalized.message || '').trim().toLowerCase()
+
+  return (
+    kind === 'course-edit-module-updated' &&
+    message.includes('module progress') &&
+    message.includes('sub-module progress') &&
+    message.includes('course progress')
+  )
+}
+
 export function groupByDate(notifications = []) {
   const groups = new Map()
 

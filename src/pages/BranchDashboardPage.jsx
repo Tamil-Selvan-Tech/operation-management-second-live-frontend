@@ -123,6 +123,7 @@ import '../components/payments/RecordPayment.css'
 import {
   groupByDate,
   doesBranchNotificationBelongToBranch,
+  isProgressGeneratedCourseModuleNotification,
   normalizeBranchNotification,
 } from '../data/branchNotificationsData'
 import {
@@ -2196,7 +2197,7 @@ function BranchNotificationGroup({
                           <h3 style={{ margin: 0, color: '#0f172a', fontSize: '1.02rem', lineHeight: 1.25, fontWeight: 800 }}>
                             {item.title}
                           </h3>
-                          <p style={{ margin: '6px 0 0', color: '#475569', fontSize: '0.95rem', lineHeight: 1.45 }}>
+                          <p style={{ margin: '6px 0 0', color: '#475569', fontSize: '0.95rem', lineHeight: 1.45, whiteSpace: 'pre-line' }}>
                             {item.message}
                           </p>
                         </div>
@@ -2348,7 +2349,7 @@ function BranchNotificationGroup({
                       <h3>{item.title}</h3>
                       <small>{item.time}</small>
                     </div>
-                    <p>{item.message}</p>
+                    <p style={{ whiteSpace: 'pre-line' }}>{item.message}</p>
                   </div>
 
                   <div className="notifications-item-meta">
@@ -4832,6 +4833,7 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
         .map(normalizeBranchNotification)
         .filter(
           (notification) =>
+            !isProgressGeneratedCourseModuleNotification(notification) &&
             String(notification.kind || '').trim() !== 'branch-login' && (
               String(notification.kind || '').startsWith('branch-') ||
               String(notification.kind || '').startsWith('faculty-') ||
@@ -9692,7 +9694,7 @@ useEffect(() => {
                           </span>
                           <div className="notification-copy">
                             <p>{item.title}</p>
-                            <span>{item.message}</span>
+                            <span style={{ whiteSpace: 'pre-line' }}>{item.message}</span>
                             <small>{item.time}</small>
                           </div>
 
