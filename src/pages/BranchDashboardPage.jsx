@@ -3423,11 +3423,17 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
   const branchViewStudentId = embeddedMode ? String(branchViewParams.get('student') || '') : ''
   const student360Id = location.pathname.match(/^\/branch-dashboard\/students\/([^/]+)\/?$/)?.[1] || (branchViewParams.get('section') === 'student-360' ? branchViewStudentId : '')
   const studentCalendarId = location.pathname.match(/\/branch-dashboard\/students\/([^/]+)\/calendar\/?$/)?.[1] || (branchViewParams.get('section') === 'student-calendar' ? branchViewStudentId : '')
-  const activeSection = student360Id
+  const routeSection = student360Id
     ? 'student-360'
     : studentCalendarId
       ? 'student-calendar'
-    : getBranchDashboardSectionFromPath(location.pathname, location.search) || initialSection
+      : getBranchDashboardSectionFromPath(location.pathname, location.search) || initialSection
+  const [requestedSidebarSection, setRequestedSidebarSection] = useState('')
+  const activeSection = requestedSidebarSection || routeSection
+
+  useEffect(() => {
+    setRequestedSidebarSection('')
+  }, [location.pathname, location.search])
   const [expandedSidebarGroups, setExpandedSidebarGroups] = useState(() => ({
     courses: false,
     faculty: activeSection === 'batches',
@@ -3535,6 +3541,8 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
       const replace = Boolean(options?.replace)
       const isDashboard = nextSection === 'dashboard'
       const isNotifications = nextSection === 'notifications'
+
+      setRequestedSidebarSection(nextSection)
 
       if (embeddedMode) {
         setIsMobileSidebarOpen(false)
@@ -8745,6 +8753,7 @@ useEffect(() => {
   useEffect(() => {
     if (!branchProgressComparisonNotifications.length) {
       syncProgressComparisonNotifications([], 'branch')
+      setBranchNotificationRecords(loadNotifications())
       return
     }
 
@@ -8762,6 +8771,11 @@ useEffect(() => {
       })),
       'branch',
     )
+    // Progress notifications are client-synchronised because the comparison
+    // depends on the branch's current paid-progress data. Refresh the page
+    // state immediately so the newly-created item is visible without waiting
+    // for a second API refresh.
+    setBranchNotificationRecords(loadNotifications())
   }, [branchProgressComparisonNotifications])
 
   const studentFormValidationErrors = useMemo(

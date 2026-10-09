@@ -2653,6 +2653,27 @@ export function FacultyDashboardPage() {
     const facultyId = currentFacultyIdentity.facultyId
     const facultyNameValue = currentFacultyIdentity.facultyName
     const facultyEmailValue = currentFacultyIdentity.facultyEmail
+    const assignedBatchRecords = [
+      ...(Array.isArray(dashboardSummary?.batchEntries) ? dashboardSummary.batchEntries : []),
+      ...(Array.isArray(dashboardSummary?.batchCounts) ? dashboardSummary.batchCounts : []),
+      ...(Array.isArray(facultyProfile?.batchEntries) ? facultyProfile.batchEntries : []),
+    ]
+    const assignedBatchKeys = new Set(
+      assignedBatchRecords
+        .flatMap((batch) => [
+          batch?.id,
+          batch?.batchId,
+          batch?.batchEntryId,
+          batch?.batchName,
+          batch?.batch,
+        ])
+        .map((value) => String(value || '').trim().toLowerCase())
+        .filter(Boolean),
+    )
+    const assignedCourseKeys = new Set([
+      ...assignedCourseIds,
+      ...assignedCourseNames,
+    ].map((value) => String(value || '').trim().toLowerCase()).filter(Boolean))
 
     const branchKeys = [currentFacultyIdentity.branchId, currentFacultyIdentity.branchCode]
       .map((value) => String(value || '').trim().toLowerCase())
@@ -2667,8 +2688,34 @@ export function FacultyDashboardPage() {
         })
       : backfilledStudents
 
-    return getExactFacultyStudents(branchScopedStudents, facultyId, facultyNameValue, facultyEmailValue)
-  }, [backfilledStudents, currentFacultyIdentity.branchCode, currentFacultyIdentity.branchId, currentFacultyIdentity.facultyEmail, currentFacultyIdentity.facultyId, currentFacultyIdentity.facultyName])
+    const exactFacultyStudents = getExactFacultyStudents(
+      branchScopedStudents,
+      facultyId,
+      facultyNameValue,
+      facultyEmailValue,
+    )
+    const exactStudentKeys = new Set(exactFacultyStudents.map((student) => getStudentIdentityKey(student)).filter(Boolean))
+    const batchAssignedStudents = branchScopedStudents.filter((student) => {
+      const studentBatchKeys = [
+        student?.batchId,
+        student?.batchEntryId,
+        student?.batchName,
+        student?.batch,
+      ].map((value) => String(value || '').trim().toLowerCase()).filter(Boolean)
+      const studentCourseKeys = [
+        student?.courseId,
+        student?.courseInterested,
+        student?.courseName,
+        student?.course?.name,
+      ].map((value) => String(value || '').trim().toLowerCase()).filter(Boolean)
+      const matchesBatch = studentBatchKeys.some((key) => assignedBatchKeys.has(key))
+      const matchesCourse = !assignedCourseKeys.size || studentCourseKeys.some((key) => assignedCourseKeys.has(key))
+      const key = getStudentIdentityKey(student)
+      return matchesBatch && matchesCourse && key && !exactStudentKeys.has(key)
+    })
+
+    return [...exactFacultyStudents, ...batchAssignedStudents]
+  }, [assignedCourseIds, assignedCourseNames, backfilledStudents, currentFacultyIdentity.branchCode, currentFacultyIdentity.branchId, currentFacultyIdentity.facultyEmail, currentFacultyIdentity.facultyId, currentFacultyIdentity.facultyName, dashboardSummary?.batchCounts, dashboardSummary?.batchEntries, facultyProfile?.batchEntries])
 
   const facultyTodayWorkEntries = useMemo(() => {
     return getFacultyTodayWorkEntriesByFaculty({
@@ -2729,10 +2776,18 @@ export function FacultyDashboardPage() {
           ? buildFacultyTodayWorkProgressSummary(facultyTodayWorkEntries, workCourse || {}, student)
           : null
 
-        if (!workProgressSummary) return null
-
-        const courseProgress = Number(workProgressSummary.courseProgress)
+        const storedCourseProgress = Number(
+          student?.courseProgress ??
+          student?.courseCompletionPercentage ??
+          student?.progress ??
+          NaN,
+        )
+        const courseProgress = Number.isFinite(Number(workProgressSummary?.courseProgress))
+          ? Number(workProgressSummary.courseProgress)
+          : storedCourseProgress
         const paidProgress = Number(paymentProgress.paidInstallmentPercentage)
+
+        if (!Number.isFinite(courseProgress) || !Number.isFinite(paidProgress)) return null
 
         return buildProgressComparisonNotification({
           studentName,
@@ -2761,6 +2816,7 @@ export function FacultyDashboardPage() {
       })),
       'faculty',
     )
+    setNotificationStoreVersion((current) => current + 1)
   }, [facultyProgressComparisonNotifications])
 
   const facultyBatchRows = useMemo(() => {
