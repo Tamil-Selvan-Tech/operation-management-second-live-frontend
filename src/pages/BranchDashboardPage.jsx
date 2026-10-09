@@ -1,7 +1,7 @@
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom'
 import html2pdf from 'html2pdf.js'
-import { useLocation, useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { getCountries, getStatesOfCountry, getCitiesOfState } from '@countrystatecity/countries-browser'
 import {
   Bell,
@@ -3418,18 +3418,31 @@ function writeBranchCourseDraft(identifier = '', draft = null) {
 export function BranchDashboardPage({ embeddedMode = false, branchData = null, initialSection = 'dashboard', initialStudentEditId = '', onInitialStudentEditSaved, onEmbeddedStudentSaved, onEmbeddedStudent360Back }) {
   const location = useLocation()
   const navigate = useNavigate()
+  const routeParams = useParams()
   const { isAuthenticated, role, signOut, user, session } = useAuth()
   const branchViewParams = new URLSearchParams(location.search)
   const branchViewStudentId = embeddedMode ? String(branchViewParams.get('student') || '') : ''
-  const student360Id = location.pathname.match(/^\/branch-dashboard\/students\/([^/]+)\/?$/)?.[1] || (branchViewParams.get('section') === 'student-360' ? branchViewStudentId : '')
-  const studentCalendarId = location.pathname.match(/\/branch-dashboard\/students\/([^/]+)\/calendar\/?$/)?.[1] || (branchViewParams.get('section') === 'student-calendar' ? branchViewStudentId : '')
+  const isStudentCalendarRoute = /\/branch-dashboard\/students\/[^/]+\/calendar\/?$/.test(location.pathname)
+  const student360Id = !isStudentCalendarRoute
+    ? routeParams.studentId || location.pathname.match(/^\/branch-dashboard\/students\/([^/]+)\/?$/)?.[1] || (branchViewParams.get('section') === 'student-360' ? branchViewStudentId : '')
+    : ''
+  const studentCalendarId = isStudentCalendarRoute
+    ? routeParams.studentId || location.pathname.match(/\/branch-dashboard\/students\/([^/]+)\/calendar\/?$/)?.[1] || (branchViewParams.get('section') === 'student-calendar' ? branchViewStudentId : '')
+    : ''
   const routeSection = student360Id
     ? 'student-360'
     : studentCalendarId
       ? 'student-calendar'
       : getBranchDashboardSectionFromPath(location.pathname, location.search) || initialSection
   const [requestedSidebarSection, setRequestedSidebarSection] = useState('')
-  const activeSection = requestedSidebarSection || routeSection
+  // Detail routes must always win over the temporary sidebar state. Without
+  // this priority, clicking a student row can update the URL while the old
+  // `students` list remains rendered until a full refresh.
+  const activeSection = student360Id
+    ? 'student-360'
+    : studentCalendarId
+      ? 'student-calendar'
+      : requestedSidebarSection || routeSection
 
   useEffect(() => {
     setRequestedSidebarSection('')
@@ -4504,6 +4517,15 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
     }
   }, [loadBranchNotifications])
 
+  // The branch dashboard and notifications page share this component. When
+  // navigation changes only the section, the component is not remounted, so
+  // fetch the latest report/login/edit notifications whenever Notifications
+  // becomes the active section.
+  useEffect(() => {
+    if (activeSection !== 'notifications') return
+    void loadBranchNotifications()
+  }, [activeSection, loadBranchNotifications])
+
   useEffect(() => {
     if (!openCourseActionMenuId) return undefined
 
@@ -4737,6 +4759,9 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
     studentActionMenuHoverCountRef.current = 0
     setStudentActionMenuId('')
     setStudentActionMenuPosition({ top: 0, left: 0 })
+    // Clear any pending sidebar selection before switching to the detail route.
+    // Otherwise the previous `students` section can win for one render.
+    setRequestedSidebarSection('')
     const studentKey = student?.studentId || student?.id || student?._id || ''
     if (embeddedMode) {
       navigate({ pathname: location.pathname, search: `?section=student-360&student=${encodeURIComponent(studentKey)}` })
@@ -4753,6 +4778,7 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
     studentActionMenuHoverCountRef.current = 0
     setStudentActionMenuId('')
     setStudentActionMenuPosition({ top: 0, left: 0 })
+    setRequestedSidebarSection('')
     const studentKey = student?.studentId || student?.id || student?._id || ''
     if (embeddedMode) {
       navigate({ pathname: location.pathname, search: `?section=student-360&student=${encodeURIComponent(studentKey)}#payments` })
@@ -9956,6 +9982,7 @@ useEffect(() => {
             <div className="branch-dashboard-content">
               {activeSection === 'student-360' ? (
                 <Student360Page
+                  key={student360Id}
                   studentId={decodeURIComponent(student360Id)}
                   student={branchStudents.find((student) => [student?.studentId, student?.studentCode, student?.id, student?._id].map((value) => String(value || '').trim().toLowerCase()).includes(String(decodeURIComponent(student360Id)).trim().toLowerCase()))}
                   facultyTodayWorkEntries={facultyTodayWorkEntries}
