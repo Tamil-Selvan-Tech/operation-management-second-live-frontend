@@ -88,7 +88,13 @@ const StudentExamsPage = lazyNamed(() => import('../pages/StudentExamsPage'), 'S
 
 function BranchStudent360Route() {
   const { studentId = '' } = useParams()
-  return <BranchDashboardPage initialSection="student-360" initialStudent360Id={studentId} />
+  return (
+    <BranchDashboardPage
+      key={`branch-student-360-${studentId}`}
+      initialSection="student-360"
+      initialStudent360Id={studentId}
+    />
+  )
 }
 
 const routeChunks = [
@@ -360,9 +366,9 @@ export function AppRouter() {
           <Route path="/branch-login" element={<Navigate to="/login" replace />} />
 
           <Route element={<BranchProtectedRoute />}>
-            <Route path="/branch-dashboard" element={<BranchDashboardPage />} />
             <Route path="/branch-dashboard/students/:studentId" element={<BranchStudent360Route />} />
             <Route path="/branch-dashboard/students/:studentId/calendar" element={<BranchDashboardPage />} />
+            <Route path="/branch-dashboard" element={<BranchDashboardPage />} />
             <Route path="/branch-dashboard/notifications" element={<BranchNotificationsPage />} />
           </Route>
       <Route

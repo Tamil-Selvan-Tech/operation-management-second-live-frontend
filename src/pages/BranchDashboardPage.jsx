@@ -8801,10 +8801,26 @@ useEffect(() => {
     branchTitle,
   ])
 
+  const branchProgressComparisonNotificationSignature = useMemo(
+    () => branchProgressComparisonNotifications
+      .map((notification) => [
+        notification.studentId,
+        notification.courseProgress,
+        notification.paidProgress,
+        notification.branchId,
+      ].map((value) => String(value ?? '').trim()).join(':'))
+      .sort()
+      .join('|'),
+    [branchProgressComparisonNotifications],
+  )
+
   useEffect(() => {
     if (!branchProgressComparisonNotifications.length) {
       syncProgressComparisonNotifications([], 'branch')
-      setBranchNotificationRecords(loadNotifications())
+      setBranchNotificationRecords((current) => {
+        const next = loadNotifications()
+        return JSON.stringify(current) === JSON.stringify(next) ? current : next
+      })
       return
     }
 
@@ -8826,8 +8842,11 @@ useEffect(() => {
     // depends on the branch's current paid-progress data. Refresh the page
     // state immediately so the newly-created item is visible without waiting
     // for a second API refresh.
-    setBranchNotificationRecords(loadNotifications())
-  }, [branchProgressComparisonNotifications])
+    setBranchNotificationRecords((current) => {
+      const next = loadNotifications()
+      return JSON.stringify(current) === JSON.stringify(next) ? current : next
+    })
+  }, [branchProgressComparisonNotificationSignature])
 
   const studentFormValidationErrors = useMemo(
     () => {
