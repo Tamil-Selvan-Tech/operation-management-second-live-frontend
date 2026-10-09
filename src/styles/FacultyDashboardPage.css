@@ -1177,6 +1177,48 @@ body.faculty-notification-menu-open .super-admin-content {
   background: linear-gradient(135deg, #1d4ed8, #1e40af);
 }
 
+.super-admin-page .faculty-student-discontinued-row td {
+  background: #fff8f8;
+  border-top: 1px solid #f4d7dc;
+  border-bottom: 1px solid #f4d7dc;
+  padding: 16px 18px;
+}
+
+.faculty-student-discontinued-only {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 34px;
+}
+
+.faculty-student-discontinued-only strong {
+  color: #1e293b;
+  font-size: 14px;
+}
+
+.faculty-student-discontinued-only span,
+.branch-student-discontinued-badge {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  border-radius: 999px;
+  background: #fee2e2;
+  color: #b4233f;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .04em;
+  padding: 5px 10px;
+  text-transform: uppercase;
+}
+
+.branch-student-name-with-status {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 .super-admin-page .faculty-students-flow-empty {
   margin-top: 0;
 }

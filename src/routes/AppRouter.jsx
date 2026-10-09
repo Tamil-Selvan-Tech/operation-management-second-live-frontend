@@ -177,12 +177,17 @@ function LoginScreen() {
       navigate(target)
     } catch (error) {
       const status = error?.status
+      const serverMessage = String(error?.body?.message || error?.message || '').trim()
+      const isInactiveAccount =
+        status === 403 && /inactive|deactivated|disabled/i.test(serverMessage)
       const message =
-        status === 400 || status === 401 || status === 403 || status === 422
+        isInactiveAccount
+          ? 'This account is inactive and cannot be used to sign in.'
+          : status === 400 || status === 401 || status === 403 || status === 422
           ? 'Invalid Email or Password'
-          : typeof error?.message === 'string' && /invalid/i.test(error.message)
+          : /invalid/i.test(serverMessage)
             ? 'Invalid Email or Password'
-            : error?.message || 'Unable to sign in right now. Please try again.'
+            : serverMessage || 'Unable to sign in right now. Please try again.'
 
       setErrorMessage(message)
     } finally {

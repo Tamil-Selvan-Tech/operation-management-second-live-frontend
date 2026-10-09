@@ -59,6 +59,35 @@ function formatAmount(value) {
   }).format(Number(value || 0))
 }
 
+function fullOutstandingAmount(snapshot, fallback = 0, student = null) {
+  const installments = Array.isArray(student?.installments) ? student.installments : []
+  const mainTotalAmount = installments.length
+    ? installments.reduce((sum, installment) => sum + Number(installment?.amount || 0), 0)
+    : Number(student?.courseAmount || 0)
+  const mainPaidAmount = installments.reduce((sum, installment) => sum + Number(installment?.amountPaid || 0), 0)
+  if (mainTotalAmount > 0) {
+    return Math.max(mainTotalAmount - mainPaidAmount, 0)
+  }
+  const finalCourseFee = Number(snapshot?.finalCourseFee || 0)
+  const totalPaid = Number(snapshot?.totalPaid || 0)
+  if (finalCourseFee) {
+    return Math.max(finalCourseFee - totalPaid, 0)
+  }
+  return Number(fallback || 0)
+}
+
+function normalizeCurrencyText(value) {
+  return String(value || '').replace(/\bINR\s*/gi, '₹')
+}
+
+function eligibleAmountFor(request) {
+  return Number(request?.financialSnapshot?.outstandingAmount
+    ?? request?.financialSnapshot?.finalOutstandingAmount
+    ?? request?.outstandingAmount
+    ?? request?.finalOutstandingAmount
+    ?? 0)
+}
+
 function displayRequestReason(value) {
   return value === 'Long absence follow-up after motivation email' ? 'Long leave mail follow-up' : value || 'Student request'
 }
@@ -140,6 +169,16 @@ export function BranchDiscontinuationManagementPage() {
   useEffect(() => {
     void loadRequests()
   }, [])
+  useEffect(() => {
+    const refreshRequests = () => { void loadRequests({ silent: true }) }
+    window.addEventListener('cispro:branch-students-changed', refreshRequests)
+    window.addEventListener('cispro:branch-payment-history-changed', refreshRequests)
+    return () => {
+      window.removeEventListener('cispro:branch-students-changed', refreshRequests)
+      window.removeEventListener('cispro:branch-payment-history-changed', refreshRequests)
+    }
+  }, [])
+
 
   const filteredRequests = useMemo(() => {
     const query = search.trim().toLowerCase()
@@ -162,6 +201,8 @@ export function BranchDiscontinuationManagementPage() {
   const pendingCount = requests.filter((item) => item.status === 'PENDING').length
   const reviewCount = requests.filter((item) => item.status === 'SUPER_ADMIN_REVIEW').length
   const isMotivationFollowUp = selectedRequest?.reason === 'Long absence follow-up after motivation email'
+  const eligibleAmount = eligibleAmountFor(selectedRequest)
+  const hasEligibleAmount = eligibleAmount > 0
   const canRecordMotivationOutcome = !isMotivationFollowUp || selectedRequest?.motivationMailComplete
   const canEditSelectedRequest = ['PENDING', 'UNABLE_TO_CONTACT'].includes(selectedRequest?.status) && !selectedReadOnly && canRecordMotivationOutcome
   const availableOutcomeOptions = isMotivationFollowUp
@@ -169,16 +210,23 @@ export function BranchDiscontinuationManagementPage() {
     : OUTCOME_OPTIONS
 
   const openOutcome = (item, readOnly = false) => {
+    const itemEligibleAmount = eligibleAmountFor(item)
     setSelectedRequest(item)
     setSelectedReadOnly(readOnly)
-    setOutcome(item.status === 'UNABLE_TO_CONTACT' ? 'UNABLE_TO_CONTACT' : item.status === 'PENDING' ? 'DISCONTINUE' : 'CONTINUE')
-    setNote('')
+    setOutcome(item.status === 'UNABLE_TO_CONTACT' ? 'UNABLE_TO_CONTACT' : item.status === 'PENDING' ? (itemEligibleAmount > 0 ? 'REJECT' : 'DISCONTINUE') : 'CONTINUE')
+    setNote(item.status === 'PENDING' && itemEligibleAmount > 0
+      ? `Please pay the eligible amount of ${formatAmount(itemEligibleAmount)} before discontinuation can proceed.`
+      : '')
     setFollowUpDate(item.nextFollowUpDate || '')
   }
 
   const saveOutcome = async (event) => {
     event.preventDefault()
     if (!selectedRequest?.id || !canEditSelectedRequest || saving) return
+    if (outcome === 'DISCONTINUE' && eligibleAmount > 0) {
+      setError(`Discontinuation cannot proceed until the eligible amount of ${formatAmount(eligibleAmount)} is paid.`)
+      return
+    }
     if (['DISCONTINUE', 'REJECT'].includes(outcome) && !note.trim()) return
     if (['UNABLE_TO_CONTACT', 'CONTINUE'].includes(outcome) && !followUpDate) {
       setError(outcome === 'CONTINUE' ? 'Continue date is required when the student will continue.' : 'Next follow-up date is required when the student cannot be reached.')
@@ -267,7 +315,7 @@ export function BranchDiscontinuationManagementPage() {
         ) : filteredRequests.length ? (
           <div className="branch-discontinuation-table-wrap">
             <table className="branch-discontinuation-table">
-              <thead><tr><th>Student</th><th>Course / Batch</th><th>Outstanding</th><th>Request</th><th>Status</th><th>Action</th></tr></thead>
+              <thead><tr><th>Student</th><th>Contact</th><th>Outstanding</th><th>Request</th><th>Status</th><th>Action</th></tr></thead>
               <tbody>
                 {filteredRequests.map((item) => {
                   const student = item.student || {}
@@ -275,9 +323,9 @@ export function BranchDiscontinuationManagementPage() {
                   const isMotivationReady = !isLongLeaveRequest(item) || item.motivationMailComplete
                   return (
                     <tr key={item.id} className="branch-discontinuation-table-row" onClick={() => openOutcome(item, true)} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); openOutcome(item, true) } }} tabIndex={0}>
-                      <td><strong>{student.studentName || '-'}</strong><small>{student.studentId || student.emailAddress || '-'}</small><small className="branch-discontinuation-mobile"><PhoneCall size={12} /> {student.mobileNumber || 'Mobile number unavailable'}</small></td>
-                      <td><strong>{student.courseName || '-'}</strong><small>{student.batchName || '-'}</small></td>
-                      <td><strong>{formatAmount(item.financialSnapshot?.finalOutstandingAmount ?? item.financialSnapshot?.outstandingAmount)}</strong></td>
+                      <td><strong>{student.studentName || '-'}</strong><small>{student.studentId || student.emailAddress || '-'}</small><small>{student.courseName || '-'}</small></td>
+                      <td className="branch-discontinuation-contact-cell"><small className="branch-discontinuation-mobile">Student: {student.mobileNumber || 'Unavailable'}</small><small className="branch-discontinuation-mobile">Parent: {student.parentSpouseNumber || 'Unavailable'}</small></td>
+                      <td><strong>{formatAmount(fullOutstandingAmount(item.financialSnapshot, item.outstandingAmount, student))}</strong></td>
                       <td className="branch-discontinuation-request-cell"><strong>{displayRequestReason(item.reason)}</strong><small>{item.details || 'No additional details provided.'}</small></td>
                       <td><span className={`branch-discontinuation-status ${isLongLeaveRequest(item) ? 'is-success is-mail-status' : statusClass(item.status)}`}>{motivationMailStatus(item)}</span></td>
                       <td>{isActionable && isMotivationReady ? <button type="button" className="branch-discontinuation-action" onClick={(event) => { event.stopPropagation(); openOutcome(item) }}><PhoneCall size={15} /> Contact Outcome</button> : <button type="button" className="branch-discontinuation-view" onClick={(event) => { event.stopPropagation(); openOutcome(item, true) }}>View details</button>}</td>
@@ -297,13 +345,15 @@ export function BranchDiscontinuationManagementPage() {
           <form className="branch-discontinuation-modal" role="dialog" aria-modal="true" onSubmit={saveOutcome}>
             <button type="button" className="branch-discontinuation-close" onClick={() => { setSelectedRequest(null); setSelectedReadOnly(false) }} aria-label="Close contact outcome"><X size={19} /></button>
             <p className="branch-discontinuation-kicker">{canEditSelectedRequest ? 'CONTACT OUTCOME' : 'REQUEST DETAILS'}</p>
-            <h3>{selectedRequest.student?.studentName || 'Student'} response</h3>
+            <h3>{selectedRequest.student?.studentName || 'Student'}</h3>
+            <div className="branch-discontinuation-contact-strip"><span>Student: {selectedRequest.student?.mobileNumber || 'Not available'}</span><span>Parent: {selectedRequest.student?.parentSpouseNumber || 'Not available'}</span></div>
             <p className="branch-discontinuation-modal-copy">{canEditSelectedRequest ? (outcome === 'DISCONTINUE' ? 'Confirm the call notes, then send this request to Super Admin for final approval.' : 'Record the call outcome and next action for this discontinuation request.') : 'Review the student request and the outcome recorded by the Branch Admin.'}</p>
             {canEditSelectedRequest ? <>
-              <label>Outcome<select value={outcome} onChange={(event) => setOutcome(event.target.value)}>{availableOutcomeOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>
+              <label>Outcome<select value={outcome} onChange={(event) => setOutcome(event.target.value)}>{availableOutcomeOptions.map((option) => <option key={option.value} value={option.value} disabled={option.value === 'DISCONTINUE' && hasEligibleAmount}>{option.value === 'DISCONTINUE' && hasEligibleAmount ? `${option.label} (pay eligible amount first)` : option.label}</option>)}</select></label>
+              {hasEligibleAmount && outcome === 'REJECT' ? <div className="branch-discontinuation-payment-warning" role="status"><strong>Payment required before discontinuation</strong><p>The student must pay {formatAmount(eligibleAmount)} before this request can be forwarded for discontinuation.</p></div> : null}
               {outcome !== 'UNABLE_TO_CONTACT' ? <label>{outcome === 'REJECT' ? 'Rejection reason (required)' : `Call notes ${outcome === 'DISCONTINUE' ? '(required)' : '(optional)'}`}<textarea rows={4} value={note} onChange={(event) => setNote(event.target.value)} placeholder={outcome === 'REJECT' ? 'Explain why this request is being rejected.' : 'Record what the student said and the next action.'} required={['DISCONTINUE', 'REJECT'].includes(outcome)} /></label> : null}
               {outcome === 'DISCONTINUE' ? <div className="branch-discontinuation-finance-summary">
-                <div><span>Course progress</span><strong>{Number(selectedRequest.financialSnapshot?.courseProgress || 0)}%</strong></div>
+                <div><span>Outstanding amount</span><strong>{formatAmount(fullOutstandingAmount(selectedRequest.financialSnapshot, selectedRequest.outstandingAmount, selectedRequest.student))}</strong></div>
                 <div><span>Paid amount</span><strong>{formatAmount(selectedRequest.financialSnapshot?.totalPaid)}</strong></div>
                 <div><span>Balance payable</span><strong>{formatAmount(selectedRequest.financialSnapshot?.balanceDue ?? selectedRequest.financialSnapshot?.finalOutstandingAmount)}</strong></div>
                 {selectedRequest.financialSnapshot?.refundRequested ? <div><span>Refund eligible</span><strong>{formatAmount(selectedRequest.financialSnapshot?.refundEligibleAmount)}</strong></div> : null}
@@ -314,15 +364,14 @@ export function BranchDiscontinuationManagementPage() {
               <div className="branch-discontinuation-readonly-grid">
                 <div><span>Course</span><strong>{selectedRequest.student?.courseName || '-'}</strong></div>
                 <div><span>Batch</span><strong>{selectedRequest.student?.batchName || '-'}</strong></div>
-                <div><span>Call outcome</span><strong>{OUTCOME_OPTIONS.find((option) => option.value === selectedRequest.contactOutcome)?.label || statusLabel(selectedRequest.status)}</strong></div>
-                <div><span>Next follow-up</span><strong>{isMotivationFollowUp ? 'First mail sent' : selectedRequest.nextFollowUpDate || 'Not scheduled'}</strong></div>
+                {selectedRequest.status !== 'REJECTED' ? <div><span>Next follow-up</span><strong>{isMotivationFollowUp ? 'First mail sent' : selectedRequest.nextFollowUpDate || 'Not scheduled'}</strong></div> : null}
               </div>
               <div className="branch-discontinuation-readonly-note"><span>Student request</span><strong>{displayRequestReason(selectedRequest.reason)}</strong><p>{selectedRequest.details || 'No additional details provided.'}</p></div>
-              {!isMotivationFollowUp ? <div className="branch-discontinuation-readonly-note"><span>Call notes</span><p>{selectedRequest.contactNotes || selectedRequest.branchReviewNote || 'No call notes provided.'}</p></div> : null}
+              {!isMotivationFollowUp ? <div className="branch-discontinuation-readonly-note"><span>{selectedRequest.contactOutcome === 'REJECT' ? 'Rejection reason' : 'Call notes'}</span><p>{normalizeCurrencyText(selectedRequest.contactNotes || selectedRequest.branchReviewNote || (selectedRequest.contactOutcome === 'REJECT' ? 'No rejection reason provided.' : 'No call notes provided.'))}</p></div> : null}
               <div className="branch-discontinuation-finance-summary">
-                <div><span>Course progress</span><strong>{Number(selectedRequest.financialSnapshot?.courseProgress || 0)}%</strong></div>
                 <div><span>Paid amount</span><strong>{formatAmount(selectedRequest.financialSnapshot?.totalPaid)}</strong></div>
-                <div><span>Outstanding</span><strong>{formatAmount(selectedRequest.financialSnapshot?.finalOutstandingAmount ?? selectedRequest.financialSnapshot?.outstandingAmount)}</strong></div>
+                <div><span>Outstanding amount</span><strong>{formatAmount(fullOutstandingAmount(selectedRequest.financialSnapshot, selectedRequest.outstandingAmount, selectedRequest.student))}</strong></div>
+                <div><span>{Number(selectedRequest.financialSnapshot?.outstandingAmount ?? selectedRequest.outstandingAmount ?? 0) > 0 ? 'Eligible amount' : 'Eligible amount paid'}</span><strong>{Number(selectedRequest.financialSnapshot?.outstandingAmount ?? selectedRequest.outstandingAmount ?? 0) > 0 ? formatAmount(selectedRequest.financialSnapshot?.outstandingAmount ?? selectedRequest.outstandingAmount) : 'Paid'}</strong></div>
                 {selectedRequest.financialSnapshot?.refundRequested ? <div><span>Refund eligible</span><strong>{formatAmount(selectedRequest.financialSnapshot?.refundEligibleAmount)}</strong></div> : null}
               </div>
             </div>}

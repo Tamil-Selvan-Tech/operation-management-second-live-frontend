@@ -17,6 +17,10 @@ function validateStudentCredentials(email, password) {
     return { success: false, error: 'Invalid email or password.' }
   }
 
+  if (String(student.recordStatus || student.status || '').toUpperCase() === 'INACTIVE' || student.active === false) {
+    return { success: false, error: 'This account is inactive and cannot be used to sign in.' }
+  }
+
   const storedPassword = String(student.loginPassword || '').trim()
   if (!storedPassword || storedPassword !== password.trim()) {
     return { success: false, error: 'Invalid email or password.' }

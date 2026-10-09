@@ -6036,8 +6036,10 @@ body.super-admin-sidebar-open {
 .super-admin-global-empty, .super-admin-global-state { padding: 42px 20px !important; color: #8291a7; text-align: center !important; }
 
 .super-admin-discontinuation-actions { align-items: center; flex-wrap: wrap; }
-.super-admin-discontinuation-actions .super-admin-student-search { display: inline-flex; align-items: center; gap: 8px; }
+.super-admin-discontinuation-actions .super-admin-student-search { display: inline-flex; align-items: center; gap: 8px; width: min(290px, 34vw); min-height: 42px; box-sizing: border-box; padding: 0 12px; border: 1px solid #cbd9ea; border-radius: 10px; background: #fff; }
 .super-admin-discontinuation-actions .super-admin-student-search svg { flex: 0 0 auto; color: #7890ad; }
+.super-admin-discontinuation-actions .super-admin-student-search input { width: 100%; min-width: 0; min-height: 40px; padding: 0; border: 0; box-shadow: none; }
+.super-admin-discontinuation-actions .super-admin-student-search:focus-within { border-color: #4b8ff5; box-shadow: 0 0 0 3px rgba(59, 130, 246, .12); }
 .super-admin-discontinuation-refresh, .super-admin-discontinuation-view, .super-admin-discontinuation-approve, .super-admin-discontinuation-secondary, .super-admin-discontinuation-danger { border: 0; border-radius: 9px; padding: 10px 14px; font: inherit; font-size: 12px; font-weight: 800; cursor: pointer; }
 .super-admin-discontinuation-refresh { border: 1px solid #d7e3f1; color: #29538a; background: #fff; }
 .super-admin-discontinuation-refresh:disabled, .super-admin-discontinuation-approve:disabled, .super-admin-discontinuation-danger:disabled { cursor: not-allowed; opacity: .65; }
@@ -6083,7 +6085,7 @@ body.super-admin-sidebar-open {
 @keyframes super-admin-discontinuation-spin { to { transform: rotate(360deg); } }
 @media (max-width: 760px) {
   .super-admin-discontinuation-actions { align-items: stretch; }
-  .super-admin-discontinuation-actions .super-admin-student-search { flex: 1 1 100%; }
+  .super-admin-discontinuation-actions .super-admin-student-search { width: 100%; flex: 1 1 100%; }
   .super-admin-discontinuation-detail-grid { grid-template-columns: 1fr; }
   .super-admin-discontinuation-modal { padding: 24px 18px; }
   .super-admin-discontinuation-modal-actions { flex-wrap: wrap; }

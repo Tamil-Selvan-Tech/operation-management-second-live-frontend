@@ -544,6 +544,7 @@ export function SuperAdminNotificationsPage() {
     setDiscontinuationDecisionForm({
       decision,
       note: '',
+      waitUntil: '',
       waiverAmount: '0',
       refundEligibleAmount: '0',
       financeNote: '',
@@ -569,6 +570,10 @@ export function SuperAdminNotificationsPage() {
       setDiscontinuationDecisionError('Rejection reason is required.')
       return
     }
+    if (form.decision === 'WAIT' && !String(form.waitUntil || '').trim()) {
+      setDiscontinuationDecisionError('Next installment due date is required.')
+      return
+    }
     const waiverAmount = form.decision === 'APPROVE' ? form.waiverAmount || '0' : '0'
     const refundEligibleAmount = form.decision === 'APPROVE' ? form.refundEligibleAmount || '0' : '0'
     const financeNote = form.decision === 'APPROVE' ? String(form.financeNote || '').trim() : ''
@@ -578,7 +583,7 @@ export function SuperAdminNotificationsPage() {
     try {
       await request('/student-discontinuation/' + encodeURIComponent(requestId) + '/super-review', {
         method: 'PATCH',
-        body: JSON.stringify({ decision: form.decision, note, waiverAmount, refundEligibleAmount, financeNote }),
+        body: JSON.stringify({ decision: form.decision, note, waitUntil: form.waitUntil, waiverAmount, refundEligibleAmount, financeNote }),
       })
       closeNotificationDetails()
       await loadAllNotifications()
@@ -1094,28 +1099,29 @@ export function SuperAdminNotificationsPage() {
             {isStudentDiscontinuationNotification(selectedNotification) &&
             String(selectedNotification.requestStatus || '').toUpperCase() === 'SUPER_ADMIN_REVIEW' ? (
               discontinuationDecisionForm ? (
-                discontinuationDecisionForm.decision === 'REJECT' ? <form className="super-admin-discontinuation-decision" onSubmit={(event) => { event.preventDefault(); void handleDiscontinuationDecision(selectedNotification) }}>
+                ['REJECT', 'WAIT'].includes(discontinuationDecisionForm.decision) ? <form className="super-admin-discontinuation-decision" onSubmit={(event) => { event.preventDefault(); void handleDiscontinuationDecision(selectedNotification) }}>
                   <div className="super-admin-discontinuation-decision-heading">
                     <div>
                       <span>Final decision</span>
-                      <strong>{discontinuationDecisionForm.decision === 'APPROVE' ? 'Approve discontinuation' : 'Reject request'}</strong>
+                      <strong>{discontinuationDecisionForm.decision === 'WAIT' ? 'Wait for installment follow-up' : 'Reject request'}</strong>
                     </div>
                     <button type="button" className="super-admin-discontinuation-back" onClick={() => { setDiscontinuationDecisionForm(null); setDiscontinuationDecisionError('') }}>Change</button>
                   </div>
                   {discontinuationDecisionForm.decision === 'REJECT' ? (
                     <label>Rejection reason<textarea rows={3} value={discontinuationDecisionForm.note} onChange={(event) => setDiscontinuationDecisionForm((current) => ({ ...current, note: event.target.value }))} placeholder="Explain why this request is being rejected." required /></label>
-                  ) : <p className="super-admin-discontinuation-decision-copy">Branch Admin has completed the review details. Confirm the approval to discontinue this student account.</p>}
+                  ) : <label>Next installment due date<input type="date" value={discontinuationDecisionForm.waitUntil} onChange={(event) => setDiscontinuationDecisionForm((current) => ({ ...current, waitUntil: event.target.value }))} required /><textarea rows={2} value={discontinuationDecisionForm.note} onChange={(event) => setDiscontinuationDecisionForm((current) => ({ ...current, note: event.target.value }))} placeholder="Optional note for the Branch Admin." /></label>}
                   {discontinuationDecisionError ? <p className="super-admin-discontinuation-decision-error" role="alert">{discontinuationDecisionError}</p> : null}
                   <div className="super-admin-notification-modal-actions">
                     <button type="button" className="notifications-item-view-button is-secondary" disabled={discontinuationDecisionLoading} onClick={closeNotificationDetails}>Cancel</button>
                     <button type="submit" className={`notifications-item-view-button ${discontinuationDecisionForm.decision === 'REJECT' ? 'is-danger' : ''}`.trim()} disabled={discontinuationDecisionLoading}>
-                      {discontinuationDecisionLoading ? <><LoaderCircle size={15} className="notifications-view-spinner" /> Saving...</> : discontinuationDecisionForm.decision === 'REJECT' ? 'Reject request' : 'Confirm approval'}
+                      {discontinuationDecisionLoading ? <><LoaderCircle size={15} className="notifications-view-spinner" /> Saving...</> : discontinuationDecisionForm.decision === 'WAIT' ? 'Save wait decision' : 'Reject request'}
                     </button>
                   </div>
                 </form> : null
               ) : (
                 <div className="super-admin-notification-modal-actions">
                   <button type="button" className="notifications-item-view-button is-danger" onClick={() => openDiscontinuationDecision(selectedNotification, 'REJECT')}>Reject</button>
+                  <button type="button" className="notifications-item-view-button is-secondary" onClick={() => openDiscontinuationDecision(selectedNotification, 'WAIT')}>Wait</button>
                   <button type="button" className="notifications-item-view-button" onClick={() => openDiscontinuationDecision(selectedNotification, 'APPROVE')}>Approve &amp; Discontinue</button>
                 </div>
               )

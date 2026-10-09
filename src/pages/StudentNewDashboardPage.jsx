@@ -37,6 +37,7 @@ import {
 import { loadBranchRegistry } from '../lib/branchAuth'
 import {
   createStudentDiscontinuationRequest,
+  getStudentDiscontinuationFinancePreview,
   getCurrentBranchStudentCalendar,
   getCurrentStudentProfile,
   getCurrentStudentAttendanceOverview,
@@ -264,8 +265,21 @@ function asAmount(value) {
   return Number.isFinite(amount) ? amount : 0
 }
 
-function formatPaymentAmount(value) {
+function formatLegacyPaymentAmount(value) {
   return `₹${asAmount(value).toLocaleString('en-IN')}`
+}
+
+function normalizeLegacyCurrencyText(value) {
+  return String(value || '').replace(/\bINR\s*/gi, '₹')
+}
+
+// Keep currency output independent of source-file encoding.
+function formatPaymentAmount(value) {
+  return `\u20B9${asAmount(value).toLocaleString('en-IN')}`
+}
+
+function normalizeCurrencyText(value) {
+  return String(value || '').replace(/\bINR\s*/gi, '\u20B9')
 }
 
 function formatPaymentDate(value) {
@@ -501,7 +515,7 @@ export function StudentNewDashboardPage() {
    const requestedSection = params.get('section')
    const shouldOpenDiscontinuation = params.get('open') === 'discontinuation'
    if (requestedSection === 'profile' && !isExamsRoute) setActiveSection('profile')
-   if (shouldOpenDiscontinuation) setDiscontinuationOpenSignal((current) => current + 1)
+   if (shouldOpenDiscontinuation && !isExamsRoute) setActiveSection('leave-management')
    if (requestedSection || shouldOpenDiscontinuation) navigate('/student-new-dashboard', { replace: true })
  }, [isExamsRoute, location.search, navigate])
 
@@ -511,7 +525,6 @@ export function StudentNewDashboardPage() {
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false)
  const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false)
  const [isProfileActionsOpen, setIsProfileActionsOpen] = useState(false)
- const [discontinuationOpenSignal, setDiscontinuationOpenSignal] = useState(0)
  const profileActionsRef = useRef(null)
 
  useEffect(() => {
@@ -996,6 +1009,21 @@ const handleLogoutConfirm = async () => {
 
               <button
                 type="button"
+                className={`student-new-sidebar-item ${
+                  activeSection === 'leave-management' ? 'is-active' : ''
+                }`.trim()}
+                data-tooltip="Leave Management"
+                onClick={() => handleMenuClick('leave-management')}
+              >
+                <span className="student-new-sidebar-icon" aria-hidden="true">
+                  <CalendarCheck size={18} strokeWidth={2.2} />
+                </span>
+
+                <span>Leave Management</span>
+              </button>
+
+              <button
+                type="button"
                 className={`student-new-sidebar-item ${activeSection === 'exams' || isExamsRoute ? 'is-active' : ''}`.trim()}
                 data-tooltip="Exams and Result"
                 aria-expanded={isExamsExpanded}
@@ -1215,9 +1243,6 @@ const handleLogoutConfirm = async () => {
                         <button type="button" role="menuitem" onClick={() => { setIsProfileActionsOpen(false); navigate('/forgot-password') }}>
                           Forgot Password
                         </button>
-                        <button type="button" role="menuitem" onClick={() => { setIsProfileActionsOpen(false); setDiscontinuationOpenSignal((current) => current + 1) }}>
-                          Request Discontinuation
-                        </button>
                       </div>
                     ) : null}
                   </div>
@@ -1295,10 +1320,6 @@ const handleLogoutConfirm = async () => {
                   </aside>
                 </div>
 
-                <StudentDiscontinuationPanel
-                  showPanel={false}
-                  openSignal={discontinuationOpenSignal}
-                />
               </section>
             ) : null}
 
@@ -1353,6 +1374,19 @@ const handleLogoutConfirm = async () => {
 
             {!isLoading && !loadError && activeSection === 'calendar' ? (
               <StudentCalendarPanel student={student} />
+            ) : null}
+
+            {!isLoading && !loadError && activeSection === 'leave-management' ? (
+              <section className="student-new-leave-management-page">
+                <div className="student-new-page-heading">
+                  <div>
+                    <p className="student-new-dashboard-kicker">LEAVE MANAGEMENT</p>
+                    <h1>Discontinuation Request</h1>
+                    <p>Submit and track your course discontinuation request from one place.</p>
+                  </div>
+                </div>
+                <StudentDiscontinuationPanel />
+              </section>
             ) : null}
 
           </main>
@@ -1424,6 +1458,7 @@ const handleLogoutConfirm = async () => {
 
 function StudentDiscontinuationPanel({ showPanel = true, openSignal = 0 }) {
   const [request, setRequest] = useState(null)
+  const [financePreview, setFinancePreview] = useState(null)
   const [isOpen, setIsOpen] = useState(false)
   const [reason, setReason] = useState('')
   const [details, setDetails] = useState('')
@@ -1434,14 +1469,15 @@ function StudentDiscontinuationPanel({ showPanel = true, openSignal = 0 }) {
 
   useEffect(() => {
     let active = true
-    getStudentDiscontinuationRequests()
-      .then((items) => {
+    Promise.all([
+      getStudentDiscontinuationRequests().catch(() => []),
+      getStudentDiscontinuationFinancePreview().catch(() => null),
+    ])
+      .then(([items, preview]) => {
         if (!active) return
         const rows = Array.isArray(items) ? items : []
         setRequest(rows[0] || null)
-      })
-      .catch(() => {
-        if (active) setRequest(null)
+        setFinancePreview(preview || null)
       })
       .finally(() => {
         if (active) setLoading(false)
@@ -1472,6 +1508,7 @@ function StudentDiscontinuationPanel({ showPanel = true, openSignal = 0 }) {
         refundRequested,
       })
       setRequest(saved)
+      setFinancePreview(saved?.financialSnapshot || null)
       setIsOpen(false)
       setReason('')
       setDetails('')
@@ -1484,21 +1521,38 @@ function StudentDiscontinuationPanel({ showPanel = true, openSignal = 0 }) {
   }
 
   const status = String(request?.status || '').toUpperCase()
+  const isRejected = status === 'REJECTED'
+  const isApproved = status === 'APPROVED'
+  const canSubmitAgain = isRejected && Number(request?.financialSnapshot?.outstandingAmount || 0) <= 0
+  const rejectionReason = normalizeCurrencyText(request?.branchReviewNote || request?.contactNotes || 'The discontinuation request was not approved by the Branch Admin.')
   const statusLabel = status === 'SUPER_ADMIN_REVIEW'
     ? 'Waiting for final approval'
     : status === 'APPROVED'
       ? 'Approved'
       : status === 'REJECTED'
         ? 'Rejected'
+        : status === 'CONTACTED_CONTINUE'
+          ? 'Student will continue the course'
+          : status === 'UNABLE_TO_CONTACT'
+            ? 'Follow-up required'
+            : status === 'LEAVE_REQUESTED'
+              ? 'Leave request recorded'
         : 'Under review'
 
   return (
     <>
-      {showPanel ? <section className="student-discontinuation-panel panel-card" aria-label="Course discontinuation">
+      {showPanel ? <section className={`student-discontinuation-panel panel-card${isRejected ? ' is-rejected' : ''}`} aria-label="Course discontinuation">
       <div className="student-discontinuation-copy">
         <p className="student-payment-overview-kicker">COURSE SUPPORT</p>
         <h3>Need to discontinue your course?</h3>
-        <p>You can submit a request to your Branch Admin. Your course access will remain active until the request is reviewed and approved.</p>
+        <p>{isRejected ? 'Your request was reviewed by the Branch Admin. Please follow the reason below before submitting a new request.' : 'You can submit a request to your Branch Admin. Your course access will remain active until the request is reviewed and approved.'}</p>
+        {!loading && request?.financialSnapshot?.outstandingAmount > 0 ? (
+          <div className="student-discontinuation-amount-card">
+            <span>Request eligible amount</span>
+            <strong>{formatPaymentAmount(request.financialSnapshot.outstandingAmount)}</strong>
+            <small>Amount pending based on your completed course progress.</small>
+          </div>
+        ) : null}
       </div>
 
       {loading ? (
@@ -1507,9 +1561,18 @@ function StudentDiscontinuationPanel({ showPanel = true, openSignal = 0 }) {
         <div className="student-discontinuation-status">
           <strong>{statusLabel}</strong>
           <span>Submitted on {formatDate(request.createdAt)}</span>
-          {request.financialSnapshot?.outstandingAmount > 0 ? (
-            <span>Outstanding: {formatPaymentAmount(request.financialSnapshot.outstandingAmount)}</span>
-          ) : null}
+          {request.reason ? <span>Reason: {request.reason}</span> : null}
+          {isApproved ? <div className="student-discontinuation-approved-info" role="status">
+            <strong>Access remains active for 2 hours</strong>
+            <span>Access will be disabled on {request.accessDeactivationAt ? formatDate(request.accessDeactivationAt, { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'within 2 hours'}.</span>
+          </div> : null}
+          {isRejected ? <div className="student-discontinuation-status-cards has-rejection">
+            <div className="student-discontinuation-rejection" role="alert">
+              <strong>Why was this request rejected?</strong>
+              <p>{rejectionReason}</p>
+              {request.financialSnapshot?.outstandingAmount > 0 ? <small>Please pay the eligible amount shown below before requesting discontinuation again.</small> : null}
+            </div>
+          </div> : null}
         </div>
       ) : (
         <button
@@ -1541,6 +1604,12 @@ function StudentDiscontinuationPanel({ showPanel = true, openSignal = 0 }) {
             <p className="student-payment-overview-kicker">COURSE REQUEST</p>
             <h3>Request course discontinuation</h3>
             <p>Your request will be reviewed by the Branch Admin and then Super Admin. You will keep access until a final decision is made.</p>
+            {financePreview?.outstandingAmount > 0 ? (
+              <div className="student-discontinuation-finance-note" role="status">
+                <span>Pending amount before discontinuation</span>
+                <strong>{formatPaymentAmount(financePreview.outstandingAmount)}</strong>
+              </div>
+            ) : null}
             <label>
               Reason
               <select value={reason} onChange={(event) => setReason(event.target.value)} required>
@@ -1564,7 +1633,7 @@ function StudentDiscontinuationPanel({ showPanel = true, openSignal = 0 }) {
             <div className="student-discontinuation-actions">
               <button type="button" className="student-discontinuation-secondary" onClick={() => setIsOpen(false)}>Keep Course</button>
               <button type="submit" className="student-discontinuation-button" disabled={submitting}>
-                {submitting ? 'Submitting...' : 'Submit Request'}
+                {submitting ? 'Sending request...' : 'Continue to submit'}
               </button>
             </div>
           </form>

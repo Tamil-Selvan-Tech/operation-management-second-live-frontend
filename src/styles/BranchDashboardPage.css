@@ -36,7 +36,13 @@
 .branch-discontinuation-error { padding: 12px 14px; border: 1px solid #fecaca; border-radius: 10px; background: #fff1f2; color: #b4233d; font-size: .88rem; font-weight: 700; }
 .branch-discontinuation-table-card { min-height: 220px; overflow: hidden; border: 1px solid #dce6f2; border-radius: 16px; background: #fff; box-shadow: 0 8px 24px rgba(34, 76, 132, .05); }
 .branch-discontinuation-table-wrap { overflow-x: auto; }
-.branch-discontinuation-table { width: 100%; min-width: 920px; border-collapse: collapse; }
+.branch-discontinuation-table { width: 100%; min-width: 920px; border-collapse: collapse; table-layout: fixed; }
+.branch-discontinuation-table th:nth-child(1), .branch-discontinuation-table td:nth-child(1) { width: 13%; }
+.branch-discontinuation-table th:nth-child(2), .branch-discontinuation-table td:nth-child(2) { width: 17%; }
+.branch-discontinuation-table th:nth-child(3), .branch-discontinuation-table td:nth-child(3) { width: 12%; }
+.branch-discontinuation-table th:nth-child(4), .branch-discontinuation-table td:nth-child(4) { width: 30%; }
+.branch-discontinuation-table th:nth-child(5), .branch-discontinuation-table td:nth-child(5) { width: 14%; }
+.branch-discontinuation-table th:nth-child(6), .branch-discontinuation-table td:nth-child(6) { width: 14%; }
 .branch-discontinuation-table th { padding: 14px 16px; background: #f6f9fd; color: #657995; font-size: .72rem; font-weight: 800; letter-spacing: .04em; text-align: left; text-transform: uppercase; white-space: nowrap; }
 .branch-discontinuation-table tbody tr { transition: background .2s ease; }
 .branch-discontinuation-table tbody tr:hover, .branch-discontinuation-table tbody tr:focus-visible { background: #f9fbff; outline: 0; }
@@ -46,6 +52,9 @@
 .branch-discontinuation-table td strong { color: #193765; font-weight: 800; }
 .branch-discontinuation-table td small { margin-top: 4px; color: #8392a9; font-size: .75rem; }
 .branch-discontinuation-table td small.branch-discontinuation-mobile { display: inline-flex; align-items: center; gap: 4px; color: #4f719b; font-weight: 700; }
+.branch-discontinuation-table td .branch-discontinuation-mobile { display: flex; }
+.branch-discontinuation-contact-cell { min-width: 180px; }
+.branch-discontinuation-contact-cell .branch-discontinuation-mobile { display: block; width: 100%; white-space: nowrap; }
 .branch-discontinuation-table td.branch-discontinuation-request-cell { min-width: 230px; max-width: 360px; }
 .branch-discontinuation-request-cell small { color: #5f7390; line-height: 1.45; white-space: normal; overflow-wrap: anywhere; }
 .branch-discontinuation-status { display: inline-flex; min-height: 28px; align-items: center; padding: 0 10px; border-radius: 999px; font-size: .73rem; font-weight: 800; white-space: nowrap; }
@@ -72,6 +81,8 @@
 .branch-discontinuation-modal::-webkit-scrollbar-thumb { border: 2px solid #fff; border-radius: 999px; background: #9bb8df; }
 .branch-discontinuation-modal h3 { margin: 0; color: #163867; font-size: 1.35rem; }
 .branch-discontinuation-modal-copy { margin: 0 0 5px; color: #71839d; font-size: .88rem; line-height: 1.5; }
+.branch-discontinuation-contact-strip { display: flex; flex-wrap: wrap; gap: 8px; margin: -2px 0 2px; color: #496988; font-size: .78rem; font-weight: 700; }
+.branch-discontinuation-contact-strip span { padding: 7px 9px; border: 1px solid #dce8f5; border-radius: 8px; background: #f7fbff; }
 .branch-discontinuation-modal label { display: grid; gap: 6px; color: #536b8d; font-size: .78rem; font-weight: 800; }
 .branch-discontinuation-modal select, .branch-discontinuation-modal input, .branch-discontinuation-modal textarea { width: 100%; box-sizing: border-box; padding: 10px 11px; resize: vertical; }
 .branch-discontinuation-modal textarea { min-height: 95px; }
@@ -80,6 +91,10 @@
 .branch-discontinuation-finance-summary div { display: grid; gap: 4px; min-width: 0; }
 .branch-discontinuation-finance-summary span { color: #8293aa; font-size: .72rem; font-weight: 700; }
 .branch-discontinuation-finance-summary strong { color: #1d4677; font-size: .86rem; }
+.branch-discontinuation-payment-warning { padding: 12px 14px; border: 1px solid #f5d48a; border-radius: 11px; background: #fff9e8; color: #7a4d00; }
+.branch-discontinuation-payment-warning strong { display: block; font-size: .82rem; }
+.branch-discontinuation-payment-warning p { margin: 4px 0 0; font-size: .78rem; line-height: 1.45; }
+.branch-discontinuation-modal select option:disabled { color: #8b96a6; }
 .branch-discontinuation-close { position: absolute; top: 14px; right: 14px; display: grid; width: 34px; height: 34px; place-items: center; border: 0; border-radius: 8px; background: #f2f6fb; color: #65809f; cursor: pointer; }
 .branch-discontinuation-date-label { display: inline-flex; align-items: center; gap: 6px; }
 .branch-discontinuation-modal-actions { position: static; z-index: auto; display: flex; justify-content: flex-end; gap: 9px; margin-top: 7px; padding-top: 0; background: transparent; }
@@ -4084,6 +4099,74 @@ body.branch-notification-menu-open .main-area {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.branch-dashboard-page .branch-dashboard-finance-stats .branch-dashboard-stat-card-footer small.branch-dashboard-stat-card-reduction {
+  display: inline-flex !important;
+  align-items: center;
+  gap: 5px;
+  flex: 0 0 auto;
+  min-width: max-content;
+  max-width: none;
+  color: #d64545;
+  font-weight: 800;
+  line-height: 1;
+  white-space: nowrap !important;
+  overflow: visible !important;
+  text-overflow: clip;
+  word-break: keep-all;
+  overflow-wrap: normal;
+}
+
+.branch-dashboard-page .branch-dashboard-finance-stats .branch-dashboard-stat-card-footer small.branch-dashboard-stat-card-reduction svg {
+  display: block;
+  flex: 0 0 15px;
+  width: 15px;
+  height: 15px;
+}
+
+.branch-dashboard-page .branch-dashboard-finance-stats .branch-dashboard-stat-card-footer.has-reduction {
+  align-items: center;
+}
+
+.branch-dashboard-page .branch-dashboard-finance-stats .branch-dashboard-stat-card-footer small.branch-dashboard-stat-card-reduction {
+  position: relative;
+  cursor: help;
+}
+
+.branch-dashboard-page .branch-dashboard-finance-stats .branch-dashboard-stat-card-footer small.branch-dashboard-stat-card-reduction::after {
+  content: '';
+  display: none;
+  position: absolute;
+  z-index: 5;
+  top: calc(100% + 6px);
+  left: 0;
+  width: max-content;
+  max-width: 220px;
+  padding: 5px 7px;
+  border: 1px solid #e4e9f1;
+  border-radius: 6px;
+  color: #7b8798;
+  background: #fff;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
+  font-size: 0.68rem;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: normal;
+  text-transform: none !important;
+  white-space: normal;
+  pointer-events: none;
+}
+
+.branch-dashboard-page .branch-dashboard-finance-stats .branch-dashboard-stat-card:has(.branch-dashboard-stat-card-reduction:hover) {
+  position: relative;
+  z-index: 10;
+}
+
+.branch-dashboard-page .branch-dashboard-finance-stats .branch-dashboard-stat-card-footer small.branch-dashboard-stat-card-reduction:hover::after,
+.branch-dashboard-page .branch-dashboard-finance-stats .branch-dashboard-stat-card-footer small.branch-dashboard-stat-card-reduction:focus::after {
+  content: 'Student discontinuation reduced amount';
+  display: block;
 }
 
 
@@ -9374,6 +9457,27 @@ body.branch-notification-menu-open .main-area {
 .branch-student-row {
   cursor: pointer;
 }
+
+.branch-student-name-with-status {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.branch-student-discontinued-badge {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  border-radius: 999px;
+  background: #fee2e2;
+  color: #b4233f;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .04em;
+  padding: 5px 10px;
+  text-transform: uppercase;
+}
 .branch-student-more-btn {
   width: 36px;
   height: 36px;
@@ -12812,7 +12916,7 @@ body.branch-notification-menu-open .main-area {
   align-items: center;
   gap: 16px;
   min-height: 166px;
-  overflow: hidden;
+  overflow: visible;
   padding: 18px 18px 18px 16px;
   border: 1px solid #dbe5f0;
   border-radius: 22px;
@@ -12867,6 +12971,7 @@ body.branch-notification-menu-open .main-area {
 }
 
 .branch-dashboard-page .branch-dashboard-finance-stats .branch-dashboard-stat-card-footer {
+  position: relative;
   margin-top: 14px;
   min-height: 0;
   padding-top: 0;
@@ -12877,6 +12982,7 @@ body.branch-notification-menu-open .main-area {
   color: #5f6f86;
   font-size: 0.9rem;
   font-weight: 600;
+  cursor: help;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;

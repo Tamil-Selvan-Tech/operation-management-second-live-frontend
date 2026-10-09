@@ -3558,15 +3558,34 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
   const discontinuedFinancialSummary = useMemo(() => {
     const latestByStudent = new Map()
     approvedDiscontinuationRequests.forEach((item) => {
-      const studentId = String(item?.branchStudentId || item?.student?.id || '').trim()
+      const studentId = String(item?.branchStudentId || item?.student?.id || item?.student?.studentId || '').trim()
       if (!studentId || latestByStudent.has(studentId)) return
       latestByStudent.set(studentId, item)
     })
     const rows = [...latestByStudent.values()]
+    const getStudentKeys = (item) => [
+      item?.branchStudentId,
+      item?.student?.id,
+      item?.student?.studentId,
+      item?.student?.studentCode,
+    ].map((value) => String(value || '').trim()).filter(Boolean)
     return {
-      studentIds: new Set(rows.map((item) => String(item.branchStudentId || item.student?.id || '').trim()).filter(Boolean)),
+      studentIds: new Set(rows.flatMap(getStudentKeys)),
       totalPaid: rows.reduce((sum, item) => sum + Number(item.financialSnapshot?.totalPaid || 0), 0),
-      totalNotCollectible: rows.reduce((sum, item) => sum + Number(item.financialSnapshot?.finalOutstandingAmount ?? item.financialSnapshot?.outstandingAmount ?? 0), 0),
+      totalNotCollectible: rows.reduce((sum, item) => {
+        const student = item.student || {}
+        const installments = Array.isArray(student.installments) ? student.installments : []
+        const totalFee = installments.length
+          ? installments.reduce((value, installment) => value + Number(installment?.amount || 0), 0)
+          : Number(student.courseAmount || item.financialSnapshot?.finalCourseFee || 0)
+        const paidAmount = installments.length
+          ? installments.reduce((value, installment) => value + Number(installment?.amountPaid || 0), 0)
+          : Number(item.financialSnapshot?.totalPaid || 0)
+        const outstanding = totalFee > 0
+          ? Math.max(totalFee - paidAmount, 0)
+          : Number(item.financialSnapshot?.finalOutstandingAmount ?? item.financialSnapshot?.outstandingAmount ?? 0)
+        return sum + outstanding
+      }, 0),
     }
   }, [approvedDiscontinuationRequests])
 
@@ -4087,6 +4106,7 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
 
         setBranchNotificationRecords(nextNotifications)
         saveNotifications(nextNotifications, { emit: false })
+        void loadApprovedDiscontinuationRequests()
       } catch (error) {
         console.error('Failed to load branch notifications:', error)
         const fallbackNotifications = mergeNotificationsWithStoredState(loadNotifications())
@@ -4100,7 +4120,7 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
 
     branchNotificationsRequestRef.current = requestPromise
     return requestPromise
-  }, [])
+  }, [loadApprovedDiscontinuationRequests])
 
   const loadFacultyTodayWorkEntries = useCallback(async () => {
     try {
@@ -7653,7 +7673,7 @@ const studentCourseOptions = useMemo(() => {
       const courseValues = [student.courseId, student.courseName, student.courseInterested, student.course, student.course?.id, student.course?.name]
       const batchValues = [student.batchId, student.batchName, student.batch, student.batchSelectionKey, student.batch?.id, student.batch?.name]
       const status = String(student.status || '').trim().toLowerCase()
-      const studentKeys = [student.id, student.studentId, student.studentCode].map((value) => String(value || '').trim()).filter(Boolean)
+      const studentKeys = [student.id, student._id, student.recordId, student.studentId, student.studentCode].map((value) => String(value || '').trim()).filter(Boolean)
       const isDiscontinuedStudent = studentKeys.some((key) => discontinuedFinancialSummary.studentIds.has(key))
       const isCountableStudent = !['inactive', 'deleted', 'rejected', 'withdrawn'].includes(status) && !isDiscontinuedStudent
       return matchesFilterValue(courseValues, dashboardCourseFilter, selectedCourseOption?.label) &&
@@ -7762,7 +7782,7 @@ const studentCourseOptions = useMemo(() => {
       rows,
       totalFee: totalFee + discontinuedFinancialSummary.totalPaid,
       totalCollected: totalCollected + discontinuedFinancialSummary.totalPaid,
-      outstanding: Math.max(totalFee - totalCollected, 0) + discontinuedFinancialSummary.totalNotCollectible,
+      outstanding: Math.max(totalFee - totalCollected, 0),
       collectionPercentage: totalFee + discontinuedFinancialSummary.totalPaid ? Math.min(100, ((totalCollected + discontinuedFinancialSummary.totalPaid) / (totalFee + discontinuedFinancialSummary.totalPaid)) * 100) : 0,
       dueToday,
       dueThisWeek,
@@ -7842,7 +7862,10 @@ const studentCourseOptions = useMemo(() => {
   const averageStudentValue = currentMonthAdmissions > 0
     ? dashboardData.totalFee / currentMonthAdmissions
     : 0
-  const nextMonthExpectedValue = nextMonthExpectedAdmissions * averageStudentValue
+  const nextMonthExpectedValue = Math.max(
+    nextMonthExpectedAdmissions * averageStudentValue - discontinuedFinancialSummary.totalNotCollectible,
+    0,
+  )
   const nextMonthTargetValue = nextMonthTargetAdmissions * averageStudentValue
   const nextMonthLabel = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 1)
     .toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })
@@ -9589,7 +9612,7 @@ useEffect(() => {
                         label: 'Outstanding',
                         value: formatBranchRupees(dashboardData.outstanding),
                         note: discontinuedFinancialSummary.totalNotCollectible > 0
-                          ? `Includes ${formatBranchRupees(discontinuedFinancialSummary.totalNotCollectible)} not collectible from discontinued students`
+                          ? `Outstanding reduced by ${formatBranchRupees(discontinuedFinancialSummary.totalNotCollectible)} because of approved student discontinuation`
                           : 'Pending Balance',
                         Icon: UserRound,
                         TrailIcon: UserRound,
@@ -9660,7 +9683,11 @@ useEffect(() => {
                         <div className="branch-dashboard-stat-card-copy">
                           <span>{label}</span>
                           <strong>{value}</strong>
-                          <div className="branch-dashboard-stat-card-footer"><small>{note}</small></div>
+                          <div className={`branch-dashboard-stat-card-footer${label === 'Outstanding' && discontinuedFinancialSummary.totalNotCollectible > 0 ? ' has-reduction' : ''}`}>
+                            {label === 'Outstanding' && discontinuedFinancialSummary.totalNotCollectible > 0 ? <>
+                              <small className="branch-dashboard-stat-card-reduction" aria-label={`Student discontinuation reduced amount ${formatBranchRupees(discontinuedFinancialSummary.totalNotCollectible)}`}><ArrowDownRight size={15} strokeWidth={2.5} />{formatBranchRupees(discontinuedFinancialSummary.totalNotCollectible)}</small>
+                            </> : <small aria-label={note}>{note}</small>}
+                          </div>
                         </div>
                         <div className="branch-dashboard-stat-card-trail" aria-hidden="true">
                           <TrailIcon size={20} strokeWidth={2.2} />
@@ -10236,7 +10263,12 @@ else {
               }}
             >
               <td className="branch-student-id-cell"><strong>{stu.studentId || '-'}</strong></td>
-              <td><strong className="branch-course-name">{stu.studentName || '-'}</strong></td>
+              <td>
+                <div className="branch-student-name-with-status">
+                  <strong className="branch-course-name">{stu.studentName || '-'}</strong>
+                  {stu.isDiscontinued ? <span className="branch-student-discontinued-badge">Discontinued</span> : null}
+                </div>
+              </td>
               <td>
                 <span className="branch-student-course">
                   {stu.courseName || stu.courseInterested || stu.course?.name || '-'}

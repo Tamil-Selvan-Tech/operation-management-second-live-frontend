@@ -276,6 +276,11 @@ export async function createStudentDiscontinuationRequest(payload = {}) {
   return unwrapData(response)
 }
 
+export async function getStudentDiscontinuationFinancePreview() {
+  const response = await request('/student-discontinuation/me/preview')
+  return unwrapData(response)
+}
+
 export async function getStudentDiscontinuationRequests(status = '') {
   const suffix = status ? '?status=' + encodeURIComponent(status) : ''
   const response = await request('/student-discontinuation' + suffix)

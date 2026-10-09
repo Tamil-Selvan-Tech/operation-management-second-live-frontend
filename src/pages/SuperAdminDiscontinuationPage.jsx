@@ -26,20 +26,35 @@ function getFinancialValue(requestItem, key) {
   return requestItem?.financialSnapshot?.[key] ?? requestItem?.[key] ?? 0
 }
 
+function getOutstandingAmount(requestItem) {
+  const student = getStudent(requestItem)
+  const installments = Array.isArray(student?.installments) ? student.installments : []
+  const totalFee = installments.length
+    ? installments.reduce((sum, installment) => sum + Number(installment?.amount || 0), 0)
+    : Number(student?.courseAmount || 0)
+  const totalPaid = installments.reduce((sum, installment) => sum + Number(installment?.amountPaid || 0), 0)
+  if (totalFee > 0) return Math.max(totalFee - totalPaid, 0)
+
+  const snapshot = requestItem?.financialSnapshot || {}
+  const finalCourseFee = Number(snapshot.finalCourseFee || 0)
+  const paidAmount = Number(snapshot.totalPaid || 0)
+  if (finalCourseFee > 0) return Math.max(finalCourseFee - paidAmount, 0)
+  return Number(snapshot.finalOutstandingAmount ?? snapshot.outstandingAmount ?? requestItem?.finalOutstandingAmount ?? requestItem?.outstandingAmount ?? 0)
+}
+
 export function SuperAdminDiscontinuationPage() {
   const [requests, setRequests] = useState([])
   const [loading, setLoading] = useState(true)
-  const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState('')
   const [search, setSearch] = useState('')
   const [selected, setSelected] = useState(null)
   const [decision, setDecision] = useState('')
   const [note, setNote] = useState('')
+  const [waitUntil, setWaitUntil] = useState('')
   const [saving, setSaving] = useState(false)
 
-  const loadRequests = async ({ silent = false } = {}) => {
-    if (silent) setRefreshing(true)
-    else setLoading(true)
+  const loadRequests = async () => {
+    setLoading(true)
     setError('')
     try {
       const response = await request('/student-discontinuation?status=SUPER_ADMIN_REVIEW')
@@ -48,7 +63,6 @@ export function SuperAdminDiscontinuationPage() {
       setError(loadError?.message || 'Unable to load discontinuation requests.')
     } finally {
       setLoading(false)
-      setRefreshing(false)
     }
   }
 
@@ -73,17 +87,24 @@ export function SuperAdminDiscontinuationPage() {
     })
   }, [requests, search])
 
+  const canWaitForSelectedRequest = selected && (
+    String(selected.contactOutcome || '').toUpperCase() === 'UNABLE_TO_CONTACT'
+    || Boolean(selected.escalationReason)
+  )
+
   const closeDetails = () => {
     if (saving) return
     setSelected(null)
     setDecision('')
     setNote('')
+    setWaitUntil('')
   }
 
   const openDetails = (item, nextDecision = '') => {
     setSelected(item)
     setDecision(nextDecision)
     setNote('')
+    setWaitUntil('')
     setError('')
   }
 
@@ -94,6 +115,10 @@ export function SuperAdminDiscontinuationPage() {
       setError('Rejection reason is required.')
       return
     }
+    if (decision === 'WAIT' && !waitUntil) {
+      setError('Next installment due date is required.')
+      return
+    }
     setSaving(true)
     setError('')
     try {
@@ -102,6 +127,7 @@ export function SuperAdminDiscontinuationPage() {
         body: JSON.stringify({
           decision,
           note: note.trim(),
+          waitUntil,
           waiverAmount: '0',
           refundEligibleAmount: String(getFinancialValue(selected, 'refundEligibleAmount') || 0),
           financeNote: '',
@@ -109,6 +135,7 @@ export function SuperAdminDiscontinuationPage() {
       })
       closeDetails()
       await loadRequests({ silent: true })
+      if (decision === 'APPROVE') window.dispatchEvent(new Event('cispro:discontinuation-approved'))
     } catch (saveError) {
       setError(saveError?.message || 'Unable to save the decision.')
     } finally {
@@ -129,7 +156,6 @@ export function SuperAdminDiscontinuationPage() {
             <Search size={16} aria-hidden="true" />
             <input id="super-admin-discontinuation-search" type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search student, ID or course" />
           </label>
-          <button type="button" className="super-admin-discontinuation-refresh" onClick={() => void loadRequests({ silent: true })} disabled={loading || refreshing}>{refreshing ? <Loader2 size={15} className="is-spinning" /> : 'Refresh'}</button>
           <span className="super-admin-global-count">{filteredRequests.length} pending</span>
         </div>
       </div>
@@ -146,9 +172,9 @@ export function SuperAdminDiscontinuationPage() {
                 return <tr key={item.id} className="super-admin-global-table-row-action" onClick={() => openDetails(item)}>
                   <td><strong>{student.studentName || '-'}</strong><small>{student.studentId || student.emailAddress || '-'}</small></td>
                   <td><strong>{student.courseName || '-'}</strong><small>{student.batchName || '-'}</small></td>
-                  <td><strong>{formatAmount(getFinancialValue(item, 'finalOutstandingAmount') || getFinancialValue(item, 'outstandingAmount'))}</strong><small>{item.reason || 'Discontinuation request'}</small></td>
-                  <td><strong>{item.branchName || item.branchId || '-'}</strong></td>
-                  <td><div className="super-admin-discontinuation-row-actions"><button type="button" className="super-admin-discontinuation-view" onClick={(event) => { event.stopPropagation(); openDetails(item) }}>View details</button><button type="button" className="super-admin-discontinuation-approve" onClick={(event) => { event.stopPropagation(); openDetails(item, 'APPROVE') }}>Approve</button></div></td>
+                  <td><strong>{formatAmount(getOutstandingAmount(item))}</strong><small>{item.reason || 'Discontinuation request'}</small></td>
+                  <td><strong>{item.branchName || item.branch?.branchName || item.branchStudent?.branch?.branchName || item.branchId || '-'}</strong></td>
+                  <td><div className="super-admin-discontinuation-row-actions"><button type="button" className="super-admin-discontinuation-view" onClick={(event) => { event.stopPropagation(); openDetails(item) }}>View details</button><button type="button" className="super-admin-discontinuation-approve" onClick={(event) => { event.stopPropagation(); openDetails(item) }}>Approve</button></div></td>
                 </tr>
               })}
               {!filteredRequests.length ? <tr><td colSpan="5" className="super-admin-global-empty">{search.trim() ? 'No matching discontinuation requests found.' : 'No requests are awaiting final approval.'}</td></tr> : null}
@@ -163,8 +189,8 @@ export function SuperAdminDiscontinuationPage() {
           <p className="branch-management-kicker">Final review</p>
           <h2 id="super-admin-discontinuation-title">{getStudent(selected).studentName || 'Student'} discontinuation</h2>
           <p className="super-admin-discontinuation-modal-copy">Branch Admin has reviewed this request. Choose whether to approve or reject it.</p>
-          <div className="super-admin-discontinuation-detail-grid"><div><span>Student ID</span><strong>{getStudent(selected).studentId || '-'}</strong></div><div><span>Course</span><strong>{getStudent(selected).courseName || '-'}</strong></div><div><span>Reason</span><strong>{selected.reason || '-'}</strong></div><div><span>Paid amount</span><strong>{formatAmount(getFinancialValue(selected, 'totalPaid'))}</strong></div><div><span>Outstanding amount</span><strong>{formatAmount(getFinancialValue(selected, 'finalOutstandingAmount') || getFinancialValue(selected, 'outstandingAmount'))}</strong></div><div><span>Refund eligible</span><strong>{formatAmount(getFinancialValue(selected, 'refundEligibleAmount'))}</strong></div></div>
-          {decision ? null : <div className="super-admin-discontinuation-modal-actions"><button type="button" className="super-admin-discontinuation-danger" onClick={() => setDecision('REJECT')}>Reject</button><button type="button" className="super-admin-discontinuation-approve" onClick={() => setDecision('APPROVE')}>Approve &amp; discontinue</button></div>}
+          <div className="super-admin-discontinuation-detail-grid"><div><span>Student ID</span><strong>{getStudent(selected).studentId || '-'}</strong></div><div><span>Course</span><strong>{getStudent(selected).courseName || '-'}</strong></div><div><span>Reason</span><strong>{selected.reason || '-'}</strong></div><div><span>Paid amount</span><strong>{formatAmount(getFinancialValue(selected, 'totalPaid'))}</strong></div><div><span>Outstanding amount</span><strong>{formatAmount(getOutstandingAmount(selected))}</strong></div><div><span>Refund eligible</span><strong>{formatAmount(getFinancialValue(selected, 'refundEligibleAmount'))}</strong></div></div>
+          {decision ? null : <div className="super-admin-discontinuation-modal-actions"><button type="button" className="super-admin-discontinuation-danger" onClick={() => setDecision('REJECT')}>Reject</button>{canWaitForSelectedRequest ? <button type="button" className="super-admin-discontinuation-secondary" onClick={() => setDecision('WAIT')}>Wait</button> : null}<button type="button" className="super-admin-discontinuation-approve" onClick={() => setDecision('APPROVE')}>Approve &amp; discontinue</button></div>}
         </div>
       </div> : null}
 
@@ -172,11 +198,11 @@ export function SuperAdminDiscontinuationPage() {
         <form className="super-admin-discontinuation-confirm-modal" role="dialog" aria-modal="true" aria-labelledby="super-admin-discontinuation-confirm-title" onSubmit={submitDecision}>
           <button type="button" className="super-admin-discontinuation-confirm-close" aria-label="Close confirmation" onClick={() => { setDecision(''); setNote('') }} disabled={saving}><X size={18} /></button>
           <p className="branch-management-kicker">{decision === 'REJECT' ? 'Review decision' : 'Final approval'}</p>
-          <h2 id="super-admin-discontinuation-confirm-title">{decision === 'REJECT' ? 'Reject discontinuation?' : 'Approve discontinuation?'}</h2>
-          <p>{decision === 'REJECT' ? 'Add a clear reason so the Branch Admin and student understand why this request was rejected.' : 'This will approve the Branch Admin-reviewed request and schedule the student account deactivation according to the configured policy.'}</p>
-          <div className="super-admin-discontinuation-confirm-summary"><span>Student</span><strong>{getStudent(selected).studentName || '-'}</strong><span>{decision === 'REJECT' ? 'Request reason' : 'Outstanding amount'}</span><strong>{decision === 'REJECT' ? (selected.reason || '-') : formatAmount(getFinancialValue(selected, 'finalOutstandingAmount') || getFinancialValue(selected, 'outstandingAmount'))}</strong></div>
-          {decision === 'REJECT' ? <label className="super-admin-discontinuation-confirm-note">Rejection reason<textarea value={note} onChange={(event) => setNote(event.target.value)} placeholder="Explain why this request is being rejected." rows={4} required /></label> : null}
-          <div className="super-admin-discontinuation-modal-actions"><button type="button" className="super-admin-discontinuation-secondary" onClick={() => { setDecision(''); setNote('') }} disabled={saving}>Cancel</button><button type="submit" className={decision === 'REJECT' ? 'super-admin-discontinuation-danger' : 'super-admin-discontinuation-approve'} disabled={saving}>{saving ? <Loader2 size={16} className="is-spinning" /> : decision === 'REJECT' ? 'Confirm rejection' : 'Confirm approval'}</button></div>
+          <h2 id="super-admin-discontinuation-confirm-title">{decision === 'REJECT' ? 'Reject discontinuation?' : decision === 'WAIT' ? 'Wait for installment follow-up?' : 'Approve discontinuation?'}</h2>
+          <p>{decision === 'REJECT' ? 'Add a clear reason so the Branch Admin and student understand why this request was rejected.' : decision === 'WAIT' ? 'Choose the next installment due date. Branch Admin will be asked to contact the student again after that date.' : 'This will approve the Branch Admin-reviewed request and schedule the student account deactivation according to the configured policy.'}</p>
+          <div className="super-admin-discontinuation-confirm-summary"><span>Student</span><strong>{getStudent(selected).studentName || '-'}</strong><span>{decision === 'REJECT' ? 'Request reason' : 'Outstanding amount'}</span><strong>{decision === 'REJECT' ? (selected.reason || '-') : formatAmount(getOutstandingAmount(selected))}</strong></div>
+          {decision === 'REJECT' ? <label className="super-admin-discontinuation-confirm-note">Rejection reason<textarea value={note} onChange={(event) => setNote(event.target.value)} placeholder="Explain why this request is being rejected." rows={4} required /></label> : decision === 'WAIT' ? <label className="super-admin-discontinuation-confirm-note">Next installment due date<input type="date" value={waitUntil} onChange={(event) => setWaitUntil(event.target.value)} required /><textarea value={note} onChange={(event) => setNote(event.target.value)} placeholder="Optional note for the Branch Admin." rows={3} /></label> : null}
+          <div className="super-admin-discontinuation-modal-actions"><button type="button" className="super-admin-discontinuation-secondary" onClick={() => { setDecision(''); setNote(''); setWaitUntil('') }} disabled={saving}>Cancel</button><button type="submit" className={decision === 'REJECT' ? 'super-admin-discontinuation-danger' : 'super-admin-discontinuation-approve'} disabled={saving}>{saving ? <Loader2 size={16} className="is-spinning" /> : decision === 'REJECT' ? 'Confirm rejection' : decision === 'WAIT' ? 'Save wait decision' : 'Confirm approval'}</button></div>
         </form>
       </div> : null}
     </section>

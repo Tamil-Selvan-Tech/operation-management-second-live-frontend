@@ -14868,6 +14868,13 @@ td .faculty-my-batches-empty {
   }
 }
 
+@media (max-width: 900px) {
+  .student-discontinuation-panel.is-rejected {
+    display: flex;
+    gap: 18px;
+  }
+}
+
 @media (max-width: 640px) {
   .batch-student-modal {
     width: calc(100vw - 16px);
@@ -27627,6 +27634,12 @@ canvas {
   background: linear-gradient(135deg, #f8fbff 0%, #fff 72%);
 }
 
+.student-discontinuation-panel.is-rejected {
+  border-color: #f2b8c0;
+  background: linear-gradient(135deg, #fff6f7 0%, #fff 72%);
+  box-shadow: 0 8px 22px rgba(190, 45, 67, .08);
+}
+
 .student-discontinuation-copy {
   max-width: 680px;
 }
@@ -27662,16 +27675,164 @@ canvas {
 }
 
 .student-discontinuation-status {
+  flex: 0 1 390px;
   display: grid;
   gap: 4px;
-  min-width: 210px;
+  min-width: min(320px, 100%);
   color: #6d7d96;
   font-size: 13px;
+}
+
+.student-discontinuation-panel.is-rejected {
+  align-items: flex-start;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 28px;
+}
+
+.student-discontinuation-panel.is-rejected .student-discontinuation-copy {
+  padding-top: 8px;
+}
+
+.student-discontinuation-panel.is-rejected .student-discontinuation-status-cards {
+  margin-top: 45px;
+}
+
+.student-discontinuation-status-cards {
+  width: 100%;
+  display: grid;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.student-discontinuation-status-cards.has-rejection {
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .student-discontinuation-status strong {
   color: #1769e0;
   font-size: 14px;
+}
+
+.student-discontinuation-approved-info {
+  display: grid;
+  gap: 6px;
+  margin-top: 10px;
+  padding: 12px 14px;
+  border: 1px solid #b9e4d2;
+  border-left: 4px solid #159570;
+  border-radius: 10px;
+  background: #f1fbf6;
+  color: #4f6b67;
+}
+
+.student-discontinuation-approved-info strong {
+  color: #147d62;
+}
+
+.student-discontinuation-approved-info span {
+  line-height: 1.45;
+}
+
+.student-discontinuation-panel.is-rejected .student-discontinuation-status > strong {
+  color: #c72f4a;
+}
+
+.student-discontinuation-rejection {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+  height: 100%;
+  min-height: 108px;
+  box-sizing: border-box;
+  padding: 12px 14px;
+  border: 1px solid #f1b6c0;
+  border-left: 4px solid #d83f58;
+  border-radius: 10px;
+  background: #fff;
+}
+
+.student-discontinuation-rejection strong {
+  color: #a9253e;
+  font-size: 12px;
+}
+
+.student-discontinuation-rejection p {
+  margin: 0;
+  color: #64313a;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.student-discontinuation-rejection small {
+  color: #8b5861;
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.student-discontinuation-status .student-discontinuation-secondary {
+  width: fit-content;
+  min-height: 38px;
+  margin-top: 8px;
+  padding: 0 14px;
+  color: #1769e0;
+  border-color: #b9d2f7;
+  background: #f3f8ff;
+}
+
+.student-discontinuation-amount-card {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  height: 100%;
+  box-sizing: border-box;
+  margin-top: 0;
+  padding: 11px 13px;
+  border: 1px solid #c8ddf7;
+  border-radius: 11px;
+  background: linear-gradient(135deg, #f3f8ff 0%, #eaf3ff 100%);
+}
+
+.student-discontinuation-copy .student-discontinuation-amount-card {
+  margin-top: 16px;
+  min-height: 108px;
+}
+
+.student-discontinuation-amount-card span {
+  color: #557293;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.student-discontinuation-amount-card strong {
+  color: #145fc7;
+  font-size: 22px;
+  line-height: 1.15;
+}
+
+.student-discontinuation-amount-card small {
+  color: #71839d;
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.student-discontinuation-finance-note {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 14px;
+  border: 1px solid #d8e7f8;
+  border-radius: 10px;
+  color: #536b89;
+  background: #f6faff;
+  font-size: 13px;
+}
+
+.student-discontinuation-finance-note strong {
+  color: #173b70;
+  font-size: 16px;
+  white-space: nowrap;
 }
 
 .student-discontinuation-loading {
@@ -27920,6 +28081,19 @@ canvas {
   .student-discontinuation-panel {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .student-discontinuation-panel.is-rejected {
+    display: flex;
+    gap: 18px;
+  }
+
+  .student-discontinuation-panel.is-rejected .student-discontinuation-status-cards {
+    margin-top: 8px;
+  }
+
+  .student-discontinuation-panel.is-rejected .student-discontinuation-copy {
+    padding-top: 0;
   }
 
   .student-discontinuation-button {

@@ -275,6 +275,33 @@ body.student-notification-menu-open .student-new-content { overscroll-behavior: 
   transform: rotate(180deg);
 }
 
+.student-new-leave-management-page {
+  display: grid;
+  gap: 4px;
+}
+
+.student-new-page-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 8px;
+}
+
+.student-new-page-heading h1 {
+  margin: 4px 0 8px;
+  color: #132f58;
+  font-size: clamp(28px, 3vw, 40px);
+  line-height: 1.1;
+}
+
+.student-new-page-heading p:last-child {
+  margin: 0;
+  color: #71839d;
+  font-size: 15px;
+  line-height: 1.5;
+}
+
 .student-new-sidebar-nested-subnav {
   margin: 0 0 2px 14px;
   padding-left: 10px;
