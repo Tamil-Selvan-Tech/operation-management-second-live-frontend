@@ -319,6 +319,7 @@ function getStudentCourseEnrollments(student = {}, branchCourseCards = []) {
       paymentPlan: student.paymentPlan || '',
       status: student.arrangementStatus || student.status || 'ACTIVE',
       courseProgress: student.courseProgress ?? student.courseCompletionPercentage ?? student.progress,
+      courseCompletion: student.courseCompletion || student.courseCompletionStatus || 'IN_PROGRESS',
     }]
   }
 
@@ -348,6 +349,7 @@ function getStudentCourseEnrollments(student = {}, branchCourseCards = []) {
       courseAmount: course.totalCourseAmount ?? course.courseAmount ?? course.totalAmount ?? (isPrimaryCourse ? student.courseAmount : ''),
       paymentPlan: course.paymentPlan || course.paymentPlanName || (isPrimaryCourse ? student.paymentPlan : '') || '',
       courseProgress: savedProgress ?? (isPrimaryCourse ? getCourseProgress(student) : null),
+      courseCompletion: course.courseCompletion || course.courseCompletionStatus || (isPrimaryCourse ? student.courseCompletion || student.courseCompletionStatus : 'IN_PROGRESS'),
     }
   })
 }
@@ -828,7 +830,7 @@ export function Student360Page({
       })?.courseProgress
       : null
     const progressValues = [savedProgress, workProgress].map(Number).filter(Number.isFinite)
-    return Boolean(enrollment.courseCompletedAt || (isPrimaryEnrollment && student.courseCompletedAt)) || Math.max(0, ...progressValues) >= 100
+    return String(enrollment.courseCompletion || (isPrimaryEnrollment ? student.courseCompletion : '') || '').toUpperCase() === 'COMPLETED'
   })
   const isSelectedCoursePending = String(selectedCourse.status || '').toUpperCase() === 'PENDING'
   const isAwaitingSelectedCourseSchedule = isSelectedCoursePending && priorCoursesCompleted

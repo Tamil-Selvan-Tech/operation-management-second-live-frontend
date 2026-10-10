@@ -5697,6 +5697,7 @@ body.super-admin-sidebar-open {
 .super-admin-global-table td small { margin-top: 3px; color: #8a9bb3; font-size: 11px; }
 .super-admin-global-status { display: inline-flex; padding: 5px 9px; border-radius: 999px; color: #64748b; background: #f1f5f9; font-size: 11px; font-weight: 800; white-space: nowrap; }
 .super-admin-global-status.is-active { color: #0e8c5a; background: #e9fbf2; }
+.super-admin-global-status.is-completed { color: #166534; background: #dcfce7; }
 .super-admin-global-status.is-inactive { color: #b45309; background: #fff7e8; }
 .super-admin-global-empty, .super-admin-global-state { padding: 42px 20px !important; color: #8291a7; text-align: center !important; }
 .super-admin-global-state.is-error { color: #b42318; }

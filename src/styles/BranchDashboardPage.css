@@ -3609,6 +3609,34 @@ body.branch-notification-menu-open .main-area {
 .branch-course-table th:nth-child(10) {
   width: 96px;
 }
+
+/* Keep the student-management columns balanced without letting the action cell clip. */
+.branch-students-table-shell .branch-course-table {
+  min-width: 1220px;
+}
+
+.branch-students-table-shell .branch-course-table th:nth-child(1) { width: 105px; }
+.branch-students-table-shell .branch-course-table th:nth-child(2) { width: 125px; }
+.branch-students-table-shell .branch-course-table th:nth-child(3) { width: 105px; }
+.branch-students-table-shell .branch-course-table th:nth-child(4) { width: 100px; }
+.branch-students-table-shell .branch-course-table th:nth-child(5) { width: 120px; }
+.branch-students-table-shell .branch-course-table th:nth-child(6) { width: 125px; }
+.branch-students-table-shell .branch-course-table th:nth-child(7) { width: 145px; }
+.branch-students-table-shell .branch-course-table th:nth-child(8) { width: 125px; }
+.branch-students-table-shell .branch-course-table th:nth-child(9) { width: 100px; }
+.branch-students-table-shell .branch-course-table th:nth-child(10) { width: 100px; }
+.branch-students-table-shell .branch-course-table th:nth-child(11) { width: 75px; }
+
+.branch-students-table-shell .branch-course-table th,
+.branch-students-table-shell .branch-course-table td {
+  padding-left: 14px;
+  padding-right: 14px;
+}
+
+.branch-students-table-shell .branch-course-table th:last-child,
+.branch-students-table-shell .branch-course-table td:last-child {
+  text-align: center;
+}
 /* Final override: restore the original right-side drawer look */
 .branch-course-drawer-backdrop {
   align-items: stretch;

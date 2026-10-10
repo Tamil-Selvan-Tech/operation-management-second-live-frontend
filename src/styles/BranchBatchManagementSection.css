@@ -708,6 +708,16 @@
   color: #64748b;
 }
 
+.batch-management-status-pill.completed {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.batch-management-status-dot.is-completed {
+  background: #16a34a;
+  box-shadow: 0 0 0 3px #dcfce7;
+}
+
 .batch-modal-backdrop {
   z-index: 1200;
 }
@@ -2097,6 +2107,11 @@
 .batch-detail-student-attendance.unmarked {
   color: #64748b;
   background: #f1f5f9;
+}
+
+.batch-detail-student-attendance.completed {
+  color: #166534;
+  background: #dcfce7;
 }
 
 .batch-detail-student-avatar {
