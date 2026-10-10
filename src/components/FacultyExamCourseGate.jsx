@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { ArrowLeft, ChevronRight } from 'lucide-react'
+import { useSearchParams } from 'react-router-dom'
 import { listFacultyExamBatches, listFacultyExamCourses } from '../services/examService'
 import '../styles/FacultyExamCourseGate.css'
 
@@ -16,6 +17,19 @@ export default function FacultyExamCourseGate({ title = 'Exams and Result', chil
   const [loading, setLoading] = useState(true)
   const [batchLoading, setBatchLoading] = useState(false)
   const [error, setError] = useState('')
+  const [searchParams] = useSearchParams()
+  const batchRequestsRef = useRef(new Map())
+  const getCourseBatches = (courseId) => {
+    const key = String(courseId || '').trim()
+    if (!batchRequestsRef.current.has(key)) {
+      const request = listFacultyExamBatches(courseId).then((items) => Array.isArray(items) ? items : []).catch((e) => {
+        batchRequestsRef.current.delete(key)
+        throw e
+      })
+      batchRequestsRef.current.set(key, request)
+    }
+    return batchRequestsRef.current.get(key)
+  }
 
   useEffect(() => {
     let mounted = true
@@ -26,8 +40,8 @@ export default function FacultyExamCourseGate({ title = 'Exams and Result', chil
         setCourses(nextCourses)
         const counts = await Promise.all(nextCourses.map(async (course) => {
           try {
-            const courseBatches = await listFacultyExamBatches(course.id)
-            return [course.id, Array.isArray(courseBatches) ? courseBatches.length : 0]
+            const courseBatches = await getCourseBatches(course.id)
+            return [course.id, courseBatches.length]
           } catch {
             return [course.id, 0]
           }
@@ -48,14 +62,39 @@ export default function FacultyExamCourseGate({ title = 'Exams and Result', chil
     setBatchLoading(true)
     setError('')
     try {
-      const items = await listFacultyExamBatches(course.id)
-      setBatches(Array.isArray(items) ? items : [])
+      const items = await getCourseBatches(course.id)
+      setBatches(items)
     } catch (e) {
       setError(e.message || 'Unable to load course batches.')
     } finally {
       setBatchLoading(false)
     }
   }
+
+  useEffect(() => {
+    const courseId = String(searchParams.get('courseId') || '').trim()
+    const batchId = String(searchParams.get('batchId') || '').trim()
+    if (!courseId || !batchId || selectedCourse || !courses.length) return
+    const course = courses.find((item) => String(item.id || '').trim() === courseId)
+    if (!course) return
+    let active = true
+    // The query parameters represent an external route selection that must be
+    // reflected in the gate before loading the selected batch.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setSelectedCourse(course)
+    setBatchLoading(true)
+    getCourseBatches(course.id)
+      .then((items) => {
+        if (!active) return
+        const nextBatches = Array.isArray(items) ? items : []
+        setBatches(nextBatches)
+        const batch = nextBatches.find((item) => [item.id, item.batchId].some((value) => String(value || '').trim() === batchId))
+        if (batch) setOpenedBatch({ course, batch })
+      })
+      .catch((e) => { if (active) setError(e.message || 'Unable to load course batches.') })
+      .finally(() => { if (active) setBatchLoading(false) })
+    return () => { active = false }
+  }, [courses, searchParams, selectedCourse])
 
   if (openedBatch) {
     return <div className="faculty-exam-course-gate faculty-exam-course-content">
