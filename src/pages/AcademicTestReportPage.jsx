@@ -21,7 +21,7 @@ export default function AcademicTestReportPage({ embedded = false }) {
   const openSend = async () => { setSendOpen(true); setSendMessage(''); setSendBatchId(''); setSendTests([]); setSelectedSendTests([]); try { await loadBatches() } catch {} }
   const selectSendBatch = async (batchId) => { setSendBatchId(batchId); setSelectedSendTests([]); if (!batchId) return setSendTests([]); try { setSendLoading(true); setSendTests(await listFacultyAcademicReportTests(batchId)) } catch (err) { setSendMessage(err.message || 'Unable to load completed tests.') } finally { setSendLoading(false) } }
   const submitSend = async () => { if (!sendBatchId || !selectedSendTests.length) return setSendMessage('Select a batch and at least one completed test.'); try { setSendLoading(true); await sendAcademicTestReport({ batchId: sendBatchId, academicTestIds: selectedSendTests }); setSendOpen(false); setSuccess('Academic test report sent to the Branch Admin.') } catch (err) { setSendMessage(err.message || 'Unable to send report.') } finally { setSendLoading(false) } }
-  const tests = report?.tests || []; const hasProject = Boolean(report?.hasProject); const matchingBatches = batches.filter((batch) => { const query = batchSearch.trim().toLowerCase(); return !query || [batch.batchId, batch.batchName].some((item) => String(item || '').toLowerCase().includes(query)) }); const batchPageCount = Math.max(1, Math.ceil(matchingBatches.length / 5)); const filteredBatches = matchingBatches.slice((batchPage - 1) * 5, batchPage * 5)
+  const tests = report?.tests || []; const hasProject = Boolean(report?.hasProject); const projectLabel = hasProject ? `Test ${report?.projectTestNumber || tests.length + 1} (Project)` : 'Project'; const matchingBatches = batches.filter((batch) => { const query = batchSearch.trim().toLowerCase(); return !query || [batch.batchId, batch.batchName].some((item) => String(item || '').toLowerCase().includes(query)) }); const batchPageCount = Math.max(1, Math.ceil(matchingBatches.length / 5)); const filteredBatches = matchingBatches.slice((batchPage - 1) * 5, batchPage * 5)
   useEffect(() => { setBatchPage(1) }, [batchSearch]); useEffect(() => { if (batchPage > batchPageCount) setBatchPage(batchPageCount) }, [batchPage, batchPageCount])
   useEffect(() => { if (report || batchPageCount <= 1) return undefined; const card = document.querySelector('.academic-report-page .academic-report-card'); const tableWrap = card?.querySelector('.academic-report-table-wrap'); if (!tableWrap || card.querySelector('.academic-report-pagination')) return undefined; const pagination = document.createElement('div'); pagination.className = 'academic-report-pagination'; const render = () => { pagination.innerHTML = ''; const previous = document.createElement('button'); previous.textContent = 'Previous'; previous.disabled = batchPage <= 1; previous.onclick = () => setBatchPage((page) => Math.max(1, page - 1)); pagination.appendChild(previous); for (let page = 1; page <= batchPageCount; page += 1) { const button = document.createElement('button'); button.textContent = String(page); button.className = page === batchPage ? 'is-active' : ''; button.onclick = () => setBatchPage(page); pagination.appendChild(button) } const next = document.createElement('button'); next.textContent = 'Next'; next.disabled = batchPage >= batchPageCount; next.onclick = () => setBatchPage((page) => Math.min(batchPageCount, page + 1)); pagination.appendChild(next) }; render(); tableWrap.after(pagination); return () => pagination.remove() }, [report, batchPage, batchPageCount, filteredBatches.length])
   useEffect(() => {
@@ -45,6 +45,33 @@ export default function AcademicTestReportPage({ embedded = false }) {
     input.addEventListener('input', apply);
     return () => { input.removeEventListener('input', apply); input.remove(); };
   }, [report, loading]);
+  useEffect(() => {
+    if (!report || !hasProject) return undefined;
+    const header = document.querySelector('.academic-report-student-table thead th:nth-last-child(3)');
+    if (header) header.textContent = projectLabel;
+    return undefined;
+  }, [report, hasProject, projectLabel]);
+  useEffect(() => {
+    const projectItems = report?.projectItems || [];
+    if (!report || projectItems.length <= 1) return undefined;
+    const table = document.querySelector('.academic-report-student-table');
+    const headerRow = table?.querySelector('thead tr');
+    const rows = table ? [...table.querySelectorAll('tbody tr')].filter((row) => row.cells.length > 2) : [];
+    if (!headerRow || !rows.length || headerRow.querySelectorAll('[data-extra-project-column]').length >= projectItems.length - 1) return undefined;
+    projectItems.slice(1).forEach((projectItem, offset) => {
+      const header = document.createElement('th');
+      header.dataset.extraProjectColumn = 'true';
+      header.textContent = `Test ${projectItem.testNumber} (Project)`;
+      headerRow.insertBefore(header, headerRow.children[2 + tests.length + offset + 1]);
+      rows.forEach((row, rowIndex) => {
+        const project = report.students?.[rowIndex]?.projects?.[offset + 1];
+        const cell = document.createElement('td');
+        cell.innerHTML = `<div class="academic-report-final"><strong>${project?.marksAwarded == null ? '-' : `${project.marksAwarded}/${project.totalMarks}`}</strong><em>${project?.result || ''}</em></div>`;
+        row.insertBefore(cell, row.children[2 + tests.length + offset + 1]);
+      });
+    });
+    return undefined;
+  }, [report, tests.length]);
   return <main className={`academic-report-page ${embedded ? 'is-embedded' : ''}`}>
     <div className="academic-report-heading"><div><p className="academic-report-kicker">FACULTY WORKSPACE</p><h1>Academic Test Report</h1><p>Review final test attempts, retest history and project performance by batch.</p></div><div className="academic-report-heading-actions">{!report && <button type="button" className="academic-report-primary academic-report-send-button" onClick={openSend}><Send size={16} /> Send Report</button>}{report && <button type="button" className="academic-report-back" onClick={() => setReport(null)}><ArrowLeft size={16} /> All batches</button>}</div></div>
     {error && <div className="academic-report-error">{error}</div>}{success && <div className="academic-report-success">{success}</div>}

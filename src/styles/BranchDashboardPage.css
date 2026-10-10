@@ -14326,7 +14326,22 @@ body.branch-notification-menu-open .main-area {
 .branch-students-table-shell .branch-course-table th:nth-child(9),
 .branch-students-table-shell .branch-course-table td:nth-child(9) { width: 8%; min-width: 126px; }
 .branch-students-table-shell .branch-course-table th:nth-child(10),
-.branch-students-table-shell .branch-course-table td:nth-child(10) { width: 7%; min-width: 78px; }
+.branch-students-table-shell .branch-course-table td:nth-child(10) {
+  width: 10%;
+  min-width: 120px;
+  overflow: visible !important;
+  white-space: nowrap;
+}
+
+.branch-students-table-shell .branch-course-table td:nth-child(10) .branch-student-payment-status {
+  display: inline-flex;
+  width: max-content;
+  max-width: none;
+  min-width: 0;
+  overflow: visible;
+  text-overflow: clip;
+  white-space: nowrap;
+}
 
 .branch-students-table-shell .branch-student-group-cell {
   white-space: normal;
