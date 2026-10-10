@@ -107,6 +107,7 @@ import {
 import { getCourseStatusFromProgress, getCourseStatusLabel } from '../lib/courseStatus'
 import FacultyExamsPage from './FacultyExamsPage'
 import FacultyAssessmentsPage from './FacultyAssessmentsPage'
+import FacultyExamCourseGate from '../components/FacultyExamCourseGate'
 import FacultyExamReportsPage from './FacultyExamReportsPage'
 import FacultyStudentExamReportPage from './FacultyStudentExamReportPage'
 import AcademicTestPage from './AcademicTestPage'
@@ -5375,7 +5376,7 @@ const nextName = trimmedValue
 
               {activeSection === 'skill-development' ? <FacultySkillDevelopmentPage /> : null}
 
-              {isStudentExamReportRoute ? <FacultyStudentExamReportPage embedded /> : isExamReportsRoute ? <FacultyExamReportsPage embedded /> : isAssessmentsRoute ? <FacultyAssessmentsPage embedded /> : isAcademicTestReportRoute ? <AcademicTestReportPage embedded /> : isAcademicTestRoute ? (isAcademicTestListRoute || location.pathname.replace(/\/+$/, '') === '/dashboard/faculty/exams/academic-tests' ? <AcademicTestPage mode="faculty" /> : <AcademicTestPreparationPage embedded />) : isExamsRoute ? <FacultyExamsPage embedded /> : null}
+              {isStudentExamReportRoute ? <FacultyStudentExamReportPage embedded /> : isExamReportsRoute ? <FacultyExamCourseGate title={new URLSearchParams(location.search).get('tab') === 'assessments' ? 'Assessment Report' : 'Syllabus Test Report'}>{({ course, batch }) => <FacultyExamReportsPage embedded selectedCourseId={course.id} selectedBatchId={batch.id || batch.batchId} />}</FacultyExamCourseGate> : isAssessmentsRoute ? <FacultyExamCourseGate title="Syllabus Test Assessment">{({ course, batch }) => <FacultyAssessmentsPage embedded selectedCourseId={course.id} selectedBatchId={batch.id || batch.batchId} />}</FacultyExamCourseGate> : isAcademicTestReportRoute ? <FacultyExamCourseGate title="Academic Test Report">{({ course, batch }) => <AcademicTestReportPage embedded selectedCourseId={course.id} selectedBatchId={batch.id || batch.batchId} />}</FacultyExamCourseGate> : isAcademicTestRoute ? (isAcademicTestListRoute || location.pathname.replace(/\/+$/, '') === '/dashboard/faculty/exams/academic-tests' ? <FacultyExamCourseGate title="Academic Test">{({ course, batch }) => <AcademicTestPage mode="faculty" facultyCourseId={course.id} facultyBatchId={batch.id || batch.batchId} />}</FacultyExamCourseGate> : <AcademicTestPreparationPage embedded />) : isExamsRoute ? <FacultyExamCourseGate title="Syllabus Test">{({ course, batch }) => <FacultyExamsPage embedded selectedCourseId={course.id} selectedBatchId={batch.id || batch.batchId} />}</FacultyExamCourseGate> : null}
 
               {!isExamsRoute && !isAssessmentsRoute && !isExamReportsRoute && !isAcademicTestRoute && activeSection === 'dashboard' ? (
                 <>
