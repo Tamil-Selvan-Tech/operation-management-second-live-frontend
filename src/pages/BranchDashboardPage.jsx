@@ -2112,7 +2112,7 @@ function BranchNotificationGroup({
     <section className="notifications-group">
       <p className="notifications-group-label">{label}</p>
       <div className="notifications-group-list">
-        {items.map((item) => {
+        {items.map((item, index) => {
           const Icon = item.icon
           const isCourseEditRequest =
             item.kind === 'branch-course-edit-request' || item.kind === 'course-edit-request'
@@ -2126,7 +2126,7 @@ function BranchNotificationGroup({
 
           return (
             <article
-              key={`${label}-${item.id || item.title}-${item.time}`}
+              key={`${label}-${item.id || item.title}-${item.time}-${index}`}
               className={showDetails ? '' : `notifications-item ${item.unread ? 'is-unread' : ''}`.trim()}
               role="button"
               tabIndex={0}
@@ -9768,7 +9768,7 @@ useEffect(() => {
 
                 <div className="notification-dropdown-list">
                   {branchNotificationPreviewItems.length ? (
-                    branchNotificationPreviewItems.map((item) => {
+                    branchNotificationPreviewItems.map((item, index) => {
                       const Icon = item.icon
                       const isCourseEditRequest =
                         item.kind === 'branch-course-edit-request' || item.kind === 'course-edit-request'
@@ -9780,7 +9780,7 @@ useEffect(() => {
 
                       return (
                         <article
-                          key={item.id}
+                          key={`${item.id || item.requestId || item.kind || item.title}-${index}`}
                           className={`notification-dropdown-item ${item.unread ? 'is-highlighted' : 'is-muted'} ${isCourseEditRequest ? 'is-course-request' : ''
                             }`.trim()}
                         >

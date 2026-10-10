@@ -99,6 +99,7 @@ import { getFacultyCalendar, getFacultyTemporaryBatches, getTemporaryBatchStuden
 import '../styles/SuperAdminDashboardPage.css'
 import '../styles/BranchDashboardPage.css'
 import '../styles/FacultyDashboardPage.css'
+import { FacultySkillDevelopmentPage } from './FacultySkillDevelopmentPage'
 import {
   buildProgressComparisonNotification,
   syncProgressComparisonNotifications,
@@ -1388,7 +1389,7 @@ function FacultyNotificationGroup({ label, items, onViewNotification }) {
     <section className="faculty-notifications-group">
       <p className="faculty-notifications-group-label">{label}</p>
       <div className="faculty-notifications-group-list">
-        {items.map((notification) => {
+        {items.map((notification, index) => {
           const Icon = getFacultyNotificationIcon(notification)
           const isWeekOffRejection = notification.title === 'Week-Off Request Rejected'
           const parsedReason = notification.requestReason || (isWeekOffRejection ? notification.message.match(/\s*Reason:\s*(.*)$/i)?.[1]?.trim() : '')
@@ -1396,7 +1397,7 @@ function FacultyNotificationGroup({ label, items, onViewNotification }) {
 
           return (
             <article
-              key={notification.id}
+              key={`${notification.id || notification.kind || notification.title}-${index}`}
               className={`faculty-notification-card ${notification.read ? 'is-read' : 'is-unread'}`.trim()}
             >
               <div className="faculty-notification-copy">
@@ -1884,7 +1885,7 @@ export function FacultyDashboardPage() {
   const isAcademicTestReportRoute = location.pathname === '/dashboard/faculty/exams/academic-tests/report' || location.pathname.startsWith('/dashboard/faculty/exams/academic-tests/report/')
   const isAcademicTestListRoute = isAcademicTestRoute && new URLSearchParams(location.search).get('view') === 'list'
   const isStudentExamReportRoute = /^\/dashboard\/faculty\/exams\/reports\/[^/]+\/[^/]+$/.test(location.pathname)
-  const facultyRouteSection = location.pathname === '/dashboard/faculty/dashboard' ? 'dashboard' : location.pathname === '/dashboard/faculty/courses' ? 'my-courses' : ['/dashboard/faculty/batches', '/dashboard/faculty/my-batches'].includes(location.pathname) ? 'my-batches' : location.pathname === '/dashboard/faculty/calendar' ? 'my-calendar' : location.pathname === '/dashboard/faculty/students' ? 'students' : location.pathname === '/dashboard/faculty/leave-requests' ? 'leave-requests' : location.pathname === '/dashboard/faculty/notifications' ? 'notifications' : location.pathname === '/dashboard/faculty/profile' ? 'profile' : isExamsRoute || isAssessmentsRoute || isExamReportsRoute || isAcademicTestRoute ? 'exams' : ''
+  const facultyRouteSection = location.pathname === '/dashboard/faculty/dashboard' ? 'dashboard' : location.pathname === '/dashboard/faculty/courses' ? 'my-courses' : ['/dashboard/faculty/batches', '/dashboard/faculty/my-batches'].includes(location.pathname) ? 'my-batches' : location.pathname === '/dashboard/faculty/calendar' ? 'my-calendar' : location.pathname === '/dashboard/faculty/students' ? 'students' : location.pathname === '/dashboard/faculty/leave-requests' ? 'leave-requests' : location.pathname === '/dashboard/faculty/notifications' ? 'notifications' : location.pathname.startsWith('/dashboard/faculty/skill-development') ? 'skill-development' : location.pathname === '/dashboard/faculty/profile' ? 'profile' : isExamsRoute || isAssessmentsRoute || isExamReportsRoute || isAcademicTestRoute ? 'exams' : ''
   const userRole = String(user?.role || '').trim().toLowerCase()
   const [activeSection, setActiveSection] = useState(facultyRouteSection || 'dashboard')
   const [expandedSidebarGroups, setExpandedSidebarGroups] = useState({
@@ -5371,6 +5372,8 @@ const nextName = trimmedValue
                   </Button>
                 </section>
               ) : null}
+
+              {activeSection === 'skill-development' ? <FacultySkillDevelopmentPage /> : null}
 
               {isStudentExamReportRoute ? <FacultyStudentExamReportPage embedded /> : isExamReportsRoute ? <FacultyExamReportsPage embedded /> : isAssessmentsRoute ? <FacultyAssessmentsPage embedded /> : isAcademicTestReportRoute ? <AcademicTestReportPage embedded /> : isAcademicTestRoute ? (isAcademicTestListRoute || location.pathname.replace(/\/+$/, '') === '/dashboard/faculty/exams/academic-tests' ? <AcademicTestPage mode="faculty" /> : <AcademicTestPreparationPage embedded />) : isExamsRoute ? <FacultyExamsPage embedded /> : null}
 

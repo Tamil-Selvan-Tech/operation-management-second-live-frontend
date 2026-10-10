@@ -412,8 +412,8 @@ export function AppRouter() {
             <Route path="/dashboard/faculty/students" element={<FacultyMyBatchesPage />} />
             <Route path="/dashboard/faculty/leave-requests" element={<FacultyMyBatchesPage />} />
             <Route path="/dashboard/faculty/notifications" element={<FacultyMyBatchesPage />} />
-            <Route path="/dashboard/faculty/skill-development" element={<FacultySkillDevelopmentPage />} />
-            <Route path="/dashboard/faculty/skill-development/:id" element={<FacultySkillDevelopmentPage />} />
+            <Route path="/dashboard/faculty/skill-development" element={<FacultyMyBatchesPage />} />
+            <Route path="/dashboard/faculty/skill-development/:id" element={<FacultyMyBatchesPage />} />
             <Route path="/dashboard/faculty/profile" element={<FacultyMyBatchesPage />} />
             <Route path="/dashboard/faculty/my-batches/students/:studentId/calendar" element={<FacultyMyBatchesPage />} />
           </Route>

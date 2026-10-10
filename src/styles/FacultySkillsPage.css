@@ -20,3 +20,88 @@
 .faculty-skill-confirm-backdrop{position:fixed;inset:0;z-index:4000;display:grid;place-items:center;padding:20px;background:rgba(15,23,42,.55)}.faculty-skill-confirm-modal{position:relative;width:min(420px,100%);padding:24px;border:1px solid #dbe4f0;border-radius:16px;background:#fff;box-shadow:0 24px 70px rgba(15,23,42,.28)}.faculty-skill-confirm-close{position:absolute;top:10px;right:12px;width:30px;height:30px;border:0;border-radius:8px;background:transparent;color:#64748b;font-size:24px;line-height:1;cursor:pointer}.faculty-skill-confirm-close:hover{background:#f1f5f9;color:#0f172a}.faculty-skill-confirm-modal h3{margin:0;padding-right:32px;color:#0f172a;font-size:1.08rem}.faculty-skill-confirm-modal p{margin:10px 0 20px;color:#475569;line-height:1.5}.faculty-skill-confirm-actions{display:flex;justify-content:flex-end;gap:10px}.faculty-skill-danger-button{padding:10px 14px;border:0;border-radius:9px;background:#dc2626;color:#fff;font-weight:700;cursor:pointer}.faculty-skill-danger-button:hover{background:#b91c1c}.faculty-skill-danger-button:disabled{opacity:.65;cursor:wait}
 .faculty-skill-summary-grid{transform:translateY(-10px)}
 .faculty-skill-status.status-cancelled{background:#fef2f2;color:#dc2626}
+.faculty-skill-view-button:disabled{opacity:.55;cursor:not-allowed;pointer-events:none}
+.faculty-skill-back-button + .faculty-skill-page-head>div{transform:none}
+.faculty-skill-page-head{justify-content:flex-start;align-items:flex-start}
+.faculty-skill-page-head>.faculty-skill-status{margin-top:42px}
+.faculty-skill-detail-card{max-width:760px;padding:14px 18px}
+.faculty-skill-detail-progress-card{max-width:560px}
+.faculty-skill-detail>.faculty-skill-detail-card{width:560px;max-width:100%;box-sizing:border-box}
+.faculty-skill-page>.faculty-skill-detail-card{width:560px;max-width:100%;box-sizing:border-box}
+.faculty-skill-page>.faculty-skill-detail-card{display:none}
+.faculty-skill-page>.faculty-skill-back-button,.faculty-skill-page>.faculty-skill-page-head{transform:translateY(-18px)}
+.faculty-skill-page-head{justify-content:space-between}
+.faculty-skill-page-head>.faculty-skill-status{margin-top:0}
+.faculty-skill-detail-progress-card>p{text-align:right;margin:6px 0 0}
+.faculty-skill-modal .faculty-skill-form label:has(textarea){display:none}
+.faculty-skill-modal .faculty-skill-form>label:nth-of-type(3){font-size:0}
+.faculty-skill-modal .faculty-skill-form>label:nth-of-type(3)::before{content:'Learning Objective';display:block;color:#334155;font-size:.88rem;font-weight:700}
+.faculty-skill-modal .faculty-skill-form>label:nth-of-type(3) select{font-size:.88rem}
+.faculty-skill-modal .faculty-skill-form>label:nth-of-type(3) .faculty-skill-required{font-size:.78rem}
+.faculty-skill-detail-progress-card{margin-bottom:24px}
+.faculty-skill-pagination button.active{background:#2563eb;color:#fff;border-color:#2563eb}
+.faculty-skill-page:has(.faculty-skill-faculty-table)>.faculty-skill-page-head>div{transform:translateY(-20px)!important}
+.faculty-skill-page:has(.faculty-skill-faculty-table) .faculty-skill-page-icon{display:none}
+.faculty-skill-detail>.faculty-skill-detail-head{transform:translateY(-18px)}
+.faculty-skill-detail-summary{padding:12px 18px}
+.faculty-skill-detail-summary h2{margin:2px 0;font-size:1.45rem}
+.faculty-skill-detail-summary p{margin:2px 0}
+.faculty-skill-detail-summary{border:0;background:transparent;box-shadow:none;padding:4px 0}
+.faculty-skill-detail>.faculty-skill-detail-summary{transform:translateY(-14px)}
+.faculty-skill-detail>.faculty-skill-detail-summary{transform:translateY(-28px)}
+.faculty-skill-detail>.faculty-skill-detail-summary{transform:translateY(-42px)}
+.faculty-skill-detail>.faculty-skill-metric-grid{transform:translateY(-18px)}
+.faculty-skill-detail>.faculty-skill-metric-grid{transform:translateY(-30px)}
+.faculty-skill-detail>.faculty-skill-progress{background:#fff;border:1px solid #dbe4f0;border-radius:18px;padding:18px;box-shadow:0 14px 32px #0f172a0d;transform:translateY(-30px);box-sizing:border-box}
+.faculty-skill-detail{grid-template-columns:repeat(5,minmax(0,1fr));align-items:start}
+.faculty-skill-detail>.faculty-skill-detail-head,.faculty-skill-detail>.faculty-skill-detail-summary,.faculty-skill-detail>.faculty-skill-table-wrap{grid-column:1/-1}
+.faculty-skill-detail>.faculty-skill-metric-grid{display:contents}
+.faculty-skill-detail>.faculty-skill-metric-grid>div{min-width:0}
+.faculty-skill-detail>.faculty-skill-progress{position:relative;display:flex;flex-wrap:wrap;align-content:center;gap:8px;min-height:86px;margin:0;transform:translateY(-30px)}
+.faculty-skill-detail>.faculty-skill-progress:before{content:'Skill Progress';display:block;width:100%;color:#64748b;font-size:.85rem;font-weight:700}
+.faculty-skill-detail>.faculty-skill-progress>span{width:100%!important;flex-basis:100%}
+.faculty-skill-detail .faculty-skill-table-wrap td:nth-child(2),.faculty-skill-detail .faculty-skill-table-wrap th:nth-child(2){white-space:nowrap;min-width:240px}
+.faculty-skill-detail>.faculty-skill-progress{align-self:stretch;min-height:0;transform:translateY(0)}
+.faculty-skill-detail>.faculty-skill-metric-grid>div,.faculty-skill-detail>.faculty-skill-progress{transform:translateY(-12px)}
+.faculty-skill-detail>.faculty-skill-metric-grid>div,.faculty-skill-detail>.faculty-skill-progress{transform:translateY(-20px)}
+.faculty-skill-detail>.faculty-skill-metric-grid>div,.faculty-skill-detail>.faculty-skill-progress{transform:translateY(-28px)}
+.faculty-skill-detail>.faculty-skill-metric-grid>div,.faculty-skill-detail>.faculty-skill-progress{transform:translateY(-36px)}
+.faculty-skill-topic-view-modal{max-width:720px}
+.faculty-skill-topic-view-modal .faculty-skill-icon-button{transform:translateY(-12px)}
+.faculty-skill-detail-summary .faculty-skill-eyebrow{color:#2563eb!important}
+.faculty-skill-metric-grid>div{position:relative;padding-top:22px}
+.faculty-skill-metric-icon{position:absolute;top:14px;left:16px;color:#2563eb}
+.faculty-skill-metric-grid>div>span,.faculty-skill-metric-grid>div>strong{padding-left:30px}
+.faculty-skill-detail>.faculty-skill-metric-grid>div,.faculty-skill-detail>.faculty-skill-progress{height:106px;min-height:106px;box-sizing:border-box}
+.faculty-skill-detail>.faculty-skill-metric-grid>div>strong{white-space:nowrap}
+.faculty-skill-detail>.faculty-skill-metric-grid>div>strong{font-size:1.25rem}
+.faculty-skill-detail>.faculty-skill-metric-grid>div>span,.faculty-skill-detail>.faculty-skill-metric-grid>div>strong{position:relative;top:-7px}
+.faculty-skill-detail>.faculty-skill-progress:before,.faculty-skill-detail>.faculty-skill-progress>span,.faculty-skill-detail>.faculty-skill-progress>b{transform:translateY(-7px)}
+.faculty-skill-detail>.faculty-skill-progress:after{content:'↗';position:absolute;top:14px;left:16px;color:#2563eb;font-size:20px;font-weight:800}
+.faculty-skill-detail>.faculty-skill-progress:before{padding-left:30px;box-sizing:border-box}
+.faculty-skill-detail-actions .faculty-skill-secondary-button{background:#2563eb;color:#fff;border-color:#2563eb;box-shadow:0 8px 18px #2563eb24}
+.faculty-skill-detail-actions .faculty-skill-secondary-button:hover{background:#1d4ed8;border-color:#1d4ed8}
+.faculty-skill-export-popup-backdrop{position:fixed;inset:0;z-index:3000;display:grid;place-items:center;padding:20px;background:#0f172a66}
+.faculty-skill-export-popup{position:relative;width:min(420px,100%);padding:28px;border-radius:16px;background:#fff;box-shadow:0 24px 70px #0f172a40;text-align:center}
+.faculty-skill-export-popup h3{margin:0 0 10px;color:#0f172a;font-size:1.2rem}.faculty-skill-export-popup p{margin:0 0 22px;color:#64748b}.faculty-skill-export-popup .faculty-skill-primary-button{display:flex;width:max-content;min-width:90px;margin-left:auto;margin-top:8px;background:#2563eb;box-shadow:0 8px 18px #2563eb24}.faculty-skill-export-popup .faculty-skill-primary-button:hover{background:#1d4ed8}
+.faculty-skill-export-popup-close{position:absolute;top:12px;right:12px;width:32px;height:32px;border:1px solid #dbe4f0;border-radius:8px;background:#fff;color:#475569;font-size:22px;line-height:1;cursor:pointer}
+.faculty-skill-topic-view-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-top:18px}
+.faculty-skill-topic-view-grid>div{display:grid;gap:5px;padding:12px;border:1px solid #dbe4f0;border-radius:10px;background:#f8fafc}
+.faculty-skill-topic-view-grid span{color:#64748b;font-size:.8rem;font-weight:700}.faculty-skill-topic-view-grid strong,.faculty-skill-topic-view-grid a{color:#0f172a;overflow-wrap:anywhere}
+@media(max-width:560px){.faculty-skill-topic-view-grid{grid-template-columns:1fr}}
+.faculty-skill-learning-log-modal .faculty-skill-form{grid-template-columns:repeat(2,minmax(0,1fr));align-items:start}
+.faculty-skill-learning-log-modal .faculty-skill-form>.faculty-skill-error,.faculty-skill-learning-log-modal .faculty-skill-form>.faculty-skill-form-actions{grid-column:1/-1}
+.faculty-skill-learning-log-modal .faculty-skill-icon-button{transform:translate(8px,-40px)}
+.faculty-skill-topic-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.faculty-skill-topic-actions .faculty-skill-view-button{white-space:nowrap}
+.faculty-skill-topic-details-modal{max-width:760px}.faculty-skill-topic-details-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:18px}.faculty-skill-topic-details-grid>div{display:grid;gap:5px;padding:12px;border:1px solid #dbe4f0;border-radius:10px;background:#f8fafc}.faculty-skill-topic-details-grid span{color:#64748b;font-size:.8rem;font-weight:700}.faculty-skill-topic-details-grid strong{color:#0f172a;overflow-wrap:anywhere}
+.faculty-skill-topic-details-modal .faculty-skill-icon-button{transform:translateY(-18px)}
+@media(max-width:560px){.faculty-skill-topic-details-grid{grid-template-columns:1fr}}
+@media(max-width:700px){.faculty-skill-learning-log-modal .faculty-skill-form{grid-template-columns:1fr}}
+@media(max-width:850px){.faculty-skill-detail{grid-template-columns:repeat(2,minmax(0,1fr))}.faculty-skill-detail>.faculty-skill-progress{transform:none}}
+@media(max-width:560px){.faculty-skill-detail{grid-template-columns:1fr}}
+.faculty-skill-summary-card{display:flex;align-items:center;gap:14px}.faculty-skill-summary-card>div{min-width:0}.faculty-skill-summary-icon{width:40px!important;height:40px!important;box-sizing:border-box;flex:0 0 40px;padding:9px!important;border-radius:12px;background:#eff6ff;color:#2563eb;stroke-width:2.2;transform:translateY(-14px)}.faculty-skill-summary-card:nth-child(2) .faculty-skill-summary-icon{background:#faf5ff;color:#9333ea}.faculty-skill-summary-card:nth-child(3) .faculty-skill-summary-icon{background:#ecfdf5;color:#16a34a}.faculty-skill-summary-card:nth-child(4) .faculty-skill-summary-icon{background:#fff7ed;color:#f97316}
+.faculty-skill-summary-card{border-top:1px solid #dbe4f0!important}
+.faculty-skill-page:has(.faculty-skill-summary-grid)>.faculty-skill-page-head>div{transform:translateY(-8px)!important}
+.faculty-skill-page:has(.faculty-skill-summary-grid) .faculty-skill-search{max-width:360px;flex:0 1 360px}
+.faculty-skill-clickable-row{cursor:pointer}.faculty-skill-clickable-row:hover{background:#f8fbff}
+.faculty-skill-progress{gap:8px;min-width:115px;max-width:135px}.faculty-skill-progress-track{height:5px!important;flex:1;min-width:75px;background:#e8eef5!important;border-radius:999px;overflow:hidden;box-shadow:inset 0 1px 2px #0f172a12}.faculty-skill-progress-track i{display:block;height:100%;background:linear-gradient(90deg,#22c55e,#16a34a);border-radius:inherit;transition:width .3s ease}.faculty-skill-progress b{color:#166534;font-size:.78rem;font-weight:800;min-width:34px}
