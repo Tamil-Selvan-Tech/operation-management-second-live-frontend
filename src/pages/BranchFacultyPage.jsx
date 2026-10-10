@@ -473,6 +473,11 @@ export function BranchFacultyPage({ branchCode = '', branchId = '' }) {
     return ''
   }
 
+  const validateWeeklyOffDay = (weeklyOffDay) => {
+    if (!weeklyOffDay) return 'This field is required.'
+    return ''
+  }
+
   // Live validation triggers on input changes
   const handleIdDigitsChange = (val) => {
     const cleanDigits = val.replace(/\D/g, '').substring(0, 3)
@@ -702,6 +707,7 @@ export function BranchFacultyPage({ branchCode = '', branchId = '' }) {
     const stateErr = validateState(modalForm.state)
     const cityErr = validateCity(modalForm.city)
     const addressErr = validateAddress(modalForm.address)
+    const weeklyOffDayErr = validateWeeklyOffDay(modalForm.weeklyOffDay)
 
     const nextErrors = {
       idDigits: idDigitsErr,
@@ -712,6 +718,7 @@ export function BranchFacultyPage({ branchCode = '', branchId = '' }) {
       state: stateErr,
       city: cityErr,
       address: addressErr,
+      weeklyOffDay: weeklyOffDayErr,
     }
 
     setErrors(nextErrors)
@@ -725,6 +732,7 @@ export function BranchFacultyPage({ branchCode = '', branchId = '' }) {
       state: true,
       city: true,
       address: true,
+      weeklyOffDay: true,
     })
 
     const hasErrors = Object.values(nextErrors).some(Boolean)
@@ -1460,10 +1468,16 @@ export function BranchFacultyPage({ branchCode = '', branchId = '' }) {
 
                 {/* Weekly off is configured once on the faculty and snapshotted by batches. */}
                 <div className="faculty-field-group">
-                  <span className="faculty-field-label">Faculty Weekly Off Days</span>
+                  <span className="faculty-field-label">
+                    Faculty Weekly Off Days <b>*</b>
+                  </span>
                   <select
                     value={modalForm.weeklyOffDay}
                     onChange={(e) => handleInputChange('weeklyOffDay', e.target.value)}
+                    onBlur={() => {
+                      setTouched((prev) => ({ ...prev, weeklyOffDay: true }))
+                      setErrors((prev) => ({ ...prev, weeklyOffDay: validateWeeklyOffDay(modalForm.weeklyOffDay) }))
+                    }}
                     className="faculty-select-input"
                   >
                     <option value="">Select weekly off day</option>
@@ -1473,6 +1487,11 @@ export function BranchFacultyPage({ branchCode = '', branchId = '' }) {
                     <option value="THURSDAY">Thursday</option>
                     <option value="FRIDAY">Friday</option>
                   </select>
+                  {((touched.weeklyOffDay || modalForm.weeklyOffDay) && errors.weeklyOffDay) ? (
+                    <small className="faculty-error-message">
+                      {errors.weeklyOffDay}
+                    </small>
+                  ) : null}
                 </div>
 
                 {/* Address */}
@@ -1703,6 +1722,19 @@ export function BranchFacultyPage({ branchCode = '', branchId = '' }) {
                       </div>
                       <div className="branch-course-view-cell branch-course-view-cell-value" role="cell">
                         <strong>{viewFaculty.city}</strong>
+                      </div>
+                    </div>
+
+                    <div className="branch-course-view-row" role="row">
+                      <div className="branch-course-view-cell branch-course-view-cell-label" role="cell">
+                        <span>Faculty Weekly Off Days</span>
+                      </div>
+                      <div className="branch-course-view-cell branch-course-view-cell-value" role="cell">
+                        <strong>
+                          {viewFaculty.weeklyOffDay
+                            ? `${String(viewFaculty.weeklyOffDay).charAt(0).toUpperCase()}${String(viewFaculty.weeklyOffDay).slice(1).toLowerCase()}`
+                            : '-'}
+                        </strong>
                       </div>
                     </div>
 
