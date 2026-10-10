@@ -10050,12 +10050,7 @@ useEffect(() => {
                     }
                   }}
                   onEdit={(student) => {
-                    if (embeddedMode) {
-                      goToBranchSection('students')
-                    } else {
-                      navigate('/branch-dashboard?section=students')
-                    }
-                    window.setTimeout(() => openEditStudentForm(student), 0)
+                    void openEditStudentForm(student)
                   }}
                 />
               ) : null}
@@ -11001,7 +10996,6 @@ else {
               const isCoursePaymentCompleted = item.amount > 0 && (
                 paidPercentage >= 100 || coursePaidAmount >= item.amount
               )
-              const savedCourseCompletion = String(stu.courseCompletionByCourse?.[item.courseId] || '').trim().toUpperCase()
               const normalizedCourseId = String(item.courseId || '').trim().toLowerCase()
               const courseAcademicProgress = Object.entries(stu.academicTestProgressByCourse || {})
                 .find(([courseId]) => String(courseId || '').trim().toLowerCase() === normalizedCourseId)?.[1]
@@ -11013,13 +11007,11 @@ else {
               // faculty progress and payment records are complete. Prefer the
               // effective row values, while still honoring an explicit test
               // result when it is available.
-              const courseCompletionStatus = savedCourseCompletion === 'COMPLETED' || (
-                progressValue >= 100 && isCoursePaymentCompleted && (
-                  !academicProgress || areAcademicTestsCompleted
-                )
+              const courseCompletionStatus = progressValue >= 100 && isCoursePaymentCompleted && (
+                !academicProgress || areAcademicTestsCompleted
               )
                 ? 'COMPLETED'
-                : savedCourseCompletion || 'IN_PROGRESS'
+                : 'IN_PROGRESS'
               const courseStatus = isCoursePaymentCompleted
                 ? 'Completed'
                 : item.isPendingSequentialCourse
@@ -11198,7 +11190,7 @@ else {
                               <button type="button" role="menuitem" onClick={(event) => { event.preventDefault(); event.stopPropagation(); setStudentActionMenuId(''); setStudentActionMenuPosition({ top: 0, left: 0 }); openStudentViewDrawer(stu) }}><Eye size={15} /><span>View</span></button>
                               <button type="button" role="menuitem" onClick={() => { setStudentActionMenuId(''); setStudentActionMenuPosition({ top: 0, left: 0 }); setAttendanceReportTarget({ mode: 'student', record: stu, courseId: isSequentialArrangement ? courseRow.courseId : '' }) }}><Download size={15} /><span>Download Attendance</span></button>
                               <button type="button" role="menuitem" onClick={() => { setStudentActionMenuId(''); setStudentActionMenuPosition({ top: 0, left: 0 }); openEditStudentForm({ ...stu }) }}><Pencil size={15} /><span>Edit</span></button>
-                              <button type="button" role="menuitem" onClick={() => { setStudentActionMenuId(''); setStudentActionMenuPosition({ top: 0, left: 0 }); openRecordPaymentConfirmation(stu, courseRow) }}><Wallet size={15} /><span>Record Payment</span></button>
+                              <button type="button" role="menuitem" onClick={() => { setStudentActionMenuId(''); setStudentActionMenuPosition({ top: 0, left: 0 }); openRecordPaymentConfirmation(stu, isSequentialArrangement ? courseRow : null) }}><Wallet size={15} /><span>Record Payment</span></button>
                               <button type="button" className="is-danger" role="menuitem" onClick={() => { setStudentActionMenuId(''); setStudentActionMenuPosition({ top: 0, left: 0 }); setStudentDeleteTarget({ ...stu }) }}><Trash2 size={15} /><span>Delete</span></button>
                             </div>,
                             document.body,
@@ -11275,9 +11267,18 @@ else {
                 }
               </td>
               <td>
-                <span className={`branch-student-payment-status ${String(stu.courseCompletionByCourse?.[stu.courseId] || stu.courseCompletion || 'IN_PROGRESS').toLowerCase()}`}>
-                  {String(stu.courseCompletionByCourse?.[stu.courseId] || stu.courseCompletion || 'IN_PROGRESS').toUpperCase() === 'COMPLETED' ? 'Course Completed' : 'In Progress'}
-                </span>
+                {(() => {
+                  const academicProgress = stu.academicTestProgressByCourse?.[stu.courseId] || stu.academicTestProgress || null
+                  const isCompleted = studentCourseProgress >= 100
+                    && installmentProgress.paidInstallmentPercentage >= 100
+                    && Number(academicProgress?.pendingTests || 0) === 0
+                  const completionStatus = isCompleted ? 'COMPLETED' : 'IN_PROGRESS'
+                  return (
+                    <span className={`branch-student-payment-status ${completionStatus.toLowerCase()}`}>
+                      {isCompleted ? 'Course Completed' : 'In Progress'}
+                    </span>
+                  )
+                })()}
               </td>
               <td>
                 {nextInstallment ? (
