@@ -1,4 +1,4 @@
-﻿import { useState, useMemo, useEffect, useRef } from 'react'
+import { useState, useMemo, useEffect, useRef } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import {
   AlertTriangle,
@@ -5800,7 +5800,7 @@ const nextName = trimmedValue
                             <tbody>
                               {paginatedStudentRecords.map((student) => (
                                 (() => {
-                                  const courseStatus = getCourseStatusFromProgress(student.courseProgress)
+                                  const courseStatus = String(student.courseCompletion || '').toUpperCase() === 'COMPLETED' ? 'COMPLETED' : getCourseStatusFromProgress(student.courseProgress)
                                   return (
                                 <tr key={student.id || student.studentId}>
                                   <td><strong>{student.studentId || student.id || '-'}</strong></td>
@@ -5832,7 +5832,7 @@ const nextName = trimmedValue
                       ) : (
                         <div className="faculty-my-batches-empty faculty-students-flow-empty">
                           <strong>{studentRecordsSearch ? 'No matching student records' : 'No completed student records'}</strong>
-                          <p>Completed students will appear here when their database course progress reaches 100%.</p>
+                          <p>Completed students will appear here when course progress, paid progress, and academic tests are complete.</p>
                         </div>
                       )}
                     </div>

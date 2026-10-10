@@ -371,6 +371,9 @@ function parseTimeToMinutes(value = '', period = '') {
 
   if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return null
 
+  // API records can contain either a 12-hour value ("02:00" + "PM") or
+  // an already-normalized 24-hour value ("14:00" + "PM"). Do not add 12
+  // twice to the latter format.
   if (meridiem === 'AM') {
     if (hours === 12) hours = 0
   } else if (meridiem === 'PM') {
@@ -378,6 +381,8 @@ function parseTimeToMinutes(value = '', period = '') {
   } else if (hours > 23 || minutes > 59) {
     return null
   }
+
+  if (hours > 23 || minutes > 59) return null
 
   return hours * 60 + minutes
 }
@@ -1029,18 +1034,23 @@ export function BranchBatchManagementSection({
   const occupiedTimingRanges = useMemo(() => {
     if (!resolvedDraftFacultyId && !resolvedDraftFacultyName) return []
 
+    const selectedWeekType = normalizeText(draft.weekType).toUpperCase()
+    if (!selectedWeekType) return []
+
     return currentBranchBatchGroups.flatMap((group) => {
       const groupKey = normalizeText(group?.id || group?.batchGroupId || group?.batchId || '')
       if (editingGroupKey && groupKey === editingGroupKey) return []
       if (!isSameFacultyGroup(group, resolvedDraftFacultyId, resolvedDraftFacultyName)) return []
       const groupWeekType = normalizeText(group?.weekType || group?.weekTypeName || '').toUpperCase()
-      if (groupWeekType && groupWeekType !== normalizeText(draft.weekType).toUpperCase()) return []
 
       return (Array.isArray(group?.batches) ? group.batches : [])
         .map((batch) => {
           if (normalizeStatus(batch?.status || '').toLowerCase() === 'inactive') return null
           const batchWeekType = normalizeText(batch?.weekType || batch?.weekTypeName || '').toUpperCase()
-          if (!groupWeekType && batchWeekType && batchWeekType !== normalizeText(draft.weekType).toUpperCase()) return null
+          // Batch-level data is authoritative. Older records may only have
+          // the week type on the group, so use that only as a fallback.
+          const effectiveWeekType = batchWeekType || groupWeekType
+          if (effectiveWeekType !== selectedWeekType) return null
           return getBatchTimingRange(batch)
         })
         .filter(Boolean)
@@ -1931,13 +1941,11 @@ export function BranchBatchManagementSection({
                                     <option value="" />
                                     <option
                                       value="AM"
-                                      disabled={isStartTimeOptionDisabled(startParts.hour || '09', startParts.minute || '00', 'AM', occupiedTimingRanges)}
                                     >
                                       AM
                                     </option>
                                     <option
                                       value="PM"
-                                      disabled={isStartTimeOptionDisabled(startParts.hour || '09', startParts.minute || '00', 'PM', occupiedTimingRanges)}
                                     >
                                       PM
                                     </option>
@@ -2192,6 +2200,12 @@ export function BranchBatchManagementSection({
                 {detailStudents.map((student, index) => {
                   const attendanceKey = normalizeMatchKey(student?.studentId || student?.id || student?._id || '')
                   const attendanceStatus = detailAttendanceStatuses[attendanceKey] || 'UNMARKED'
+                  const selectedCourseCompletion = student?.courseCompletionByCourse?.[
+                    detailGroup?.courseId || detailGroup?.branchCourseId || ''
+                  ]
+                  const isCourseCompleted = String(
+                    selectedCourseCompletion || student?.courseCompletion || student?.courseCompletionStatus || '',
+                  ).toUpperCase() === 'COMPLETED'
                   return (
                     <div className="batch-detail-student-row" key={getStudentIdentityKey(student) || `${detailBatchKey}-${index}`}>
                     <span className="batch-detail-student-number">{String(index + 1).padStart(2, '0')}</span>
@@ -2199,9 +2213,14 @@ export function BranchBatchManagementSection({
                       <span>{student?.studentId || student?.id || 'Student ID unavailable'}</span>
                       <strong>{student?.studentName || student?.name || 'Unnamed student'}</strong>
                     </div>
-                    <span className={`batch-detail-student-attendance ${attendanceStatus.toLowerCase()}`}>
-                      {attendanceStatus === 'PRESENT' ? 'Present' : attendanceStatus === 'ABSENT' ? 'Absent' : 'Unmarked'}
-                    </span>
+                    {isCourseCompleted ? (
+                      <span className="batch-detail-student-attendance completed">Completed</span>
+                    ) : null}
+                    {!isCourseCompleted ? (
+                      <span className={`batch-detail-student-attendance ${attendanceStatus.toLowerCase()}`}>
+                        {attendanceStatus === 'PRESENT' ? 'Present' : attendanceStatus === 'ABSENT' ? 'Absent' : 'Unmarked'}
+                      </span>
+                    ) : null}
                     <div className="batch-detail-student-progress">
                       <div className="batch-detail-student-progress-label">
                         <span>Course Progress</span>
@@ -2262,7 +2281,24 @@ export function BranchBatchManagementSection({
     }
     const batchAvailability = getBatchAvailability(primaryBatch.courseEndDate || group.courseEndDate)
     const groupKey = String(group.id || group.batchGroupId || group.batchId || primaryBatch.batchId || '')
-    const statusLabel = isInactiveBatchGroup(group) ? 'Inactive' : 'Active'
+    const batchCourseId = String(group?.courseId || group?.branchCourseId || '').trim().toLowerCase()
+    const allBatchStudentsCompleted = batchStudents.length > 0 && batchStudents.every((student) => {
+      const courseStatuses = student?.courseCompletionByCourse || {}
+      const courseStatus = Object.entries(courseStatuses).find(([courseId]) => String(courseId).trim().toLowerCase() === batchCourseId)?.[1]
+        || student?.courseCompletion
+        || student?.courseCompletionStatus
+      return String(courseStatus || '').toUpperCase() === 'COMPLETED'
+    })
+    const statusLabel = allBatchStudentsCompleted
+      ? 'Completed'
+      : isInactiveBatchGroup(group)
+        ? 'Inactive'
+        : 'Active'
+    const statusDotState = allBatchStudentsCompleted
+      ? 'completed'
+      : batchStatusClass === 'active' || batchStatusClass === 'open'
+        ? 'active'
+        : 'inactive'
 
     return (
       <Fragment key={groupKey}>
@@ -2282,9 +2318,9 @@ export function BranchBatchManagementSection({
           <td className="batch-management-table-cell batch-management-table-batch">
             <div className="batch-management-table-batch-copy">
               <span
-                className={`batch-management-status-dot ${batchStatusClass === 'active' || batchStatusClass === 'open' ? 'is-active' : 'is-inactive'}`.trim()}
-                data-status={batchStatusClass === 'active' || batchStatusClass === 'open' ? 'Active' : 'Inactive'}
-                aria-label={batchStatusClass === 'active' || batchStatusClass === 'open' ? 'Active' : 'Inactive'}
+                className={`batch-management-status-dot is-${statusDotState}`.trim()}
+                data-status={statusLabel}
+                aria-label={statusLabel}
               />
               <div>
                 <strong>{primaryBatch.batchId || group.batchId || '-'}</strong>

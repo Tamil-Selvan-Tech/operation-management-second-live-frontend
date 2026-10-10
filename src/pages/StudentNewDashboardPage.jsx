@@ -116,7 +116,7 @@ function isCourseCompleted(course = {}, courseDetails = null, student = {}) {
   const courseId = String(course.courseId || '')
   const isPrimary = courseId && courseId === String(student.courseId || student.course?.id || '')
   const progress = course.courseProgress ?? courseDetails?.progress?.overall ?? (isPrimary ? student.courseProgress ?? student.courseCompletionPercentage ?? student.courseProgressPercentage : null)
-  return Boolean(course.courseCompletedAt || (isPrimary && student.courseCompletedAt) || String(course.status || '').toUpperCase() === 'COMPLETED' || Number(progress) >= 100)
+  return String(course.courseCompletion || (isPrimary ? student.courseCompletion : '') || '').toUpperCase() === 'COMPLETED'
 }
 
 function formatDate(value, options = { day: '2-digit', month: 'short', year: 'numeric' }) {
@@ -267,6 +267,7 @@ function getDashboardCourseEnrollments(student = {}) {
     startDate: student.courseStartDate || student.startDate || '',
     endDate: student.courseEndDate || student.endDate || '',
     courseProgress: student.courseProgress ?? student.courseCompletionPercentage ?? student.courseProgressPercentage,
+    courseCompletion: student.courseCompletion || student.courseCompletionStatus || 'IN_PROGRESS',
   }]
   return unique.map((enrollment) => {
     const courseId = String(enrollment.courseId || enrollment.id || enrollment.course?.id || '')
@@ -281,6 +282,7 @@ function getDashboardCourseEnrollments(student = {}) {
       startDate: enrollment.startDate || enrollment.courseStartDate || (isPrimary ? student.courseStartDate || student.startDate : '') || '',
       endDate: enrollment.endDate || enrollment.courseEndDate || (isPrimary ? student.courseEndDate || student.endDate : '') || '',
       courseProgress: enrollment.courseProgress ?? enrollment.courseCompletionPercentage ?? enrollment.progress ?? (isPrimary ? student.courseProgress ?? student.courseCompletionPercentage ?? student.courseProgressPercentage : null),
+      courseCompletion: enrollment.courseCompletion || enrollment.courseCompletionStatus || (isPrimary ? student.courseCompletion || student.courseCompletionStatus : 'IN_PROGRESS'),
     }
   })
 }
@@ -1368,7 +1370,7 @@ const handleLogoutConfirm = async () => {
                   <strong>Password reset pending</strong>
                   <p>You are using a temporary password. Reset it to keep your student account secure.</p>
                 </div>
-                <button type="button" onClick={() => navigate('/forgot-password')}>
+                <button type="button" onClick={() => navigate('/reset-password')}>
                   Reset Password
                 </button>
               </section>

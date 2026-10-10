@@ -10989,6 +10989,25 @@ else {
               const isCoursePaymentCompleted = item.amount > 0 && (
                 paidPercentage >= 100 || coursePaidAmount >= item.amount
               )
+              const savedCourseCompletion = String(stu.courseCompletionByCourse?.[item.courseId] || '').trim().toUpperCase()
+              const normalizedCourseId = String(item.courseId || '').trim().toLowerCase()
+              const courseAcademicProgress = Object.entries(stu.academicTestProgressByCourse || {})
+                .find(([courseId]) => String(courseId || '').trim().toLowerCase() === normalizedCourseId)?.[1]
+              const academicProgress = courseAcademicProgress || stu.academicTestProgress || null
+              const areAcademicTestsCompleted = academicProgress
+                ? Number(academicProgress.pendingTests || 0) === 0
+                : false
+              // The list API can retain an older IN_PROGRESS value after the
+              // faculty progress and payment records are complete. Prefer the
+              // effective row values, while still honoring an explicit test
+              // result when it is available.
+              const courseCompletionStatus = savedCourseCompletion === 'COMPLETED' || (
+                progressValue >= 100 && isCoursePaymentCompleted && (
+                  !academicProgress || areAcademicTestsCompleted
+                )
+              )
+                ? 'COMPLETED'
+                : savedCourseCompletion || 'IN_PROGRESS'
               const courseStatus = isCoursePaymentCompleted
                 ? 'Completed'
                 : item.isPendingSequentialCourse
@@ -11000,7 +11019,7 @@ else {
                   : coursePaidAmount > 0
                     ? 'Partial'
                     : 'Upcoming'
-              return { ...item, coursePaidAmount, paidPercentage, progressValue, nextCourseInstallment, nextCourseDueDate, courseStatus, rowInstallments: courseInstallments }
+              return { ...item, coursePaidAmount, paidPercentage, progressValue, courseCompletionStatus, nextCourseInstallment, nextCourseDueDate, courseStatus, rowInstallments: courseInstallments }
             })
             const coursesWithNextInstallment = courseRows.filter((courseRow) => courseRow.nextCourseInstallment)
             const combinedNextInstallmentAmount = coursesWithNextInstallment.reduce((sum, courseRow) => (
@@ -11087,15 +11106,15 @@ else {
                     {isSequentialArrangement ? (
                       <td>
                         {courseRow.isPendingSequentialCourse ? <span className="faculty-today-work-empty-label">-</span> : (
-                          <span className={`branch-student-payment-status ${String(stu.courseCompletionByCourse?.[courseRow.courseId] || (courseRow.progressValue >= 100 ? stu.courseCompletion : 'IN_PROGRESS')).toLowerCase()}`}>
-                            {String(stu.courseCompletionByCourse?.[courseRow.courseId] || (courseRow.progressValue >= 100 ? stu.courseCompletion : 'IN_PROGRESS')).toUpperCase() === 'COMPLETED' ? 'Course Completed' : 'In Progress'}
+                          <span className={`branch-student-payment-status ${courseRow.courseCompletionStatus.toLowerCase()}`}>
+                            {courseRow.courseCompletionStatus === 'COMPLETED' ? 'Course Completed' : 'In Progress'}
                           </span>
                         )}
                       </td>
                     ) : index === 0 ? (
                       <td rowSpan={courseRows.length}>
-                        <span className={`branch-student-payment-status ${String(stu.courseCompletion || 'IN_PROGRESS').toLowerCase()}`}>
-                          {String(stu.courseCompletion || 'IN_PROGRESS').toUpperCase() === 'COMPLETED' ? 'Course Completed' : 'In Progress'}
+                        <span className={`branch-student-payment-status ${courseRow.courseCompletionStatus.toLowerCase()}`}>
+                          {courseRow.courseCompletionStatus === 'COMPLETED' ? 'Course Completed' : 'In Progress'}
                         </span>
                       </td>
                     ) : null}
@@ -11244,8 +11263,8 @@ else {
                 }
               </td>
               <td>
-                <span className={`branch-student-payment-status ${String(stu.courseCompletion || 'IN_PROGRESS').toLowerCase()}`}>
-                  {String(stu.courseCompletion || 'IN_PROGRESS').toUpperCase() === 'COMPLETED' ? 'Course Completed' : 'In Progress'}
+                <span className={`branch-student-payment-status ${String(stu.courseCompletionByCourse?.[stu.courseId] || stu.courseCompletion || 'IN_PROGRESS').toLowerCase()}`}>
+                  {String(stu.courseCompletionByCourse?.[stu.courseId] || stu.courseCompletion || 'IN_PROGRESS').toUpperCase() === 'COMPLETED' ? 'Course Completed' : 'In Progress'}
                 </span>
               </td>
               <td>
