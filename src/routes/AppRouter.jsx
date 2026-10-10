@@ -85,6 +85,8 @@ const FacultyExamsPage = lazyNamed(() => import('../pages/FacultyExamsPage'), 'F
 const FacultyExamReportsPage = lazyNamed(() => import('../pages/FacultyExamReportsPage'), 'FacultyExamReportsPage')
 const FacultyStudentExamReportPage = lazyNamed(() => import('../pages/FacultyStudentExamReportPage'), 'FacultyStudentExamReportPage')
 const StudentExamsPage = lazyNamed(() => import('../pages/StudentExamsPage'), 'StudentExamsPage')
+const FacultySkillsUpgradePage = lazyNamed(() => import('../pages/FacultySkillsUpgradePage'), 'FacultySkillsUpgradePage')
+const FacultySkillDevelopmentPage = lazyNamed(() => import('../pages/FacultySkillDevelopmentPage'), 'FacultySkillDevelopmentPage')
 
 function BranchStudent360Route() {
   const { studentId = '' } = useParams()
@@ -126,6 +128,8 @@ const routeChunks = [
   FacultyExamReportsPage,
   FacultyStudentExamReportPage,
   StudentExamsPage,
+  FacultySkillsUpgradePage,
+  FacultySkillDevelopmentPage,
 ]
 
 function preloadRouteChunks() {
@@ -370,6 +374,8 @@ export function AppRouter() {
             <Route path="/branch-dashboard/students/:studentId/calendar" element={<BranchDashboardPage />} />
             <Route path="/branch-dashboard" element={<BranchDashboardPage />} />
             <Route path="/branch-dashboard/notifications" element={<BranchNotificationsPage />} />
+            <Route path="/branch-dashboard/faculty-skills" element={<BranchDashboardPage initialSection="faculty-skills" />} />
+            <Route path="/branch-dashboard/faculty-skills/:id" element={<BranchDashboardPage initialSection="faculty-skills" />} />
           </Route>
       <Route
   element={
@@ -406,6 +412,8 @@ export function AppRouter() {
             <Route path="/dashboard/faculty/students" element={<FacultyMyBatchesPage />} />
             <Route path="/dashboard/faculty/leave-requests" element={<FacultyMyBatchesPage />} />
             <Route path="/dashboard/faculty/notifications" element={<FacultyMyBatchesPage />} />
+            <Route path="/dashboard/faculty/skill-development" element={<FacultySkillDevelopmentPage />} />
+            <Route path="/dashboard/faculty/skill-development/:id" element={<FacultySkillDevelopmentPage />} />
             <Route path="/dashboard/faculty/profile" element={<FacultyMyBatchesPage />} />
             <Route path="/dashboard/faculty/my-batches/students/:studentId/calendar" element={<FacultyMyBatchesPage />} />
           </Route>

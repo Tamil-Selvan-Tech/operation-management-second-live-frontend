@@ -26,6 +26,7 @@ import {
   Search,
   Dot,
   FileText,
+  GraduationCap,
   ShieldCheck,
   Trash2,
   UserRound,
@@ -1356,6 +1357,7 @@ function normalizeFacultyNotification(notification = {}) {
     statusLabel: String(source.statusLabel || '').trim(),
     recipientLabel: String(source.recipientLabel || '').trim(),
     requestReason: String(source.requestReason || '').trim(),
+    facultySkillAssignmentId: String(source.facultySkillAssignmentId || '').trim(),
   }
 }
 
@@ -4909,7 +4911,7 @@ const nextName = trimmedValue
   }
 
   const handleSidebarSectionChange = (section) => {
-    const routeBySection = { dashboard: '/dashboard/faculty/dashboard', 'my-courses': '/dashboard/faculty/courses', 'my-batches': '/dashboard/faculty/batches', 'my-calendar': '/dashboard/faculty/calendar', exams: '/dashboard/faculty/exams', students: '/dashboard/faculty/students', 'leave-requests': '/dashboard/faculty/leave-requests', notifications: '/dashboard/faculty/notifications', profile: '/dashboard/faculty/profile' }
+    const routeBySection = { dashboard: '/dashboard/faculty/dashboard', 'my-courses': '/dashboard/faculty/courses', 'my-batches': '/dashboard/faculty/batches', 'my-calendar': '/dashboard/faculty/calendar', exams: '/dashboard/faculty/exams', students: '/dashboard/faculty/students', 'leave-requests': '/dashboard/faculty/leave-requests', notifications: '/dashboard/faculty/notifications', profile: '/dashboard/faculty/profile', 'skill-development': '/dashboard/faculty/skill-development' }
     if (routeBySection[section]) {
       navigate(routeBySection[section])
       return
@@ -4943,6 +4945,7 @@ const nextName = trimmedValue
             { id: 'course-progress', label: 'Course Progress', icon: BarChart3, route: 'my-courses' },
           ] },
           { id: 'exams', label: 'Exams', icon: BookOpen },
+          { id: 'skill-development', label: 'Skill Development', icon: GraduationCap },
           { id: 'other-faculty-batches', label: 'Other Faculty Batches', icon: Layers3 },
           { id: 'students', label: 'Students', icon: Users },
           { id: 'leave-management', label: 'Leave Management', icon: CalendarDays, children: [
@@ -5177,7 +5180,9 @@ const nextName = trimmedValue
             className="notification-card is-unread"
             onClick={async () => {
               setNotificationOpen(false)
-              if (notification.kind === 'FACULTY_REPORT_SHARED' && notification.academicTestId) {
+              if (notification.facultySkillAssignmentId) {
+                navigate('/dashboard/faculty/skill-development')
+              } else if (notification.kind === 'FACULTY_REPORT_SHARED' && notification.academicTestId) {
                 navigate('/dashboard/faculty/exams/academic-tests')
               } else {
                 setActiveSection('notifications')
@@ -6546,7 +6551,9 @@ const nextName = trimmedValue
                           label={group.label}
                           items={group.items}
                           onViewNotification={async (notification) => {
-                            if (notification.kind === 'FACULTY_REPORT_SHARED' && notification.academicTestId) {
+                            if (notification.facultySkillAssignmentId) {
+                              navigate('/dashboard/faculty/skill-development')
+                            } else if (notification.kind === 'FACULTY_REPORT_SHARED' && notification.academicTestId) {
                               navigate('/dashboard/faculty/exams/academic-tests')
                             }
                             if (!notification.read) {

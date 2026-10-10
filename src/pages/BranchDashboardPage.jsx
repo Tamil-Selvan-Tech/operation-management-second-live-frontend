@@ -51,6 +51,7 @@ import {
   Wallet,
   CalendarClock,
   Flame,
+  GraduationCap,
 } from 'lucide-react'
 
 import { useAuth } from '../auth/useAuth'
@@ -59,6 +60,7 @@ import { request, setImpersonateBranchId } from '../services/apiClient'
 import { unwrapNotifications } from '../services/notificationService'
 import { getCurrentBranchProfile } from '../services/branchService'
 import BranchExamResultsPage from './BranchExamResultsPage'
+import { FacultySkillsUpgradePage } from './FacultySkillsUpgradePage'
 import AcademicTestPage from './AcademicTestPage'
 import { listBranchFaculty } from '../services/branchFacultyService'
 import { getBranchStudentLedger } from '../services/branchLedgerService'
@@ -2058,6 +2060,7 @@ function normalizeBranchStudentCourseFacultyOptions(course = {}) {
 function getBranchDashboardSectionFromPath(pathname = '', search = '') {
   if (/\/branch-dashboard\/students\/[^/]+\/calendar\/?$/.test(pathname)) return 'student-calendar'
   if (pathname.endsWith('/notifications')) return 'notifications'
+  if (/\/branch-dashboard\/faculty-skills(?:\/[^/]+)?\/?$/.test(pathname)) return 'faculty-skills'
 
   const params = new URLSearchParams(search)
   const section = String(params.get('section') || '').trim().toLowerCase()
@@ -3554,6 +3557,7 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
       const replace = Boolean(options?.replace)
       const isDashboard = nextSection === 'dashboard'
       const isNotifications = nextSection === 'notifications'
+      const isFacultySkills = nextSection === 'faculty-skills'
 
       setRequestedSidebarSection(nextSection)
 
@@ -3572,6 +3576,12 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
       if (isNotifications) {
         setIsMobileSidebarOpen(false)
         navigate('/branch-dashboard/notifications', { replace })
+        return
+      }
+
+      if (isFacultySkills && !embeddedMode) {
+        setIsMobileSidebarOpen(false)
+        navigate('/branch-dashboard/faculty-skills', { replace })
         return
       }
 
@@ -9539,6 +9549,7 @@ useEffect(() => {
             { id: 'installments', label: 'Installment Templates', icon: Wallet },
             { id: 'courses', label: 'Course Management', icon: BookOpen },
             { id: 'batches', label: 'Batch Management', icon: Layers3 },
+            { id: 'faculty-skills', label: 'Faculty Skills Upgrade', icon: GraduationCap },
             { id: 'students', label: 'Student Management', icon: Users },
             { id: 'exams-results', label: 'Exams and Result', icon: FileText, children: [
               { id: 'exams-results', label: 'Syllabus Test', icon: FileText },
@@ -10061,6 +10072,7 @@ useEffect(() => {
                   onBack={() => navigate('/branch-dashboard?section=students')}
                 />
               ) : null}
+              {activeSection === 'faculty-skills' ? <FacultySkillsUpgradePage embedded /> : null}
               {activeSection === 'dashboard' ? (
                 <>
                   <div className="branch-dashboard-overview-intro">

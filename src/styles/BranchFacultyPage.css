@@ -2209,3 +2209,4 @@ aside.branch-course-view-drawer .branch-course-view-edit {
 .branch-faculty-skeleton-row td:nth-child(4) span,
 .branch-faculty-skeleton-row td:nth-child(6) span { width: 58%; }
 @keyframes branch-faculty-table-shimmer { to { background-position: -200% 0; } }
+.faculty-notification-copy>p{white-space:pre-line}
