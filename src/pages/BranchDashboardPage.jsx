@@ -10594,6 +10594,7 @@ useEffect(() => {
         <th>Paid</th>
         <th>Paid Progress</th>
         <th>Course Progress</th>
+        <th>Course Completion</th>
         <th>Next Installment</th>
         <th>Due Date</th>
         <th>Status</th>
@@ -10607,7 +10608,7 @@ useEffect(() => {
       (!branchStudentScope.id && !branchStudentScope.branchCode) ? (
         Array.from({ length: BRANCH_STUDENTS_PER_PAGE }, (_, rowIndex) => (
           <tr key={`student-loading-${rowIndex}`} className="branch-student-loading-row" aria-hidden="true">
-            {Array.from({ length: 10 }, (_, cellIndex) => (
+            {Array.from({ length: 11 }, (_, cellIndex) => (
               <td key={`student-loading-${rowIndex}-${cellIndex}`}><span /></td>
             ))}
           </tr>
@@ -11084,6 +11085,21 @@ else {
                       ) : <span className="faculty-today-work-empty-label">-</span>}
                     </td>
                     {isSequentialArrangement ? (
+                      <td>
+                        {courseRow.isPendingSequentialCourse ? <span className="faculty-today-work-empty-label">-</span> : (
+                          <span className={`branch-student-payment-status ${String(stu.courseCompletionByCourse?.[courseRow.courseId] || (courseRow.progressValue >= 100 ? stu.courseCompletion : 'IN_PROGRESS')).toLowerCase()}`}>
+                            {String(stu.courseCompletionByCourse?.[courseRow.courseId] || (courseRow.progressValue >= 100 ? stu.courseCompletion : 'IN_PROGRESS')).toUpperCase() === 'COMPLETED' ? 'Course Completed' : 'In Progress'}
+                          </span>
+                        )}
+                      </td>
+                    ) : index === 0 ? (
+                      <td rowSpan={courseRows.length}>
+                        <span className={`branch-student-payment-status ${String(stu.courseCompletion || 'IN_PROGRESS').toLowerCase()}`}>
+                          {String(stu.courseCompletion || 'IN_PROGRESS').toUpperCase() === 'COMPLETED' ? 'Course Completed' : 'In Progress'}
+                        </span>
+                      </td>
+                    ) : null}
+                    {isSequentialArrangement ? (
                       <>
                         <td>
                           {courseRow.nextCourseInstallment ? (
@@ -11226,6 +11242,11 @@ else {
                     <span className="faculty-today-work-empty-label">-</span>
                   )
                 }
+              </td>
+              <td>
+                <span className={`branch-student-payment-status ${String(stu.courseCompletion || 'IN_PROGRESS').toLowerCase()}`}>
+                  {String(stu.courseCompletion || 'IN_PROGRESS').toUpperCase() === 'COMPLETED' ? 'Course Completed' : 'In Progress'}
+                </span>
               </td>
               <td>
                 {nextInstallment ? (

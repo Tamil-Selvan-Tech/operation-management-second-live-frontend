@@ -120,16 +120,19 @@ function ScheduleResultModal({ result, loading, onClose, onScheduleRetest, onEdi
   const [projectPreview, setProjectPreview] = useState(null)
   const [projectPreviewLoading, setProjectPreviewLoading] = useState(false)
   useEffect(() => { const closeRetestMenus = (event) => { document.querySelectorAll('.academic-preparation-retest-menu[open]').forEach((menu) => { if (!menu.contains(event.target)) menu.removeAttribute('open') }) }; document.addEventListener('click', closeRetestMenus); return () => document.removeEventListener('click', closeRetestMenus) }, [])
+  useEffect(() => { const closeProjectPreview = () => setProjectPreview(null); window.addEventListener('academic-project-graded', closeProjectPreview); return () => window.removeEventListener('academic-project-graded', closeProjectPreview) }, [])
   if (loading) return <div className="academic-preparation-modal-backdrop"><div className="academic-preparation-modal academic-preparation-result-modal"><p className="academic-test-kicker">TEST RESULTS</p><h2>Loading student results...</h2></div></div>
   if (!result) return null
 
-  const schedule = result.test
+  const rawSchedule = result.test
   const scheduleMeta = result.scheduleMeta || {}
+  const projectTotalMarks = Number(rawSchedule.projectMarks ?? rawSchedule.project?.projectMarks ?? rawSchedule.projectTotalMarks ?? 0)
+  const schedule = { ...rawSchedule, projectMarks: projectTotalMarks }
   const submittedCount = result.students.filter((entry) => ['SUBMITTED', 'EVALUATED'].includes(entry.status) || ['SUBMITTED', 'EVALUATED'].includes(entry.retest?.submission?.status)).length
   const projectSubmittedCount = result.students.filter((entry) => ['SUBMITTED', 'GRADED'].includes(entry.projectSubmission?.status)).length
   const hasTest = schedule.testType === 'TEST' || schedule.testType === 'TEST_AND_PROJECT'
   const hasProject = schedule.testType === 'PROJECT' || schedule.testType === 'TEST_AND_PROJECT'
-  const openProjectPreview = async (entry) => { setProjectPreviewLoading(true); try { const file = await onViewProject(schedule.id, entry.student.id); const url = file.previewHtml ? '' : URL.createObjectURL(file.blob); setProjectPreview({ entry, file, url }) } finally { setProjectPreviewLoading(false) } }
+  const openProjectPreview = async (entry) => { setProjectPreviewLoading(true); const previewEntry = { ...entry, projectSubmission: entry.projectSubmission ? { ...entry.projectSubmission, status: entry.projectSubmission.status === 'GRADED' ? 'SUBMITTED' : entry.projectSubmission.status } : entry.projectSubmission }; setProjectGrades((current) => ({ ...current, [entry.student.id]: entry.projectSubmission?.marksAwarded ?? '' })); try { const file = await onViewProject(schedule.id, entry.student.id); const url = file.previewHtml ? '' : URL.createObjectURL(file.blob); setProjectPreview({ entry: previewEntry, file, url }) } finally { setProjectPreviewLoading(false) } }
 
   return <div className="academic-preparation-modal-backdrop">
     <div className="academic-preparation-modal academic-preparation-result-modal" role="dialog" aria-modal="true" aria-labelledby="academic-result-title">
@@ -146,7 +149,7 @@ function ScheduleResultModal({ result, loading, onClose, onScheduleRetest, onEdi
         <button type="button" className={resultTab === 'project' ? 'is-active' : ''} onClick={() => setResultTab('project')} role="tab" aria-selected={resultTab === 'project'}>Project</button>
       </div>}
       <div className="academic-preparation-result-summary">
-        {resultTab === 'project' ? <div><span>Project Total Marks</span><strong>{schedule.projectMarks || 0}</strong></div> : <><div><span>Total Questions</span><strong>{schedule.totalQuestions || 0}</strong></div><div><span>Total Marks</span><strong>{schedule.totalMarks || 0}</strong></div><div><span>Pass Mark</span><strong>{schedule.passMark || '-'}</strong></div></>}
+        {resultTab === 'project' ? <div><span>Project Total Marks</span><strong>{projectTotalMarks}</strong></div> : <><div><span>Total Questions</span><strong>{schedule.totalQuestions || 0}</strong></div><div><span>Total Marks</span><strong>{schedule.totalMarks || 0}</strong></div><div><span>Pass Mark</span><strong>{schedule.passMark || '-'}</strong></div></>}
         <div><span>Students</span><strong>{result.students.length}</strong></div>
         <div><span>Submitted</span><strong>{resultTab === 'project' ? projectSubmittedCount : submittedCount}</strong></div>
       </div>
@@ -293,7 +296,25 @@ export default function AcademicTestPreparationPage() {
   const openResult = async (schedule) => { setResultLoading(true); setResultActionOpen(false); setError(''); try { const next = await getFacultyAcademicTestResults(schedule.id); setResult({ ...next, test: { ...next.test, rawStartTime: next.test?.startTime, rawEndTime: next.test?.endTime, startTime: scheduleTimeLabel(next.test?.startTime), endTime: scheduleTimeLabel(next.test?.endTime) }, scheduleMeta: schedule }) } catch (e) { setError(academicRetestError(e, 'Unable to load student results.')) } finally { setResultLoading(false) } }
   const viewProjectFile = async (scheduleId, studentId) => { const file = await getFacultyProjectFile(scheduleId, studentId); if (file.contentType.includes('wordprocessingml.document')) { try { file.previewHtml = await getFacultyProjectPreview(scheduleId, studentId) } catch { file.previewHtml = '' } } return file }
   const downloadProjectFile = async (scheduleId, studentId, fileName = 'project-document') => { try { const file = await getFacultyProjectFile(scheduleId, studentId); const url = URL.createObjectURL(file.blob); const link = document.createElement('a'); link.href = url; link.download = fileName || file.fileName || 'project-document'; link.click(); window.setTimeout(() => URL.revokeObjectURL(url), 1000) } catch (e) { setError(e.message || 'Unable to download project file.') } }
-  const saveProjectMark = async (scheduleId, studentId, marks) => { await gradeFacultyProject(scheduleId, studentId, marks); await openResult(result.scheduleMeta) }
+  const saveProjectMark = async (scheduleId, studentId, marks) => {
+    await gradeFacultyProject(scheduleId, studentId, marks)
+    window.dispatchEvent(new Event('academic-project-graded'))
+    const refreshed = await getFacultyAcademicTestResults(scheduleId)
+    setResult((current) => current
+      ? {
+          ...current,
+          ...refreshed,
+          test: {
+            ...current.test,
+            ...refreshed.test,
+            rawStartTime: current.test?.rawStartTime,
+            rawEndTime: current.test?.rawEndTime,
+            startTime: current.test?.startTime,
+            endTime: current.test?.endTime,
+          },
+        }
+      : current)
+  }
   const openAssessment = async (scheduleId, studentId) => { setError(''); try { const context = await getFacultyAssessment(scheduleId, studentId); setAssessmentMarks(Object.fromEntries((context.questions || []).map((question) => [question.id, question.answer?.marksAwarded ?? '']))); setAssessmentContext(context) } catch (e) { setError(e.message || 'Unable to load Assessment submission.') } }
   const saveAssessment = async () => { if (!assessmentContext) return; setAssessmentSaving(true); setError(''); try { await evaluateFacultyAssessment(assessmentContext.schedule.id, assessmentContext.student.id, assessmentContext.questions.map((question) => ({ questionId: question.id, marksObtained: Number(assessmentMarks[question.id]) }))); setAssessmentContext(null); await openResult(result.scheduleMeta) } catch (e) { setError(e.message || 'Unable to save Assessment evaluation.') } finally { setAssessmentSaving(false) } }
   const openRetest = (entry) => { setRetestError(''); setRetestTarget(entry); setRetestForm({ testDate: '', startTime: '10:00', endTime: '11:00' }) }
