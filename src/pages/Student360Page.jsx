@@ -119,7 +119,7 @@ function getEnrollmentInstallmentCount(enrollment = {}, branchCourseCards = []) 
   ) || 0)
 }
 
-function getAcademicTestProgress(profile = {}, report = {}) {
+function getAcademicTestProgress(profile = {}, report = {}, selectedCourseId = '', selectedCourseName = '') {
   const profileProgress = profile?.academicTestProgress || {}
   const reportData = report?.data || report || {}
   const evaluations = Array.isArray(reportData.evaluations) ? reportData.evaluations : null
@@ -130,17 +130,25 @@ function getAcademicTestProgress(profile = {}, report = {}) {
     reportData.studentId ||
     '',
   ).trim().toLowerCase()
+  const normalizedCourseId = String(selectedCourseId || '').trim().toLowerCase()
+  const normalizedCourseName = String(selectedCourseName || '').trim().toLowerCase()
 
   // The report endpoint is student-ID scoped. Only use its evaluation count
   // when the response is also for the requested student; this prevents a
   // duplicate student name from leaking another student's progress.
   if (evaluations && (!reportStudentId || !requestedStudentId || reportStudentId === requestedStudentId)) {
-    const totalTests = Number(reportData.totalTests ?? profileProgress.totalTests ?? 0)
-    const completedTests = evaluations.filter((evaluation) => {
+    const courseEvaluations = normalizedCourseId
+      ? evaluations.filter((evaluation) => (
+        String(evaluation?.courseId || '').trim().toLowerCase() === normalizedCourseId ||
+        (normalizedCourseName && String(evaluation?.courseName || '').trim().toLowerCase() === normalizedCourseName)
+      ))
+      : evaluations
+    const totalTests = courseEvaluations.length
+    const completedTests = courseEvaluations.filter((evaluation) => {
       const status = String(evaluation?.status || '').toUpperCase()
       return status === 'SUBMITTED' || status === 'EVALUATED' || Number.isFinite(Number(evaluation?.percentage))
     }).length
-    const safeTotal = Math.max(totalTests, evaluations.length, completedTests)
+    const safeTotal = Math.max(totalTests, completedTests)
     const pendingTests = Math.max(0, safeTotal - completedTests)
     return {
       totalTests: safeTotal,
@@ -148,6 +156,12 @@ function getAcademicTestProgress(profile = {}, report = {}) {
       pendingTests,
       percentage: safeTotal ? Math.round((completedTests / safeTotal) * 100) : 0,
     }
+  }
+
+  // A report shared for another course must not fall back to the student's
+  // aggregate academic progress on the selected course tab.
+  if (evaluations && (normalizedCourseId || normalizedCourseName)) {
+    return { totalTests: 0, completedTests: 0, pendingTests: 0, percentage: 0 }
   }
 
   return {
@@ -715,7 +729,7 @@ export function Student360Page({
   const performanceBranchId = String(branch?.id || branch?.branchId || initialStudent?.branchId || '').trim()
   const initialStudentRef = useRef(initialStudent)
   const [studentRecord, setStudentRecord] = useState(null)
-  const [academicProgressState, setAcademicProgressState] = useState({ studentId: '', data: null, error: '' })
+  const [academicProgressState, setAcademicProgressState] = useState({ studentId: '', data: null, report: null, error: '' })
   const [courseSelection, setCourseSelection] = useState({ studentId: '', courseKey: '' })
   const [assignmentModalOpen, setAssignmentModalOpen] = useState(false)
   const [assignmentSaving, setAssignmentSaving] = useState(false)
@@ -746,23 +760,37 @@ export function Student360Page({
     Promise.allSettled([
       getBranchStudent(resolvedStudentId),
       getBranchStudentAcademicReports(resolvedStudentId, performanceBranchId),
+      getBranchStudentSyllabusReports(resolvedStudentId, performanceBranchId),
     ])
-      .then(([profileResult, reportResult]) => {
+      .then(([profileResult, reportResult, syllabusResult]) => {
         if (!active) return
         const result = profileResult.status === 'fulfilled' ? profileResult.value : initialStudentRef.current
         if (!result) throw profileResult.reason || new Error('Student profile is unavailable.')
         const academicReport = reportResult.status === 'fulfilled' ? reportResult.value : null
+        const syllabusPayload = syllabusResult.status === 'fulfilled'
+          ? (syllabusResult.value?.data || syllabusResult.value || {})
+          : {}
+        const academicPayload = academicReport?.data || academicReport || {}
+        const syllabusEvaluations = (syllabusPayload.items || []).map((item) => ({
+          ...item,
+          evaluationId: item.evaluationId || item.id,
+          courseId: item.courseId || null,
+          status: item.status || 'SUBMITTED',
+        }))
+        const mergedAcademicReport = {
+          ...academicPayload,
+          evaluations: [...(academicPayload.evaluations || []), ...syllabusEvaluations],
+        }
         setStudentRecord({ studentId: resolvedStudentId, data: result })
-        setAcademicProgressState({ studentId: resolvedStudentId, data: getAcademicTestProgress(result, academicReport), error: '' })
+        setAcademicProgressState({ studentId: resolvedStudentId, data: getAcademicTestProgress(result, mergedAcademicReport), report: mergedAcademicReport, error: '' })
       })
       .catch((error) => {
-        if (active) setAcademicProgressState({ studentId: resolvedStudentId, data: null, error: error?.message || 'Unable to load academic test progress.' })
+        if (active) setAcademicProgressState({ studentId: resolvedStudentId, data: null, report: null, error: error?.message || 'Unable to load academic test progress.' })
       })
     return () => { active = false }
   }, [resolvedStudentId, performanceBranchId])
 
   const student = studentRecord?.studentId === resolvedStudentId ? studentRecord.data : initialStudent
-  const academicTestProgress = academicProgressState.studentId === resolvedStudentId ? academicProgressState.data : null
   const academicTestProgressError = academicProgressState.studentId === resolvedStudentId ? academicProgressState.error : ''
 
   if (!student) {
@@ -794,6 +822,11 @@ export function Student360Page({
   const explicitCourseIndex = courseEnrollments.findIndex((enrollment, index) => getEnrollmentKey(enrollment, index) === selectedCourseKey)
   const selectedCourseIndex = explicitCourseIndex >= 0 ? explicitCourseIndex : Math.max(primaryCourseIndex, 0)
   const selectedCourse = courseEnrollments[selectedCourseIndex]
+  const academicTestProgress = academicProgressState.studentId === resolvedStudentId
+    ? academicProgressState.report
+      ? getAcademicTestProgress(student, academicProgressState.report, selectedCourse?.courseId || student?.courseId, selectedCourse?.courseName)
+      : { totalTests: 0, completedTests: 0, pendingTests: 0, percentage: 0 }
+    : null
   const selectedCourseCatalog = isMultiCourseStudent
     ? branchCourseCards.find((course) => (
       String(course?.id || course?.courseId || '').trim() === String(selectedCourse.courseId || '').trim() ||
@@ -892,8 +925,15 @@ export function Student360Page({
     : null
   const selectedSavedProgress = selectedCourse?.courseProgress
   const selectedWorkProgress = selectedCourseProgressSummary?.courseProgress
-  const hasSelectedCourseProgress = (selectedSavedProgress !== null && selectedSavedProgress !== undefined && String(selectedSavedProgress).trim() !== '') || (selectedWorkProgress !== null && selectedWorkProgress !== undefined)
-  const selectedCourseProgress = Number(hasSelectedCourseProgress ? (selectedSavedProgress ?? selectedWorkProgress) : NaN)
+  // Enrollment values can remain stale at 0 after Today Work updates the
+  // selected course. Keep Student 360 consistent with the Students page by
+  // using the highest valid selected-course value from both sources.
+  const selectedCourseProgressValues = [selectedSavedProgress, selectedWorkProgress]
+    .map((value) => Number(value))
+    .filter(Number.isFinite)
+  const selectedCourseProgress = selectedCourseProgressValues.length
+    ? Math.max(...selectedCourseProgressValues)
+    : Number.NaN
   const selectedCourseProgressValue = Number.isFinite(selectedCourseProgress)
     ? Math.min(100, Math.max(0, selectedCourseProgress))
     : null

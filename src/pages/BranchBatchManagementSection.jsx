@@ -23,10 +23,15 @@ import {
   loadBranchBatchGroups,
   saveBranchBatchGroups,
 } from '../lib/branchBatchStore'
-import { FACULTY_ATTENDANCE_SYNC_EVENT, getAttendanceDateKey } from '../lib/facultyAttendanceStore'
+import {
+  FACULTY_ATTENDANCE_SYNC_EVENT,
+  getAttendanceDateKey,
+  getBatchStartDateTime,
+} from '../lib/facultyAttendanceStore'
 import { getMatchingStudents } from '../lib/facultyFlow'
+import { buildFacultyTodayWorkProgressSummary } from '../lib/facultyProgress'
 import { getStudentCalendarAttendance } from '../lib/studentAttendanceCalendar'
-import { getCurrentFacultyAttendanceOverview } from '../services/attendanceService'
+import { getBranchAttendanceOverview, getCurrentFacultyAttendanceOverview } from '../services/attendanceService'
 import { calculateBatchCourseEndDate, getBatchAvailability } from '../lib/batchAllocation'
 import '../styles/BranchBatchManagementSection.css'
 import '../styles/SuperAdminDashboardPage.css'
@@ -120,13 +125,17 @@ function normalizeStatus(value = '') {
   return text
 }
 
-function extractAttendanceStatuses(payload = {}) {
+function extractAttendanceStatuses(payload = {}, filters = {}) {
   const source = payload?.data ?? payload
+  const expectedCourseId = normalizeMatchKey(filters?.courseId || '')
+  const expectedBatchId = normalizeMatchKey(filters?.batchId || '')
+  const expectedDate = String(filters?.date || '').trim()
   const rows = [
     ...(Array.isArray(source) ? source : []),
     ...(Array.isArray(source?.students) ? source.students : []),
     ...(Array.isArray(source?.attendance) ? source.attendance : []),
     ...(Array.isArray(source?.attendanceRecords) ? source.attendanceRecords : []),
+    ...(Array.isArray(source?.batches) ? source.batches.flatMap((batch) => (Array.isArray(batch?.students) ? batch.students : [])) : []),
   ]
   const statuses = {}
 
@@ -134,9 +143,25 @@ function extractAttendanceStatuses(payload = {}) {
     const studentId = normalizeMatchKey(
       row?.studentId || row?.studentCode || row?.id || row?.student?.studentId || row?.student?.studentCode || row?.student?.id,
     )
+    const rowCourseId = normalizeMatchKey(row?.courseId || row?.branchCourseId || '')
+    const rowBatchId = normalizeMatchKey(row?.batchId || row?.batchEntryId || '')
+    if (expectedCourseId && rowCourseId && rowCourseId !== expectedCourseId) return
+    if (expectedBatchId && rowBatchId && rowBatchId !== expectedBatchId) return
     const rawStatus = String(row?.attendanceStatus || row?.attendanceStatusLabel || row?.status || '').trim().toUpperCase()
-    if (!studentId || !['PRESENT', 'ABSENT'].includes(rawStatus)) return
-    statuses[studentId] = rawStatus
+    if (studentId && ['PRESENT', 'ABSENT'].includes(rawStatus) && (row?.attendanceMarkedAt || row?.markedAt || row?.attendanceDate === expectedDate)) {
+      statuses[studentId] = rawStatus
+    }
+
+    const records = Array.isArray(row?.records) ? row.records : []
+    records.forEach((record) => {
+      if (expectedDate && String(record?.attendanceDate || '').trim() !== expectedDate) return
+      const recordCourseId = normalizeMatchKey(record?.courseId || '')
+      const recordBatchId = normalizeMatchKey(record?.batchId || '')
+      if (expectedCourseId && recordCourseId && recordCourseId !== expectedCourseId) return
+      if (expectedBatchId && recordBatchId && recordBatchId !== expectedBatchId) return
+      const recordStatus = String(record?.attendanceStatus || record?.attendanceStatusLabel || record?.status || '').trim().toUpperCase()
+      if (studentId && ['PRESENT', 'ABSENT'].includes(recordStatus)) statuses[studentId] = recordStatus
+    })
   })
 
   return statuses
@@ -189,20 +214,65 @@ function getBatchSeatSummary(batch = {}, students = []) {
   }
 }
 
-function getBatchCourseProgress(batch = {}, students = []) {
-  const persistedProgress = Number(batch?.courseProgress ?? batch?.progress)
-  if (Number.isFinite(persistedProgress)) {
-    return Math.round(Math.min(Math.max(persistedProgress, 0), 100))
-  }
-
+function getBatchCourseProgress(batch = {}, students = [], course = null, workEntries = []) {
+  const courseId = normalizeMatchKey(batch?.courseId || batch?.branchCourseId)
+  const batchIds = new Set([batch?.id, batch?.batchId].map(normalizeMatchKey).filter(Boolean))
   const progressValues = (Array.isArray(students) ? students : [])
-    .map((student) => Number(student?.courseProgress ?? student?.progress))
+    .map((student) => {
+      const workProgress = course && Array.isArray(workEntries) && workEntries.length
+        ? buildFacultyTodayWorkProgressSummary(
+          workEntries,
+          { ...course, id: course.id || course.courseId || batch.courseId || batch.branchCourseId },
+          { ...student, courseId: batch.courseId || batch.branchCourseId || student.courseId },
+        )?.courseProgress
+        : null
+      if (Number.isFinite(Number(workProgress))) return Number(workProgress)
+      const enrollment = (student?.courseEnrollments || []).find((item) => (
+        (!courseId || normalizeMatchKey(item?.courseId) === courseId) &&
+        (!batchIds.size || batchIds.has(normalizeMatchKey(item?.batchId)))
+      ))
+      const value = enrollment?.courseProgress ?? (
+        (!courseId || normalizeMatchKey(student?.courseId) === courseId)
+          ? student?.courseProgress ?? student?.progress
+          : null
+      )
+      return Number(value)
+    })
     .filter((progress) => Number.isFinite(progress))
 
-  if (!progressValues.length) return 0
+  if (progressValues.length) {
+    const average = progressValues.reduce((total, progress) => total + progress, 0) / progressValues.length
+    return Math.round(Math.min(Math.max(average, 0), 100))
+  }
 
-  const average = progressValues.reduce((total, progress) => total + progress, 0) / progressValues.length
-  return Math.round(Math.min(Math.max(average, 0), 100))
+  const persistedProgress = Number(batch?.courseProgress ?? batch?.progress)
+  return Number.isFinite(persistedProgress)
+    ? Math.round(Math.min(Math.max(persistedProgress, 0), 100))
+    : 0
+}
+
+function getStudentBatchCourseProgress(student = {}, batch = {}, course = null, workEntries = []) {
+  const workProgress = course && Array.isArray(workEntries) && workEntries.length
+    ? buildFacultyTodayWorkProgressSummary(
+      workEntries,
+      { ...course, id: course.id || course.courseId || batch.courseId || batch.branchCourseId },
+      { ...student, courseId: batch.courseId || batch.branchCourseId || student.courseId },
+    )?.courseProgress
+    : null
+  if (Number.isFinite(Number(workProgress))) return Math.min(Math.max(Number(workProgress), 0), 100)
+  const courseId = normalizeMatchKey(batch?.courseId || batch?.branchCourseId)
+  const batchIds = new Set([batch?.id, batch?.batchId].map(normalizeMatchKey).filter(Boolean))
+  const enrollment = (student?.courseEnrollments || []).find((item) => (
+    (!courseId || normalizeMatchKey(item?.courseId) === courseId) &&
+    (!batchIds.size || batchIds.has(normalizeMatchKey(item?.batchId)))
+  ))
+  const value = enrollment?.courseProgress ?? (
+    (!courseId || normalizeMatchKey(student?.courseId) === courseId)
+      ? student?.courseProgress ?? student?.progress
+      : null
+  )
+  const progress = Number(value)
+  return Number.isFinite(progress) ? Math.min(Math.max(progress, 0), 100) : 0
 }
 
 function toNumber(value = '') {
@@ -726,6 +796,7 @@ export function BranchBatchManagementSection({
   branchFacultyRecords = [],
   facultyList = [],
   branchStudents = [],
+  facultyTodayWorkEntries = [],
   onDownloadAttendance,
 }) {
   const [batchGroups, setBatchGroups] = useState([])
@@ -1163,22 +1234,36 @@ export function BranchBatchManagementSection({
       }
     })
 
-    setDetailAttendanceStatuses(localStatuses)
+    // A batch must not appear attended before its scheduled start time. Some
+    // attendance responses contain the faculty/session status for the batch;
+    // do not let that status turn every learner into Present early.
+    const batchStartDateTime = getBatchStartDateTime(detailBatch?.batchTiming || '', todayKey)
+    if (batchStartDateTime && batchStartDateTime.getTime() > Date.now()) {
+      setDetailAttendanceStatuses({})
+      return
+    }
 
     try {
-      const overview = await getCurrentFacultyAttendanceOverview({
+      const branchId = String(group?.branchId || detailBatch?.branchId || '').trim()
+      const overview = branchId
+        ? await getBranchAttendanceOverview(todayKey, branchId)
+        : await getCurrentFacultyAttendanceOverview({
+            date: todayKey,
+            facultyId: String(group?.facultyId || group?.branchFacultyId || '').trim(),
+            courseId: String(group?.courseId || group?.branchCourseId || '').trim(),
+            batchId: String(detailBatch?.batchId || detailBatch?.id || '').trim(),
+          })
+      // The server response is authoritative. This also clears stale local
+      // browser marks when today's attendance has not actually been saved.
+      setDetailAttendanceStatuses(extractAttendanceStatuses(overview, {
         date: todayKey,
-        facultyId: String(group?.facultyId || group?.branchFacultyId || '').trim(),
-        courseId: String(group?.courseId || group?.branchCourseId || '').trim(),
-        batchId: String(detailBatch?.batchId || detailBatch?.id || '').trim(),
-      })
-      setDetailAttendanceStatuses((current) => ({
-        ...current,
-        ...extractAttendanceStatuses(overview),
+        courseId: group?.courseId || group?.branchCourseId || detailBatch?.courseId || '',
+        batchId: detailBatch?.batchId || detailBatch?.id || '',
       }))
     } catch {
       // The faculty dashboard also persists today's marks locally. Keep those
       // marks visible when the branch overview endpoint is unavailable.
+      setDetailAttendanceStatuses(localStatuses)
     }
   }, [branchStudents])
 
@@ -2129,6 +2214,8 @@ export function BranchBatchManagementSection({
     const detailCourseProgress = getBatchCourseProgress(
       { ...detailGroup, ...detailBatch },
       detailStudents,
+      branchCourses.find((course) => normalizeMatchKey(course?.id || course?.courseId) === normalizeMatchKey(detailGroup?.courseId || detailGroup?.branchCourseId)),
+      facultyTodayWorkEntries,
     )
     const detailStatus = normalizeStatus(detailGroup.status || 'Active')
     const detailStatusClass = String(detailStatus).toLowerCase()
@@ -2200,6 +2287,8 @@ export function BranchBatchManagementSection({
                 {detailStudents.map((student, index) => {
                   const attendanceKey = normalizeMatchKey(student?.studentId || student?.id || student?._id || '')
                   const attendanceStatus = detailAttendanceStatuses[attendanceKey] || 'UNMARKED'
+                  const selectedCourse = branchCourses.find((course) => normalizeMatchKey(course?.id || course?.courseId) === normalizeMatchKey(detailGroup?.courseId || detailGroup?.branchCourseId))
+                  const studentCourseProgress = getStudentBatchCourseProgress(student, { ...detailGroup, ...detailBatch }, selectedCourse, facultyTodayWorkEntries)
                   const selectedCourseCompletion = student?.courseCompletionByCourse?.[
                     detailGroup?.courseId || detailGroup?.branchCourseId || ''
                   ]
@@ -2224,10 +2313,10 @@ export function BranchBatchManagementSection({
                     <div className="batch-detail-student-progress">
                       <div className="batch-detail-student-progress-label">
                         <span>Course Progress</span>
-                        <strong>{Number(student?.courseProgress ?? student?.progress ?? 0) || 0}%</strong>
+                        <strong>{Math.round(studentCourseProgress)}%</strong>
                       </div>
                       <div className="batch-detail-student-progress-track" aria-hidden="true">
-                        <span style={{ width: `${Math.min(Math.max(Number(student?.courseProgress ?? student?.progress ?? 0) || 0, 0), 100)}%` }} />
+                        <span style={{ width: `${studentCourseProgress}%` }} />
                       </div>
                     </div>
                     </div>

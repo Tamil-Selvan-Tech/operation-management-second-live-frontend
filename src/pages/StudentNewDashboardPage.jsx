@@ -711,7 +711,10 @@ export function StudentNewDashboardPage() {
 
  useEffect(() => {
    if (!student?.studentId && !student?.id) return undefined
-   if (activeSection !== 'course') return undefined
+   // Dashboard summary cards also need the course-specific progress for every
+   // active enrollment. Previously this request ran only on the Course tab,
+   // so multi-course students saw 0% and null module counts on the dashboard.
+   if (activeSection !== 'dashboard' && activeSection !== 'course') return undefined
    let isMounted = true
    Promise.resolve().then(() => {
      if (!isMounted) return
