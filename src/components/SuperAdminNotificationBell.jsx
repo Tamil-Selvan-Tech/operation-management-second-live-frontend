@@ -256,6 +256,15 @@ localStorage.setItem(
     return
   }
 
+  const notificationDescription = String(notification.requestDescription || '')
+  if (
+    String(notification.kind || '').trim().toLowerCase() === 'student-discontinuation' ||
+    notificationDescription.startsWith('DISCONTINUATION_SUPER_REVIEW:')
+  ) {
+    navigate('/dashboard/super-admin?section=discontinuations')
+    return
+  }
+
   navigate('/dashboard/super-admin')
 }
 

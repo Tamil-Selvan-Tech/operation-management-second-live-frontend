@@ -47,6 +47,16 @@ export function NotificationBell() {
     } catch (err) { setError(err.message) }
   }
 
+  const openStudentNotification = (item) => {
+    const kind = String(item?.kind || '').toUpperCase()
+    const description = String(item?.requestDescription || '').toUpperCase()
+    if (isStudent && (kind === 'STUDENT_DISCONTINUATION' || description.startsWith('DISCONTINUATION_'))) {
+      navigate('/student-new-dashboard?section=profile&open=discontinuation')
+      return true
+    }
+    return false
+  }
+
   useEffect(() => {
     if (!isOpen) return undefined
 
@@ -126,7 +136,10 @@ export function NotificationBell() {
                   className={`notification-dropdown-item ${item.featured ? 'is-highlighted' : ''}`.trim()}
                   onClick={() => {
                     setIsOpen(false)
-                    if (isStudent) { void markRead() } else navigate('/notifications')
+                    if (isStudent) {
+                      void markRead()
+                      openStudentNotification(item)
+                    } else navigate('/notifications')
                   }}
                 >
                   <span className={`notification-badge ${item.tone}`} aria-hidden="true">

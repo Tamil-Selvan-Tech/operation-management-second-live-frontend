@@ -29,13 +29,15 @@
 .student-notifications-filters label { position: relative; display: flex; align-items: center; flex: 0 1 360px; max-width: 360px; min-width: 0; padding: 0; border: 0; border-radius: 0; background: transparent; color: #60708b; }
 .student-notifications-filters label input { min-width: 0; width: 100%; padding-left: 18px; outline: 0; }
 .student-notifications-list { display: grid; gap: 14px; width: 100%; max-width: none; margin: 0; }
-.student-notification-card { display: grid; grid-template-columns: auto 1fr auto; gap: 16px; align-items: start; padding: 22px; border: 1px solid #e0e7f1; border-radius: 16px; background: white; box-shadow: 0 8px 24px #1d37630b; }
+.student-notification-card { display: grid; grid-template-columns: auto 1fr auto; gap: 16px; width: 100%; box-sizing: border-box; align-items: start; padding: 22px; border: 1px solid #e0e7f1; border-radius: 16px; background: white; color: inherit; font: inherit; text-align: left; cursor: pointer; box-shadow: 0 8px 24px #1d37630b; transition: border-color .2s ease, box-shadow .2s ease, transform .2s ease; }
+.student-notification-card:hover { border-color: #9db5ff; box-shadow: 0 12px 28px #3157d51a; transform: translateY(-1px); }
 .student-notification-card.is-unread { border-color: #9db5ff; background: #f5f8ff; }
 .student-notification-icon { display: grid; place-items: center; width: 42px; height: 42px; border-radius: 12px; background: #e6eeff; color: #3157d5; }
 .student-notification-title { display: flex; gap: 18px; justify-content: space-between; align-items: baseline; }
 .student-notification-title h2 { margin: 0; font-size: 18px; }
 .student-notification-title time { color: #78869d; font-size: 13px; white-space: nowrap; }
 .student-notification-card p { margin: 9px 0 0; color: #53627b; line-height: 1.55; }
+.student-notification-action-label { display: inline-block; margin-top: 10px; color: #3157d5; font-size: 12px; font-weight: 800; }
 .student-notification-unread { display: inline-flex; align-items: center; gap: 4px; color: #3157d5; font-size: 13px; font-weight: 700; }
 .student-notifications-empty, .student-notifications-error { padding: 28px; border-radius: 14px; background: white; color: #60708b; }
 .student-notifications-error { color: #a62032; background: #fff1f2; }

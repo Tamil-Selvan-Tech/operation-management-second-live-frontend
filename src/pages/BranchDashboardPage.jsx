@@ -52,6 +52,7 @@ import {
   CalendarClock,
   Flame,
   GraduationCap,
+  PhoneCall,
 } from 'lucide-react'
 
 import { useAuth } from '../auth/useAuth'
@@ -116,6 +117,7 @@ import { BranchAttendanceReportModal } from '../components/BranchAttendanceRepor
 import { InstituteLeavePage } from './InstituteLeavePage'
 import { FacultyEditRequestsView, ProgressNotificationsView } from '../components/BranchManagementViews'
 import { BranchInstallmentTemplatesPage } from './BranchInstallmentTemplatesPage'
+import { BranchDiscontinuationManagementPage } from './BranchDiscontinuationManagementPage'
 import { Student360Page } from './Student360Page'
 import { calculateBatchCourseEndDate, getBatchAvailability } from '../lib/batchAllocation'
 import { StudentCalendarPage } from './StudentCalendarPage'
@@ -2070,6 +2072,7 @@ function getBranchDashboardSectionFromPath(pathname = '', search = '') {
   if (section === 'faculty-leave') return 'faculty-leave'
   if (section === 'progress-notifications') return 'progress-notifications'
   if (section === 'faculty-edit-requests') return 'faculty-edit-requests'
+  if (section === 'discontinuations') return 'discontinuations'
   if (section === 'students') return 'students'
   if (section === 'courses') return 'courses'
   if (section === 'installments') return 'installments'
@@ -2105,6 +2108,7 @@ function BranchNotificationGroup({
   onView,
   onAcceptRequest,
   onRejectRequest,
+  onReviewDiscontinuation,
   processingNotification = { id: '', action: '' },
   showDetails = false,
 }) {
@@ -2123,6 +2127,11 @@ function BranchNotificationGroup({
           const notificationId = String(item.id || item.requestId || '').trim()
           const isProcessing = processingNotification.id === notificationId
           const isProgressNotification = String(item.kind || '').includes('progress-status')
+          const isDiscontinuationRequest = item.kind === 'student-discontinuation'
+          const isPendingDiscontinuation = isDiscontinuationRequest && requestStatus === 'pending'
+          const motivationDescription = String(item.requestDescription || '')
+          const isMotivationFollowUp = item.kind === 'student-motivation' && (motivationDescription.startsWith('MOTIVATION_FOLLOW_UP:') || motivationDescription.startsWith('MOTIVATION_CONTINUE_ABSENT:'))
+          const isPendingMotivation = isMotivationFollowUp && (!requestStatus || requestStatus === 'pending')
 
           return (
             <article
@@ -2264,7 +2273,20 @@ function BranchNotificationGroup({
                     }}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      {isPendingRequest ? (
+                      {isPendingDiscontinuation || isPendingMotivation ? (
+                        <button
+                          type="button"
+                          className="notifications-item-view-button"
+                          disabled={isProcessing}
+                          onClick={(e) => {
+                            e.preventDefault()
+                            e.stopPropagation()
+                            onReviewDiscontinuation?.(item, 'DISCONTINUE')
+                          }}
+                        >
+                          Contact Outcome
+                        </button>
+                      ) : isPendingRequest ? (
                         (
                           <>
                               <button
@@ -2365,7 +2387,20 @@ function BranchNotificationGroup({
                             ? 'Pending'
                             : item.categoryLabel || item.actionLabel || 'View'}
                     </span>
-                    {isPendingRequest ? (
+                    {isPendingDiscontinuation || isPendingMotivation ? (
+                      <button
+                        type="button"
+                        className="notifications-item-view-button"
+                        disabled={isProcessing}
+                        onClick={(e) => {
+                          e.preventDefault()
+                          e.stopPropagation()
+                          onReviewDiscontinuation?.(item, 'DISCONTINUE')
+                        }}
+                      >
+                        Contact Outcome
+                      </button>
+                    ) : isPendingRequest ? (
                       isAcceptedRequest || isRejectedRequest ? (
                         null
                       ) : (
@@ -3453,8 +3488,8 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
   const [expandedSidebarGroups, setExpandedSidebarGroups] = useState(() => ({
     courses: false,
     faculty: activeSection === 'batches',
-    students: ['students', 'courses', 'batches', 'installments', 'progress-notifications', 'institute-leave', 'faculty-leave'].includes(activeSection),
-    management: ['institute-leave', 'faculty-leave', 'progress-notifications', 'faculty-edit-requests'].includes(activeSection),
+    students: ['students', 'courses', 'batches', 'installments', 'progress-notifications', 'institute-leave', 'faculty-leave', 'discontinuations'].includes(activeSection),
+    management: ['institute-leave', 'faculty-leave', 'progress-notifications', 'faculty-edit-requests', 'discontinuations'].includes(activeSection),
   }))
   const [expandedSidebarNestedGroups, setExpandedSidebarNestedGroups] = useState({})
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
@@ -3524,7 +3559,7 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
   }, [isSidebarFlyoutMode, openSidebarFlyout])
 
   useEffect(() => {
-    const parentByChild = { faculty: 'faculty', students: 'students', courses: 'students', batches: 'students', installments: 'students', payments: 'payments', 'exams-results': 'academic', 'academic-tests': 'academic', 'institute-leave': 'students', 'faculty-leave': 'students', 'progress-notifications': 'students', 'faculty-edit-requests': 'management' }
+    const parentByChild = { faculty: 'faculty', students: 'students', courses: 'students', batches: 'students', installments: 'students', payments: 'payments', 'exams-results': 'academic', 'academic-tests': 'academic', 'institute-leave': 'students', 'faculty-leave': 'students', 'progress-notifications': 'students', 'faculty-edit-requests': 'management', discontinuations: 'students' }
     const parent = parentByChild[activeSection]
     if (!parent) return
     setExpandedSidebarGroups((current) => current[parent] ? current : { ...current, [parent]: true })
@@ -3534,7 +3569,7 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
     if (activeSection === 'progress-notifications') {
       setExpandedSidebarNestedGroups((current) => ({ ...current, 'leave-management': true }))
     }
-    if (activeSection === 'institute-leave' || activeSection === 'faculty-leave') {
+    if (activeSection === 'institute-leave' || activeSection === 'faculty-leave' || activeSection === 'discontinuations') {
       setExpandedSidebarNestedGroups((current) => ({ ...current, 'leave-management': true }))
     }
   }, [activeSection])
@@ -3669,6 +3704,7 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
   // ── Student state ──
   const [branchStudents, setBranchStudents] = useState([])
   const [isBranchStudentsLoading, setIsBranchStudentsLoading] = useState(true)
+  const [approvedDiscontinuationRequests, setApprovedDiscontinuationRequests] = useState([])
   const branchStudentReloadRequestRef = useRef(0)
   const [attendanceReportTarget, setAttendanceReportTarget] = useState(null)
   const [dashboardWidgets, setDashboardWidgets] = useState([])
@@ -3677,6 +3713,58 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
   const [widgetSearchQuery, setWidgetSearchQuery] = useState('')
   const [draggedDashboardWidget, setDraggedDashboardWidget] = useState(null)
   const [savedDashboardWidgets, setSavedDashboardWidgets] = useState([])
+
+  const loadApprovedDiscontinuationRequests = useCallback(async () => {
+    if ((!embeddedMode && role !== 'branch-admin') || (embeddedMode && !branchProfile)) return []
+    try {
+      const response = await request('/student-discontinuation?status=APPROVED')
+      const rows = Array.isArray(response?.data) ? response.data : []
+      setApprovedDiscontinuationRequests(rows)
+      return rows
+    } catch (error) {
+      console.error('Failed to load approved discontinuation financials:', error)
+      setApprovedDiscontinuationRequests([])
+      return []
+    }
+  }, [branchProfile, embeddedMode, role])
+
+  useEffect(() => {
+    void loadApprovedDiscontinuationRequests()
+  }, [loadApprovedDiscontinuationRequests])
+
+  const discontinuedFinancialSummary = useMemo(() => {
+    const latestByStudent = new Map()
+    approvedDiscontinuationRequests.forEach((item) => {
+      const studentId = String(item?.branchStudentId || item?.student?.id || item?.student?.studentId || '').trim()
+      if (!studentId || latestByStudent.has(studentId)) return
+      latestByStudent.set(studentId, item)
+    })
+    const rows = [...latestByStudent.values()]
+    const getStudentKeys = (item) => [
+      item?.branchStudentId,
+      item?.student?.id,
+      item?.student?.studentId,
+      item?.student?.studentCode,
+    ].map((value) => String(value || '').trim()).filter(Boolean)
+    return {
+      studentIds: new Set(rows.flatMap(getStudentKeys)),
+      totalPaid: rows.reduce((sum, item) => sum + Number(item.financialSnapshot?.totalPaid || 0), 0),
+      totalNotCollectible: rows.reduce((sum, item) => {
+        const student = item.student || {}
+        const installments = Array.isArray(student.installments) ? student.installments : []
+        const totalFee = installments.length
+          ? installments.reduce((value, installment) => value + Number(installment?.amount || 0), 0)
+          : Number(student.courseAmount || item.financialSnapshot?.finalCourseFee || 0)
+        const paidAmount = installments.length
+          ? installments.reduce((value, installment) => value + Number(installment?.amountPaid || 0), 0)
+          : Number(item.financialSnapshot?.totalPaid || 0)
+        const outstanding = totalFee > 0
+          ? Math.max(totalFee - paidAmount, 0)
+          : Number(item.financialSnapshot?.finalOutstandingAmount ?? item.financialSnapshot?.outstandingAmount ?? 0)
+        return sum + outstanding
+      }, 0),
+    }
+  }, [approvedDiscontinuationRequests])
 
   useEffect(() => {
     if (!embeddedMode && role !== 'branch-admin') return undefined
@@ -3886,6 +3974,11 @@ const BRANCH_PAYMENT_HISTORY_PER_PAGE = 5
   const [stuCityOptions, setStuCityOptions] = useState([])
   const [isNotificationMenuOpen, setIsNotificationMenuOpen] = useState(false)
   const [processingBranchNotification, setProcessingBranchNotification] = useState({ id: '', action: '' })
+  const [discontinuationReview, setDiscontinuationReview] = useState(null)
+  const [discontinuationOutcome, setDiscontinuationOutcome] = useState('DISCONTINUE')
+  const [discontinuationNote, setDiscontinuationNote] = useState('')
+  const [discontinuationFollowUpDate, setDiscontinuationFollowUpDate] = useState('')
+  const [isDiscontinuationReviewSaving, setIsDiscontinuationReviewSaving] = useState(false)
   const [branchNotificationRecords, setBranchNotificationRecords] = useState(() => loadNotifications())
   const [branchNotificationSearch, setBranchNotificationSearch] = useState('')
   const [branchNotificationMonthFilter, setBranchNotificationMonthFilter] = useState(() => {
@@ -4199,6 +4292,7 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
 
         setBranchNotificationRecords(nextNotifications)
         saveNotifications(nextNotifications, { emit: false })
+        void loadApprovedDiscontinuationRequests()
       } catch (error) {
         if (error?.name !== 'AbortError') {
           console.error('Failed to load branch notifications:', error)
@@ -4213,7 +4307,7 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
 
     branchNotificationsRequestRef.current = requestPromise
     return requestPromise
-  }, [])
+  }, [loadApprovedDiscontinuationRequests])
 
   const loadFacultyTodayWorkEntries = useCallback(async () => {
     try {
@@ -4883,7 +4977,8 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
               String(notification.kind || '').startsWith('branch-') ||
               String(notification.kind || '').startsWith('faculty-') ||
               String(notification.kind || '').startsWith('course-edit-') ||
-              String(notification.kind || '') === 'sequential-course-scheduling-required'
+              (String(notification.kind || '') === 'sequential-course-scheduling-required' ||
+                String(notification.kind || '').startsWith('student-'))
             ),
         )
         // The API is already tenant-scoped. Keep sequential scheduling alerts
@@ -5024,6 +5119,36 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
     () => normalizedBranchNotifications.filter((item) => item.unread).length,
     [normalizedBranchNotifications],
   )
+  const unreadDiscontinuationNotificationCount = useMemo(
+    () => normalizedBranchNotifications.filter(
+      (item) => item.unread && String(item.kind || '').trim() === 'student-discontinuation',
+    ).length,
+    [normalizedBranchNotifications],
+  )
+
+  useEffect(() => {
+    if (activeSection !== 'discontinuations') return undefined
+    const unreadIds = normalizedBranchNotifications
+      .filter((item) => item.unread && String(item.kind || '').trim() === 'student-discontinuation')
+      .map((item) => item.id)
+      .filter(Boolean)
+    if (!unreadIds.length) return undefined
+
+    setBranchNotificationRecords((current) => current.map((item) => (
+      unreadIds.includes(item.id)
+        ? { ...item, read: true, dropdownViewed: true }
+        : item
+    )))
+    markNotificationsAsRead(unreadIds)
+    void request('/notifications/mark-read', {
+      method: 'PATCH',
+      body: JSON.stringify({ notificationIds: unreadIds }),
+    }).catch((error) => {
+      console.error('Failed to mark discontinuation notifications as read:', error)
+    })
+    return undefined
+  }, [activeSection, normalizedBranchNotifications])
+
   const branchNotificationPreviewItems = useMemo(
     () => {
       const visibleItems = normalizedBranchNotifications.filter((item) => !item.dropdownViewed)
@@ -5078,12 +5203,68 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
       })
     }
     setIsNotificationMenuOpen(false)
+    const requestDescription = String(notification?.requestDescription || '').trim()
+    const notificationKind = String(notification?.kind || '').trim()
+    if (notificationKind === 'student-discontinuation' || requestDescription.startsWith('DISCONTINUATION_') || requestDescription.startsWith('MOTIVATION_')) {
+      goToBranchSection('discontinuations')
+      return
+    }
     if (String(notification?.kind || '').trim() === 'faculty-leave-request') {
       goToBranchSection('faculty-leave')
       window.setTimeout(() => window.dispatchEvent(new Event('open-faculty-leave-requests')), 0)
       return
     }
     goToBranchSection('notifications')
+  }
+
+  const reviewStudentDiscontinuationNotification = async (notification, decision) => {
+    setDiscontinuationReview(notification)
+    setDiscontinuationOutcome(decision === 'REJECT' ? 'REJECT' : 'DISCONTINUE')
+    setDiscontinuationNote('')
+    setDiscontinuationFollowUpDate('')
+  }
+
+  const submitStudentDiscontinuationOutcome = async (event) => {
+    event.preventDefault()
+    const notification = discontinuationReview
+    const description = String(notification?.requestDescription || '').trim()
+    const requestId = description.startsWith('DISCONTINUATION_REQUEST:')
+      ? description.slice('DISCONTINUATION_REQUEST:'.length).trim()
+      : ''
+    const motivationPrefix = description.startsWith('MOTIVATION_FOLLOW_UP:')
+      ? 'MOTIVATION_FOLLOW_UP:'
+      : description.startsWith('MOTIVATION_CONTINUE_ABSENT:')
+        ? 'MOTIVATION_CONTINUE_ABSENT:'
+        : ''
+    const motivationParts = motivationPrefix
+      ? description.slice(motivationPrefix.length).split(':')
+      : []
+    const motivationStudentId = String(motivationParts[0] || '').trim()
+    const isMotivationReview = Boolean(motivationStudentId)
+    if ((!requestId && !isMotivationReview) || !discontinuationNote.trim() && ['REJECT', 'DISCONTINUE'].includes(discontinuationOutcome)) return
+    if (isMotivationReview && discontinuationOutcome === 'CONTINUE' && !discontinuationFollowUpDate) return
+
+    setIsDiscontinuationReviewSaving(true)
+    try {
+      const endpoint = isMotivationReview
+        ? '/student-discontinuation/motivation/' + encodeURIComponent(motivationStudentId) + '/branch-review'
+        : '/student-discontinuation/' + encodeURIComponent(requestId) + '/branch-review'
+      await request(endpoint, {
+        method: 'PATCH',
+        body: JSON.stringify({
+          decision: discontinuationOutcome,
+          note: discontinuationNote.trim(),
+          nextFollowUpDate: discontinuationFollowUpDate,
+          motivationDescription: isMotivationReview ? description : undefined,
+        }),
+      })
+      setDiscontinuationReview(null)
+      await loadBranchNotifications()
+    } catch (error) {
+      console.error('Failed to review student discontinuation request:', error)
+    } finally {
+      setIsDiscontinuationReviewSaving(false)
+    }
   }
 
   const resolveCourseEditRequestId = async (notification) => {
@@ -6880,6 +7061,7 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
 
       await Promise.allSettled([
         reloadBranchStudents(),
+        loadApprovedDiscontinuationRequests(),
         loadBranchCourses(),
         loadBranchBatches(scopeId),
         loadFacultyList(),
@@ -6894,6 +7076,7 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
     branchProfile?.branchId,
     branchProfile?.id,
     isDashboardRefreshing,
+    loadApprovedDiscontinuationRequests,
     loadBranchBatches,
     loadBranchCourses,
     loadFacultyList,
@@ -7898,7 +8081,9 @@ const studentCourseOptions = useMemo(() => {
       const courseValues = [student.courseId, student.courseName, student.courseInterested, student.course, student.course?.id, student.course?.name]
       const batchValues = [student.batchId, student.batchName, student.batch, student.batchSelectionKey, student.batch?.id, student.batch?.name]
       const status = String(student.status || '').trim().toLowerCase()
-      const isCountableStudent = !['inactive', 'deleted', 'rejected', 'withdrawn'].includes(status)
+      const studentKeys = [student.id, student._id, student.recordId, student.studentId, student.studentCode].map((value) => String(value || '').trim()).filter(Boolean)
+      const isDiscontinuedStudent = studentKeys.some((key) => discontinuedFinancialSummary.studentIds.has(key))
+      const isCountableStudent = !['inactive', 'deleted', 'rejected', 'withdrawn'].includes(status) && !isDiscontinuedStudent
       return matchesFilterValue(courseValues, dashboardCourseFilter, selectedCourseOption?.label) &&
         matchesFilterValue(batchValues, dashboardBatchFilter, selectedBatchOption?.label) &&
         isCountableStudent
@@ -8003,10 +8188,10 @@ const studentCourseOptions = useMemo(() => {
       currentMonthStudents,
       payments,
       rows,
-      totalFee,
-      totalCollected,
+      totalFee: totalFee + discontinuedFinancialSummary.totalPaid,
+      totalCollected: totalCollected + discontinuedFinancialSummary.totalPaid,
       outstanding: Math.max(totalFee - totalCollected, 0),
-      collectionPercentage: totalFee ? Math.min(100, (totalCollected / totalFee) * 100) : 0,
+      collectionPercentage: totalFee + discontinuedFinancialSummary.totalPaid ? Math.min(100, ((totalCollected + discontinuedFinancialSummary.totalPaid) / (totalFee + discontinuedFinancialSummary.totalPaid)) * 100) : 0,
       dueToday,
       dueThisWeek,
       dueSoon,
@@ -8015,7 +8200,7 @@ const studentCourseOptions = useMemo(() => {
       trendMax,
       statusValues: [totalCollected, Math.max(totalFee - totalCollected - overdue.reduce((sum, item) => sum + Math.max(item.amount - item.paidAmount, 0), 0), 0), overdue.reduce((sum, item) => sum + Math.max(item.amount - item.paidAmount, 0), 0)],
     }
-  }, [allPaymentHistoryRecords, branchStudentScope, branchStudents, dashboardBatchFilter, dashboardCourseFilter, dashboardDateFrom, dashboardDateTo, dashboardFilterOptions, dashboardTrendMode])
+  }, [allPaymentHistoryRecords, branchStudentScope, branchStudents, dashboardBatchFilter, dashboardCourseFilter, dashboardDateFrom, dashboardDateTo, dashboardFilterOptions, dashboardTrendMode, discontinuedFinancialSummary])
 
   const trendingCourses = useMemo(() => {
     const courseMap = new Map()
@@ -8085,7 +8270,10 @@ const studentCourseOptions = useMemo(() => {
   const averageStudentValue = currentMonthAdmissions > 0
     ? dashboardData.totalFee / currentMonthAdmissions
     : 0
-  const nextMonthExpectedValue = nextMonthExpectedAdmissions * averageStudentValue
+  const nextMonthExpectedValue = Math.max(
+    nextMonthExpectedAdmissions * averageStudentValue - discontinuedFinancialSummary.totalNotCollectible,
+    0,
+  )
   const nextMonthTargetValue = nextMonthTargetAdmissions * averageStudentValue
   const nextMonthLabel = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 1)
     .toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })
@@ -9562,6 +9750,7 @@ useEffect(() => {
               { id: 'faculty-leave', label: 'Faculty Leave', icon: CalendarDays },
               { id: 'progress-notifications', label: 'Progress Alerts', icon: Bell },
               { id: 'faculty-edit-requests', label: 'Faculty Edit Requests', icon: FileText },
+              { id: 'discontinuations', label: 'Discontinuation', icon: PhoneCall },
             ] },
           ] },
           { id: 'payments', label: 'Fee & Accounts Management', icon: Wallet },
@@ -9591,6 +9780,12 @@ useEffect(() => {
                   >
                     <span className="super-admin-sidebar-subitem-icon" aria-hidden="true"><ChildIcon size={15} strokeWidth={2.1} /></span>
                     <span>{entry.label}</span>
+                    {entry.id === 'discontinuations' && unreadDiscontinuationNotificationCount > 0 ? (
+                      <span
+                        className="branch-sidebar-notification-dot"
+                        aria-label={`${unreadDiscontinuationNotificationCount} unread discontinuation notification${unreadDiscontinuationNotificationCount === 1 ? '' : 's'}`}
+                      />
+                    ) : null}
                     <ChevronDown className={isNestedExpanded ? 'is-expanded' : ''} size={14} strokeWidth={2.2} aria-hidden="true" />
                   </button>
                   {isNestedExpanded ? (
@@ -10166,7 +10361,9 @@ useEffect(() => {
                       {
                         label: 'Outstanding',
                         value: formatBranchRupees(dashboardData.outstanding),
-                        note: 'Pending Balance',
+                        note: discontinuedFinancialSummary.totalNotCollectible > 0
+                          ? `Outstanding reduced by ${formatBranchRupees(discontinuedFinancialSummary.totalNotCollectible)} because of approved student discontinuation`
+                          : 'Pending Balance',
                         Icon: UserRound,
                         TrailIcon: UserRound,
                         tone: 'violet',
@@ -10236,7 +10433,11 @@ useEffect(() => {
                         <div className="branch-dashboard-stat-card-copy">
                           <span>{label}</span>
                           <strong>{value}</strong>
-                          <div className="branch-dashboard-stat-card-footer"><small>{note}</small></div>
+                          <div className={`branch-dashboard-stat-card-footer${label === 'Outstanding' && discontinuedFinancialSummary.totalNotCollectible > 0 ? ' has-reduction' : ''}`}>
+                            {label === 'Outstanding' && discontinuedFinancialSummary.totalNotCollectible > 0 ? <>
+                              <small className="branch-dashboard-stat-card-reduction" aria-label={`Student discontinuation reduced amount ${formatBranchRupees(discontinuedFinancialSummary.totalNotCollectible)}`}><ArrowDownRight size={15} strokeWidth={2.5} />{formatBranchRupees(discontinuedFinancialSummary.totalNotCollectible)}</small>
+                            </> : <small aria-label={note}>{note}</small>}
+                          </div>
                         </div>
                         <div className="branch-dashboard-stat-card-trail" aria-hidden="true">
                           <TrailIcon size={20} strokeWidth={2.2} />
@@ -10367,6 +10568,7 @@ useEffect(() => {
               {activeSection === 'institute-leave' || activeSection === 'faculty-leave' ? <InstituteLeavePage key={activeSection} initialViewMode={activeSection === 'faculty-leave' ? 'faculty' : 'institute'} /> : null}
               {activeSection === 'progress-notifications' ? <ProgressNotificationsView branch={branchScope} /> : null}
               {activeSection === 'faculty-edit-requests' ? <FacultyEditRequestsView /> : null}
+              {activeSection === 'discontinuations' ? <BranchDiscontinuationManagementPage /> : null}
               {activeSection === 'exams-results' ? <BranchExamResultsPage branchId={branchProfile?.id || branchProfile?.branchId || branchData?.id || branchData?.branchId || ''} /> : null}
               {activeSection === 'academic-tests' ? <AcademicTestPage /> : null}
               {activeSection === 'notifications' ? (
@@ -10456,6 +10658,7 @@ useEffect(() => {
                           onView={openBranchNotificationTarget}
                           onAcceptRequest={acceptBranchCourseEditNotification}
                           onRejectRequest={rejectBranchCourseEditNotification}
+                          onReviewDiscontinuation={reviewStudentDiscontinuationNotification}
                           processingNotification={processingBranchNotification}
                           showDetails
                         />
@@ -11220,7 +11423,13 @@ else {
                 }
               }}
             >
-              <td className="branch-student-id-cell branch-student-group-cell"><strong>{stu.studentId || '-'}</strong><span>{stu.studentName || '-'}</span></td>
+              <td className="branch-student-id-cell branch-student-group-cell">
+                <strong>{stu.studentId || '-'}</strong>
+                <div className="branch-student-name-with-status">
+                  <span>{stu.studentName || '-'}</span>
+                  {stu.isDiscontinued ? <span className="branch-student-discontinued-badge">Discontinued</span> : null}
+                </div>
+              </td>
               <td>
                 <span className="branch-student-course">
                   {stu.courseName || stu.courseInterested || stu.course?.name || '-'}
@@ -17859,6 +18068,78 @@ else {
                 </button>
               </div>
             </div>
+          </div>
+        ) : null}
+        {discontinuationReview ? (
+          <div className="branch-modal-backdrop student-discontinuation-review-backdrop" role="presentation">
+            <form
+              className="student-discontinuation-review-modal"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="student-discontinuation-review-title"
+              onSubmit={submitStudentDiscontinuationOutcome}
+            >
+              <button
+                type="button"
+                className="branch-modal-close"
+                aria-label="Close contact outcome form"
+                onClick={() => setDiscontinuationReview(null)}
+              >
+                <X size={21} strokeWidth={2.2} />
+              </button>
+              <p className="student-discontinuation-review-kicker">Contact outcome</p>
+              <h2 id="student-discontinuation-review-title">Record student response</h2>
+              <p className="student-discontinuation-review-message">
+                {discontinuationOutcome === 'DISCONTINUE'
+                  ? 'Confirm the call notes, then send this request to Super Admin for final approval.'
+                  : 'Call the student and record the response before continuing this follow-up.'}
+              </p>
+              <div className="student-discontinuation-review-scroll">
+                <label className="student-discontinuation-review-field">
+                  Outcome
+                  <select value={discontinuationOutcome} onChange={(event) => setDiscontinuationOutcome(event.target.value)}>
+                    <option value="DISCONTINUE">Student wants to discontinue</option>
+                    <option value="CONTINUE">Student will continue</option>
+                    <option value="UNABLE_TO_CONTACT">Unable to contact</option>
+                    {!(String(discontinuationReview?.requestDescription || '').startsWith('MOTIVATION_FOLLOW_UP:') || String(discontinuationReview?.requestDescription || '').startsWith('MOTIVATION_CONTINUE_ABSENT:')) ? <option value="REJECT">Reject request</option> : null}
+                  </select>
+                </label>
+                {discontinuationOutcome !== 'UNABLE_TO_CONTACT' ? <label className="student-discontinuation-review-field">
+                  {discontinuationOutcome === 'REJECT' ? 'Rejection reason (required)' : `Call notes ${discontinuationOutcome === 'DISCONTINUE' ? '(required)' : '(optional)'}`}
+                  <textarea
+                    value={discontinuationNote}
+                    onChange={(event) => setDiscontinuationNote(event.target.value)}
+                    rows={4}
+                    placeholder={discontinuationOutcome === 'REJECT' ? 'Explain why this request is being rejected.' : 'Record what the student said and the next action.'}
+                    required={['REJECT', 'DISCONTINUE'].includes(discontinuationOutcome)}
+                  />
+                </label> : null}
+                {discontinuationOutcome === 'UNABLE_TO_CONTACT' ? <label className="student-discontinuation-review-field">
+                  Next follow-up date (required)
+                  <input
+                    type="date"
+                    value={discontinuationFollowUpDate}
+                    onChange={(event) => setDiscontinuationFollowUpDate(event.target.value)}
+                    required={discontinuationOutcome === 'UNABLE_TO_CONTACT'}
+                  />
+                </label> : null}
+                {discontinuationOutcome === 'CONTINUE' && (String(discontinuationReview?.requestDescription || '').startsWith('MOTIVATION_FOLLOW_UP:') || String(discontinuationReview?.requestDescription || '').startsWith('MOTIVATION_CONTINUE_ABSENT:')) ? <label className="student-discontinuation-review-field">
+                  Continue date (required)
+                  <input
+                    type="date"
+                    value={discontinuationFollowUpDate}
+                    onChange={(event) => setDiscontinuationFollowUpDate(event.target.value)}
+                    required
+                  />
+                </label> : null}
+              </div>
+              <div className="student-discontinuation-review-actions">
+                <button type="button" className="student-discontinuation-secondary" onClick={() => setDiscontinuationReview(null)}>Cancel</button>
+                <button type="submit" className="notifications-item-view-button" disabled={isDiscontinuationReviewSaving}>
+                  {isDiscontinuationReviewSaving ? 'Sending...' : discontinuationOutcome === 'DISCONTINUE' ? 'Send to Super Admin' : 'Save Contact Outcome'}
+                </button>
+              </div>
+            </form>
           </div>
         ) : null}
         <BranchAttendanceReportModal

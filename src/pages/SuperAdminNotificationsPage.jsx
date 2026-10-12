@@ -142,6 +142,10 @@ function normalizeNotificationItem(notification = {}) {
     facultyId: String(notification.facultyId || '').trim(),
     facultyEmail: String(notification.facultyEmail || '').trim(),
     facultyName: String(notification.facultyName || '').trim(),
+    requestDescription: String(notification.requestDescription || '').trim(),
+    requestStatus: String(notification.requestStatus || '').trim(),
+    requestTitle: String(notification.requestTitle || '').trim(),
+    requestReason: String(notification.requestReason || '').trim(),
   }
 }
 
@@ -206,6 +210,11 @@ function isBranchCourseEditNotification(notification = {}) {
 function isCourseAssignedNotification(notification = {}) {
   const kind = String(notification.kind || '').trim().toLowerCase()
   return kind.includes('assigned')
+}
+
+function isStudentDiscontinuationNotification(notification = {}) {
+  return String(notification.kind || '').trim().toLowerCase() === 'student-discontinuation'
+    || String(notification.requestDescription || '').trim().startsWith('DISCONTINUATION_SUPER_REVIEW:')
 }
 
 function NotificationItem({ item, onView, isLoading }) {
@@ -282,6 +291,10 @@ export function SuperAdminNotificationsPage() {
   const [isRefreshing, setIsRefreshing] = useState(true)
   const [viewLoadingId, setViewLoadingId] = useState('')
   const [selectedNotification, setSelectedNotification] = useState(null)
+  const [discontinuationDecisionLoading, setDiscontinuationDecisionLoading] = useState(false)
+  const [discontinuationDecisionForm, setDiscontinuationDecisionForm] = useState(null)
+  const [discontinuationDecisionError, setDiscontinuationDecisionError] = useState('')
+  const [discontinuationDetailsLoading, setDiscontinuationDetailsLoading] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
   const [dateFilter, setDateFilter] = useState('all')
   const [statusFilter, setStatusFilter] = useState('all')
@@ -505,9 +518,84 @@ export function SuperAdminNotificationsPage() {
     setViewLoadingId(notification.id)
     try {
       await markSingleAsRead(notification)
+      if (isStudentDiscontinuationNotification(notification)) {
+        navigate('/dashboard/super-admin?section=discontinuations')
+        return
+      }
+      const description = String(notification.requestDescription || '').trim()
+      const requestId = description.startsWith('DISCONTINUATION_SUPER_REVIEW:')
+        ? description.slice('DISCONTINUATION_SUPER_REVIEW:'.length).trim()
+        : ''
       setSelectedNotification({ ...notification, read: true })
+      if (isStudentDiscontinuationNotification(notification) && requestId) {
+        setDiscontinuationDetailsLoading(true)
+        try {
+          const response = await request('/student-discontinuation/' + encodeURIComponent(requestId))
+          const details = response?.data ?? response
+          setSelectedNotification((current) => current ? { ...current, discontinuationDetails: details } : current)
+        } catch (error) {
+          setDiscontinuationDecisionError(error?.message || 'Unable to load discontinuation details.')
+        } finally {
+          setDiscontinuationDetailsLoading(false)
+        }
+      }
     } finally {
       setViewLoadingId('')
+    }
+  }
+
+  const openDiscontinuationDecision = (notification, decision) => {
+    setDiscontinuationDecisionError('')
+    setDiscontinuationDecisionForm({
+      decision,
+      note: '',
+      waitUntil: '',
+      waiverAmount: '0',
+      refundEligibleAmount: '0',
+      financeNote: '',
+    })
+  }
+
+  const closeNotificationDetails = () => {
+    setSelectedNotification(null)
+    setDiscontinuationDecisionForm(null)
+    setDiscontinuationDecisionError('')
+  }
+
+  const handleDiscontinuationDecision = async (notification) => {
+    const description = String(notification?.requestDescription || '').trim()
+    const requestId = description.startsWith('DISCONTINUATION_SUPER_REVIEW:')
+      ? description.slice('DISCONTINUATION_SUPER_REVIEW:'.length).trim()
+      : ''
+    const form = discontinuationDecisionForm
+    if (!requestId || !form || discontinuationDecisionLoading) return
+
+    const note = String(form.note || '').trim()
+    if (form.decision === 'REJECT' && !note) {
+      setDiscontinuationDecisionError('Rejection reason is required.')
+      return
+    }
+    if (form.decision === 'WAIT' && !String(form.waitUntil || '').trim()) {
+      setDiscontinuationDecisionError('Next installment due date is required.')
+      return
+    }
+    const waiverAmount = form.decision === 'APPROVE' ? form.waiverAmount || '0' : '0'
+    const refundEligibleAmount = form.decision === 'APPROVE' ? form.refundEligibleAmount || '0' : '0'
+    const financeNote = form.decision === 'APPROVE' ? String(form.financeNote || '').trim() : ''
+
+    setDiscontinuationDecisionLoading(true)
+    setDiscontinuationDecisionError('')
+    try {
+      await request('/student-discontinuation/' + encodeURIComponent(requestId) + '/super-review', {
+        method: 'PATCH',
+        body: JSON.stringify({ decision: form.decision, note, waitUntil: form.waitUntil, waiverAmount, refundEligibleAmount, financeNote }),
+      })
+      closeNotificationDetails()
+      await loadAllNotifications()
+    } catch (error) {
+      setDiscontinuationDecisionError(error?.message || 'Unable to save the discontinuation decision.')
+    } finally {
+      setDiscontinuationDecisionLoading(false)
     }
   }
 
@@ -621,7 +709,7 @@ export function SuperAdminNotificationsPage() {
                   <button type="button" className="super-admin-sidebar-subitem" onClick={() => navigate('/dashboard/super-admin?section=students')}><span className="super-admin-sidebar-subitem-icon"><Users size={15} /></span><span>Student Management</span></button>
                   <div className="super-admin-sidebar-collapsed-group-nested">
                     <button type="button" className="super-admin-sidebar-subitem super-admin-sidebar-collapsed-group-nested-toggle" aria-expanded={isLeaveManagementExpanded} onClick={() => setIsLeaveManagementExpanded((current) => !current)}><span className="super-admin-sidebar-subitem-icon"><CalendarDays size={15} /></span><span>Leave Management</span><ChevronDown size={14} className={isLeaveManagementExpanded ? 'is-expanded' : ''} /></button>
-                    {isLeaveManagementExpanded ? <div className="super-admin-sidebar-collapsed-group-nested-items"><button type="button" className="super-admin-sidebar-branch-name" onClick={() => navigate('/dashboard/super-admin?section=faculty-leave')}><span className="super-admin-sidebar-branch-dot" /><span>Faculty Leave Request</span></button></div> : null}
+                    {isLeaveManagementExpanded ? <div className="super-admin-sidebar-collapsed-group-nested-items"><button type="button" className="super-admin-sidebar-branch-name" onClick={() => navigate('/dashboard/super-admin?section=faculty-leave')}><span className="super-admin-sidebar-branch-dot" /><span>Faculty Leave Request</span></button><button type="button" className="super-admin-sidebar-branch-name" onClick={() => navigate('/dashboard/super-admin?section=discontinuations')}><span className="super-admin-sidebar-branch-dot" /><span>Student Discontinuation</span></button></div> : null}
                   </div>
                 </div>
               </div>
@@ -655,6 +743,7 @@ export function SuperAdminNotificationsPage() {
                 {isLeaveManagementExpanded || isSidebarCollapsed ? <div className="super-admin-sidebar-branch-list" aria-label="Leave management">
                   <div className="super-admin-sidebar-branch-list-title">Leave Management</div>
                   <button type="button" className="super-admin-sidebar-branch-name" title={isSidebarCollapsed ? 'Faculty Leave Request' : undefined} onClick={() => { setIsSidebarFlyoutDismissed(true); setIsMobileSidebarOpen(false); navigate('/dashboard/super-admin?section=faculty-leave') }}><span className="super-admin-sidebar-branch-dot" aria-hidden="true" /><span>Faculty Leave Request</span></button>
+                  <button type="button" className="super-admin-sidebar-branch-name" title={isSidebarCollapsed ? 'Student Discontinuation' : undefined} onClick={() => { setIsSidebarFlyoutDismissed(true); setIsMobileSidebarOpen(false); navigate('/dashboard/super-admin?section=discontinuations') }}><span className="super-admin-sidebar-branch-dot" aria-hidden="true" /><span>Student Discontinuation</span></button>
                 </div> : null}
                </div> : null}
             </div>
@@ -943,7 +1032,7 @@ export function SuperAdminNotificationsPage() {
         <div
           className="super-admin-notification-modal-backdrop"
           role="presentation"
-          onClick={() => setSelectedNotification(null)}
+          onClick={closeNotificationDetails}
         >
           <div
             className="super-admin-notification-modal"
@@ -956,7 +1045,7 @@ export function SuperAdminNotificationsPage() {
               type="button"
               className="super-admin-notification-modal-close"
               aria-label="Close notification details"
-              onClick={() => setSelectedNotification(null)}
+              onClick={closeNotificationDetails}
             >
               <X size={20} strokeWidth={2.4} aria-hidden="true" />
             </button>
@@ -994,6 +1083,78 @@ export function SuperAdminNotificationsPage() {
                   <strong>{selectedNotification.facultyName || selectedNotification.facultyEmail}</strong>
                 </div>
               ) : null}
+            </div>
+            {isStudentDiscontinuationNotification(selectedNotification) ? (
+              <div className="super-admin-discontinuation-readonly">
+                <div className="super-admin-discontinuation-readonly-heading">Branch review details</div>
+                {discontinuationDetailsLoading ? <div className="super-admin-discontinuation-details-loading"><span /><span /><span /></div> : (
+                  <>
+                    <div className="super-admin-discontinuation-readonly-grid">
+                      <div><span>Call outcome</span><strong>{selectedNotification.discontinuationDetails?.contactOutcome || 'Student wants to discontinue'}</strong></div>
+                      <div><span>Outstanding amount</span><strong>₹{Number(selectedNotification.discontinuationDetails?.financialSnapshot?.outstandingAmount || 0).toLocaleString('en-IN')}</strong></div>
+                      <div><span>Fee concession</span><strong>₹{Number(selectedNotification.discontinuationDetails?.financialSnapshot?.waiverAmount || 0).toLocaleString('en-IN')}</strong></div>
+                      <div><span>Refund eligible</span><strong>₹{Number(selectedNotification.discontinuationDetails?.financialSnapshot?.refundEligibleAmount || 0).toLocaleString('en-IN')}</strong></div>
+                    </div>
+                    <div className="super-admin-discontinuation-readonly-note"><span>Branch call notes</span><p>{selectedNotification.discontinuationDetails?.contactNotes || selectedNotification.discontinuationDetails?.branchReviewNote || 'No call notes provided.'}</p></div>
+                    <div className="super-admin-discontinuation-readonly-note"><span>Finance note</span><p>{selectedNotification.discontinuationDetails?.financialSnapshot?.financeNote || 'No finance note provided.'}</p></div>
+                  </>
+                )}
+              </div>
+            ) : null}
+            {isStudentDiscontinuationNotification(selectedNotification) &&
+            String(selectedNotification.requestStatus || '').toUpperCase() === 'SUPER_ADMIN_REVIEW' ? (
+              discontinuationDecisionForm ? (
+                ['REJECT', 'WAIT'].includes(discontinuationDecisionForm.decision) ? <form className="super-admin-discontinuation-decision" onSubmit={(event) => { event.preventDefault(); void handleDiscontinuationDecision(selectedNotification) }}>
+                  <div className="super-admin-discontinuation-decision-heading">
+                    <div>
+                      <span>Final decision</span>
+                      <strong>{discontinuationDecisionForm.decision === 'WAIT' ? 'Wait for installment follow-up' : 'Reject request'}</strong>
+                    </div>
+                    <button type="button" className="super-admin-discontinuation-back" onClick={() => { setDiscontinuationDecisionForm(null); setDiscontinuationDecisionError('') }}>Change</button>
+                  </div>
+                  {discontinuationDecisionForm.decision === 'REJECT' ? (
+                    <label>Rejection reason<textarea rows={3} value={discontinuationDecisionForm.note} onChange={(event) => setDiscontinuationDecisionForm((current) => ({ ...current, note: event.target.value }))} placeholder="Explain why this request is being rejected." required /></label>
+                  ) : <label>Next installment due date<input type="date" value={discontinuationDecisionForm.waitUntil} onChange={(event) => setDiscontinuationDecisionForm((current) => ({ ...current, waitUntil: event.target.value }))} required /><textarea rows={2} value={discontinuationDecisionForm.note} onChange={(event) => setDiscontinuationDecisionForm((current) => ({ ...current, note: event.target.value }))} placeholder="Optional note for the Branch Admin." /></label>}
+                  {discontinuationDecisionError ? <p className="super-admin-discontinuation-decision-error" role="alert">{discontinuationDecisionError}</p> : null}
+                  <div className="super-admin-notification-modal-actions">
+                    <button type="button" className="notifications-item-view-button is-secondary" disabled={discontinuationDecisionLoading} onClick={closeNotificationDetails}>Cancel</button>
+                    <button type="submit" className={`notifications-item-view-button ${discontinuationDecisionForm.decision === 'REJECT' ? 'is-danger' : ''}`.trim()} disabled={discontinuationDecisionLoading}>
+                      {discontinuationDecisionLoading ? <><LoaderCircle size={15} className="notifications-view-spinner" /> Saving...</> : discontinuationDecisionForm.decision === 'WAIT' ? 'Save wait decision' : 'Reject request'}
+                    </button>
+                  </div>
+                </form> : null
+              ) : (
+                <div className="super-admin-notification-modal-actions">
+                  <button type="button" className="notifications-item-view-button is-danger" onClick={() => openDiscontinuationDecision(selectedNotification, 'REJECT')}>Reject</button>
+                  <button type="button" className="notifications-item-view-button is-secondary" onClick={() => openDiscontinuationDecision(selectedNotification, 'WAIT')}>Wait</button>
+                  <button type="button" className="notifications-item-view-button" onClick={() => openDiscontinuationDecision(selectedNotification, 'APPROVE')}>Approve &amp; Discontinue</button>
+                </div>
+              )
+            ) : null}
+          </div>
+        </div>
+      ) : null}
+
+      {selectedNotification && discontinuationDecisionForm?.decision === 'APPROVE' ? (
+        <div className="super-admin-discontinuation-confirm-backdrop" role="presentation" onClick={() => { if (!discontinuationDecisionLoading) setDiscontinuationDecisionForm(null) }}>
+          <div className="super-admin-discontinuation-confirm-modal" role="dialog" aria-modal="true" aria-labelledby="super-admin-discontinuation-confirm-title" onClick={(event) => event.stopPropagation()}>
+            <button type="button" className="super-admin-discontinuation-confirm-close" aria-label="Close approval confirmation" disabled={discontinuationDecisionLoading} onClick={() => { setDiscontinuationDecisionForm(null); setDiscontinuationDecisionError('') }}>
+              <X size={18} strokeWidth={2.4} aria-hidden="true" />
+            </button>
+            <div className="super-admin-discontinuation-confirm-icon"><CheckCircle2 size={24} strokeWidth={2.2} /></div>
+            <p className="super-admin-discontinuation-confirm-eyebrow">FINAL APPROVAL</p>
+            <h2 id="super-admin-discontinuation-confirm-title">Approve discontinuation?</h2>
+            <p className="super-admin-discontinuation-confirm-copy">This will approve the branch-reviewed request and schedule the student account for deactivation.</p>
+            <div className="super-admin-discontinuation-confirm-summary">
+              <div><span>Outstanding amount</span><strong>₹{Number(selectedNotification.discontinuationDetails?.financialSnapshot?.outstandingAmount || 0).toLocaleString('en-IN')}</strong></div>
+              <div><span>Refund eligible</span><strong>₹{Number(selectedNotification.discontinuationDetails?.financialSnapshot?.refundEligibleAmount || 0).toLocaleString('en-IN')}</strong></div>
+            </div>
+            {discontinuationDecisionError ? <p className="super-admin-discontinuation-decision-error" role="alert">{discontinuationDecisionError}</p> : null}
+            <div className="super-admin-discontinuation-confirm-actions">
+              <button type="button" className="notifications-item-view-button is-secondary" disabled={discontinuationDecisionLoading} onClick={() => { setDiscontinuationDecisionForm(null); setDiscontinuationDecisionError('') }}>Cancel</button>
+              <button type="button" className="notifications-item-view-button" disabled={discontinuationDecisionLoading} onClick={() => void handleDiscontinuationDecision(selectedNotification)}>
+                {discontinuationDecisionLoading ? <><LoaderCircle size={15} className="notifications-view-spinner" /> Saving...</> : 'Confirm approval'}
+              </button>
             </div>
           </div>
         </div>
