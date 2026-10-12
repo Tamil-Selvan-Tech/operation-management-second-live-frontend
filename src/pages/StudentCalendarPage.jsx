@@ -69,6 +69,7 @@ function hydrateStudentCalendarSummary(student) {
 
 export function StudentCalendarPage({ student: initialStudent, studentId, backPath, onBack, backLabel = 'Back to Students', facultyProfile = null, useFacultyCalendar = false }) {
   const [student, setStudent] = useState(() => hydrateStudentCalendarSummary(initialStudent))
+  const [studentLoading, setStudentLoading] = useState(() => Boolean(studentId && !initialStudent))
   const [facultyCalendar, setFacultyCalendar] = useState(null)
   const [error, setError] = useState('')
   const resolvedId = String(studentId || getStudentKey(initialStudent)).trim()
@@ -106,7 +107,9 @@ export function StudentCalendarPage({ student: initialStudent, studentId, backPa
       .then(([calendarResult, attendanceResult]) => {
         const calendar = calendarResult.status === 'fulfilled' ? calendarResult.value : null
         const attendanceOverview = attendanceResult.status === 'fulfilled' ? attendanceResult.value : null
-        if (!active || (!calendar && !attendanceOverview)) return
+        if (!active) return
+        setStudentLoading(false)
+        if (!calendar && !attendanceOverview) return
         const savedSummary = getStudentCalendarSummary(initialStudent || {})
         const attendanceRows = Array.isArray(attendanceOverview?.attendance) ? attendanceOverview.attendance : []
         setStudent((current) => ({
@@ -126,6 +129,7 @@ export function StudentCalendarPage({ student: initialStudent, studentId, backPa
         }))
       })
       .catch((requestError) => {
+        if (active) setStudentLoading(false)
         // Calendar detail hydration is optional for dashboard users. The
         // dashboard student record remains the source of truth when the
         // role cannot access the dedicated calendar endpoint.
@@ -161,6 +165,20 @@ export function StudentCalendarPage({ student: initialStudent, studentId, backPa
   } : null)
 
   if (!student) {
+    if (studentLoading && resolvedId) {
+      return (
+        <section className="student-calendar-page student-calendar-loading-state" aria-busy="true" aria-live="polite">
+          <button type="button" className="student-calendar-back-button" onClick={back}>
+            <ArrowLeft size={17} /> {backLabel}
+          </button>
+          <div className="student-calendar-loading-card">
+            <span className="student-calendar-loading-spinner" aria-hidden="true" />
+            <strong>Loading student calendar</strong>
+            <span>Please wait while the student record is fetched.</span>
+          </div>
+        </section>
+      )
+    }
     return <section className="student-calendar-page"><p className="student-calendar-page-error">Student record not found.</p></section>
   }
 

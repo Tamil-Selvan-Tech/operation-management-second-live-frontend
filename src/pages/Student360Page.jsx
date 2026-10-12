@@ -761,6 +761,7 @@ export function Student360Page({
   const performanceBranchId = String(branch?.id || branch?.branchId || initialStudent?.branchId || '').trim()
   const initialStudentRef = useRef(initialStudent)
   const [studentRecord, setStudentRecord] = useState(null)
+  const [studentLoading, setStudentLoading] = useState(Boolean(resolvedStudentId && !initialStudent))
   const [academicProgressState, setAcademicProgressState] = useState({ studentId: '', data: null, report: null, error: '' })
   const [courseSelection, setCourseSelection] = useState({ studentId: '', courseKey: '' })
   const [assignmentModalOpen, setAssignmentModalOpen] = useState(false)
@@ -817,13 +818,34 @@ export function Student360Page({
         setAcademicProgressState({ studentId: resolvedStudentId, data: getAcademicTestProgress(result, mergedAcademicReport), report: mergedAcademicReport, error: '' })
       })
       .catch((error) => {
-        if (active) setAcademicProgressState({ studentId: resolvedStudentId, data: null, report: null, error: error?.message || 'Unable to load academic test progress.' })
+        if (!active) return
+        setStudentRecord({ studentId: resolvedStudentId, data: null })
+        setAcademicProgressState({ studentId: resolvedStudentId, data: null, report: null, error: error?.message || 'Unable to load academic test progress.' })
+      })
+      .finally(() => {
+        if (active) setStudentLoading(false)
       })
     return () => { active = false }
   }, [resolvedStudentId, performanceBranchId])
 
   const student = studentRecord?.studentId === resolvedStudentId ? studentRecord.data : initialStudent
+  const isStudentLoading = Boolean(resolvedStudentId && !student && (studentLoading || studentRecord?.studentId !== resolvedStudentId))
   const academicTestProgressError = academicProgressState.studentId === resolvedStudentId ? academicProgressState.error : ''
+
+  if (!student && isStudentLoading) {
+    return (
+      <section className="student360-page student360-empty-state student360-loading-state" aria-busy="true" aria-live="polite">
+        <button type="button" className="student360-back-button" onClick={onBack}>
+          <ArrowLeft size={17} aria-hidden="true" /> {backLabel}
+        </button>
+        <div className="student360-empty-card">
+          <span className="student360-loading-spinner" aria-hidden="true" />
+          <h1>Loading student profile</h1>
+          <p>Please wait while the student details are fetched.</p>
+        </div>
+      </section>
+    )
+  }
 
   if (!student) {
     return (

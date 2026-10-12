@@ -217,11 +217,11 @@ export function StudentCalendarPanel({ student, facultyCalendar = null, external
 
   if (!calendar.isReady) {
     return (
-      <section className="student-new-calendar-page">
+      <section className="student-new-calendar-page student-new-calendar-loading" aria-busy="true" aria-live="polite">
         <div className="student-new-calendar-empty">
-          <p className="student-new-dashboard-kicker">CALENDAR</p>
-          <h2>Course calendar not available yet</h2>
-          <p>We could not find a saved course start date for this student.</p>
+          <span className="student-calendar-loading-spinner" aria-hidden="true" />
+          <h2>Loading student calendar</h2>
+          <p>Please wait while the student record is fetched.</p>
         </div>
       </section>
     )

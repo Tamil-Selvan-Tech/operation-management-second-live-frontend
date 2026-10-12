@@ -3,6 +3,13 @@
 .student-calendar-page-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
 .student-calendar-page-header h1 { margin: 0; color: #0f172a; font-size: clamp(1.6rem, 3vw, 2.2rem); }
 .student-calendar-page-error { margin: 0; color: #b91c1c; font-weight: 700; }
+.student-calendar-loading-card { display: grid; justify-items: center; gap: 10px; min-height: 220px; align-content: center; border: 1px solid #dbeafe; border-radius: 16px; background: #fff; color: #64748b; text-align: center; }
+.student-calendar-loading-card strong { color: #1d4ed8; font-size: 1rem; }
+.student-calendar-loading-card span:last-child { font-size: .82rem; }
+.student-calendar-loading-spinner { width: 30px; height: 30px; border: 3px solid #dbeafe; border-top-color: #2563eb; border-radius: 50%; animation: student-calendar-spin .8s linear infinite; }
+.student-new-calendar-loading .student-new-calendar-empty { display: grid; place-items: center; min-height: 180px; box-sizing: border-box; }
+.student-new-calendar-loading .student-calendar-loading-spinner { display: block; width: 34px !important; min-width: 34px; height: 34px !important; box-sizing: border-box; border: 4px solid #dbeafe; border-top-color: #2563eb; border-radius: 50%; }
+@keyframes student-calendar-spin { to { transform: rotate(360deg); } }
 @media (max-width: 650px) { .student-calendar-page-header { flex-direction: column; } }
 
 /* External Branch Admin / Faculty calendar presentation. Business logic stays
