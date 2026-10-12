@@ -130,35 +130,83 @@ function extractAttendanceStatuses(payload = {}, filters = {}) {
   const expectedCourseId = normalizeMatchKey(filters?.courseId || '')
   const expectedBatchId = normalizeMatchKey(filters?.batchId || '')
   const expectedDate = String(filters?.date || '').trim()
+  const responseDate = String(source?.date || source?.attendanceDate || '').trim()
   const rows = [
     ...(Array.isArray(source) ? source : []),
     ...(Array.isArray(source?.students) ? source.students : []),
     ...(Array.isArray(source?.attendance) ? source.attendance : []),
     ...(Array.isArray(source?.attendanceRecords) ? source.attendanceRecords : []),
-    ...(Array.isArray(source?.batches) ? source.batches.flatMap((batch) => (Array.isArray(batch?.students) ? batch.students : [])) : []),
+    ...(Array.isArray(source?.batches) ? source.batches.flatMap((batch) => (
+      Array.isArray(batch?.students)
+        ? batch.students.map((student) => ({
+            ...student,
+            batchId: student?.batchId || student?.batchEntryId || batch?.batchId || batch?.id,
+            batchEntryId: student?.batchEntryId || batch?.batchEntryId,
+            courseId: student?.courseId || batch?.courseId || batch?.branchCourseId,
+            branchCourseId: student?.branchCourseId || batch?.branchCourseId,
+          }))
+        : []
+    )) : []),
   ]
   const statuses = {}
+
+  const firstValue = (...values) => values.find((value) => String(value || '').trim()) || ''
+
+  const getScope = (row = {}, record = null) => {
+    const item = record || row
+    const course = item?.course || item?.courseRecord || item?.courseDetails || row?.course || {}
+    const batch = item?.batch || item?.batchRecord || item?.batchDetails || row?.batch || {}
+    const enrollment = item?.enrollment || item?.courseEnrollment || row?.enrollment || {}
+    return {
+      courseId: normalizeMatchKey(firstValue(
+        item?.courseId,
+        item?.branchCourseId,
+        enrollment?.courseId,
+        course?.courseId,
+        course?.id,
+        row?.courseId,
+        row?.branchCourseId,
+      )),
+      batchId: normalizeMatchKey(firstValue(
+        item?.batchId,
+        item?.batchEntryId,
+        item?.batchRecordId,
+        enrollment?.batchId,
+        enrollment?.batchEntryId,
+        batch?.batchId,
+        batch?.id,
+        row?.batchId,
+        row?.batchEntryId,
+        row?.batchRecordId,
+      )),
+    }
+  }
+
+  const matchesScope = (scope) => {
+    // The branch overview is branch-wide. A row without explicit course/batch
+    // scope must not leak a status from another batch into this detail modal.
+    if (expectedCourseId && scope.courseId !== expectedCourseId) return false
+    if (expectedBatchId && scope.batchId !== expectedBatchId) return false
+    return true
+  }
 
   rows.forEach((row) => {
     const studentId = normalizeMatchKey(
       row?.studentId || row?.studentCode || row?.id || row?.student?.studentId || row?.student?.studentCode || row?.student?.id,
     )
-    const rowCourseId = normalizeMatchKey(row?.courseId || row?.branchCourseId || '')
-    const rowBatchId = normalizeMatchKey(row?.batchId || row?.batchEntryId || '')
-    if (expectedCourseId && rowCourseId && rowCourseId !== expectedCourseId) return
-    if (expectedBatchId && rowBatchId && rowBatchId !== expectedBatchId) return
+    const rowScope = getScope(row)
     const rawStatus = String(row?.attendanceStatus || row?.attendanceStatusLabel || row?.status || '').trim().toUpperCase()
-    if (studentId && ['PRESENT', 'ABSENT'].includes(rawStatus) && (row?.attendanceMarkedAt || row?.markedAt || row?.attendanceDate === expectedDate)) {
+    const rowDate = String(row?.attendanceDate || row?.date || '').trim()
+    const hasExpectedDate = !expectedDate || rowDate === expectedDate || responseDate === expectedDate || row?.attendanceMarkedAt || row?.markedAt
+    if (studentId && matchesScope(rowScope) && ['PRESENT', 'ABSENT'].includes(rawStatus) && hasExpectedDate) {
       statuses[studentId] = rawStatus
     }
 
     const records = Array.isArray(row?.records) ? row.records : []
     records.forEach((record) => {
-      if (expectedDate && String(record?.attendanceDate || '').trim() !== expectedDate) return
-      const recordCourseId = normalizeMatchKey(record?.courseId || '')
-      const recordBatchId = normalizeMatchKey(record?.batchId || '')
-      if (expectedCourseId && recordCourseId && recordCourseId !== expectedCourseId) return
-      if (expectedBatchId && recordBatchId && recordBatchId !== expectedBatchId) return
+      const recordDate = String(record?.attendanceDate || record?.date || '').trim()
+      if (expectedDate && recordDate !== expectedDate && responseDate !== expectedDate) return
+      if (!matchesScope(getScope(row, record))) return
       const recordStatus = String(record?.attendanceStatus || record?.attendanceStatusLabel || record?.status || '').trim().toUpperCase()
       if (studentId && ['PRESENT', 'ABSENT'].includes(recordStatus)) statuses[studentId] = recordStatus
     })
