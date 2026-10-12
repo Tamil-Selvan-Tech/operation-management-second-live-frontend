@@ -281,6 +281,33 @@ body.student-notification-menu-open .student-new-content { overscroll-behavior: 
   transform: rotate(180deg);
 }
 
+.student-new-leave-management-page {
+  display: grid;
+  gap: 4px;
+}
+
+.student-new-page-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 8px;
+}
+
+.student-new-page-heading h1 {
+  margin: 4px 0 8px;
+  color: #132f58;
+  font-size: clamp(28px, 3vw, 40px);
+  line-height: 1.1;
+}
+
+.student-new-page-heading p:last-child {
+  margin: 0;
+  color: #71839d;
+  font-size: 15px;
+  line-height: 1.5;
+}
+
 .student-new-sidebar-nested-subnav {
   margin: 0 0 2px 14px;
   padding-left: 10px;
@@ -1017,6 +1044,15 @@ body.student-notification-menu-open .student-new-content { overscroll-behavior: 
   padding: 20px 22px;
   margin-bottom: 16px;
 }
+
+.student-new-profile-header-card { position: relative; }
+.student-new-profile-header-actions { position: absolute; top: 16px; right: 16px; z-index: 4; }
+.student-new-profile-actions-trigger { display: grid; place-items: center; gap: 3px; width: 34px; height: 34px; padding: 7px; border: 0; border-radius: 9px; background: #fff; cursor: pointer; }
+.student-new-profile-actions-trigger:hover { background: #f7fbff; }
+.student-new-profile-actions-trigger span { width: 3px; height: 3px; border-radius: 50%; background: #42617f; }
+.student-new-profile-actions-menu { position: absolute; top: calc(100% + 8px); right: 0; width: 210px; padding: 6px; border: 1px solid #dbe5f0; border-radius: 11px; background: #fff; box-shadow: 0 14px 30px rgba(15, 63, 112, .14); }
+.student-new-profile-actions-menu button { display: block; width: 100%; padding: 10px 11px; border: 0; border-radius: 7px; background: transparent; color: #294663; font: inherit; font-size: 13px; font-weight: 700; text-align: left; cursor: pointer; }
+.student-new-profile-actions-menu button:hover { background: #eef5ff; color: #1769c2; }
 
 .student-new-profile-header-avatar {
   width: 58px;

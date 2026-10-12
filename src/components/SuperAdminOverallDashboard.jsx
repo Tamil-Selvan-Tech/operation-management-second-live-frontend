@@ -148,7 +148,12 @@ export function SuperAdminOverallDashboard({ branches, userKey = 'super-admin', 
 
   useEffect(() => {
     const timerId = window.setTimeout(() => { void load() }, 0)
-    return () => window.clearTimeout(timerId)
+    const handleDiscontinuationApproved = () => { void load() }
+    window.addEventListener('cispro:discontinuation-approved', handleDiscontinuationApproved)
+    return () => {
+      window.clearTimeout(timerId)
+      window.removeEventListener('cispro:discontinuation-approved', handleDiscontinuationApproved)
+    }
   }, [load])
 
   useEffect(() => {

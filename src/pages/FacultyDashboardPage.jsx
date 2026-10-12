@@ -1100,6 +1100,13 @@ function getFacultyBatchProgressStudents(batch = {}, course = {}, students = [],
   }))
 }
 
+function isDiscontinuedStudent(student = {}) {
+  return Boolean(
+    student?.isDiscontinued
+    || String(student?.discontinuationStatus || '').toUpperCase() === 'APPROVED'
+  )
+}
+
 function isAttendanceDayForBatch(batch = {}, date = new Date()) {
   const weekType = String(batch?.weekType || batch?.weekdayType || '').trim().toUpperCase()
   if (!weekType) return true
@@ -3275,6 +3282,7 @@ export function FacultyDashboardPage() {
   ])
 
   const studentsFlowVisibleStudents = selectedStudentsBatch ? selectedBatchStudents : facultyScopedStudents
+  const studentsFlowActionableStudents = studentsFlowVisibleStudents.filter((student) => !isDiscontinuedStudent(student))
   const studentsFlowLevel = selectedStudentsBatch ? 3 : selectedStudentsCourse ? 2 : 1
   const todayWorkCourse = useMemo(() => {
     if (studentsFlowLevel === 3) {
@@ -5338,7 +5346,7 @@ const nextName = trimmedValue
     }
   }, [hasUnmarkedAttendance, selectedStudentsBatchId, todayWorkAttendanceWindow.isReminder, todayWorkAttendanceWindow.warningMinutes, todayWorkAttendanceWindow.reason])
 
-  const visibleAttendanceStudents = studentsFlowVisibleStudents.filter((student) => {
+  const visibleAttendanceStudents = studentsFlowActionableStudents.filter((student) => {
     if (!normalizedAttendanceSearch) return true
     return [student?.studentName, student?.studentId, student?.emailAddress]
       .map((value) => String(value || '').toLowerCase())
@@ -5757,7 +5765,7 @@ const nextName = trimmedValue
                       <button
                         type="button"
                         className="faculty-today-work-trigger"
-                        disabled={attendanceWeekTypeLocked}
+                        disabled={attendanceWeekTypeLocked || !studentsFlowActionableStudents.length}
                         title={attendanceWeekTypeLocked ? `Attendance is disabled today for this ${selectedStudentsBatch?.weekType === 'WEEKEND' ? 'weekend' : 'weekday'} batch` : 'Open Attendance'}
                         onClick={() => openTodayWorkModal('attendance')}
                       >
@@ -5768,6 +5776,7 @@ const nextName = trimmedValue
                         type="button"
                         className="faculty-today-work-trigger faculty-today-work-trigger--progress"
                         onClick={() => openTodayWorkModal('progress')}
+                        disabled={!studentsFlowActionableStudents.length}
                       >
                         <BookOpen size={16} />
                         <span>Today's Work</span>
@@ -6138,6 +6147,18 @@ const nextName = trimmedValue
                                     ? Math.min(100, Math.max(0, storedCourseProgress))
                                     : 0
                                 const workCourseProgressLabel = `${Math.round(workCourseProgress)}% Complete`
+                                if (isDiscontinuedStudent(student)) {
+                                  return (
+                                    <tr key={student.id || student.studentId || `${studentName}-${index}`} className="faculty-student-discontinued-row">
+                                      <td colSpan={9}>
+                                        <div className="faculty-student-discontinued-only">
+                                          <strong>{studentName}</strong>
+                                          <span>Discontinued</span>
+                                        </div>
+                                      </td>
+                                    </tr>
+                                  )
+                                }
                                 return (
                                   <tr
                                     key={student.id || student.studentId || `${studentName}-${index}`}
@@ -7009,7 +7030,7 @@ const nextName = trimmedValue
                 ) : null}
 
                 <div className={`faculty-today-work-student-list${todayWorkMode === 'attendance' ? ' faculty-today-work-attendance-list' : ' faculty-today-work-progress-list'}`}>
-                  {(todayWorkMode === 'attendance' ? visibleAttendanceStudents : studentsFlowVisibleStudents).map((student, index) => {
+                  {(todayWorkMode === 'attendance' ? visibleAttendanceStudents : studentsFlowActionableStudents).map((student, index) => {
                     const studentId = getTodayWorkStudentId(student)
                     const studentName = String(student?.studentName || student?.name || `Student ${index + 1}`).trim()
                     const status = todayWorkForm.attendanceByStudent?.[studentId] || ''

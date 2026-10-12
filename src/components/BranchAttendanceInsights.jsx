@@ -29,6 +29,7 @@ function normalizeAttendanceInsightsData(data) {
       }
       return unique
     }, [])
+    .filter((student) => !student?.isDiscontinued && String(student?.discontinuationStatus || '').toUpperCase() !== 'APPROVED')
     .map((student) => {
       const status = String(student?.attendanceStatus || student?.status || '').trim().toUpperCase()
       const records = Array.isArray(student?.records) ? [...student.records] : []

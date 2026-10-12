@@ -276,6 +276,25 @@ export async function getCurrentStudentAttendanceOverview(courseId = '') {
   return unwrapData(response)
 }
 
+export async function createStudentDiscontinuationRequest(payload = {}) {
+  const response = await request('/student-discontinuation/me', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+  return unwrapData(response)
+}
+
+export async function getStudentDiscontinuationFinancePreview() {
+  const response = await request('/student-discontinuation/me/preview')
+  return unwrapData(response)
+}
+
+export async function getStudentDiscontinuationRequests(status = '') {
+  const suffix = status ? '?status=' + encodeURIComponent(status) : ''
+  const response = await request('/student-discontinuation' + suffix)
+  return unwrapData(response)
+}
+
 export async function getCurrentStudentCourse(courseId = '') {
   const params = new URLSearchParams()
   if (String(courseId || '').trim()) params.set('courseId', String(courseId).trim())
