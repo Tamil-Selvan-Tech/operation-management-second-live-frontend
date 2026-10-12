@@ -119,6 +119,25 @@ function getEnrollmentInstallmentCount(enrollment = {}, branchCourseCards = []) 
   ) || 0)
 }
 
+function isProjectOnlyEvaluation(evaluation = {}) {
+  const type = String(evaluation?.type || evaluation?.testType || evaluation?.evaluationType || '').trim().toUpperCase()
+  const name = String(evaluation?.name || evaluation?.title || evaluation?.testName || '').trim().toUpperCase()
+  const value = `${type} ${name}`
+  return value.includes('PROJECT') && !value.includes('TEST')
+}
+
+function isTestAndProjectEvaluation(evaluation = {}) {
+  const value = String(evaluation?.type || evaluation?.testType || evaluation?.evaluationType || '').trim().toUpperCase()
+  return value.includes('TEST') && value.includes('PROJECT')
+}
+
+function getCountedAcademicEvaluations(evaluations = []) {
+  const hasCombinedEvaluation = evaluations.some(isTestAndProjectEvaluation)
+  return hasCombinedEvaluation
+    ? evaluations.filter((evaluation) => !isProjectOnlyEvaluation(evaluation))
+    : evaluations
+}
+
 function getAcademicTestProgress(profile = {}, report = {}) {
   const profileProgress = profile?.academicTestProgress || {}
   const reportData = report?.data || report || {}
@@ -135,12 +154,20 @@ function getAcademicTestProgress(profile = {}, report = {}) {
   // when the response is also for the requested student; this prevents a
   // duplicate student name from leaking another student's progress.
   if (evaluations && (!reportStudentId || !requestedStudentId || reportStudentId === requestedStudentId)) {
-    const totalTests = Number(reportData.totalTests ?? profileProgress.totalTests ?? 0)
-    const completedTests = evaluations.filter((evaluation) => {
+    const countedEvaluations = getCountedAcademicEvaluations(evaluations)
+    const completedTests = countedEvaluations.filter((evaluation) => {
       const status = String(evaluation?.status || '').toUpperCase()
       return status === 'SUBMITTED' || status === 'EVALUATED' || Number.isFinite(Number(evaluation?.percentage))
     }).length
-    const safeTotal = Math.max(totalTests, evaluations.length, completedTests)
+    // A TEST_AND_PROJECT item may be returned as one test evaluation plus a
+    // separate project evaluation. The project belongs to the same test and
+    // must not increase the Academic Test count.
+    const responseTotal = Number(reportData.totalTests)
+    const safeTotal = Math.max(
+      countedEvaluations.length,
+      completedTests,
+      countedEvaluations.length ? 0 : (Number.isFinite(responseTotal) ? responseTotal : Number(profileProgress.totalTests) || 0),
+    )
     const pendingTests = Math.max(0, safeTotal - completedTests)
     return {
       totalTests: safeTotal,
