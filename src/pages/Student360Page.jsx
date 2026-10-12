@@ -143,7 +143,11 @@ function getAcademicTestProgress(profile = {}, report = {}, selectedCourseId = '
         (normalizedCourseName && String(evaluation?.courseName || '').trim().toLowerCase() === normalizedCourseName)
       ))
       : evaluations
-    const totalTests = courseEvaluations.length
+    const totalTests = Number(
+      reportData.courseTotals?.[normalizedCourseId] ??
+      reportData.courseTotals?.[String(courseEvaluations[0]?.courseId || '').trim()] ??
+      courseEvaluations.length,
+    ) || courseEvaluations.length
     const completedTests = courseEvaluations.filter((evaluation) => {
       const status = String(evaluation?.status || '').toUpperCase()
       return status === 'SUBMITTED' || status === 'EVALUATED' || Number.isFinite(Number(evaluation?.percentage))
