@@ -18,6 +18,27 @@ function formatAmount(value) {
   }).format(Number(value || 0))
 }
 
+function requestDateValue(item) {
+  return item?.createdAt || item?.submittedAt || item?.requestedAt || item?.updatedAt
+}
+
+function indiaDateKey(value) {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return ''
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Kolkata',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(date)
+}
+
+function formatRequestDate(value) {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return '-'
+  return new Intl.DateTimeFormat('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }).format(date)
+}
+
 function getStudent(requestItem) {
   return requestItem?.branchStudent || requestItem?.student || {}
 }
@@ -42,11 +63,24 @@ function getOutstandingAmount(requestItem) {
   return Number(snapshot.finalOutstandingAmount ?? snapshot.outstandingAmount ?? requestItem?.finalOutstandingAmount ?? requestItem?.outstandingAmount ?? 0)
 }
 
+function getStatusLabel(status) {
+  const value = String(status || '').trim().toUpperCase()
+  if (value === 'SUPER_ADMIN_REVIEW') return 'Pending approval'
+  if (value === 'SUPER_ADMIN_WAIT') return 'Waiting'
+  if (value === 'APPROVED') return 'Approved'
+  if (value === 'REJECTED') return 'Rejected'
+  if (value === 'CANCELLED') return 'Cancelled'
+  if (value === 'CONTACTED_CONTINUE') return 'Continue'
+  if (value === 'UNABLE_TO_CONTACT') return 'Unable to contact'
+  return value || 'Pending'
+}
+
 export function SuperAdminDiscontinuationPage() {
   const [requests, setRequests] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [search, setSearch] = useState('')
+  const [showHistory, setShowHistory] = useState(false)
   const [selected, setSelected] = useState(null)
   const [decision, setDecision] = useState('')
   const [note, setNote] = useState('')
@@ -57,7 +91,7 @@ export function SuperAdminDiscontinuationPage() {
     setLoading(true)
     setError('')
     try {
-      const response = await request('/student-discontinuation?status=SUPER_ADMIN_REVIEW')
+      const response = await request('/student-discontinuation')
       setRequests(unwrapRows(response))
     } catch (loadError) {
       setError(loadError?.message || 'Unable to load discontinuation requests.')
@@ -72,8 +106,10 @@ export function SuperAdminDiscontinuationPage() {
 
   const filteredRequests = useMemo(() => {
     const term = search.trim().toLowerCase()
-    if (!term) return requests
     return requests.filter((item) => {
+      const isToday = indiaDateKey(requestDateValue(item)) === indiaDateKey(new Date())
+      if (showHistory ? isToday : !isToday) return false
+      if (!term) return true
       const student = getStudent(item)
       return [
         student.studentName,
@@ -85,7 +121,7 @@ export function SuperAdminDiscontinuationPage() {
         item.reason,
       ].some((value) => String(value || '').toLowerCase().includes(term))
     })
-  }, [requests, search])
+  }, [requests, search, showHistory])
 
   const canWaitForSelectedRequest = selected && (
     String(selected.contactOutcome || '').toUpperCase() === 'UNABLE_TO_CONTACT'
@@ -107,6 +143,8 @@ export function SuperAdminDiscontinuationPage() {
     setWaitUntil('')
     setError('')
   }
+
+  const isReviewable = (item) => String(item?.status || '').trim().toUpperCase() === 'SUPER_ADMIN_REVIEW'
 
   const submitDecision = async (event) => {
     event.preventDefault()
@@ -156,7 +194,10 @@ export function SuperAdminDiscontinuationPage() {
             <Search size={16} aria-hidden="true" />
             <input id="super-admin-discontinuation-search" type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search student, ID or course" />
           </label>
-          <span className="super-admin-global-count">{filteredRequests.length} pending</span>
+          <button type="button" className={`super-admin-discontinuation-history-button${showHistory ? ' is-history-back' : ''}`} aria-pressed={showHistory} onClick={() => setShowHistory((current) => !current)}>
+            {showHistory ? 'Back to today' : 'View history'}
+          </button>
+          <span className="super-admin-global-count">{filteredRequests.length} requests</span>
         </div>
       </div>
 
@@ -165,7 +206,7 @@ export function SuperAdminDiscontinuationPage() {
       {loading ? <div className="super-admin-discontinuation-loading" aria-label="Loading discontinuation requests"><span /><span /><span /></div> : (
         <div className="super-admin-global-table-wrap super-admin-discontinuation-table-wrap">
           <table className="super-admin-global-table super-admin-discontinuation-table">
-            <thead><tr><th>Student</th><th>Course / Batch</th><th>Outstanding</th><th>Branch</th><th>Action</th></tr></thead>
+            <thead><tr><th>Student</th><th>Course / Batch</th><th>Outstanding</th><th>Branch</th><th>Requested date</th><th>Status</th><th>Action</th></tr></thead>
             <tbody>
               {filteredRequests.map((item) => {
                 const student = getStudent(item)
@@ -174,10 +215,12 @@ export function SuperAdminDiscontinuationPage() {
                   <td><strong>{student.courseName || '-'}</strong><small>{student.batchName || '-'}</small></td>
                   <td><strong>{formatAmount(getOutstandingAmount(item))}</strong><small>{item.reason || 'Discontinuation request'}</small></td>
                   <td><strong>{item.branchName || item.branch?.branchName || item.branchStudent?.branch?.branchName || item.branchId || '-'}</strong></td>
-                  <td><div className="super-admin-discontinuation-row-actions"><button type="button" className="super-admin-discontinuation-view" onClick={(event) => { event.stopPropagation(); openDetails(item) }}>View details</button><button type="button" className="super-admin-discontinuation-approve" onClick={(event) => { event.stopPropagation(); openDetails(item) }}>Approve</button></div></td>
+                  <td>{formatRequestDate(requestDateValue(item))}</td>
+                  <td><span className={`super-admin-global-status status-${String(item.status || '').toLowerCase().replaceAll('_', '-')}`}>{getStatusLabel(item.status)}</span></td>
+                  <td><div className="super-admin-discontinuation-row-actions"><button type="button" className="super-admin-discontinuation-view" onClick={(event) => { event.stopPropagation(); openDetails(item) }}>View details</button>{isReviewable(item) ? <button type="button" className="super-admin-discontinuation-approve" onClick={(event) => { event.stopPropagation(); openDetails(item) }}>Approve</button> : null}</div></td>
                 </tr>
               })}
-              {!filteredRequests.length ? <tr><td colSpan="5" className="super-admin-global-empty">{search.trim() ? 'No matching discontinuation requests found.' : 'No requests are awaiting final approval.'}</td></tr> : null}
+              {!filteredRequests.length ? <tr><td colSpan="7" className="super-admin-global-empty">{search.trim() ? 'No matching discontinuation requests found.' : showHistory ? 'No history requests found.' : 'No requests received today.'}</td></tr> : null}
             </tbody>
           </table>
         </div>
@@ -190,7 +233,7 @@ export function SuperAdminDiscontinuationPage() {
           <h2 id="super-admin-discontinuation-title">{getStudent(selected).studentName || 'Student'} discontinuation</h2>
           <p className="super-admin-discontinuation-modal-copy">Branch Admin has reviewed this request. Choose whether to approve or reject it.</p>
           <div className="super-admin-discontinuation-detail-grid"><div><span>Student ID</span><strong>{getStudent(selected).studentId || '-'}</strong></div><div><span>Course</span><strong>{getStudent(selected).courseName || '-'}</strong></div><div><span>Reason</span><strong>{selected.reason || '-'}</strong></div><div><span>Paid amount</span><strong>{formatAmount(getFinancialValue(selected, 'totalPaid'))}</strong></div><div><span>Outstanding amount</span><strong>{formatAmount(getOutstandingAmount(selected))}</strong></div><div><span>Refund eligible</span><strong>{formatAmount(getFinancialValue(selected, 'refundEligibleAmount'))}</strong></div></div>
-          {decision ? null : <div className="super-admin-discontinuation-modal-actions"><button type="button" className="super-admin-discontinuation-danger" onClick={() => setDecision('REJECT')}>Reject</button>{canWaitForSelectedRequest ? <button type="button" className="super-admin-discontinuation-secondary" onClick={() => setDecision('WAIT')}>Wait</button> : null}<button type="button" className="super-admin-discontinuation-approve" onClick={() => setDecision('APPROVE')}>Approve &amp; discontinue</button></div>}
+          {decision ? null : isReviewable(selected) ? <div className="super-admin-discontinuation-modal-actions"><button type="button" className="super-admin-discontinuation-danger" onClick={() => setDecision('REJECT')}>Reject</button>{canWaitForSelectedRequest ? <button type="button" className="super-admin-discontinuation-secondary" onClick={() => setDecision('WAIT')}>Wait</button> : null}<button type="button" className="super-admin-discontinuation-approve" onClick={() => setDecision('APPROVE')}>Approve &amp; discontinue</button></div> : <div className="super-admin-discontinuation-history-status"><CheckCircle2 size={17} /> This request is {getStatusLabel(selected.status).toLowerCase()}.</div>}
         </div>
       </div> : null}
 

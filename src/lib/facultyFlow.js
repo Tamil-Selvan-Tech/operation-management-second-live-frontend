@@ -357,27 +357,36 @@ export function getMatchingStudents(
   const normalizedBatchTiming = normalizeText(batchTiming || '')
 
   return (Array.isArray(students) ? students : []).filter((student) => {
-    const matchingEnrollment = (Array.isArray(student?.courseEnrollments) ? student.courseEnrollments : []).find((enrollment) => {
-      const enrollmentCourseId = String(enrollment?.courseId || '').trim().toLowerCase()
+    const enrollmentScopes = Array.isArray(student?.courseEnrollments) && student.courseEnrollments.length
+      ? student.courseEnrollments
+      : Array.isArray(student?.courses) ? student.courses : []
+    const matchingEnrollment = enrollmentScopes.find((enrollment) => {
+      const enrollmentCourseId = String(enrollment?.courseId || enrollment?.course?.id || '').trim().toLowerCase()
       const enrollmentCourseName = normalizeText(enrollment?.courseName || enrollment?.course?.name || '')
-      const enrollmentBatchId = String(enrollment?.batchId || enrollment?.batchEntryId || '').trim().toLowerCase()
-      const enrollmentBatchName = normalizeText(enrollment?.batchName || enrollment?.batch || '')
-      return (
-        (!normalizedCourseId || enrollmentCourseId === normalizedCourseId || enrollmentCourseName === normalizedCourseName) &&
-        (!normalizedCourseName || enrollmentCourseName === normalizedCourseName || enrollmentCourseId === normalizedCourseId) &&
-        (!normalizedBatchId || !enrollmentBatchId || enrollmentBatchId === normalizedBatchId) &&
-        (!normalizedBatchName || normalizeBatchToken(enrollmentBatchName) === normalizedBatchToken)
-      )
+      const enrollmentBatchGroupId = String(enrollment?.batchGroupId || enrollment?.batch?.batchGroupId || '').trim().toLowerCase()
+      const enrollmentBatchId = String(enrollment?.batchId || enrollment?.batchEntryId || enrollment?.batch?.batchId || '').trim().toLowerCase()
+      const enrollmentBatchName = normalizeText(enrollment?.batchName || enrollment?.batch || enrollment?.batch?.batchName || '')
+      const enrollmentBatchToken = normalizeBatchToken(enrollment?.batchName || enrollment?.batch || enrollment?.batch?.batchName || '')
+      const enrollmentFacultyId = String(enrollment?.facultyId || enrollment?.faculty?.id || '').trim().toLowerCase()
+      const enrollmentFacultyName = normalizeText(enrollment?.facultyName || enrollment?.faculty?.name || '')
+      const batchMatches = !normalizedBatchName || enrollmentBatchName === normalizedBatchName || enrollmentBatchToken === normalizedBatchToken || enrollmentBatchToken === normalizedBatchName || enrollmentBatchName === normalizedBatchToken
+      return batchMatches
+        && (!normalizedBatchGroupId || !enrollmentBatchGroupId || enrollmentBatchGroupId === normalizedBatchGroupId)
+        && (!normalizedBatchId || enrollmentBatchId === normalizedBatchId || (normalizedBatchName && batchMatches))
+        && (!normalizedCourseId || enrollmentCourseId === normalizedCourseId || (!enrollmentCourseId && enrollmentCourseName === normalizedCourseName))
+        && (!normalizedCourseName || enrollmentCourseName === normalizedCourseName || (!enrollmentCourseName && enrollmentCourseId === normalizedCourseId))
+        && (!normalizedFacultyId || !enrollmentFacultyId || enrollmentFacultyId === normalizedFacultyId)
+        && (!normalizedFacultyName || !enrollmentFacultyName || enrollmentFacultyName === normalizedFacultyName)
     })
     const scopedStudent = matchingEnrollment
       ? {
           ...student,
           ...matchingEnrollment,
-          facultyId: matchingEnrollment?.facultyId || '',
-          facultyName: matchingEnrollment?.facultyName || '',
+          facultyId: matchingEnrollment?.facultyId || matchingEnrollment?.faculty?.id || '',
+          facultyName: matchingEnrollment?.facultyName || matchingEnrollment?.faculty?.name || '',
         }
       : student
-    const studentCourseId = String(scopedStudent?.courseId || '').trim().toLowerCase()
+    const studentCourseId = String(scopedStudent?.courseId || scopedStudent?.course?.id || '').trim().toLowerCase()
     const studentCourseName = normalizeText(scopedStudent?.courseInterested || scopedStudent?.courseName || scopedStudent?.course?.name || '')
     const studentFacultyId = String(scopedStudent?.facultyId || '').trim().toLowerCase()
     const studentFacultyName = normalizeText(scopedStudent?.facultyName || '')

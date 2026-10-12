@@ -1849,7 +1849,7 @@ function StudentDiscontinuationPanel({ showPanel = true, openSignal = 0 }) {
   const isRejected = status === 'REJECTED'
   const isApproved = status === 'APPROVED'
   const currentOutstanding = Number(financePreview?.outstandingAmount ?? request?.financialSnapshot?.outstandingAmount ?? 0)
-  const canSubmitAgain = isRejected && financePreview && currentOutstanding <= 0
+  const canSubmitAgain = isRejected && currentOutstanding <= 0
   const rejectionReason = normalizeCurrencyText(request?.branchReviewNote || request?.contactNotes || 'The discontinuation request was not approved by the Branch Admin.')
   const statusLabel = status === 'SUPER_ADMIN_REVIEW'
     ? 'Waiting for final approval'
@@ -1872,7 +1872,13 @@ function StudentDiscontinuationPanel({ showPanel = true, openSignal = 0 }) {
         <p className="student-payment-overview-kicker">COURSE SUPPORT</p>
         <h3>Need to discontinue your course?</h3>
         <p>{isRejected ? 'Your request was reviewed by the Branch Admin. Please follow the reason below before submitting a new request.' : 'You can submit a request to your Branch Admin. Your course access will remain active until the request is reviewed and approved.'}</p>
-        {!loading && currentOutstanding > 0 ? (
+        {!loading && isRejected && canSubmitAgain ? (
+          <div className="student-discontinuation-amount-card is-paid" role="status">
+            <span>Request eligible amount</span>
+            <strong>{formatPaymentAmount(0)}</strong>
+            <small>You have paid the eligible amount. You can submit a new discontinuation request.</small>
+          </div>
+        ) : !loading && currentOutstanding > 0 ? (
           <div className="student-discontinuation-amount-card">
             <span>Request eligible amount</span>
             <strong>{formatPaymentAmount(currentOutstanding)}</strong>
@@ -1894,11 +1900,11 @@ function StudentDiscontinuationPanel({ showPanel = true, openSignal = 0 }) {
           </div> : null}
           {isRejected ? <div className="student-discontinuation-status-cards has-rejection">
             <div className="student-discontinuation-rejection" role="alert">
-              <strong>Why was this request rejected?</strong>
-              <p>{rejectionReason}</p>
+              <strong>{canSubmitAgain ? 'Payment completed' : 'Why was this request rejected?'}</strong>
+              <p>{canSubmitAgain ? 'The eligible amount has been paid. You can submit a new discontinuation request now.' : rejectionReason}</p>
               {currentOutstanding > 0
                 ? <small>Please pay the eligible amount shown below before requesting discontinuation again.</small>
-                : <small>The eligible amount has been paid. You can submit a new discontinuation request.</small>}
+                : <small>Request eligible amount: {formatPaymentAmount(0)}</small>}
             </div>
           </div> : null}
           {canSubmitAgain ? (

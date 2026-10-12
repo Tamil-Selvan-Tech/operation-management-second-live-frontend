@@ -1,6 +1,10 @@
 import { AlertTriangle, BadgeCheck, Bell, CheckCircle2, UsersRound, Mail } from 'lucide-react'
 import { loadNotifications } from '../lib/notificationStore'
 
+function normalizeNotificationMessage(value) {
+  return String(value || '').replace(/[\u00c3\u00c2\u00e2][^0-9]{1,12}(?=\d)/g, '\u20b9')
+}
+
 function formatNotificationTime(createdAt) {
   const date = new Date(createdAt)
   if (Number.isNaN(date.getTime())) return ''
@@ -53,7 +57,7 @@ function getNotificationIcon(kind) {
 export function normalizeBranchNotification(notification = {}) {
   const kind = String(notification.kind || '').trim()
   const title = String(notification.title || '').trim()
-  const message = String(notification.message || '').trim()
+  const message = normalizeNotificationMessage(notification.message).trim()
   const createdAt =
     String(notification.createdAt || '').trim() ||
     String(notification.updatedAt || '').trim() ||

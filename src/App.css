@@ -27858,6 +27858,19 @@ canvas {
   line-height: 1.35;
 }
 
+.student-discontinuation-amount-card.is-paid {
+  border-color: #b9e4d2;
+  background: linear-gradient(135deg, #f1fbf6 0%, #e8f8f0 100%);
+}
+
+.student-discontinuation-amount-card.is-paid strong {
+  color: #147d62;
+}
+
+.student-discontinuation-amount-card.is-paid small {
+  color: #4f6b67;
+}
+
 .student-discontinuation-finance-note {
   display: flex;
   align-items: center;
