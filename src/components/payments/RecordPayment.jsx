@@ -382,8 +382,21 @@ const RecordPayment = ({ student, students = [], onClose, branchProfile = null }
 
   const paymentEnrollments = useMemo(() => getSequentialEnrollments(baseActiveStudent), [baseActiveStudent]);
   const isSequentialArrangement = String(baseActiveStudent?.arrangementType || paymentEnrollments.find((item) => item.arrangementType)?.arrangementType || '').toUpperCase() === 'SEQUENTIAL' && paymentEnrollments.length > 1;
+  const isParallelArrangement = String(baseActiveStudent?.arrangementType || paymentEnrollments.find((item) => item.arrangementType)?.arrangementType || '').toUpperCase() === 'PARALLEL' && paymentEnrollments.length > 1;
   const isCourseScopedPayment = Boolean(baseActiveStudent?.paymentCourseScoped);
   const isSequentialMultiCoursePayment = isSequentialArrangement && !isCourseScopedPayment;
+  const parallelTotalCourseFee = useMemo(() => {
+    if (!isParallelArrangement || isCourseScopedPayment) return 0;
+    return paymentEnrollments.reduce((sum, enrollment) => {
+      const amount = enrollment.finalCourseAmount
+        ?? enrollment.afterDiscount
+        ?? enrollment.totalAmount
+        ?? enrollment.totalCourseAmount
+        ?? enrollment.courseAmount
+        ?? 0;
+      return sum + (Number(String(amount).replace(/,/g, '')) || 0);
+    }, 0);
+  }, [isParallelArrangement, isCourseScopedPayment, paymentEnrollments]);
   const selectedPaymentEnrollment = paymentEnrollments.find((item) => String(item.courseId || item.id || '') === selectedPaymentCourseId) || paymentEnrollments[0];
   const shouldUseCoursePaymentData = isSequentialArrangement && Boolean(selectedPaymentEnrollment);
   const selectedCourseInstallments = useMemo(() => {
@@ -391,10 +404,15 @@ const RecordPayment = ({ student, students = [], onClose, branchProfile = null }
     if (isCourseScopedPayment && Array.isArray(baseActiveStudent.installmentSchedule)) return baseActiveStudent.installmentSchedule;
     return getCourseInstallmentSlice(baseActiveStudent, paymentEnrollments, selectedPaymentEnrollment);
   }, [shouldUseCoursePaymentData, isCourseScopedPayment, selectedPaymentEnrollment, baseActiveStudent, paymentEnrollments]);
-  const activeStudent = useMemo(() => shouldUseCoursePaymentData && selectedPaymentEnrollment
-    ? { ...baseActiveStudent, ...selectedPaymentEnrollment, id: baseActiveStudent?.id, studentId: baseActiveStudent?.studentId, studentName: baseActiveStudent?.studentName, emailAddress: baseActiveStudent?.emailAddress, branchId: baseActiveStudent?.branchId, branchCode: baseActiveStudent?.branchCode, arrangementType: baseActiveStudent?.arrangementType, courseName: selectedPaymentEnrollment.courseName || selectedPaymentEnrollment.course?.name || '', courseId: selectedPaymentEnrollment.courseId || '', totalCourseFee: selectedPaymentEnrollment.finalCourseAmount ?? selectedPaymentEnrollment.afterDiscount ?? selectedPaymentEnrollment.totalAmount ?? selectedPaymentEnrollment.totalCourseAmount ?? selectedPaymentEnrollment.courseAmount ?? 0, installmentSchedule: selectedCourseInstallments }
-    : baseActiveStudent,
-  [shouldUseCoursePaymentData, selectedPaymentEnrollment, selectedCourseInstallments, baseActiveStudent]);
+  const activeStudent = useMemo(() => {
+    if (shouldUseCoursePaymentData && selectedPaymentEnrollment) {
+      return { ...baseActiveStudent, ...selectedPaymentEnrollment, id: baseActiveStudent?.id, studentId: baseActiveStudent?.studentId, studentName: baseActiveStudent?.studentName, emailAddress: baseActiveStudent?.emailAddress, branchId: baseActiveStudent?.branchId, branchCode: baseActiveStudent?.branchCode, arrangementType: baseActiveStudent?.arrangementType, courseName: selectedPaymentEnrollment.courseName || selectedPaymentEnrollment.course?.name || '', courseId: selectedPaymentEnrollment.courseId || '', totalCourseFee: selectedPaymentEnrollment.finalCourseAmount ?? selectedPaymentEnrollment.afterDiscount ?? selectedPaymentEnrollment.totalAmount ?? selectedPaymentEnrollment.totalCourseAmount ?? selectedPaymentEnrollment.courseAmount ?? 0, installmentSchedule: selectedCourseInstallments };
+    }
+    if (isParallelArrangement && parallelTotalCourseFee > 0) {
+      return { ...baseActiveStudent, totalCourseFee: parallelTotalCourseFee, courseAmount: parallelTotalCourseFee, totalAmount: parallelTotalCourseFee, afterDiscount: parallelTotalCourseFee };
+    }
+    return baseActiveStudent;
+  }, [shouldUseCoursePaymentData, selectedPaymentEnrollment, selectedCourseInstallments, baseActiveStudent, isParallelArrangement, parallelTotalCourseFee]);
   const paymentAgainstNumber = Number(String(formData.payAgainst || '').match(/Installment\s+(\d+)/i)?.[1] || 0);
   const courseLocalInstallmentIndex = shouldUseCoursePaymentData
     ? activeStudent.installmentSchedule?.findIndex((item) => Number(item.installmentNumber || item.number) === paymentAgainstNumber) ?? -1
