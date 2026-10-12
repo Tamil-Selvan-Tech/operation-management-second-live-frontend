@@ -18,6 +18,8 @@
 .academic-test-pagination button:disabled { cursor: not-allowed; opacity: .5; }
 @keyframes academic-test-table-shimmer { to { background-position: -200% 0; } }
 .academic-test-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 18px; transform: translate(-24px, -12px); }
+.academic-test-header:has(.academic-test-list-back) { flex-direction: column; align-items: flex-start; }
+.academic-test-list-back { align-self: flex-start; order: 0; margin-bottom: 8px; white-space: nowrap; }
 .academic-test-header h1, .academic-test-modal h2 { margin: 0; color: #17345f; }
 .academic-test-header p { margin: 6px 0 0; color: #64748b; }
 .academic-test-kicker { color: #2563eb !important; font-size: .7rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
