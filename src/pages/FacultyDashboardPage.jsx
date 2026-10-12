@@ -3910,7 +3910,7 @@ export function FacultyDashboardPage() {
   }
 
   const toggleSelectAllTodayWorkStudents = () => {
-    const visibleStudentIds = studentsFlowVisibleStudents.map(getTodayWorkStudentId).filter(Boolean)
+    const visibleStudentIds = studentsFlowActionableStudents.map(getTodayWorkStudentId).filter(Boolean)
     if (!visibleStudentIds.length) return
 
     setTodayWorkForm((current) => {
@@ -3931,7 +3931,7 @@ export function FacultyDashboardPage() {
     )
     if (!attendanceWindow.isEditable) return
 
-    const selectedStudents = studentsFlowVisibleStudents
+    const selectedStudents = studentsFlowActionableStudents
     const attendanceByStudent = {}
     const selectedStudentIds = []
 
@@ -3956,12 +3956,12 @@ export function FacultyDashboardPage() {
     )
     if (!attendanceWindow.isEditable) return
 
-    const allPresent = studentsFlowVisibleStudents.length > 0 && studentsFlowVisibleStudents.every((student) => (
+    const allPresent = studentsFlowActionableStudents.length > 0 && studentsFlowActionableStudents.every((student) => (
       todayWorkForm.attendanceByStudent?.[getTodayWorkStudentId(student)] === 'PRESENT'
     ))
 
     if (allPresent) {
-      const visibleStudentIds = new Set(studentsFlowVisibleStudents.map(getTodayWorkStudentId))
+      const visibleStudentIds = new Set(studentsFlowActionableStudents.map(getTodayWorkStudentId))
       setTodayWorkForm((current) => ({
         ...current,
         selectedStudentIds: current.selectedStudentIds.filter((studentId) => !visibleStudentIds.has(studentId)),
@@ -3985,8 +3985,8 @@ export function FacultyDashboardPage() {
     }
 
     const selectedStudents = todayWorkForm.applyToAllStudents
-      ? studentsFlowVisibleStudents
-      : todayWorkSelectedStudents
+      ? studentsFlowActionableStudents
+      : todayWorkSelectedStudents.filter((student) => !isDiscontinuedStudent(student))
 
     if (!selectedStudents.length) {
       setTodayWorkError('Please select at least one student.')
@@ -5346,16 +5346,16 @@ const nextName = trimmedValue
     }
   }, [hasUnmarkedAttendance, selectedStudentsBatchId, todayWorkAttendanceWindow.isReminder, todayWorkAttendanceWindow.warningMinutes, todayWorkAttendanceWindow.reason])
 
-  const visibleAttendanceStudents = studentsFlowActionableStudents.filter((student) => {
+  const visibleAttendanceStudents = studentsFlowVisibleStudents.filter((student) => {
     if (!normalizedAttendanceSearch) return true
     return [student?.studentName, student?.studentId, student?.emailAddress]
       .map((value) => String(value || '').toLowerCase())
       .some((value) => value.includes(normalizedAttendanceSearch))
   })
-  const markedAttendanceCount = studentsFlowVisibleStudents.filter((student) => (
+  const markedAttendanceCount = studentsFlowActionableStudents.filter((student) => (
     ['PRESENT', 'ABSENT'].includes(todayWorkForm.attendanceByStudent?.[getTodayWorkStudentId(student)] || '')
   )).length
-  const allTodayWorkStudentsPresent = studentsFlowVisibleStudents.length > 0 && studentsFlowVisibleStudents.every((student) => (
+  const allTodayWorkStudentsPresent = studentsFlowActionableStudents.length > 0 && studentsFlowActionableStudents.every((student) => (
     todayWorkForm.attendanceByStudent?.[getTodayWorkStudentId(student)] === 'PRESENT'
   ))
 
@@ -6150,12 +6150,19 @@ const nextName = trimmedValue
                                 if (isDiscontinuedStudent(student)) {
                                   return (
                                     <tr key={student.id || student.studentId || `${studentName}-${index}`} className="faculty-student-discontinued-row">
-                                      <td colSpan={9}>
+                                      <td>{displayIndex}</td>
+                                      <td><strong>{studentIdLabel}</strong></td>
+                                      <td>
                                         <div className="faculty-student-discontinued-only">
+                                          <div className="faculty-avatar">{getInitials(studentName)}</div>
                                           <strong>{studentName}</strong>
-                                          <span>Discontinued</span>
                                         </div>
                                       </td>
+                                      <td><span className="faculty-info-link"><Mail size={14} style={{ color: '#94a3b8' }} />{emailLabel}</span></td>
+                                      <td>-</td>
+                                      <td>-</td>
+                                      <td>-</td>
+                                      <td><span className="faculty-student-attendance-pill faculty-student-attendance-pill--discontinued">Discontinued</span></td>
                                     </tr>
                                   )
                                 }
@@ -6999,7 +7006,7 @@ const nextName = trimmedValue
                         type="checkbox"
                         checked={allTodayWorkStudentsPresent}
                         onChange={toggleMarkAllTodayWorkStudents}
-                        disabled={!studentsFlowVisibleStudents.length || attendanceWindowLocked}
+                        disabled={!studentsFlowActionableStudents.length || attendanceWindowLocked}
                       />
                       <span>Mark All Present</span>
                     </label>
@@ -7035,6 +7042,7 @@ const nextName = trimmedValue
                     const studentName = String(student?.studentName || student?.name || `Student ${index + 1}`).trim()
                     const status = todayWorkForm.attendanceByStudent?.[studentId] || ''
                     const checked = todayWorkForm.selectedStudentIds.includes(studentId)
+                    const discontinued = isDiscontinuedStudent(student)
 
                     return (
                       <div key={studentId || `${studentName}-${index}`} className={`faculty-today-work-student-item${todayWorkMode === 'attendance' ? ' faculty-today-work-attendance-item' : ' faculty-today-work-progress-item'}${checked ? ' is-selected' : ''}`.trim()} style={{ display: 'grid', gridTemplateColumns: todayWorkMode === 'progress' ? 'auto auto minmax(0, 1fr) auto' : 'auto minmax(0, 1fr) auto', alignItems: 'center', gap: '12px' }}>
@@ -7052,7 +7060,7 @@ const nextName = trimmedValue
                           <span>{student?.studentId || student?.emailAddress || '-'}</span>
                         </div>
                         {todayWorkMode === 'attendance' ? (
-                          <div className="faculty-today-work-attendance-buttons">
+                          discontinued ? <span className="faculty-student-attendance-pill faculty-student-attendance-pill--discontinued">Discontinued</span> : <div className="faculty-today-work-attendance-buttons">
                             <button
                               type="button"
                               className={`faculty-today-work-attendance-button faculty-today-work-attendance-button--present${status === 'PRESENT' ? ' is-active' : ''}`}
@@ -7094,7 +7102,7 @@ const nextName = trimmedValue
                   {isTodayWorkSaving
                     ? 'Saving...'
                     : todayWorkMode === 'attendance'
-                      ? `Save Attendance (${markedAttendanceCount} / ${studentsFlowVisibleStudents.length} marked)`
+                      ? `Save Attendance (${markedAttendanceCount} / ${studentsFlowActionableStudents.length} marked)`
                       : 'Save Progress'}
                 </button>
               </div>

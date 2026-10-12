@@ -59,6 +59,35 @@ function formatAmount(value) {
   }).format(Number(value || 0))
 }
 
+function formatRequestDate(value) {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return '-'
+  return new Intl.DateTimeFormat('en-IN', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  }).format(date)
+}
+
+function indiaDateKey(value) {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return ''
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Kolkata',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(date)
+}
+
+function requestDateValue(item) {
+  return item?.createdAt || item?.submittedAt || item?.requestedAt || item?.updatedAt
+}
+
+function isTodayRequest(item) {
+  return indiaDateKey(requestDateValue(item)) === indiaDateKey(new Date())
+}
+
 function fullOutstandingAmount(snapshot, fallback = 0, student = null) {
   const installments = Array.isArray(student?.installments) ? student.installments : []
   const mainTotalAmount = installments.length
@@ -104,6 +133,14 @@ function latestMotivationMail(item) {
     .sort((left, right) => new Date(right.sentAt).getTime() - new Date(left.sentAt).getTime())[0] || null
 }
 
+function motivationMailStageLabel(stage) {
+  return {
+    MOTIVATION_MAIL_1: 'First mail sent',
+    MOTIVATION_MAIL_2: 'Second mail sent',
+    MOTIVATION_MAIL_3: 'Third mail sent',
+  }[stage] || 'Motivation mail sent'
+}
+
 function motivationMailStatus(item) {
   const latest = latestMotivationMail(item)
   if (!latest) return statusLabel(item.status)
@@ -114,7 +151,7 @@ function motivationMailStatus(item) {
       .map((part) => part.value)
       .join('-')
     : ''
-  return <><span>First mail sent</span>{sentDate ? <small className="branch-discontinuation-status-date">{sentDate}</small> : null}</>
+  return <><span>{motivationMailStageLabel(latest.stage)}</span>{sentDate ? <small className="branch-discontinuation-status-date">{sentDate}</small> : null}</>
 }
 
 function statusLabel(value) {
@@ -144,6 +181,7 @@ export function BranchDiscontinuationManagementPage() {
   const [error, setError] = useState('')
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('ALL')
+  const [showHistory, setShowHistory] = useState(false)
   const [selectedRequest, setSelectedRequest] = useState(null)
   const [selectedReadOnly, setSelectedReadOnly] = useState(false)
   const [outcome, setOutcome] = useState('DISCONTINUE')
@@ -183,6 +221,11 @@ export function BranchDiscontinuationManagementPage() {
   const filteredRequests = useMemo(() => {
     const query = search.trim().toLowerCase()
     return requests.filter((item) => {
+      const itemStatus = String(item.status || '').toUpperCase()
+      const isHistorical = ['APPROVED', 'REJECTED', 'CANCELLED', 'CONTACTED_CONTINUE'].includes(itemStatus)
+      // Keep every request created today visible, even if it was already reviewed.
+      // Older terminal requests remain available from the history view.
+      if (!showHistory && isHistorical && !isTodayRequest(item)) return false
       const matchesStatus = statusFilter === 'ALL'
         || (statusFilter === 'LONG_LEAVE' ? isLongLeaveRequest(item) : String(item.status || '').toUpperCase() === statusFilter)
       if (!matchesStatus) return false
@@ -196,7 +239,7 @@ export function BranchDiscontinuationManagementPage() {
         item.reason,
       ].some((value) => String(value || '').toLowerCase().includes(query))
     })
-  }, [requests, search, statusFilter])
+  }, [requests, search, showHistory, statusFilter])
 
   const pendingCount = requests.filter((item) => item.status === 'PENDING').length
   const reviewCount = requests.filter((item) => item.status === 'SUPER_ADMIN_REVIEW').length
@@ -262,10 +305,20 @@ export function BranchDiscontinuationManagementPage() {
           <h2>Discontinuation Management</h2>
           <p>Review student requests, record call outcomes, and forward confirmed discontinuations for approval.</p>
         </div>
-        <button type="button" className="branch-discontinuation-refresh" onClick={() => void loadRequests({ silent: true })} disabled={loading || refreshing}>
-          <RefreshCcw size={16} className={refreshing ? 'is-spinning' : ''} />
-          Refresh
-        </button>
+        <div className="branch-discontinuation-header-actions">
+              <button
+                type="button"
+                className={`branch-discontinuation-view${showHistory ? ' is-history-back' : ''}`}
+                aria-pressed={showHistory}
+                onClick={() => { setShowHistory((current) => !current); setStatusFilter('ALL') }}
+              >
+            {showHistory ? 'Back to active requests' : 'View history'}
+          </button>
+          <button type="button" className="branch-discontinuation-refresh" onClick={() => void loadRequests({ silent: true })} disabled={loading || refreshing}>
+            <RefreshCcw size={16} className={refreshing ? 'is-spinning' : ''} />
+            Refresh
+          </button>
+        </div>
       </div>
 
       <div className="branch-discontinuation-stats" aria-label="Discontinuation request summary">
@@ -315,19 +368,23 @@ export function BranchDiscontinuationManagementPage() {
         ) : filteredRequests.length ? (
           <div className="branch-discontinuation-table-wrap">
             <table className="branch-discontinuation-table">
-              <thead><tr><th>Student</th><th>Contact</th><th>Outstanding</th><th>Request</th><th>Status</th><th>Action</th></tr></thead>
+              <thead><tr><th>Student</th><th>Contact</th><th>Outstanding</th><th>Request</th><th>Requested date</th><th>Status</th><th>Action</th></tr></thead>
               <tbody>
                 {filteredRequests.map((item) => {
                   const student = item.student || {}
-                  const isActionable = ['PENDING', 'UNABLE_TO_CONTACT'].includes(item.status)
+                  const isActionable = !showHistory && ['PENDING', 'UNABLE_TO_CONTACT'].includes(item.status)
                   const isMotivationReady = !isLongLeaveRequest(item) || item.motivationMailComplete
+                  const isHistoricalStatus = ['APPROVED', 'REJECTED', 'CANCELLED', 'CONTACTED_CONTINUE'].includes(String(item.status || '').toUpperCase())
+                  const isWaitingForMotivationOutcome = isLongLeaveRequest(item)
+                    && ['PENDING', 'UNABLE_TO_CONTACT'].includes(String(item.status || '').toUpperCase())
                   return (
                     <tr key={item.id} className="branch-discontinuation-table-row" onClick={() => openOutcome(item, true)} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); openOutcome(item, true) } }} tabIndex={0}>
                       <td><strong>{student.studentName || '-'}</strong><small>{student.studentId || student.emailAddress || '-'}</small><small>{student.courseName || '-'}</small></td>
                       <td className="branch-discontinuation-contact-cell"><small className="branch-discontinuation-mobile">Student: {student.mobileNumber || 'Unavailable'}</small><small className="branch-discontinuation-mobile">Parent: {student.parentSpouseNumber || 'Unavailable'}</small></td>
                       <td><strong>{formatAmount(fullOutstandingAmount(item.financialSnapshot, item.outstandingAmount, student))}</strong></td>
                       <td className="branch-discontinuation-request-cell"><strong>{displayRequestReason(item.reason)}</strong><small>{item.details || 'No additional details provided.'}</small></td>
-                      <td><span className={`branch-discontinuation-status ${isLongLeaveRequest(item) ? 'is-success is-mail-status' : statusClass(item.status)}`}>{motivationMailStatus(item)}</span></td>
+                      <td>{formatRequestDate(requestDateValue(item))}</td>
+                      <td><span className={`branch-discontinuation-status ${isWaitingForMotivationOutcome ? 'is-success is-mail-status' : statusClass(item.status)}`}>{isWaitingForMotivationOutcome ? motivationMailStatus(item) : statusLabel(item.status)}</span></td>
                       <td>{isActionable && isMotivationReady ? <button type="button" className="branch-discontinuation-action" onClick={(event) => { event.stopPropagation(); openOutcome(item) }}><PhoneCall size={15} /> Contact Outcome</button> : <button type="button" className="branch-discontinuation-view" onClick={(event) => { event.stopPropagation(); openOutcome(item, true) }}>View details</button>}</td>
                     </tr>
                   )
@@ -353,6 +410,7 @@ export function BranchDiscontinuationManagementPage() {
               {hasEligibleAmount && outcome === 'REJECT' ? <div className="branch-discontinuation-payment-warning" role="status"><strong>Payment required before discontinuation</strong><p>The student must pay {formatAmount(eligibleAmount)} before this request can be forwarded for discontinuation.</p></div> : null}
               {outcome !== 'UNABLE_TO_CONTACT' ? <label>{outcome === 'REJECT' ? 'Rejection reason (required)' : `Call notes ${outcome === 'DISCONTINUE' ? '(required)' : '(optional)'}`}<textarea rows={4} value={note} onChange={(event) => setNote(event.target.value)} placeholder={outcome === 'REJECT' ? 'Explain why this request is being rejected.' : 'Record what the student said and the next action.'} required={['DISCONTINUE', 'REJECT'].includes(outcome)} /></label> : null}
               {outcome === 'DISCONTINUE' ? <div className="branch-discontinuation-finance-summary">
+                <div><span>Eligible amount</span><strong>{formatAmount(eligibleAmount)}</strong></div>
                 <div><span>Outstanding amount</span><strong>{formatAmount(fullOutstandingAmount(selectedRequest.financialSnapshot, selectedRequest.outstandingAmount, selectedRequest.student))}</strong></div>
                 <div><span>Paid amount</span><strong>{formatAmount(selectedRequest.financialSnapshot?.totalPaid)}</strong></div>
                 <div><span>Balance payable</span><strong>{formatAmount(selectedRequest.financialSnapshot?.balanceDue ?? selectedRequest.financialSnapshot?.finalOutstandingAmount)}</strong></div>
@@ -364,7 +422,7 @@ export function BranchDiscontinuationManagementPage() {
               <div className="branch-discontinuation-readonly-grid">
                 <div><span>Course</span><strong>{selectedRequest.student?.courseName || '-'}</strong></div>
                 <div><span>Batch</span><strong>{selectedRequest.student?.batchName || '-'}</strong></div>
-                {selectedRequest.status !== 'REJECTED' ? <div><span>Next follow-up</span><strong>{isMotivationFollowUp ? 'First mail sent' : selectedRequest.nextFollowUpDate || 'Not scheduled'}</strong></div> : null}
+                {!['REJECTED', 'APPROVED'].includes(String(selectedRequest.status || '').toUpperCase()) ? <div><span>{isMotivationFollowUp ? 'Mail status' : 'Next follow-up'}</span><strong>{isMotivationFollowUp ? `${motivationMailStageLabel(latestMotivationMail(selectedRequest)?.stage)}${latestMotivationMail(selectedRequest)?.sentAt ? ` (${formatRequestDate(latestMotivationMail(selectedRequest).sentAt)})` : ''}` : selectedRequest.nextFollowUpDate || 'Not scheduled'}</strong></div> : null}
               </div>
               <div className="branch-discontinuation-readonly-note"><span>Student request</span><strong>{displayRequestReason(selectedRequest.reason)}</strong><p>{selectedRequest.details || 'No additional details provided.'}</p></div>
               {!isMotivationFollowUp ? <div className="branch-discontinuation-readonly-note"><span>{selectedRequest.contactOutcome === 'REJECT' ? 'Rejection reason' : 'Call notes'}</span><p>{normalizeCurrencyText(selectedRequest.contactNotes || selectedRequest.branchReviewNote || (selectedRequest.contactOutcome === 'REJECT' ? 'No rejection reason provided.' : 'No call notes provided.'))}</p></div> : null}

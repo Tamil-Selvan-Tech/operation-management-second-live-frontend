@@ -6040,6 +6040,10 @@ body.super-admin-sidebar-open {
 .super-admin-global-status.is-active { color: #0e8c5a; background: #e9fbf2; }
 .super-admin-global-status.is-completed { color: #166534; background: #dcfce7; }
 .super-admin-global-status.is-inactive { color: #b45309; background: #fff7e8; }
+.super-admin-global-status.status-approved { color: #087f5b; background: #e6f8ef; }
+.super-admin-global-status.status-rejected { color: #b4233f; background: #fff0f3; }
+.super-admin-global-status.status-super-admin-review, .super-admin-global-status.status-super-admin-wait { color: #9a6700; background: #fff7df; }
+.super-admin-global-status.status-cancelled { color: #64748b; background: #f1f5f9; }
 .super-admin-global-empty, .super-admin-global-state { padding: 42px 20px !important; color: #8291a7; text-align: center !important; }
 
 .super-admin-discontinuation-actions { align-items: center; flex-wrap: wrap; }
@@ -6047,6 +6051,10 @@ body.super-admin-sidebar-open {
 .super-admin-discontinuation-actions .super-admin-student-search svg { flex: 0 0 auto; color: #7890ad; }
 .super-admin-discontinuation-actions .super-admin-student-search input { width: 100%; min-width: 0; min-height: 40px; padding: 0; border: 0; box-shadow: none; }
 .super-admin-discontinuation-actions .super-admin-student-search:focus-within { border-color: #4b8ff5; box-shadow: 0 0 0 3px rgba(59, 130, 246, .12); }
+.super-admin-discontinuation-history-button { border: 1px solid #d7e3f1; border-radius: 9px; padding: 10px 14px; color: #29538a; background: #fff; font: inherit; font-size: 12px; font-weight: 800; cursor: pointer; transition: border-color .2s ease, background .2s ease, color .2s ease, box-shadow .2s ease; }
+.super-admin-discontinuation-history-button:hover { border-color: #8fb4ea; background: #f7fbff; box-shadow: 0 5px 14px rgba(37, 99, 235, .1); }
+.super-admin-discontinuation-history-button.is-history-back { border-color: #2864df; color: #fff; background: #2864df; box-shadow: 0 8px 18px rgba(40, 100, 223, .24); }
+.super-admin-discontinuation-history-button.is-history-back:hover { border-color: #1f54c2; background: #1f54c2; }
 .super-admin-discontinuation-refresh, .super-admin-discontinuation-view, .super-admin-discontinuation-approve, .super-admin-discontinuation-secondary, .super-admin-discontinuation-danger { border: 0; border-radius: 9px; padding: 10px 14px; font: inherit; font-size: 12px; font-weight: 800; cursor: pointer; }
 .super-admin-discontinuation-refresh { border: 1px solid #d7e3f1; color: #29538a; background: #fff; }
 .super-admin-discontinuation-refresh:disabled, .super-admin-discontinuation-approve:disabled, .super-admin-discontinuation-danger:disabled { cursor: not-allowed; opacity: .65; }
@@ -6075,6 +6083,7 @@ body.super-admin-sidebar-open {
 .super-admin-discontinuation-decision-form label { display: grid; gap: 7px; color: #526b87; font-size: 12px; font-weight: 750; }
 .super-admin-discontinuation-decision-form textarea { width: 100%; resize: vertical; box-sizing: border-box; padding: 12px; border: 1px solid #d4e1ef; border-radius: 10px; font: inherit; }
 .super-admin-discontinuation-modal-actions { display: flex; justify-content: flex-end; gap: 10px; padding-top: 20px; margin-top: 20px; border-top: 1px solid #e5edf5; }
+.super-admin-discontinuation-history-status { display: flex; align-items: center; gap: 8px; padding-top: 18px; margin-top: 20px; border-top: 1px solid #e5edf5; color: #087f5b; font-size: 13px; font-weight: 800; }
 .super-admin-discontinuation-modal .is-spinning { animation: super-admin-discontinuation-spin .8s linear infinite; }
 .super-admin-discontinuation-confirm-backdrop { position: fixed; z-index: 1000200; inset: 0; display: grid; place-items: center; padding: 24px; background: rgba(20, 36, 59, .28); }
 .super-admin-discontinuation-confirm-modal { position: relative; width: min(430px, 100%); padding: 28px; border: 1px solid #dbe6f2; border-radius: 18px; background: #fff; box-shadow: 0 24px 70px rgba(15, 38, 70, .28); }

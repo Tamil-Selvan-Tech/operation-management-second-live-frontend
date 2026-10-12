@@ -10957,6 +10957,12 @@ else {
   paymentStatus = 'Upcoming'
 }
 
+          const isStudentDiscontinued = Boolean(
+            stu?.isDiscontinued
+            || String(stu?.discontinuationStatus || '').trim().toUpperCase() === 'APPROVED'
+            || String(stu?.status || stu?.recordStatus || stu?.studentStatus || '').trim().toUpperCase() === 'DISCONTINUED',
+          )
+
           const formatFee = (amount) => `₹${Number(amount || 0).toLocaleString('en-IN')}`
 
           const formatDueDate = (date) => {
@@ -11210,7 +11216,9 @@ else {
               // faculty progress and payment records are complete. Prefer the
               // effective row values, while still honoring an explicit test
               // result when it is available.
-              const courseCompletionStatus = progressValue >= 100 && isCoursePaymentCompleted && (
+              const courseCompletionStatus = isStudentDiscontinued
+                ? 'DISCONTINUED'
+                : progressValue >= 100 && isCoursePaymentCompleted && (
                 !academicProgress || areAcademicTestsCompleted
               )
                 ? 'COMPLETED'
@@ -11314,36 +11322,38 @@ else {
                       <td>
                         {courseRow.isPendingSequentialCourse ? <span className="faculty-today-work-empty-label">-</span> : (
                           <span className={`branch-student-payment-status ${courseRow.courseCompletionStatus.toLowerCase()}`}>
-                            {courseRow.courseCompletionStatus === 'COMPLETED' ? 'Course Completed' : 'In Progress'}
+                            {courseRow.courseCompletionStatus === 'DISCONTINUED' ? 'Discontinued' : courseRow.courseCompletionStatus === 'COMPLETED' ? 'Course Completed' : 'In Progress'}
                           </span>
                         )}
                       </td>
                     ) : index === 0 ? (
                       <td rowSpan={courseRows.length}>
                         <span className={`branch-student-payment-status ${courseRow.courseCompletionStatus.toLowerCase()}`}>
-                          {courseRow.courseCompletionStatus === 'COMPLETED' ? 'Course Completed' : 'In Progress'}
+                          {courseRow.courseCompletionStatus === 'DISCONTINUED' ? 'Discontinued' : courseRow.courseCompletionStatus === 'COMPLETED' ? 'Course Completed' : 'In Progress'}
                         </span>
                       </td>
                     ) : null}
                     {isSequentialArrangement ? (
                       <>
                         <td>
-                          {courseRow.nextCourseInstallment ? (
+                          {isStudentDiscontinued ? <span className="branch-no-installment">-</span> : courseRow.nextCourseInstallment ? (
                             <div className="branch-next-installment">
                               <strong>{formatFee(Math.max(Number(courseRow.nextCourseInstallment.amount || 0) - Number(courseRow.nextCourseInstallment.paidAmount || 0), 0))}</strong>
                               <span>{`Installment ${courseRow.nextCourseInstallment.installmentNumber || courseRow.nextCourseInstallment.number || ''}`.trim()}</span>
                             </div>
                           ) : <span className="branch-no-installment">-</span>}
                         </td>
-                        <td><span className="branch-student-due-date">{formatDueDate(courseRow.nextCourseDueDate)}</span></td>
-                        <td>{courseRow.isPendingSequentialCourse
+                        <td><span className="branch-student-due-date">{isStudentDiscontinued ? '-' : formatDueDate(courseRow.nextCourseDueDate)}</span></td>
+                        <td>{isStudentDiscontinued
+                          ? <span className="branch-student-payment-status discontinued">Discontinued</span>
+                          : courseRow.isPendingSequentialCourse
                           ? <span className="faculty-today-work-empty-label">-</span>
                           : <span className={`branch-student-payment-status ${courseRow.courseStatus.toLowerCase()}`}>{courseRow.courseStatus}</span>}</td>
                       </>
                     ) : index === 0 ? (
                       <>
                         <td rowSpan={courseRows.length}>
-                          {coursesWithNextInstallment.length ? (
+                          {isStudentDiscontinued ? <span className="branch-no-installment">-</span> : coursesWithNextInstallment.length ? (
                             <div className="branch-next-installment">
                               <strong>{formatFee(combinedNextInstallmentAmount)}</strong>
                               <span>{combinedInstallmentLabel}</span>
@@ -11351,8 +11361,8 @@ else {
                             </div>
                           ) : <span className="branch-no-installment">-</span>}
                         </td>
-                        <td rowSpan={courseRows.length}><span className="branch-student-due-date">{formatDueDate(combinedNextDueDate)}</span></td>
-                        <td rowSpan={courseRows.length}><span className={`branch-student-payment-status ${combinedPaymentStatus.toLowerCase()}`}>{combinedPaymentStatus}</span></td>
+                        <td rowSpan={courseRows.length}><span className="branch-student-due-date">{isStudentDiscontinued ? '-' : formatDueDate(combinedNextDueDate)}</span></td>
+                        <td rowSpan={courseRows.length}><span className={`branch-student-payment-status ${isStudentDiscontinued ? 'discontinued' : combinedPaymentStatus.toLowerCase()}`}>{isStudentDiscontinued ? 'Discontinued' : combinedPaymentStatus}</span></td>
                       </>
                     ) : null}
                     {isSequentialArrangement && courseRow.isPendingSequentialCourse ? (
@@ -11481,10 +11491,10 @@ else {
                   const isCompleted = studentCourseProgress >= 100
                     && installmentProgress.paidInstallmentPercentage >= 100
                     && Number(academicProgress?.pendingTests || 0) === 0
-                  const completionStatus = isCompleted ? 'COMPLETED' : 'IN_PROGRESS'
+                  const completionStatus = isStudentDiscontinued ? 'DISCONTINUED' : isCompleted ? 'COMPLETED' : 'IN_PROGRESS'
                   return (
                     <span className={`branch-student-payment-status ${completionStatus.toLowerCase()}`}>
-                      {isCompleted ? 'Course Completed' : 'In Progress'}
+                      {completionStatus === 'DISCONTINUED' ? 'Discontinued' : isCompleted ? 'Course Completed' : 'In Progress'}
                     </span>
                   )
                 })()}

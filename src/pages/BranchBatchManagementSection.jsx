@@ -2206,6 +2206,11 @@ export function BranchBatchManagementSection({
                   const isCourseCompleted = String(
                     selectedCourseCompletion || student?.courseCompletion || student?.courseCompletionStatus || '',
                   ).toUpperCase() === 'COMPLETED'
+                  const isStudentDiscontinued = Boolean(
+                    student?.isDiscontinued
+                    || String(student?.discontinuationStatus || '').trim().toUpperCase() === 'APPROVED'
+                    || String(student?.status || student?.recordStatus || student?.studentStatus || '').trim().toUpperCase() === 'DISCONTINUED',
+                  )
                   return (
                     <div className="batch-detail-student-row" key={getStudentIdentityKey(student) || `${detailBatchKey}-${index}`}>
                     <span className="batch-detail-student-number">{String(index + 1).padStart(2, '0')}</span>
@@ -2213,15 +2218,17 @@ export function BranchBatchManagementSection({
                       <span>{student?.studentId || student?.id || 'Student ID unavailable'}</span>
                       <strong>{student?.studentName || student?.name || 'Unnamed student'}</strong>
                     </div>
-                    {isCourseCompleted ? (
+                    {isStudentDiscontinued ? (
+                      <span className="batch-detail-student-attendance discontinued">Discontinued</span>
+                    ) : isCourseCompleted ? (
                       <span className="batch-detail-student-attendance completed">Completed</span>
                     ) : null}
-                    {!isCourseCompleted ? (
+                    {!isStudentDiscontinued && !isCourseCompleted ? (
                       <span className={`batch-detail-student-attendance ${attendanceStatus.toLowerCase()}`}>
                         {attendanceStatus === 'PRESENT' ? 'Present' : attendanceStatus === 'ABSENT' ? 'Absent' : 'Unmarked'}
                       </span>
                     ) : null}
-                    <div className="batch-detail-student-progress">
+                    {!isStudentDiscontinued ? <div className="batch-detail-student-progress">
                       <div className="batch-detail-student-progress-label">
                         <span>Course Progress</span>
                         <strong>{Number(student?.courseProgress ?? student?.progress ?? 0) || 0}%</strong>
@@ -2229,7 +2236,7 @@ export function BranchBatchManagementSection({
                       <div className="batch-detail-student-progress-track" aria-hidden="true">
                         <span style={{ width: `${Math.min(Math.max(Number(student?.courseProgress ?? student?.progress ?? 0) || 0, 0), 100)}%` }} />
                       </div>
-                    </div>
+                    </div> : null}
                     </div>
                   )
                 })}

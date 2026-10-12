@@ -1243,8 +1243,8 @@ body.faculty-notification-menu-open .super-admin-content {
 .faculty-student-discontinued-only {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 16px;
+  justify-content: flex-start;
+  gap: 8px;
   min-height: 34px;
 }
 
@@ -2627,6 +2627,11 @@ body.faculty-notification-menu-open .super-admin-content {
 .faculty-student-attendance-pill--unmarked {
   color: #64748b;
   background: #f1f5f9;
+}
+
+.faculty-student-attendance-pill--discontinued {
+  color: #be123c;
+  background: #fff1f2;
 }
 
 .faculty-students-table-shell th:nth-child(5),

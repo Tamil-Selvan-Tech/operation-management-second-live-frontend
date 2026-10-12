@@ -357,6 +357,29 @@ export function getMatchingStudents(
   const normalizedBatchTiming = normalizeText(batchTiming || '')
 
   return (Array.isArray(students) ? students : []).filter((student) => {
+    const enrollmentScopes = Array.isArray(student?.courseEnrollments) && student.courseEnrollments.length
+      ? student.courseEnrollments
+      : Array.isArray(student?.courses) ? student.courses : []
+    const enrollmentMatchesScope = enrollmentScopes.some((enrollment) => {
+      const enrollmentCourseId = String(enrollment?.courseId || enrollment?.course?.id || '').trim().toLowerCase()
+      const enrollmentCourseName = normalizeText(enrollment?.courseName || enrollment?.course?.name || '')
+      const enrollmentBatchGroupId = String(enrollment?.batchGroupId || enrollment?.batch?.batchGroupId || '').trim().toLowerCase()
+      const enrollmentBatchId = String(enrollment?.batchId || enrollment?.batchEntryId || enrollment?.batch?.batchId || '').trim().toLowerCase()
+      const enrollmentBatchName = normalizeText(enrollment?.batchName || enrollment?.batch || enrollment?.batch?.batchName || '')
+      const enrollmentBatchToken = normalizeBatchToken(enrollment?.batchName || enrollment?.batch || enrollment?.batch?.batchName || '')
+      const enrollmentFacultyId = String(enrollment?.facultyId || enrollment?.faculty?.id || '').trim().toLowerCase()
+      const enrollmentFacultyName = normalizeText(enrollment?.facultyName || enrollment?.faculty?.name || '')
+      const batchMatches = !normalizedBatchName || enrollmentBatchName === normalizedBatchName || enrollmentBatchToken === normalizedBatchToken || enrollmentBatchToken === normalizedBatchName || enrollmentBatchName === normalizedBatchToken
+      return batchMatches
+        && (!normalizedBatchGroupId || !enrollmentBatchGroupId || enrollmentBatchGroupId === normalizedBatchGroupId)
+        && (!normalizedBatchId || enrollmentBatchId === normalizedBatchId || (normalizedBatchName && batchMatches))
+        && (!normalizedCourseId || enrollmentCourseId === normalizedCourseId || (!enrollmentCourseId && enrollmentCourseName === normalizedCourseName))
+        && (!normalizedCourseName || enrollmentCourseName === normalizedCourseName || (!enrollmentCourseName && enrollmentCourseId === normalizedCourseId))
+        && (!normalizedFacultyId || !enrollmentFacultyId || enrollmentFacultyId === normalizedFacultyId)
+        && (!normalizedFacultyName || !enrollmentFacultyName || enrollmentFacultyName === normalizedFacultyName)
+    })
+    if (enrollmentMatchesScope) return true
+
     const studentCourseId = String(student?.courseId || '').trim().toLowerCase()
     const studentCourseName = normalizeText(student?.courseInterested || student?.courseName || student?.course?.name || '')
     const studentFacultyId = String(student?.facultyId || '').trim().toLowerCase()

@@ -2114,6 +2114,11 @@
   background: #dcfce7;
 }
 
+.batch-detail-student-attendance.discontinued {
+  color: #be123c;
+  background: #fff1f2;
+}
+
 .batch-detail-student-avatar {
   display: inline-flex;
   align-items: center;
