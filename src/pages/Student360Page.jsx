@@ -146,6 +146,7 @@ function getAcademicTestProgress(profile = {}, report = {}, selectedCourseId = '
     const totalTests = Number(
       reportData.courseTotals?.[normalizedCourseId] ??
       reportData.courseTotals?.[String(courseEvaluations[0]?.courseId || '').trim()] ??
+      reportData.courseTotalsByName?.[normalizedCourseName] ??
       courseEvaluations.length,
     ) || courseEvaluations.length
     const completedTests = courseEvaluations.filter((evaluation) => {
