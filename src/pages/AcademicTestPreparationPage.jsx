@@ -207,7 +207,7 @@ function RetestEditorModal({ target, testName, form, saving, error, onChange, on
   return <div className="academic-preparation-modal-backdrop"><div className="academic-preparation-modal academic-preparation-retest-modal" role="dialog" aria-modal="true" aria-labelledby="academic-retest-title"><div className="academic-preparation-modal-heading"><div><p className="academic-test-kicker">ACADEMIC TEST RETEST</p><h2 id="academic-retest-title">{testName || 'Academic Test'} - Schedule Retest</h2><span>{target.student.studentName || '-'} · {target.student.studentId || '-'}</span></div><button type="button" onClick={onClose} disabled={saving} aria-label="Close"><X size={19} /></button></div>{error && <div className="academic-test-error">{error}</div>}<p className="academic-preparation-modal-note">This retest is assigned only to this student for <strong>{testName || 'this test'}</strong>. The original test result remains unchanged.</p><div className="academic-preparation-schedule-grid"><label>Retest date<input type="date" min={new Date().toISOString().slice(0, 10)} value={form.testDate} onChange={(event) => onChange({ ...form, testDate: event.target.value })} /></label><AcademicTimePicker label="Start time" value={form.startTime} onChange={(value) => onChange({ ...form, startTime: value })} /><AcademicTimePicker label="End time" value={form.endTime} onChange={(value) => onChange({ ...form, endTime: value })} /></div><div className="academic-preparation-modal-actions"><button type="button" onClick={onClose} disabled={saving}>Keep Result</button><button type="button" className="academic-test-primary" onClick={onSave} disabled={saving}>{saving ? 'Scheduling...' : 'Schedule Retest'}</button></div></div></div>
 }
 
-export default function AcademicTestPreparationPage() {
+export default function AcademicTestPreparationPage({ facultyCourseProgressByBatch = null }) {
   const { itemId, batchId } = useParams()
   const routerNavigate = useNavigate()
   const navigate = (to, options) => to === '/dashboard/faculty/exams/academic-tests?create=1' ? routerNavigate(`${window.location.pathname}?create=1`) : routerNavigate(to, options)
@@ -271,17 +271,22 @@ export default function AcademicTestPreparationPage() {
   useEffect(() => {
     let active = true
     setCourseProgress(null)
+    const selectedBatchIds = [batchId, data?.batch?.id, data?.batch?.batchId].map((value) => String(value || '').trim().toLowerCase()).filter(Boolean)
     getFacultyMyBatchesSummary().then((summary) => {
       if (!active) return
-      const selectedBatchIds = [batchId, data?.batch?.id, data?.batch?.batchId].map((value) => String(value || '').trim().toLowerCase()).filter(Boolean)
       const selectedBatch = (summary?.batchCounts || []).find((entry) => [entry?.batchId, entry?.id].some((value) => selectedBatchIds.includes(String(value || '').trim().toLowerCase())))
       const value = Number(selectedBatch?.courseProgress)
-      setCourseProgress(Number.isFinite(value) ? Math.round(Math.max(0, Math.min(100, value))) : 0)
+      const externalValue = Array.from(facultyCourseProgressByBatch?.entries?.() || []).find(([key]) => selectedBatchIds.includes(String(key || '').trim().toLowerCase()))?.[1]
+      const progressValue = Number(externalValue ?? value)
+      setCourseProgress(Number.isFinite(progressValue) ? Math.round(Math.max(0, Math.min(100, progressValue))) : 0)
     }).catch(() => {
-      if (active) setCourseProgress(0)
+      if (!active) return
+      const externalValue = Array.from(facultyCourseProgressByBatch?.entries?.() || []).find(([key]) => selectedBatchIds.includes(String(key || '').trim().toLowerCase()))?.[1]
+      const progressValue = Number(externalValue)
+      setCourseProgress(Number.isFinite(progressValue) ? Math.round(Math.max(0, Math.min(100, progressValue))) : 0)
     })
     return () => { active = false }
-  }, [batchId, data?.batch?.id, data?.batch?.batchId])
+  }, [batchId, data?.batch?.id, data?.batch?.batchId, facultyCourseProgressByBatch])
   useEffect(() => { setEvaluationPage(1) }, [itemId, batchId])
   useEffect(() => { setShowRequiredErrors(false) }, [activeQuestionIndex])
   const totalMarks = useMemo(() => questions.reduce((sum, question) => { const marks = Number(question.marks || (question.questionType === 'MCQ' ? marksPerQuestion : 0)); return sum + (Number.isFinite(marks) ? marks : 0) }, 0), [questions, marksPerQuestion])

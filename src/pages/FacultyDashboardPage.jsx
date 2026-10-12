@@ -3281,6 +3281,38 @@ export function FacultyDashboardPage() {
     selectedStudentsCourseBatches,
   ])
 
+  const facultyAllCourseBatchProgress = useMemo(() => {
+    const progressByBatch = new Map()
+    facultyBatchRows.forEach((batch) => {
+      const course = assignedCourses.find((item) => doesFacultyBatchBelongToCourse(batch, item))
+      const batchStudents = getFacultyBatchProgressStudents(batch, course, facultyScopedStudents, facultyBackfillRecords)
+      const progressValues = batchStudents.map((student) => {
+        const progressStudent = {
+          ...student,
+          batchId: batch?.batchId || batch?.id || student?.batchId || student?.batchEntryId || '',
+          batchName: batch?.batchName || batch?.code || student?.batchName || student?.batch || '',
+          batchTiming: batch?.timing || batch?.batchTiming || student?.batchTiming || student?.batchTime || '',
+        }
+        const workEntry = getFacultyTodayWorkEntriesForStudent(
+          facultyTodayWorkEntries,
+          progressStudent,
+          course?.id || course?.courseId || '',
+        )[0] || null
+        if (workEntry && course) {
+          const summary = buildFacultyTodayWorkProgressSummary(facultyTodayWorkEntries, course, progressStudent)
+          if (summary?.courseProgress != null) return Number(summary.courseProgress)
+        }
+        const storedProgress = Number(student?.courseProgress)
+        return Number.isFinite(storedProgress) ? storedProgress : null
+      }).filter((value) => Number.isFinite(value))
+      if (progressValues.length) {
+        progressByBatch.set(getFacultyFlowBatchKey(batch), Math.round(progressValues.reduce((total, value) => total + value, 0) / progressValues.length))
+      }
+    })
+    selectedCourseBatchProgress.forEach((value, key) => progressByBatch.set(key, value))
+    return progressByBatch
+  }, [assignedCourses, facultyBackfillRecords, facultyBatchRows, facultyScopedStudents, facultyTodayWorkEntries, selectedCourseBatchProgress])
+
   const studentsFlowVisibleStudents = selectedStudentsBatch ? selectedBatchStudents : facultyScopedStudents
   const studentsFlowActionableStudents = studentsFlowVisibleStudents.filter((student) => !isDiscontinuedStudent(student))
   const studentsFlowLevel = selectedStudentsBatch ? 3 : selectedStudentsCourse ? 2 : 1
@@ -5385,7 +5417,7 @@ const nextName = trimmedValue
 
               {activeSection === 'skill-development' ? <FacultySkillDevelopmentPage /> : null}
 
-              {isStudentExamReportRoute ? <FacultyStudentExamReportPage embedded /> : isExamReportsRoute ? <FacultyExamCourseGate title={new URLSearchParams(location.search).get('tab') === 'assessments' ? 'Assessment Report' : 'Syllabus Test Report'}>{({ course, batch }) => <FacultyExamReportsPage embedded selectedCourseId={course.id} selectedBatchId={batch.id || batch.batchId} />}</FacultyExamCourseGate> : isAssessmentsRoute ? <FacultyExamCourseGate title="Syllabus Test Assessment">{({ course, batch }) => <FacultyAssessmentsPage embedded selectedCourseId={course.id} selectedBatchId={batch.id || batch.batchId} />}</FacultyExamCourseGate> : isAcademicTestReportRoute ? <FacultyExamCourseGate title="Academic Test Report">{({ course, batch }) => <AcademicTestReportPage embedded selectedCourseId={course.id} selectedBatchId={batch.id || batch.batchId} />}</FacultyExamCourseGate> : isAcademicTestRoute ? (isAcademicCreateRoute ? <AcademicTestPage mode="faculty" autoOpenCreate onCreateClose={() => { const params = new URLSearchParams(location.search); const itemId = params.get('itemId'); const batchId = params.get('batchId'); navigate(`/dashboard/faculty/exams/academic-tests/${encodeURIComponent(itemId || '')}/${encodeURIComponent(batchId || '')}?view=list&refresh=${Date.now()}`) }} /> : isAcademicTestListRoute ? <AcademicTestPage mode="faculty" /> : location.pathname.replace(/\/+$/, '') === '/dashboard/faculty/exams/academic-tests' ? <FacultyExamCourseGate title="Academic Test">{({ course, batch }) => <AcademicTestPage mode="faculty" facultyCourseId={course.id} facultyBatchId={batch.id || batch.batchId} />}</FacultyExamCourseGate> : <AcademicTestPreparationPage embedded />) : isExamsRoute ? <FacultyExamCourseGate title="Syllabus Test">{({ course, batch }) => <FacultyExamsPage embedded selectedCourseId={course.id} selectedBatchId={batch.id || batch.batchId} />}</FacultyExamCourseGate> : null}
+              {isStudentExamReportRoute ? <FacultyStudentExamReportPage embedded /> : isExamReportsRoute ? <FacultyExamCourseGate title={new URLSearchParams(location.search).get('tab') === 'assessments' ? 'Assessment Report' : 'Syllabus Test Report'}>{({ course, batch }) => <FacultyExamReportsPage embedded selectedCourseId={course.id} selectedBatchId={batch.id || batch.batchId} />}</FacultyExamCourseGate> : isAssessmentsRoute ? <FacultyExamCourseGate title="Syllabus Test Assessment">{({ course, batch }) => <FacultyAssessmentsPage embedded selectedCourseId={course.id} selectedBatchId={batch.id || batch.batchId} />}</FacultyExamCourseGate> : isAcademicTestReportRoute ? <FacultyExamCourseGate title="Academic Test Report">{({ course, batch }) => <AcademicTestReportPage embedded selectedCourseId={course.id} selectedBatchId={batch.id || batch.batchId} />}</FacultyExamCourseGate> : isAcademicTestRoute ? (isAcademicCreateRoute ? <AcademicTestPage mode="faculty" facultyBatchStudentCounts={new Map(facultyBatchRows.map((entry) => [getFacultyFlowBatchKey(entry), entry.students]))} autoOpenCreate onCreateClose={() => { const params = new URLSearchParams(location.search); const itemId = params.get('itemId'); const batchId = params.get('batchId'); navigate(`/dashboard/faculty/exams/academic-tests/${encodeURIComponent(itemId || '')}/${encodeURIComponent(batchId || '')}?view=list&refresh=${Date.now()}`) }} /> : isAcademicTestListRoute ? <AcademicTestPage mode="faculty" /> : location.pathname.replace(/\/+$/, '') === '/dashboard/faculty/exams/academic-tests' ? <FacultyExamCourseGate title="Academic Test">{({ course, batch }) => <AcademicTestPage mode="faculty" facultyCourseId={course.id} facultyBatchId={batch.id || batch.batchId} facultyCourseProgressByBatch={facultyAllCourseBatchProgress} facultyBatchStudentCounts={new Map(facultyBatchRows.map((entry) => [getFacultyFlowBatchKey(entry), entry.students]))} />}</FacultyExamCourseGate> : <AcademicTestPreparationPage embedded facultyCourseProgressByBatch={facultyAllCourseBatchProgress} />) : isExamsRoute ? <FacultyExamCourseGate title="Syllabus Test">{({ course, batch }) => <FacultyExamsPage embedded selectedCourseId={course.id} selectedBatchId={batch.id || batch.batchId} />}</FacultyExamCourseGate> : null}
 
               {!isExamsRoute && !isAssessmentsRoute && !isExamReportsRoute && !isAcademicTestRoute && activeSection === 'dashboard' ? (
                 <>

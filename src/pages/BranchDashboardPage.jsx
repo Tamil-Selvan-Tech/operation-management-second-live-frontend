@@ -12060,6 +12060,7 @@ else {
     branchFacultyRecords={branchFacultyRecords}
     facultyList={facultyList}
     branchStudents={branchStudents}
+    facultyTodayWorkEntries={facultyTodayWorkEntries}
     onDownloadAttendance={(batch) => setAttendanceReportTarget({ mode: 'batch', record: batch })}
   />
 ) : null}
