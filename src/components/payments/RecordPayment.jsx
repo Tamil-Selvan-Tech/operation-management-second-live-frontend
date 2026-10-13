@@ -90,6 +90,30 @@ const applyReceiptPaymentToSchedule = (
   return result;
 };
 
+const normalizeReceiptScheduleToCourseFee = (schedule, totalCourseFee, totalPaid) => {
+  const source = Array.isArray(schedule) ? schedule : [];
+  const fee = Math.max(Number(totalCourseFee) || 0, 0);
+  let remainingFee = fee;
+  let remainingPaid = Math.max(Number(totalPaid) || 0, 0);
+
+  return source.reduce((rows, installment, index) => {
+    const originalAmount = Math.max(getReceiptInstallmentAmount(installment), 0);
+    const amount = fee > 0 ? Math.min(originalAmount, remainingFee) : originalAmount;
+    if (fee > 0) remainingFee = Math.max(remainingFee - amount, 0);
+    if (amount <= 0) return rows;
+
+    const paidAmount = Math.min(amount, remainingPaid);
+    remainingPaid = Math.max(remainingPaid - paidAmount, 0);
+    rows.push({
+      ...installment,
+      amount,
+      paidAmount,
+      installmentNumber: Number(installment?.installmentNumber || index + 1),
+    });
+    return rows;
+  }, []);
+};
+
 export const buildModernPaymentReceiptHtml = ({
   logoUrl,
   instituteName,
@@ -128,8 +152,13 @@ export const buildModernPaymentReceiptHtml = ({
     return `&#8377;${(Number.isFinite(amount) ? amount : 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   };
   const optionalText = (value) => value === undefined || value === null || String(value).trim() === "" ? "-" : value;
-  const displayInstallments = applyReceiptPaymentToSchedule(
+  const normalizedInstallments = normalizeReceiptScheduleToCourseFee(
     installments,
+    totalCourseFee,
+    totalPaid,
+  );
+  const displayInstallments = applyReceiptPaymentToSchedule(
+    normalizedInstallments,
     paymentFor,
     currentPayment,
     paymentAlreadyApplied
@@ -417,8 +446,32 @@ const RecordPayment = ({ student, students = [], onClose, branchProfile = null }
   const courseLocalInstallmentIndex = shouldUseCoursePaymentData
     ? activeStudent.installmentSchedule?.findIndex((item) => Number(item.installmentNumber || item.number) === paymentAgainstNumber) ?? -1
     : -1;
-  const paymentAgainstDisplayLabel = courseLocalInstallmentIndex >= 0
-    ? `Installment ${courseLocalInstallmentIndex + 1}`
+  const selectedPaymentEnrollmentIndex = shouldUseCoursePaymentData
+    ? paymentEnrollments.findIndex((item) => item === selectedPaymentEnrollment)
+    : -1;
+  const precedingCourseInstallmentCount = selectedPaymentEnrollmentIndex > 0
+    ? paymentEnrollments
+        .slice(0, selectedPaymentEnrollmentIndex)
+        .reduce((sum, enrollment) => sum + getPlanInstallmentCount(enrollment), 0)
+    : 0;
+  const sequentialLocalPaymentNumber = shouldUseCoursePaymentData && paymentAgainstNumber
+    ? Math.max(paymentAgainstNumber - precedingCourseInstallmentCount, 1)
+    : 0;
+  const pendingCourseInstallmentIndex = shouldUseCoursePaymentData
+    ? activeStudent.installmentSchedule?.findIndex((installment) => {
+        const amount = Number(installment.amount ?? installment.installmentAmount ?? 0);
+        const paid = Number(installment.paidAmount ?? installment.amountPaid ?? 0);
+        const pendingAmount = Math.max(amount - paid, 0);
+        return pendingAmount > 0 && (!formData.amountToPay || Math.abs(pendingAmount - Number(formData.amountToPay)) < 0.01);
+      }) ?? -1
+    : -1;
+  const sequentialLocalPaymentIndex = pendingCourseInstallmentIndex >= 0
+    ? pendingCourseInstallmentIndex
+    : courseLocalInstallmentIndex >= 0
+      ? Math.max(sequentialLocalPaymentNumber - 1, 0)
+      : -1;
+  const paymentAgainstDisplayLabel = courseLocalInstallmentIndex >= 0 || pendingCourseInstallmentIndex >= 0
+    ? `Installment ${(sequentialLocalPaymentIndex >= 0 ? sequentialLocalPaymentIndex + 1 : sequentialLocalPaymentNumber) || courseLocalInstallmentIndex + 1}`
     : formData.payAgainst;
 
   useEffect(() => {
@@ -468,10 +521,25 @@ const RecordPayment = ({ student, students = [], onClose, branchProfile = null }
     activeStudent?.branchEmail ||
     "";
 
-  const batchName =
-    activeStudent?.batchName ||
-    activeStudent?.batch ||
-    "-";
+  const receiptBatchNames = [
+    ...(isParallelArrangement
+      ? paymentEnrollments.map((enrollment) => (
+          enrollment?.batchName || enrollment?.batch || enrollment?.batchId || ''
+        ))
+      : [
+          selectedPaymentEnrollment?.batchName ||
+          selectedPaymentEnrollment?.batch ||
+          selectedPaymentEnrollment?.batchId ||
+          activeStudent?.batchName ||
+          activeStudent?.batch ||
+          '',
+        ]),
+  ]
+    .map((value) => String(value || '').trim())
+    .filter(Boolean)
+    .filter((value, index, values) => values.indexOf(value) === index)
+
+  const batchName = receiptBatchNames.join(' + ') || '-';
 
   const studentPhone =
     activeStudent?.mobileNumber ||

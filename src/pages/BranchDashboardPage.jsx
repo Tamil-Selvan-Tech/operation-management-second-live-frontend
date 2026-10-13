@@ -1340,38 +1340,107 @@ function branchAmountInWords(value) {
   return `Rupees ${parts.join(' ')} Only`
 }
 
+function getBranchSequentialCourseInstallments(student = {}, enrollments = [], selectedEnrollment = {}) {
+  const explicit = selectedEnrollment.installmentSchedule || selectedEnrollment.paymentPlan?.installments
+  if (Array.isArray(explicit) && explicit.length) return explicit
+  const all = Array.isArray(student.installmentSchedule) ? student.installmentSchedule : []
+  const selectedIndex = enrollments.indexOf(selectedEnrollment)
+  if (!all.length || selectedIndex < 0) return []
+  const counts = enrollments.map((enrollment) => Math.max(Number(enrollment.installmentCount || enrollment.paymentPlanInstallmentCount || enrollment.paymentPlan?.installmentCount || enrollment.installmentSchedule?.length || enrollment.paymentPlan?.installments?.length || 0), 0))
+  const unknownIndexes = counts.map((value, index) => value ? -1 : index).filter((index) => index >= 0)
+  const remaining = Math.max(all.length - counts.reduce((sum, value) => sum + value, 0), 0)
+  if (unknownIndexes.length) {
+    const each = Math.floor(remaining / unknownIndexes.length)
+    unknownIndexes.forEach((index, position) => { counts[index] = each + (position < remaining % unknownIndexes.length ? 1 : 0) })
+  }
+  const offset = counts.slice(0, selectedIndex).reduce((sum, value) => sum + value, 0)
+  return all.slice(offset, offset + counts[selectedIndex])
+}
+
 function downloadBranchStudentReceipt(payment = {}, student = {}, context = {}) {
-  const paymentSummary = computeBranchStudentPaymentSummary(student)
+  const studentEnrollments = Array.isArray(student.courseEnrollments)
+    ? student.courseEnrollments
+    : Array.isArray(student.courses) ? student.courses : []
+  const isSequentialReceipt = String(student.arrangementType || student.enrollmentType || '').trim().toUpperCase() === 'SEQUENTIAL'
+  const selectedSequentialEnrollment = isSequentialReceipt
+    ? studentEnrollments.find((enrollment) => (
+        (payment.courseId && String(enrollment?.courseId || enrollment?.id || '').trim() === String(payment.courseId).trim()) ||
+        (payment.course && String(enrollment?.courseName || enrollment?.name || enrollment?.course?.name || '').trim().toLowerCase() === String(payment.course).trim().toLowerCase())
+      ))
+    : null
+  const receiptStudent = isSequentialReceipt && selectedSequentialEnrollment
+    ? {
+        ...student,
+        ...selectedSequentialEnrollment,
+        courseName: selectedSequentialEnrollment.courseName || selectedSequentialEnrollment.course?.name || payment.course || student.courseName,
+        courseId: selectedSequentialEnrollment.courseId || selectedSequentialEnrollment.id || payment.courseId || student.courseId,
+        finalFee: selectedSequentialEnrollment.finalCourseAmount ?? selectedSequentialEnrollment.afterDiscount ?? selectedSequentialEnrollment.totalAmount ?? selectedSequentialEnrollment.totalCourseAmount ?? selectedSequentialEnrollment.courseAmount ?? 0,
+        totalCourseFee: selectedSequentialEnrollment.finalCourseAmount ?? selectedSequentialEnrollment.afterDiscount ?? selectedSequentialEnrollment.totalAmount ?? selectedSequentialEnrollment.totalCourseAmount ?? selectedSequentialEnrollment.courseAmount ?? 0,
+        installmentSchedule: getBranchSequentialCourseInstallments(student, studentEnrollments, selectedSequentialEnrollment),
+      }
+    : student
+  const paymentSummary = computeBranchStudentPaymentSummary(receiptStudent)
+  const receiptBatchNames = [
+    ...(isSequentialReceipt
+      ? [selectedSequentialEnrollment?.batchName || selectedSequentialEnrollment?.batch || selectedSequentialEnrollment?.batchId || student.batchName || student.batch]
+      : studentEnrollments.map((enrollment) => enrollment?.batchName || enrollment?.batch || enrollment?.batchId || '')),
+    ...(isSequentialReceipt ? [] : [student.batchName, student.batch]),
+  ]
+    .map((value) => String(value || '').trim())
+    .filter(Boolean)
+    .filter((value, index, values) => values.indexOf(value) === index)
   const receiptNumber = payment.receiptNumber || payment.id || 'Receipt'
   const amount = Number(payment.amount ?? payment.paidAmount ?? payment.credit ?? 0)
+  const sourceReceiptInstallments = Array.isArray(receiptStudent.installmentSchedule) ? receiptStudent.installmentSchedule : []
+  const paymentInstallmentNumber = getBranchPaymentHistoryInstallmentNumber(payment)
+  const paymentInstallmentIndex = sourceReceiptInstallments.findIndex((installment, index) => (
+    Number(installment.installmentNumber || installment.number || index + 1) === paymentInstallmentNumber
+  ))
+  const receiptPaymentFor = paymentInstallmentIndex >= 0
+    ? `Installment ${paymentInstallmentIndex + 1}`
+    : payment.payAgainst || 'Payment'
+  const receiptInstallments = sourceReceiptInstallments.map((installment, index) => ({
+    ...installment,
+    installmentNumber: index + 1,
+    number: index + 1,
+  }))
+  const matchedReceiptInstallment = paymentInstallmentIndex >= 0 ? sourceReceiptInstallments[paymentInstallmentIndex] : null
+  const currentPaymentAlreadyApplied = Boolean(
+    matchedReceiptInstallment &&
+    Number(matchedReceiptInstallment.paidAmount ?? matchedReceiptInstallment.amountPaid ?? 0) >= Number(matchedReceiptInstallment.amount ?? matchedReceiptInstallment.installmentAmount ?? 0),
+  )
+  const previouslyPaidForReceipt = currentPaymentAlreadyApplied
+    ? Math.max(Number(paymentSummary.paidAmount || 0) - amount, 0)
+    : Number(paymentSummary.paidAmount || 0)
+  const totalPaidForReceipt = Math.min(Number(paymentSummary.totalFee || 0), previouslyPaidForReceipt + amount)
   const html = buildModernPaymentReceiptHtml({
     logoUrl: `${window.location.origin}/logo.png`,
     instituteName: context.branchProfile?.branchName || 'CISPRO',
     branchAddress: context.branchProfile?.branchAddress || context.branchLocation || '-',
     branchPhone: context.branchProfile?.branchPhone || context.branchProfile?.phone || context.branchProfile?.mobileNumber || '-',
     branchEmail: context.branchEmail || '-',
-    studentName: student.studentName || payment.studentName || 'Student',
-    studentId: student.studentId || payment.studentId || '-',
-    courseName: student.courseName || student.courseInterested || payment.course || '-',
-    batchName: student.batchName || student.batchId || '-',
-    studentPhone: student.mobileNumber || '-',
+    studentName: receiptStudent.studentName || payment.studentName || 'Student',
+    studentId: receiptStudent.studentId || payment.studentId || '-',
+    courseName: receiptStudent.courseName || receiptStudent.courseInterested || payment.course || '-',
+    batchName: receiptBatchNames.join(' + ') || student.batchId || '-',
+    studentPhone: receiptStudent.mobileNumber || '-',
     receiptNumber,
     receiptDate: payment.date || formatStudentDate(payment.dateRaw),
     paymentDate: payment.date || formatStudentDate(payment.dateRaw),
-    paymentFor: payment.payAgainst || 'Payment',
+    paymentFor: receiptPaymentFor,
     paymentMode: payment.paymentMode || payment.mode || '-',
     transactionReference: payment.transactionReference || '-',
     collectedBy: context.branchAdminDisplay || payment.collectedBy || payment.collectedByName || payment.collectorName || payment.createdByName || payment.createdBy || payment.branchAdminName || student.branchAdminName || context.branchProfile?.branchAdminName || '-',
     notes: payment.notes || '-',
     totalCourseFee: paymentSummary.totalFee,
-    previouslyPaid: Math.max(paymentSummary.paidAmount - amount, 0),
+    previouslyPaid: previouslyPaidForReceipt,
     currentPayment: amount,
-    totalPaid: paymentSummary.paidAmount,
-    balance: paymentSummary.pendingAmount,
-    installments: Array.isArray(student.installmentSchedule) ? student.installmentSchedule : [],
+    totalPaid: totalPaidForReceipt,
+    balance: Math.max(Number(paymentSummary.totalFee || 0) - totalPaidForReceipt, 0),
+    installments: receiptInstallments,
     amountInWords: branchAmountInWords(amount),
     compactReceipt: true,
-    paymentAlreadyApplied: true,
+    paymentAlreadyApplied: currentPaymentAlreadyApplied,
   })
   const receiptElement = document.createElement('div')
   receiptElement.innerHTML = html
@@ -8189,12 +8258,6 @@ const studentCourseOptions = useMemo(() => {
 
   const allPaymentHistoryRecords = useMemo(() => {
     const records = new Map()
-    const storedPaymentStudentIds = new Set(
-      storedPaymentHistoryRecords
-        .map((record) => String(record.studentId || '').trim().toLowerCase())
-        .filter(Boolean),
-    )
-
     const addRecord = (record = {}) => {
       const id = String(
         record.id ||
@@ -8248,14 +8311,20 @@ const studentCourseOptions = useMemo(() => {
       // Stored payment history is authoritative. The installment schedule is
       // only a fallback for students without recorded payment transactions;
       // otherwise a due/updated schedule row can appear as a fake payment.
-      const studentId = String(stu.studentId || '').trim().toLowerCase()
-      if (studentId && storedPaymentStudentIds.has(studentId)) return
-
       const installments = Array.isArray(stu.installmentSchedule) ? stu.installmentSchedule : []
 
       installments.forEach((inst, index) => {
         const paidAmount = Number(inst.paidAmount ?? inst.amountPaid ?? 0)
         if (paidAmount <= 0) return
+
+        const installmentNumber = Number(inst.installmentNumber || inst.number || index + 1)
+        const courseName = String(stu.courseName || stu.courseInterested || stu.course?.name || '').trim().toLowerCase()
+        const hasStoredInstallmentRecord = Array.from(records.values()).some((record) => (
+          String(record.studentId || '').trim().toLowerCase() === String(stu.studentId || '').trim().toLowerCase() &&
+          Number(getBranchPaymentHistoryInstallmentNumber(record) || 0) === installmentNumber &&
+          (!courseName || String(record.course || '').trim().toLowerCase() === courseName)
+        ))
+        if (hasStoredInstallmentRecord) return
 
         const paymentDateRaw =
           inst.paymentDate ?? inst.paidDate ?? inst.datePaid ?? inst.paidOn ??
@@ -8973,11 +9042,21 @@ const branchStudentsForDisplay = useMemo(
 
     const paymentHistoryRows = paymentHistoryRecords.map((record) => {
       const installmentNumber = getBranchPaymentHistoryInstallmentNumber(record)
+      const recordCourseRow = coursePaymentRows.find(({ student: courseStudent }) => (
+        String(courseStudent.courseName || '').trim().toLowerCase() === String(record.course || record.courseName || '').trim().toLowerCase() ||
+        (record.courseId && String(courseStudent.courseId || '').trim() === String(record.courseId).trim())
+      ))
+      const courseInstallmentCount = recordCourseRow?.student?.installmentSchedule?.length || installmentSchedule.length
+      const courseScheduleIndex = recordCourseRow?.student?.installmentSchedule?.findIndex((installment, index) => (
+        Number(installment.installmentNumber || installment.number || index + 1) === installmentNumber
+      )) ?? -1
+      const displayInstallmentNumber = courseScheduleIndex >= 0 ? courseScheduleIndex + 1 : installmentNumber
       return {
         ...record,
         installmentNumber,
-        installmentLabel: installmentNumber
-          ? `${installmentNumber}/${installmentSchedule.length || '-'}`
+        displayInstallmentNumber,
+        installmentLabel: displayInstallmentNumber
+          ? `${displayInstallmentNumber}/${courseInstallmentCount || '-'}`
           : '-',
         paymentModeLabel: formatBranchPaymentMode(record),
         paymentStatusLabel: getBranchPaymentStatusLabel(record),
@@ -13367,7 +13446,7 @@ else {
                           <td>{record.course || record.courseName || '-'}</td>
                           <td><strong>{formatBranchRupees(record.amount || 0)}</strong></td>
                           <td>{record.paymentModeLabel || '-'}</td>
-                          <td>{record.installmentNumber ? `${record.installmentNumber}/${selectedPaymentHistoryDetails.installmentRows?.length || '-'}` : '-'}</td>
+                          <td>{record.installmentLabel || '-'}</td>
                           <td>
                             <button
                               type="button"
