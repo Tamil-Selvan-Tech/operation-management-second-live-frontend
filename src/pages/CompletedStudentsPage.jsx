@@ -162,8 +162,11 @@ export function CompletedStudentsPage({ academicProgressByStudent = new Map(), b
         const completedSource = Array.isArray(completedStudents) ? completedStudents : []
         const localRows = completedSource.map((student) => {
           const matchedStudent = currentStudents.find((item) => String(item.studentId || item.id || '').trim().toLowerCase() === String(student.studentId || student.id || '').trim().toLowerCase()) || student
-          const courseId = matchedStudent.courseId || matchedStudent.course?.id || ''
-          const courseName = matchedStudent.courseName || matchedStudent.courseInterested || matchedStudent.course?.name || ''
+          // completedStudents can contain one cloned row per completed course
+          // for multi-course students. Keep that course identity instead of
+          // falling back to the student's primary (possibly incomplete) course.
+          const courseId = student.courseId || student.course?.id || matchedStudent.courseId || matchedStudent.course?.id || ''
+          const courseName = student.courseName || student.courseInterested || student.course?.name || matchedStudent.courseName || matchedStudent.courseInterested || matchedStudent.course?.name || ''
           const catalogCourse = (Array.isArray(courseCatalog) ? courseCatalog : []).find((course) => (
             (courseId && String(course?.id || '').trim() === String(courseId).trim())
             || String(course?.name || '').trim().toLowerCase() === String(courseName).trim().toLowerCase()
@@ -214,11 +217,11 @@ export function CompletedStudentsPage({ academicProgressByStudent = new Map(), b
             courseId,
             branchAdminName: matchedStudent.branchAdminName || branchAdminName,
             studentName: matchedStudent.studentName || matchedStudent.name,
-            courseName: matchedStudent.courseName || matchedStudent.courseInterested || matchedStudent.course?.name,
-            courseStartDate: matchedStudent.courseStartDate || matchedStudent.startDate,
-            courseEndDate: matchedStudent.courseEndDate || matchedStudent.endDate,
-            batchName: matchedStudent.batchName || matchedStudent.batch?.name,
-            facultyName: matchedStudent.facultyName || matchedStudent.faculty?.name,
+            courseName,
+            courseStartDate: selectedEnrollment?.courseStartDate || selectedEnrollment?.startDate || matchedStudent.courseStartDate || matchedStudent.startDate,
+            courseEndDate: selectedEnrollment?.courseEndDate || selectedEnrollment?.endDate || matchedStudent.courseEndDate || matchedStudent.endDate,
+            batchName: selectedEnrollment?.batchName || selectedEnrollment?.batch || matchedStudent.batchName || matchedStudent.batch?.name,
+            facultyName: selectedEnrollment?.facultyName || matchedStudent.facultyName || matchedStudent.faculty?.name,
             attendancePercentage: matchedStudent.attendancePercentage ?? matchedStudent.attendancePercent ?? 100,
             courseFees: financials.totalFees || matchedStudent.courseFees || matchedStudent.totalFee || matchedStudent.finalFee,
             installment1: installmentAmount(0),

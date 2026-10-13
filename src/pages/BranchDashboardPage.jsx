@@ -9507,7 +9507,7 @@ useEffect(() => {
 
   const completedStudentsForLifecycle = useMemo(() => {
     if (!isBranchAcademicProgressLoaded) return []
-    return branchStudentsForDisplay.filter((student) => {
+    return branchStudentsForDisplay.flatMap((student) => {
       const entries = Array.isArray(student?.courseEnrollments) && student.courseEnrollments.length
         ? student.courseEnrollments
         : Array.isArray(student?.courses) && student.courses.length
@@ -9517,7 +9517,7 @@ useEffect(() => {
               courseName: student?.courseName || student?.courseInterested || student?.course?.name,
               courseProgress: student?.courseProgress ?? student?.courseCompletionPercentage ?? student?.progress,
             }]
-      return entries.some((entry) => {
+      return entries.filter((entry) => {
         const courseId = String(entry?.courseId || entry?.id || entry?.course?.id || student?.courseId || '').trim()
         const courseName = String(entry?.courseName || entry?.name || entry?.course?.name || student?.courseName || student?.courseInterested || '').trim()
         const catalogCourse = branchCourseCards.find((course) => (
@@ -9534,7 +9534,13 @@ useEffect(() => {
         )
         const academicProgress = getStudentAcademicProgress(student, courseId, courseName, branchAcademicProgressByStudent)
         return progress >= 100 && isAcademicTestProgressComplete(academicProgress)
-      })
+      }).map((entry) => ({
+        ...student,
+        courseId: entry?.courseId || entry?.id || entry?.course?.id || student?.courseId || '',
+        courseName: entry?.courseName || entry?.name || entry?.course?.name || student?.courseName || student?.courseInterested || '',
+        courseInterested: entry?.courseName || entry?.name || entry?.course?.name || student?.courseInterested || '',
+        courseProgress: entry?.courseProgress ?? entry?.courseCompletionPercentage ?? entry?.progress ?? student?.courseProgress,
+      }))
     })
   }, [branchAcademicProgressByStudent, branchCourseCards, branchStudentsForDisplay, facultyTodayWorkEntries, isBranchAcademicProgressLoaded])
 
@@ -11928,19 +11934,12 @@ else {
                     : 'Upcoming'
               return { ...item, coursePaidAmount, paidPercentage, progressValue, courseCompletionStatus, nextCourseInstallment, nextCourseDueDate, courseStatus, rowInstallments: courseInstallments }
             })
-            const allCoursesCompleted = courseRows.length > 0
-              && courseRows.every((courseRow) => courseRow.courseCompletionStatus === 'COMPLETED')
             const completedCourseRows = courseRows.filter((courseRow) => courseRow.courseCompletionStatus === 'COMPLETED')
             if (isCourseCompletedFilter && !completedCourseRows.length) return null
             const displayCourseRows = isCourseCompletedFilter
               ? completedCourseRows
               : courseRows
             if (!displayCourseRows.length) return null
-            const overallCourseCompletionStatus = isStudentDiscontinued
-              ? 'DISCONTINUED'
-              : allCoursesCompleted
-                ? 'COMPLETED'
-                : 'IN_PROGRESS'
             const coursesWithNextInstallment = displayCourseRows.filter((courseRow) => courseRow.nextCourseInstallment)
             const combinedNextInstallmentAmount = coursesWithNextInstallment.reduce((sum, courseRow) => (
               sum + Math.max(
@@ -12024,21 +12023,13 @@ else {
                         </div>
                       ) : <span className="faculty-today-work-empty-label">-</span>}
                     </td>
-                    {isSequentialArrangement ? (
-                      <td>
-                        {courseRow.isPendingSequentialCourse ? <span className="faculty-today-work-empty-label">-</span> : (
-                          <span className={`branch-student-payment-status ${courseRow.courseCompletionStatus.toLowerCase()}`}>
-                            {courseRow.courseCompletionStatus === 'DISCONTINUED' ? 'Discontinued' : courseRow.courseCompletionStatus === 'COMPLETED' ? 'Course Completed' : 'In Progress'}
-                          </span>
-                        )}
-                      </td>
-                    ) : index === 0 ? (
-                      <td rowSpan={displayCourseRows.length}>
-                        <span className={`branch-student-payment-status ${overallCourseCompletionStatus.toLowerCase()}`}>
-                          {overallCourseCompletionStatus === 'DISCONTINUED' ? 'Discontinued' : overallCourseCompletionStatus === 'COMPLETED' ? 'Course Completed' : 'In Progress'}
+                    <td>
+                      {courseRow.isPendingSequentialCourse ? <span className="faculty-today-work-empty-label">-</span> : (
+                        <span className={`branch-student-payment-status ${courseRow.courseCompletionStatus.toLowerCase()}`}>
+                          {courseRow.courseCompletionStatus === 'DISCONTINUED' ? 'Discontinued' : courseRow.courseCompletionStatus === 'COMPLETED' ? 'Course Completed' : 'In Progress'}
                         </span>
-                      </td>
-                    ) : null}
+                      )}
+                    </td>
                     {isSequentialArrangement ? (
                       <>
                         <td>
