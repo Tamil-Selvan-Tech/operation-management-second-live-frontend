@@ -62,6 +62,49 @@ function currentStudentFinancials(student = {}, courseId = '', courseName = '') 
   }
 }
 
+function getAcademicTestsForRow(academicProgressByStudent, studentId, courseId, courseName) {
+  const index = academicProgressByStudent instanceof Map
+    ? academicProgressByStudent.get(String(studentId || '').trim().toLowerCase())
+    : null
+  if (!index) return []
+  const idKey = String(courseId || '').trim().toLowerCase()
+  const nameKey = String(courseName || '').trim().toLowerCase()
+  const evaluations = index.allByCourse?.[idKey] || index.allByCourse?.[nameKey] || index.byCourse?.[idKey] || index.byCourse?.[nameKey] || []
+  const uniqueEvaluations = [...new Map(evaluations.map((evaluation, index) => {
+    const type = String(evaluation?.type || evaluation?.testType || evaluation?.evaluationType || '').trim().toUpperCase()
+    const name = String(evaluation?.name || evaluation?.title || evaluation?.testName || '').trim().toUpperCase()
+    return [`${type}:${name || index}`, evaluation]
+  })).values()]
+  const hasCombinedEvaluation = uniqueEvaluations.some((evaluation) => {
+    const type = String(evaluation?.type || evaluation?.testType || evaluation?.evaluationType || '').trim().toUpperCase()
+    return type.includes('TEST') && type.includes('PROJECT')
+  })
+  const projectEvaluations = uniqueEvaluations.filter((evaluation) => {
+    const type = String(evaluation?.type || evaluation?.testType || evaluation?.evaluationType || '').trim().toUpperCase()
+    return type.includes('PROJECT') && !type.includes('TEST')
+  })
+  const countedEvaluations = hasCombinedEvaluation
+    ? uniqueEvaluations.filter((evaluation) => {
+      const type = String(evaluation?.type || evaluation?.testType || evaluation?.evaluationType || '').trim().toUpperCase()
+      const name = String(evaluation?.name || evaluation?.title || evaluation?.testName || '').trim().toUpperCase()
+      return !(type.includes('PROJECT') && !type.includes('TEST')) && !(name === 'PROJECT' && !type.includes('TEST'))
+    })
+    : uniqueEvaluations
+  return countedEvaluations.map((evaluation, index) => {
+    const percentage = Number(evaluation?.percentage)
+    const evaluationType = String(evaluation?.type || evaluation?.testType || evaluation?.evaluationType || '').trim().toUpperCase()
+    const projectPercentage = projectEvaluations.length ? Number(projectEvaluations[0]?.percentage) : Number.NaN
+    const testValue = Number.isFinite(percentage) ? `${percentage}%` : (String(evaluation?.status || '').trim() || 'Not Evaluated')
+    const value = evaluationType.includes('TEST') && evaluationType.includes('PROJECT') && Number.isFinite(projectPercentage)
+      ? `Test: ${testValue} · Project: ${projectPercentage}%`
+      : testValue
+    return {
+      label: `Academic Test ${index + 1}`,
+      value,
+    }
+  })
+}
+
 function buildFields(row) {
   const installmentValues = Array.isArray(row.installmentValues) && row.installmentValues.length
     ? row.installmentValues
@@ -77,48 +120,7 @@ function buildFields(row) {
     ['Paid Amount', formatMoney(row.paidAmount)], ['Pending Amount', formatMoney(row.pendingAmount)],
     ['Student Status', row.studentStatus], ...(hasValue(row.remarks) ? [['Remarks', row.remarks]] : []),
     ...(Array.isArray(row.academicTests) ? row.academicTests.map((test) => [test.label, test.value]) : []),
-  ].filter(([label, value]) => {
-    const installmentField = /^(First|Second|Third) Installment$/.test(label)
-    return !installmentField || (value !== null && value !== undefined && value !== '')
-  })
-}
-
-function getAcademicTestsForRow(academicProgressByStudent, studentId, courseId, courseName) {
-  const index = academicProgressByStudent instanceof Map
-    ? academicProgressByStudent.get(String(studentId || '').trim().toLowerCase())
-    : null
-  if (!index) return []
-  const idKey = String(courseId || '').trim().toLowerCase()
-  const nameKey = String(courseName || '').trim().toLowerCase()
-  const evaluations = index.allByCourse?.[idKey] || index.allByCourse?.[nameKey] || index.byCourse?.[idKey] || index.byCourse?.[nameKey] || []
-  const hasCombinedEvaluation = evaluations.some((evaluation) => {
-    const type = String(evaluation?.type || evaluation?.testType || evaluation?.evaluationType || '').trim().toUpperCase()
-    return type.includes('TEST') && type.includes('PROJECT')
-  })
-  const projectEvaluations = evaluations.filter((evaluation) => {
-    const type = String(evaluation?.type || evaluation?.testType || evaluation?.evaluationType || '').trim().toUpperCase()
-    return type.includes('PROJECT') && !type.includes('TEST')
-  })
-  const countedEvaluations = hasCombinedEvaluation
-    ? evaluations.filter((evaluation) => {
-      const type = String(evaluation?.type || evaluation?.testType || evaluation?.evaluationType || '').trim().toUpperCase()
-      const name = String(evaluation?.name || evaluation?.title || evaluation?.testName || '').trim().toUpperCase()
-      return !(type.includes('PROJECT') && !type.includes('TEST')) && !(name === 'PROJECT' && !type.includes('TEST'))
-    })
-    : evaluations
-  return countedEvaluations.map((evaluation, index) => {
-    const percentage = Number(evaluation?.percentage)
-    const evaluationType = String(evaluation?.type || evaluation?.testType || evaluation?.evaluationType || '').trim().toUpperCase()
-    const projectPercentage = projectEvaluations.length ? Number(projectEvaluations[0]?.percentage) : Number.NaN
-    const testValue = Number.isFinite(percentage) ? `${percentage}%` : (String(evaluation?.status || '').trim() || 'Not Evaluated')
-    const value = evaluationType.includes('TEST') && evaluationType.includes('PROJECT') && Number.isFinite(projectPercentage)
-      ? `Test: ${testValue} · Project: ${projectPercentage}%`
-      : testValue
-    return {
-      label: `Academic Test ${index + 1}`,
-      value,
-    }
-  })
+  ].filter(([label, value]) => !/^(First|Second|Third) Installment$/.test(label) || (value !== null && value !== undefined && value !== ''))
 }
 
 function getModalSections(fields) {
@@ -368,12 +370,13 @@ export function CompletedStudentsPage({ academicProgressByStudent = new Map(), b
 
       {state.error ? <div className="completed-students-error" role="alert">{state.error}</div> : null}
       <div className="completed-students-table-wrap"><table><thead><tr><th>Student</th><th>Course</th><th>Dates</th><th>Batch / Faculty</th><th>Attendance</th><th>Total Fees</th><th>Paid</th><th>Pending</th><th>Status</th><th>Details</th></tr></thead><tbody>
-        {state.loading ? <tr><td colSpan="10" className="completed-students-state">Loading records…</td></tr> : state.data.length ? state.data.map((row) => <tr key={row.recordId || `${row.studentId}-${row.courseId}`}><td><strong>{valueOf(row.studentName)}</strong><small>{valueOf(row.studentId)}</small></td><td>{valueOf(row.courseName)}</td><td>{formatDate(row.courseStartDate)}<small>to {formatDate(row.courseEndDate)}</small></td><td>{valueOf(row.batchName)}<small>{valueOf(row.facultyName)}</small></td><td>{attendanceLabel(row)}</td><td>{formatMoney(row.totalFees)}</td><td>{formatMoney(row.paidAmount)}</td><td>{formatMoney(row.pendingAmount)}</td><td><StatusPill value={row.lifecycleStatus || tab} /></td><td><button type="button" className="completed-students-view" onClick={() => setSelected(row)}><Eye size={16} /> View</button></td></tr>) : <tr><td colSpan="10" className="completed-students-state"><CheckCircle2 size={22} /><strong>No {tab === 'COMPLETED' ? 'completed' : 'discontinued'} course records found.</strong><span>Records will appear here when the persisted course status changes.</span></td></tr>}
+        {state.loading ? <tr><td colSpan="10" className="completed-students-state">Loading records…</td></tr> : state.data.length ? state.data.map((row) => <tr key={row.recordId || `${row.studentId}-${row.courseId}`} onClick={() => setSelected(row)} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); setSelected(row) } }} role="button" tabIndex={0}><td><strong>{valueOf(row.studentName)}</strong><small>{valueOf(row.studentId)}</small></td><td>{valueOf(row.courseName)}</td><td>{formatDate(row.courseStartDate)}<small>to {formatDate(row.courseEndDate)}</small></td><td>{valueOf(row.batchName)}<small>{valueOf(row.facultyName)}</small></td><td>{attendanceLabel(row)}</td><td>{formatMoney(row.totalFees)}</td><td>{formatMoney(row.paidAmount)}</td><td>{formatMoney(row.pendingAmount)}</td><td><StatusPill value={row.lifecycleStatus || tab} /></td><td><button type="button" className="completed-students-view" onClick={(event) => { event.stopPropagation(); setSelected(row) }}><Eye size={16} /> View</button></td></tr>) : <tr><td colSpan="10" className="completed-students-state"><CheckCircle2 size={22} /><strong>No {tab === 'COMPLETED' ? 'completed' : 'discontinued'} course records found.</strong><span>Records will appear here when the persisted course status changes.</span></td></tr>}
       </tbody></table></div>
 
       <footer className="completed-students-pagination"><span>{state.meta?.total ? `Showing page ${state.meta.page} of ${totalPages}` : 'No records'}</span><div><button type="button" onClick={() => setPage((current) => Math.max(1, current - 1))} disabled={page <= 1 || state.loading}><ChevronLeft size={17} /></button><button type="button" onClick={() => setPage((current) => Math.min(totalPages, current + 1))} disabled={page >= totalPages || state.loading}><ChevronRight size={17} /></button></div></footer>
 
-      {selected ? <div className="completed-students-modal-backdrop" role="presentation" onClick={() => setSelected(null)}><section className="completed-students-modal" role="dialog" aria-modal="true" aria-labelledby="completed-student-details-title" onClick={(event) => event.stopPropagation()}><header className="completed-students-modal-header"><div><p className="completed-students-kicker">COURSE RECORD</p><h2 id="completed-student-details-title">{valueOf(selected.studentName)}</h2><span>{valueOf(selected.studentId)}{selected.courseName ? ` · ${selected.courseName}` : ''}</span></div><button type="button" className="completed-students-modal-close" onClick={() => setSelected(null)} aria-label="Close"><X size={18} /></button></header><div className="completed-students-modal-body">{getModalSections(buildFields(selected)).map((section) => <section className="completed-students-modal-section" key={section.title}><h3>{section.title}</h3><dl>{section.fields.map(([label, value]) => <div className="completed-students-modal-field" key={label}><dt>{label}</dt><dd>{valueOf(value)}</dd></div>)}</dl></section>)}</div></section></div> : null}
+      {selected ? <div className="completed-students-modal-backdrop" role="presentation"><section className="completed-students-modal" role="dialog" aria-modal="true" aria-labelledby="completed-student-details-title"><header className="completed-students-modal-header"><div><p className="completed-students-kicker">COURSE RECORD</p><h2 id="completed-student-details-title">{valueOf(selected.studentName)}</h2><span>{valueOf(selected.studentId)}{selected.courseName ? ` · ${selected.courseName}` : ''}</span></div><button type="button" className="completed-students-modal-close" onClick={() => setSelected(null)} aria-label="Close"><X size={18} /></button></header><div className="completed-students-modal-body">{getModalSections(buildFields(selected)).map((section) => <section className="completed-students-modal-section" key={section.title}><h3>{section.title}</h3><dl>{section.fields.map(([label, value]) => <div className="completed-students-modal-field" key={label}><dt>{label}</dt><dd>{valueOf(value)}</dd></div>)}</dl></section>)}</div></section></div> : null}
+
     </section>
   )
 }

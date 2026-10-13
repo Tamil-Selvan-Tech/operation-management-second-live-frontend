@@ -19,7 +19,7 @@ import { getBranchStudent, getStudentAttendanceSummary } from '../services/stude
 import { getBranchAttendanceOverview } from '../services/attendanceService'
 import { attendanceToday } from '../lib/branchAttendanceSummary'
 import { getBranchStudentSyllabusReports } from '../services/examService'
-import { getBranchStudentAcademicReports } from '../services/academicTestService'
+import { getBranchStudentAcademicReports, listAcademicTests } from '../services/academicTestService'
 import { buildFacultyTodayWorkProgressSummary } from '../lib/facultyProgress'
 import { previewBranchStudentFeePlan, saveBranchStudent } from '../lib/branchStudentStore'
 
@@ -138,12 +138,48 @@ function getCountedAcademicEvaluations(evaluations = []) {
     : evaluations
 }
 
+function getLatestAcademicEvaluations(evaluations = []) {
+  const latestByKey = new Map()
+  ;(Array.isArray(evaluations) ? evaluations : []).forEach((evaluation, index) => {
+    const type = String(evaluation?.type || evaluation?.testType || evaluation?.evaluationType || '').trim().toUpperCase()
+    const name = String(evaluation?.name || evaluation?.title || evaluation?.testName || '').trim().toUpperCase()
+    // A project can be returned once from the fixed evaluation and again from
+    // its submitted result. Use the evaluation label as the display identity
+    // so the Performance section keeps only the latest result.
+    const key = `${type}:${name || evaluation?.evaluationId || evaluation?.id || index}`.trim().toLowerCase()
+    const current = latestByKey.get(key)
+    if (!current) {
+      latestByKey.set(key, evaluation)
+      return
+    }
+    const currentDate = new Date(current?.updatedAt || current?.submittedAt || current?.createdAt || 0).getTime()
+    const nextDate = new Date(evaluation?.updatedAt || evaluation?.submittedAt || evaluation?.createdAt || 0).getTime()
+    if (nextDate >= currentDate || (!Number.isFinite(Number(current?.percentage)) && Number.isFinite(Number(evaluation?.percentage)))) {
+      latestByKey.set(key, evaluation)
+    }
+  })
+  return [...latestByKey.values()]
+}
+
 function getEvaluationCourseValues(evaluation = {}) {
   const course = evaluation.course || evaluation.courseDetails || {}
   return {
     id: String(evaluation.courseId || evaluation.courseID || course.id || course.courseId || '').trim().toLowerCase(),
     name: String(evaluation.courseName || course.name || course.courseName || '').trim().toLowerCase(),
   }
+}
+
+function getEvaluationBatchValues(evaluation = {}) {
+  const batch = evaluation.batch || evaluation.batchDetails || {}
+  return [
+    evaluation.batchId,
+    evaluation.batchName,
+    evaluation.batch,
+    batch.id,
+    batch.batchId,
+    batch.name,
+    batch.batchName,
+  ].map((value) => String(value || '').trim().toLowerCase()).filter(Boolean)
 }
 
 function filterEvaluationsForCourse(evaluations = [], courseId = '', courseName = '', isMultiCourseStudent = false) {
@@ -158,7 +194,28 @@ function filterEvaluationsForCourse(evaluations = [], courseId = '', courseName 
   })
 }
 
-function getAcademicTestProgress(profile = {}, report = {}, selectedCourseId = '', selectedCourseName = '') {
+function getConfiguredAcademicTestCount(rows = [], courseId = '', courseName = '', batchId = '', batchName = '') {
+  const normalizedCourseId = String(courseId || '').trim().toLowerCase()
+  const normalizedCourseName = String(courseName || '').trim().toLowerCase()
+  const normalizedBatchId = String(batchId || '').trim().toLowerCase()
+  const normalizedBatchName = String(batchName || '').trim().toLowerCase()
+  const row = (Array.isArray(rows) ? rows : []).find((entry) => {
+    const course = entry?.course || {}
+    const matchesCourse = (normalizedCourseId && String(course.id || course.courseId || '').trim().toLowerCase() === normalizedCourseId)
+      || (normalizedCourseName && String(course.name || '').trim().toLowerCase() === normalizedCourseName)
+    if (!matchesCourse) return false
+    const batches = Array.isArray(entry?.batches) ? entry.batches : []
+    if (!normalizedBatchId && !normalizedBatchName) return true
+    return batches.some((batch) => (
+      (normalizedBatchId && [batch?.id, batch?.batchId].some((value) => String(value || '').trim().toLowerCase() === normalizedBatchId))
+      || (normalizedBatchName && String(batch?.batchName || '').trim().toLowerCase() === normalizedBatchName)
+    ))
+  })
+  const count = Number(row?.items?.length ?? row?.academicTestCount)
+  return Number.isFinite(count) && count >= 0 ? count : null
+}
+
+function getAcademicTestProgress(profile = {}, report = {}, selectedCourseId = '', selectedCourseName = '', selectedBatchId = '', selectedBatchName = '') {
   const profileProgress = profile?.academicTestProgress || {}
   const reportData = report?.data || report || {}
   const evaluations = Array.isArray(reportData.evaluations) ? reportData.evaluations : null
@@ -171,18 +228,34 @@ function getAcademicTestProgress(profile = {}, report = {}, selectedCourseId = '
   ).trim().toLowerCase()
   const normalizedCourseId = String(selectedCourseId || '').trim().toLowerCase()
   const normalizedCourseName = String(selectedCourseName || '').trim().toLowerCase()
+  const normalizedBatchId = String(selectedBatchId || '').trim().toLowerCase()
+  const normalizedBatchName = String(selectedBatchName || '').trim().toLowerCase()
 
   // The report endpoint is student-ID scoped. Only use its evaluation count
   // when the response is also for the requested student; this prevents a
   // duplicate student name from leaking another student's progress.
   if (evaluations && (!reportStudentId || !requestedStudentId || reportStudentId === requestedStudentId)) {
-    const courseEvaluations = normalizedCourseId || normalizedCourseName
-      ? evaluations.filter((evaluation) => (
-        String(evaluation?.courseId || '').trim().toLowerCase() === normalizedCourseId ||
-        (normalizedCourseName && String(evaluation?.courseName || '').trim().toLowerCase() === normalizedCourseName)
-      ))
+    const courseMatches = normalizedCourseId || normalizedCourseName
+      ? evaluations.filter((evaluation) => {
+        const values = getEvaluationCourseValues(evaluation)
+        return (normalizedCourseId && values.id === normalizedCourseId)
+          || (normalizedCourseName && values.name === normalizedCourseName)
+      })
       : evaluations
-    const countedEvaluations = getCountedAcademicEvaluations(courseEvaluations)
+    // The API is already student-scoped. Legacy evaluation rows may not carry
+    // the same course identifier as the enrollment, so do not turn a valid
+    // report into 0/0 when no exact course row is available.
+    const courseEvaluations = courseMatches.length ? courseMatches : evaluations
+    const batchEvaluations = normalizedBatchId || normalizedBatchName
+      ? courseEvaluations.filter((evaluation) => {
+        const values = getEvaluationBatchValues(evaluation)
+        return (normalizedBatchId && values.includes(normalizedBatchId))
+          || (normalizedBatchName && values.includes(normalizedBatchName))
+      })
+      : courseEvaluations
+    const hasBatchMetadata = courseEvaluations.some((evaluation) => getEvaluationBatchValues(evaluation).length)
+    const scopedEvaluations = batchEvaluations.length || hasBatchMetadata ? batchEvaluations : courseEvaluations
+    const countedEvaluations = getCountedAcademicEvaluations(scopedEvaluations)
     const completedTests = countedEvaluations.filter((evaluation) => {
       const status = String(evaluation?.status || '').toUpperCase()
       return status === 'SUBMITTED' || status === 'EVALUATED' || Number.isFinite(Number(evaluation?.percentage))
@@ -190,21 +263,35 @@ function getAcademicTestProgress(profile = {}, report = {}, selectedCourseId = '
     // A TEST_AND_PROJECT item may be returned as one test evaluation plus a
     // separate project evaluation. The project belongs to the same test and
     // must not increase the Academic Test count.
+    const configuredCount = getConfiguredAcademicTestCount(
+      reportData.configuredRows,
+      normalizedCourseId,
+      normalizedCourseName,
+      normalizedBatchId,
+      normalizedBatchName,
+    )
+    const configuredTotal = Number.isFinite(Number(reportData.configuredTotalTests))
+      ? Number(reportData.configuredTotalTests)
+      : configuredCount
+    const completedTestCount = Number.isFinite(configuredTotal)
+      ? Math.min(completedTests, Math.max(0, configuredTotal))
+      : completedTests
     const responseTotal = Number(
+      Number.isFinite(configuredTotal) ? configuredTotal :
       reportData.courseTotals?.[normalizedCourseId] ??
       reportData.courseTotals?.[String(courseEvaluations[0]?.courseId || '').trim()] ??
       reportData.courseTotalsByName?.[normalizedCourseName] ??
       (countedEvaluations.length || (normalizedCourseId || normalizedCourseName ? 0 : reportData.totalTests))
     )
     const safeTotal = Math.max(
-      countedEvaluations.length,
-      completedTests,
+      Number.isFinite(configuredTotal) ? Math.max(0, configuredTotal) : countedEvaluations.length,
+      completedTestCount,
       Number.isFinite(responseTotal) ? responseTotal : Number(profileProgress.totalTests) || 0,
     )
     const pendingTests = Math.max(0, safeTotal - completedTests)
     return {
       totalTests: safeTotal,
-      completedTests,
+      completedTests: completedTestCount,
       pendingTests,
       percentage: safeTotal ? Math.round((completedTests / safeTotal) * 100) : 0,
     }
@@ -672,7 +759,7 @@ function PerformanceSection({ studentId, branchId = '', courseId = '', courseNam
       courseName,
       isMultiCourseStudent,
     )
-    setData({ skills: syllabus?.skills || [], academic: academicEvaluations })
+    setData({ skills: syllabus?.skills || [], academic: getLatestAcademicEvaluations(academicEvaluations) })
     setLoading(false)
   }, [studentId, branchId, courseId, courseName, isMultiCourseStudent])
 
@@ -860,26 +947,26 @@ export function Student360Page({
     Promise.allSettled([
       getBranchStudent(resolvedStudentId),
       getBranchStudentAcademicReports(resolvedStudentId, performanceBranchId),
-      getBranchStudentSyllabusReports(resolvedStudentId, performanceBranchId),
+      listAcademicTests(),
     ])
-      .then(([profileResult, reportResult, syllabusResult]) => {
+      .then(([profileResult, reportResult, configurationResult]) => {
         if (!active) return
         const result = profileResult.status === 'fulfilled' ? profileResult.value : initialStudentRef.current
         if (!result) throw profileResult.reason || new Error('Student profile is unavailable.')
         const academicReport = reportResult.status === 'fulfilled' ? reportResult.value : null
-        const syllabusPayload = syllabusResult.status === 'fulfilled'
-          ? (syllabusResult.value?.data || syllabusResult.value || {})
-          : {}
         const academicPayload = academicReport?.data || academicReport || {}
-        const syllabusEvaluations = (syllabusPayload.items || []).map((item) => ({
-          ...item,
-          evaluationId: item.evaluationId || item.id,
-          courseId: item.courseId || null,
-          status: item.status || 'SUBMITTED',
-        }))
+        const configuredRows = configurationResult.status === 'fulfilled'
+          ? (configurationResult.value?.data || configurationResult.value || [])
+          : []
+        const academicEvaluations = Array.isArray(academicPayload.evaluations)
+          ? academicPayload.evaluations
+          : Array.isArray(academicPayload.items) ? academicPayload.items : []
         const mergedAcademicReport = {
           ...academicPayload,
-          evaluations: [...(academicPayload.evaluations || []), ...syllabusEvaluations],
+          // Syllabus/module reports are displayed in the Skills section and
+          // must not inflate the configured Academic Test count.
+          evaluations: academicEvaluations,
+          configuredRows,
         }
         setStudentRecord({ studentId: resolvedStudentId, data: result })
         setAcademicProgressState({ studentId: resolvedStudentId, data: getAcademicTestProgress(result, mergedAcademicReport), report: mergedAcademicReport, error: '' })
@@ -945,7 +1032,14 @@ export function Student360Page({
   const selectedCourse = courseEnrollments[selectedCourseIndex]
   const academicTestProgress = academicProgressState.studentId === resolvedStudentId
     ? academicProgressState.report
-      ? getAcademicTestProgress(student, academicProgressState.report, selectedCourse?.courseId || student?.courseId, selectedCourse?.courseName)
+      ? getAcademicTestProgress(
+        student,
+        academicProgressState.report,
+        selectedCourse?.courseId || student?.courseId,
+        selectedCourse?.courseName,
+        selectedCourse?.batchId || student?.batchId,
+        selectedCourse?.batchName || student?.batchName || student?.batch,
+      )
       : { totalTests: 0, completedTests: 0, pendingTests: 0, percentage: 0 }
     : null
   // Resolve the catalog course for both single- and multi-course students.
