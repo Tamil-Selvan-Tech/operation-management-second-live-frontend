@@ -138,6 +138,26 @@ function getCountedAcademicEvaluations(evaluations = []) {
     : evaluations
 }
 
+function getEvaluationCourseValues(evaluation = {}) {
+  const course = evaluation.course || evaluation.courseDetails || {}
+  return {
+    id: String(evaluation.courseId || evaluation.courseID || course.id || course.courseId || '').trim().toLowerCase(),
+    name: String(evaluation.courseName || course.name || course.courseName || '').trim().toLowerCase(),
+  }
+}
+
+function filterEvaluationsForCourse(evaluations = [], courseId = '', courseName = '', isMultiCourseStudent = false) {
+  if (!Array.isArray(evaluations) || !isMultiCourseStudent) return evaluations
+
+  const normalizedCourseId = String(courseId || '').trim().toLowerCase()
+  const normalizedCourseName = String(courseName || '').trim().toLowerCase()
+  return evaluations.filter((evaluation) => {
+    const values = getEvaluationCourseValues(evaluation)
+    return (normalizedCourseId && values.id === normalizedCourseId) ||
+      (normalizedCourseName && values.name === normalizedCourseName)
+  })
+}
+
 function getAcademicTestProgress(profile = {}, report = {}, selectedCourseId = '', selectedCourseName = '') {
   const profileProgress = profile?.academicTestProgress || {}
   const reportData = report?.data || report || {}
@@ -589,7 +609,7 @@ function PerformanceRing({ percentage, size = 'normal' }) {
   return <div className={`student360-performance-ring ${size === 'small' ? 'is-small' : ''} ${evaluated ? '' : 'is-empty'}`.trim()} style={{ '--ring-value': `${safeValue * 3.6}deg` }}><span>{evaluated ? `${safeValue.toFixed(0)}%` : '—'}</span></div>
 }
 
-function PerformanceSection({ studentId, branchId = '' }) {
+function PerformanceSection({ studentId, branchId = '', courseId = '', courseName = '', isMultiCourseStudent = false }) {
   const [data, setData] = useState({ skills: [], academic: [] })
   const [loading, setLoading] = useState(Boolean(studentId))
   const [error, setError] = useState('')
@@ -605,9 +625,15 @@ function PerformanceSection({ studentId, branchId = '' }) {
     const syllabus = syllabusResult.status === 'fulfilled' ? (syllabusResult.value?.data || syllabusResult.value || {}) : null
     const academic = academicResult.status === 'fulfilled' ? (academicResult.value?.data || academicResult.value || {}) : null
     if (!syllabus && !academic) setError('Unable to load performance data.')
-    setData({ skills: syllabus?.skills || [], academic: academic?.evaluations || [] })
+    const academicEvaluations = filterEvaluationsForCourse(
+      academic?.evaluations || [],
+      courseId,
+      courseName,
+      isMultiCourseStudent,
+    )
+    setData({ skills: syllabus?.skills || [], academic: academicEvaluations })
     setLoading(false)
-  }, [studentId, branchId])
+  }, [studentId, branchId, courseId, courseName, isMultiCourseStudent])
 
   useEffect(() => {
     const timer = window.setTimeout(() => { void load() }, 0)
@@ -1288,7 +1314,13 @@ export function Student360Page({
             isMultiCourseStudent={isMultiCourseStudent}
             branchId={branch?.id || branch?.branchId || ''}
           />
-          <PerformanceSection studentId={resolvedStudentId || student.studentId} branchId={performanceBranchId || student?.branchId || ''} />
+          <PerformanceSection
+            studentId={resolvedStudentId || student.studentId}
+            branchId={performanceBranchId || student?.branchId || ''}
+            courseId={selectedCourse?.courseId || student?.courseId || ''}
+            courseName={selectedCourse?.courseName || student?.courseName || ''}
+            isMultiCourseStudent={isMultiCourseStudent}
+          />
           <AttendanceCalendarSection
             student={student}
             studentId={resolvedStudentId || student.studentId}
