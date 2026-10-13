@@ -297,11 +297,23 @@ function isAcademicTestProgressComplete(progress = null) {
 
 function getAcademicProgressIndex(response = null) {
   const payload = response?.data || response || {}
-  const evaluations = Array.isArray(payload.evaluations)
+  const rawEvaluations = Array.isArray(payload.evaluations)
     ? payload.evaluations
     : Array.isArray(payload.items)
       ? payload.items
       : []
+  const hasCombinedEvaluation = rawEvaluations.some((evaluation) => {
+    const value = String(evaluation?.type || evaluation?.testType || evaluation?.evaluationType || '').trim().toUpperCase()
+    return value.includes('TEST') && value.includes('PROJECT')
+  })
+  const evaluations = hasCombinedEvaluation
+    ? rawEvaluations.filter((evaluation) => {
+      const type = String(evaluation?.type || evaluation?.testType || evaluation?.evaluationType || '').trim().toUpperCase()
+      const name = String(evaluation?.name || evaluation?.title || evaluation?.testName || '').trim().toUpperCase()
+      const value = `${type} ${name}`
+      return !(value.includes('PROJECT') && !value.includes('TEST'))
+    })
+    : rawEvaluations
   const byCourse = {}
 
   evaluations.forEach((evaluation) => {
