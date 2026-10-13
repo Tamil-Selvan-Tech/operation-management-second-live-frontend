@@ -1129,6 +1129,193 @@ function computeBranchStudentPaymentSummary(stu = {}) {
   }
 }
 
+// Keep payment views aligned with the Student Management course ledger. A
+// multi-course student has one student record, but the fee/payment values are
+// stored in a shared installment schedule, so the dashboard must project that
+// schedule back into one row per course.
+function getBranchStudentCourseRows(stu = {}) {
+  const enrollmentSource = Array.isArray(stu.courseEnrollments) && stu.courseEnrollments.length
+    ? stu.courseEnrollments
+    : Array.isArray(stu.courses) && stu.courses.length
+      ? stu.courses
+      : []
+  const entries = [...new Map(enrollmentSource
+    .filter((entry) => entry && typeof entry === 'object')
+    .map((entry) => [
+      String(entry.courseId || entry.id || entry.course?.id || '').trim() || String(entry.courseName || entry.name || ''),
+      entry,
+    ])).values()]
+
+  if (entries.length < 2) {
+    return [{ student: stu, summary: computeBranchStudentPaymentSummary(stu) }]
+  }
+
+  const arrangement = String(stu.arrangementType || stu.enrollmentType || '').trim().toUpperCase()
+  const sequential = arrangement === 'SEQUENTIAL'
+  const installments = Array.isArray(stu.installmentSchedule) ? stu.installmentSchedule : []
+  const courses = entries.map((entry) => ({
+    entry,
+    courseId: String(entry.courseId || entry.id || entry.course?.id || '').trim(),
+    courseName: String(entry.courseName || entry.name || entry.course?.name || 'Course').trim(),
+    amount: Math.max(Number(String(
+      entry.finalCourseAmount ?? entry.totalCourseAmount ?? entry.courseAmount ?? entry.totalAmount ?? entry.afterDiscount ?? 0,
+    ).replace(/,/g, '')) || 0, 0),
+    scheduled: 0,
+    paid: 0,
+    rows: [],
+  }))
+
+  const distribute = (amount, weights) => {
+    const total = weights.reduce((sum, value) => sum + Math.max(Number(value) || 0, 0), 0)
+    let assigned = 0
+    return weights.map((weight, index) => {
+      const part = index === weights.length - 1
+        ? Math.max(Number(amount) - assigned, 0)
+        : Math.round((Number(amount) * Math.max(Number(weight) || 0, 0)) / Math.max(total, 1))
+      assigned += part
+      return part
+    })
+  }
+  const allocateSequentially = (amount, capacities) => {
+    let remaining = Math.max(Number(amount) || 0, 0)
+    return capacities.map((capacity) => {
+      const part = Math.min(remaining, Math.max(Number(capacity) || 0, 0))
+      remaining -= part
+      return part
+    })
+  }
+
+  installments.forEach((installment) => {
+    const amount = Math.max(Number(installment.amount ?? installment.installmentAmount ?? 0) || 0, 0)
+    const paid = Math.min(amount, Math.max(Number(installment.paidAmount ?? installment.amountPaid ?? 0) || 0))
+    const saved = Array.isArray(installment.courseAllocations) ? installment.courseAllocations : []
+    const weights = courses.map((course) => {
+      const savedCourse = saved.find((allocation) => (
+        (course.courseId && String(allocation.courseId || '').trim() === course.courseId) ||
+        String(allocation.courseName || '').trim().toLowerCase() === course.courseName.toLowerCase()
+      ))
+      return Number(savedCourse?.allocatedAmount ?? savedCourse?.amount ?? 0) || course.amount
+    })
+    const allocationAmounts = saved.length
+      ? courses.map((course, index) => {
+          const savedCourse = saved.find((allocation) => (
+            (course.courseId && String(allocation.courseId || '').trim() === course.courseId) ||
+            String(allocation.courseName || '').trim().toLowerCase() === course.courseName.toLowerCase()
+          ))
+          return Number(savedCourse?.allocatedAmount ?? savedCourse?.amount ?? 0) || 0
+        })
+      : sequential
+        ? allocateSequentially(amount, courses.map((course) => course.amount - course.scheduled))
+        : distribute(amount, weights)
+    const savedPaidAmounts = saved.length
+      ? courses.map((course, index) => {
+          const savedCourse = saved.find((allocation) => (
+            (course.courseId && String(allocation.courseId || '').trim() === course.courseId) ||
+            String(allocation.courseName || '').trim().toLowerCase() === course.courseName.toLowerCase()
+          ))
+          return Math.min(allocationAmounts[index], Number(savedCourse?.paidAmount ?? savedCourse?.amountPaid ?? 0) || 0)
+        })
+      : []
+    const paidAmounts = saved.length && savedPaidAmounts.some((value) => value > 0)
+      ? savedPaidAmounts
+      : sequential
+        ? allocateSequentially(paid, allocationAmounts)
+        : distribute(paid, weights)
+
+    courses.forEach((course, index) => {
+      const allocatedAmount = allocationAmounts[index]
+      if (allocatedAmount <= 0 && sequential) return
+      const allocatedPaid = Math.min(allocatedAmount, paidAmounts[index])
+      course.scheduled += allocatedAmount
+      course.paid += allocatedPaid
+      course.rows.push({ ...installment, amount: allocatedAmount, paidAmount: allocatedPaid })
+    })
+  })
+
+  return courses.map((course) => {
+    const totalFee = course.amount
+    const paidAmount = Math.min(totalFee, course.paid || (!installments.length ? Number(course.entry.paidAmount || 0) : 0))
+    const nextInstallment = course.rows.find((installment) => Number(installment.paidAmount ?? installment.amountPaid ?? 0) < Number(installment.amount ?? installment.installmentAmount ?? 0))
+    const nextInstallmentAmount = nextInstallment
+      ? Math.max(Number(nextInstallment.amount ?? nextInstallment.installmentAmount ?? 0) - Number(nextInstallment.paidAmount ?? nextInstallment.amountPaid ?? 0), 0)
+      : 0
+    const nextDueDate = nextInstallment?.dueDate || nextInstallment?.date || null
+    const isCompleted = totalFee > 0 && paidAmount >= Math.max(totalFee - 2, 0)
+    const isOverdue = !isCompleted && nextDueDate && new Date(nextDueDate) < new Date()
+    const paymentStatus = isCompleted ? 'Completed' : isOverdue ? 'Overdue' : paidAmount > 0 ? 'Partially Paid' : 'Pending'
+    const student = {
+      ...stu,
+      courseId: course.courseId || stu.courseId,
+      courseName: course.courseName,
+      courseAmount: totalFee,
+      finalFee: totalFee,
+      totalAmount: totalFee,
+      afterDiscount: totalFee,
+      installmentSchedule: course.rows,
+    }
+    return {
+      student,
+      summary: {
+        totalFee,
+        paidAmount: isCompleted ? totalFee : paidAmount,
+        pendingAmount: isCompleted ? 0 : Math.max(totalFee - paidAmount, 0),
+        nextInstallment,
+        nextInstallmentAmount,
+        nextInstallmentLabel: nextInstallment ? `Installment ${nextInstallment.installmentNumber || nextInstallment.number || ''}`.trim() : '',
+        nextDueDate,
+        paymentStatus,
+      },
+    }
+  })
+}
+
+function expandBranchPaymentRecordByCourse(record = {}, student = {}) {
+  const enrollmentSource = Array.isArray(student.courseEnrollments) && student.courseEnrollments.length
+    ? student.courseEnrollments
+    : Array.isArray(student.courses) && student.courses.length ? student.courses : []
+  if (enrollmentSource.length < 2) return [record]
+
+  const arrangement = String(student.arrangementType || student.enrollmentType || '').trim().toUpperCase()
+  if (arrangement !== 'PARALLEL') return [record]
+
+  const courseRows = getBranchStudentCourseRows(student)
+  const installmentNumber = getBranchPaymentHistoryInstallmentNumber(record)
+  const sourceInstallment = (Array.isArray(student.installmentSchedule) ? student.installmentSchedule : []).find((item, index) => Number(item.installmentNumber || item.number || index + 1) === installmentNumber)
+  const allocations = Array.isArray(sourceInstallment?.courseAllocations) ? sourceInstallment.courseAllocations : []
+  const weights = courseRows.map(({ summary }) => summary.totalFee)
+  const allocatedAmounts = allocations.length
+    ? courseRows.map(({ student: courseStudent }) => {
+        const allocation = allocations.find((item) => String(item.courseId || '').trim() === String(courseStudent.courseId || '').trim() || String(item.courseName || '').trim().toLowerCase() === String(courseStudent.courseName || '').trim().toLowerCase())
+        return Number(allocation?.allocatedAmount ?? allocation?.amount ?? 0) || 0
+      })
+    : []
+  const splitAmounts = allocations.length
+    ? (() => {
+        const amount = Number(record.amount || 0)
+        const total = allocatedAmounts.reduce((sum, value) => sum + value, 0)
+        let assigned = 0
+        return allocatedAmounts.map((value, index) => {
+          const part = index === allocatedAmounts.length - 1
+            ? Math.max(amount - assigned, 0)
+            : Math.round((amount * value) / Math.max(total, 1))
+          assigned += part
+          return part
+        })
+      })()
+    : (() => {
+        const amount = Number(record.amount || 0)
+        const total = weights.reduce((sum, value) => sum + value, 0)
+        return weights.map((weight, index) => index === weights.length - 1 ? Math.max(amount - weights.slice(0, index).reduce((sum, value) => sum + Math.round((amount * value) / Math.max(total, 1)), 0), 0) : Math.round((amount * weight) / Math.max(total, 1)))
+      })()
+  return courseRows.map(({ student: courseStudent }, index) => ({
+    ...record,
+    id: `${record.id}::${courseStudent.courseId || index}`,
+    course: courseStudent.courseName,
+    courseId: courseStudent.courseId,
+    amount: splitAmounts[index],
+  })).filter((item) => item.amount > 0)
+}
+
 function branchAmountInWords(value) {
   const amount = Math.floor(Number(value) || 0)
   if (amount === 0) return 'Zero Rupees Only'
@@ -1600,10 +1787,14 @@ function resolveBranchPaymentMode(record = {}) {
     record.method,
     record.transactionMode,
     record.modeOfPayment,
+    record.paymentType,
     record.actualPaymentMode,
   ]
 
-  const firstNonEmpty = candidates.find((value) => String(value || '').trim())
+  const firstNonEmpty = candidates.find((value) => {
+    const text = String(value || '').trim()
+    return text && !/^installment(s)?$/i.test(text)
+  })
   const mode = String(firstNonEmpty || '').trim()
 
   if (!mode) return '-'
@@ -7992,10 +8183,7 @@ const studentCourseOptions = useMemo(() => {
   }, [isStudentFormOpen, studentFormMode, studentForm.courseStartDate])
 
   const branchPaymentRows = useMemo(
-  () => branchStudents.map((stu) => ({
-    student: stu,
-    summary: computeBranchStudentPaymentSummary(stu),
-  })),
+  () => branchStudents.flatMap((stu) => getBranchStudentCourseRows(stu)),
   [branchStudents],
 )
 
@@ -8105,7 +8293,16 @@ const studentCourseOptions = useMemo(() => {
       })
     })
 
-    return Array.from(records.values()).sort((a, b) => new Date(b.dateRaw || 0) - new Date(a.dateRaw || 0))
+    const studentById = new Map(branchStudents.flatMap((student) => [
+      [String(student.studentId || '').trim().toLowerCase(), student],
+      [String(student.id || '').trim().toLowerCase(), student],
+    ].filter(([key]) => key)))
+    return Array.from(records.values())
+      .flatMap((record) => expandBranchPaymentRecordByCourse(
+        record,
+        studentById.get(String(record.studentId || '').trim().toLowerCase()) || {},
+      ))
+      .sort((a, b) => new Date(b.dateRaw || 0) - new Date(a.dateRaw || 0))
   }, [branchStudents, storedPaymentHistoryRecords])
 
   const dashboardFilterOptions = useMemo(() => {
@@ -8444,6 +8641,34 @@ const studentCourseOptions = useMemo(() => {
     })
   }, [allPaymentHistoryRecords, appliedPaymentHistorySearch, paymentHistoryDate, paymentHistoryFilter, paymentModeFilter])
 
+  const groupedPaymentHistoryRecords = useMemo(() => {
+    const grouped = new Map()
+    filteredPaymentHistoryRecords.forEach((record) => {
+      const baseId = String(record.id || '').split('::')[0]
+      const key = `${baseId}::${record.studentId}::${record.dateRaw || record.date || ''}`
+      const existing = grouped.get(key)
+      const courseAmount = Number(record.amount || 0)
+      const courseName = String(record.course || '-').trim() || '-'
+      if (!existing) {
+        grouped.set(key, {
+          ...record,
+          id: key,
+          amount: courseAmount,
+          course: courseName,
+          courseBreakdown: [{ course: courseName, amount: courseAmount }],
+        })
+        return
+      }
+
+      const existingCourse = existing.courseBreakdown.find((item) => item.course.toLowerCase() === courseName.toLowerCase())
+      if (existingCourse) existingCourse.amount += courseAmount
+      else existing.courseBreakdown.push({ course: courseName, amount: courseAmount })
+      existing.amount += courseAmount
+      existing.course = existing.courseBreakdown.map((item) => item.course).join(', ')
+    })
+    return Array.from(grouped.values())
+  }, [filteredPaymentHistoryRecords])
+
 const branchPaymentStats = useMemo(() => branchPaymentRows.reduce(
   (acc, row) => {
     acc.totalCollected += row.summary.paidAmount
@@ -8520,12 +8745,12 @@ const visibleBranchPaymentRows = useMemo(() => {
   return filteredBranchPaymentRows.slice(start, start + BRANCH_PAYMENTS_PER_PAGE)
 }, [filteredBranchPaymentRows, safePaymentPage])
 
-const totalPaymentHistoryPages = Math.max(1, Math.ceil(filteredPaymentHistoryRecords.length / BRANCH_PAYMENT_HISTORY_PER_PAGE))
+const totalPaymentHistoryPages = Math.max(1, Math.ceil(groupedPaymentHistoryRecords.length / BRANCH_PAYMENT_HISTORY_PER_PAGE))
 const safePaymentHistoryPage = Math.min(paymentHistoryPage, totalPaymentHistoryPages)
 const visiblePaymentHistoryRecords = useMemo(() => {
     const start = (safePaymentHistoryPage - 1) * BRANCH_PAYMENT_HISTORY_PER_PAGE
-    return filteredPaymentHistoryRecords.slice(start, start + BRANCH_PAYMENT_HISTORY_PER_PAGE)
-  }, [filteredPaymentHistoryRecords, safePaymentHistoryPage])
+    return groupedPaymentHistoryRecords.slice(start, start + BRANCH_PAYMENT_HISTORY_PER_PAGE)
+  }, [groupedPaymentHistoryRecords, safePaymentHistoryPage])
 const isPaymentHistoryLoading = isBranchStudentsLoading
 
   const activePaymentHistoryActionRecord = useMemo(
@@ -8588,12 +8813,14 @@ const branchStudentsForDisplay = useMemo(
             'Active',
           ).trim(),
           courseName: String(
-            matchedStudent.courseName ||
-            matchedStudent.courseInterested ||
-            selectedPaymentHistory.course ||
-            selectedPaymentHistory.courseName ||
-            matchedStudent.course?.name ||
-            '-',
+            selectedPaymentHistory.courseBreakdown?.length > 1
+              ? selectedPaymentHistory.courseBreakdown.map((item) => item.course).join(' + ')
+              : matchedStudent.courseName ||
+                matchedStudent.courseInterested ||
+                selectedPaymentHistory.course ||
+                selectedPaymentHistory.courseName ||
+                matchedStudent.course?.name ||
+                '-',
           ).trim(),
           admissionDate: String(
             matchedStudent.admissionDate ||
@@ -8648,7 +8875,30 @@ const branchStudentsForDisplay = useMemo(
           installmentSchedule: [],
         }
 
-    const paymentSummary = computeBranchStudentPaymentSummary(resolvedStudent)
+    const coursePaymentRows = matchedStudent ? getBranchStudentCourseRows(matchedStudent) : []
+    const paymentSummary = coursePaymentRows.length > 1
+      ? {
+          ...computeBranchStudentPaymentSummary(resolvedStudent),
+          totalFee: coursePaymentRows.reduce((sum, row) => sum + Number(row.summary.totalFee || 0), 0),
+          paidAmount: coursePaymentRows.reduce((sum, row) => sum + Number(row.summary.paidAmount || 0), 0),
+          pendingAmount: coursePaymentRows.reduce((sum, row) => sum + Number(row.summary.pendingAmount || 0), 0),
+          nextInstallment: coursePaymentRows
+            .map((row) => row.summary.nextInstallment)
+            .find(Boolean) || null,
+          nextInstallmentAmount: coursePaymentRows.reduce((sum, row) => sum + Number(row.summary.nextInstallmentAmount || 0), 0),
+          nextDueDate: coursePaymentRows
+            .map((row) => row.summary.nextDueDate)
+            .filter(Boolean)
+            .sort()[0] || null,
+          paymentStatus: coursePaymentRows.every((row) => row.summary.paymentStatus === 'Completed')
+            ? 'Completed'
+            : coursePaymentRows.some((row) => row.summary.paymentStatus === 'Overdue')
+              ? 'Overdue'
+              : coursePaymentRows.some((row) => row.summary.paidAmount > 0)
+                ? 'Partially Paid'
+                : 'Pending',
+        }
+      : computeBranchStudentPaymentSummary(resolvedStudent)
     const installmentSchedule = getDashboardInstallments(resolvedStudent)
     const paymentHistoryRecords = (selectedKeys.size
       ? allPaymentHistoryRecords.filter((record) => {
@@ -8746,6 +8996,7 @@ const branchStudentsForDisplay = useMemo(
     return {
       student: resolvedStudent,
       paymentSummary,
+      coursePaymentRows,
       installmentRows,
       paymentHistoryRows,
       nextInstallmentRecord,
@@ -12696,11 +12947,15 @@ else {
                         {record.studentName}
                       </strong>
                     </td>
-                    <td>{record.course}</td>
                     <td>
-                      <strong>
-                        {formatBranchRupees(record.amount)}
-                      </strong>
+                      {record.courseBreakdown?.length > 1
+                        ? record.courseBreakdown.map((item) => <div key={`${record.id}-${item.course}`}>{item.course}</div>)
+                        : record.course}
+                    </td>
+                    <td>
+                      {record.courseBreakdown?.length > 1
+                        ? record.courseBreakdown.map((item) => <strong key={`${record.id}-${item.course}-amount`} style={{ display: 'block' }}>{formatBranchRupees(item.amount)}</strong>)
+                        : <strong>{formatBranchRupees(record.amount)}</strong>}
                     </td>
                     <td>{formatBranchPaymentMode(record)}</td>
                     <td>{record.date}</td>
@@ -12988,26 +13243,39 @@ else {
               </div>
 
               <div className="branch-payment-history-summary-grid">
-                <article className="branch-payment-history-hero-card">
-                  <span>Payment amount</span>
-                  <strong>{formatBranchRupees(selectedPaymentHistoryDetails?.paymentSummary?.totalFee || 0)}</strong>
-                  <small>Total fee</small>
-                </article>
-                <article className="branch-payment-history-hero-card is-success">
-                  <span>Paid Amount</span>
-                  <strong>{formatBranchRupees(selectedPaymentHistoryDetails?.paymentSummary?.paidAmount || 0)}</strong>
-                  <small>Collected so far</small>
-                </article>
-                <article className="branch-payment-history-hero-card is-warning">
-                  <span>Balance</span>
-                  <strong>{formatBranchRupees(selectedPaymentHistoryDetails?.paymentSummary?.pendingAmount || 0)}</strong>
-                  <small>Remaining amount</small>
-                </article>
-                <article className="branch-payment-history-hero-card is-success">
-                  <span>Payment Progress (%)</span>
-                  <strong>{formatBranchPercentage(selectedPaymentHistoryDetails?.paymentSummary?.totalFee ? (selectedPaymentHistoryDetails.paymentSummary.paidAmount / selectedPaymentHistoryDetails.paymentSummary.totalFee) * 100 : 0)}%</strong>
-                  <small>Collected against total fee</small>
-                </article>
+                {selectedPaymentHistoryDetails?.coursePaymentRows?.length > 1
+                  ? selectedPaymentHistoryDetails.coursePaymentRows.map(({ student: courseStudent, summary }) => (
+                    <Fragment key={`payment-course-summary-${courseStudent.courseId || courseStudent.courseName}`}>
+                      <article className="branch-payment-history-hero-card">
+                        <span>{courseStudent.courseName}</span>
+                        <strong>{formatBranchRupees(summary.totalFee || 0)}</strong>
+                        <small>Total fee</small>
+                      </article>
+                      <article className="branch-payment-history-hero-card is-success">
+                        <span>{courseStudent.courseName} · Paid</span>
+                        <strong>{formatBranchRupees(summary.paidAmount || 0)}</strong>
+                        <small>Collected so far</small>
+                      </article>
+                      <article className="branch-payment-history-hero-card is-warning">
+                        <span>{courseStudent.courseName} · Balance</span>
+                        <strong>{formatBranchRupees(summary.pendingAmount || 0)}</strong>
+                        <small>Remaining amount</small>
+                      </article>
+                      <article className="branch-payment-history-hero-card is-success">
+                        <span>{courseStudent.courseName} · Progress</span>
+                        <strong>{formatBranchPercentage(summary.totalFee ? (summary.paidAmount / summary.totalFee) * 100 : 0)}%</strong>
+                        <small>Collected against course fee</small>
+                      </article>
+                    </Fragment>
+                  ))
+                  : (
+                    <>
+                      <article className="branch-payment-history-hero-card"><span>Payment amount</span><strong>{formatBranchRupees(selectedPaymentHistoryDetails?.paymentSummary?.totalFee || 0)}</strong><small>Total fee</small></article>
+                      <article className="branch-payment-history-hero-card is-success"><span>Paid Amount</span><strong>{formatBranchRupees(selectedPaymentHistoryDetails?.paymentSummary?.paidAmount || 0)}</strong><small>Collected so far</small></article>
+                      <article className="branch-payment-history-hero-card is-warning"><span>Balance</span><strong>{formatBranchRupees(selectedPaymentHistoryDetails?.paymentSummary?.pendingAmount || 0)}</strong><small>Remaining amount</small></article>
+                      <article className="branch-payment-history-hero-card is-success"><span>Payment Progress (%)</span><strong>{formatBranchPercentage(selectedPaymentHistoryDetails?.paymentSummary?.totalFee ? (selectedPaymentHistoryDetails.paymentSummary.paidAmount / selectedPaymentHistoryDetails.paymentSummary.totalFee) * 100 : 0)}%</strong><small>Collected against total fee</small></article>
+                    </>
+                  )}
               </div>
 
               <section className="branch-payment-history-section">
@@ -13028,24 +13296,47 @@ else {
                       </tr>
                     </thead>
                     <tbody>
-                      {selectedPaymentHistoryDetails?.installmentRows?.length ? selectedPaymentHistoryDetails.installmentRows.map((installment) => (
-                        <tr key={`${installment.installmentNumber}-${installment.dueDate || installment.paidDate || installment.amount}`}>
-                          <td><strong>{installment.installmentLabel}</strong></td>
-                          <td>{formatBranchRupees(installment.amount || 0)}</td>
-                          <td>{formatBranchPaymentDate(installment.dueDate)}</td>
-                          <td>{installment.paymentMode || '-'}</td>
-                          <td>{installment.paidDate || '-'}</td>
-                          <td>
-                            <span className={`branch-payment-status-badge is-${installment.statusTone}`}>
-                              {installment.status || '-'}
-                            </span>
-                          </td>
-                        </tr>
-                      )) : (
+                      {selectedPaymentHistoryDetails?.coursePaymentRows?.length > 1
+                        ? selectedPaymentHistoryDetails.coursePaymentRows.flatMap(({ student: courseStudent }) => {
+                          const courseName = courseStudent.courseName || 'Course'
+                          return [
+                            <tr key={`${courseName}-heading`}><td colSpan="6"><strong>{courseName}</strong></td></tr>,
+                            ...(Array.isArray(courseStudent.installmentSchedule) ? courseStudent.installmentSchedule : []).map((installment, index) => {
+                              const amount = Number(installment.amount ?? installment.installmentAmount ?? 0)
+                              const paidAmount = Number(installment.paidAmount ?? installment.amountPaid ?? 0)
+                              const installmentNumber = Number(installment.installmentNumber || installment.number || index + 1)
+                              const paidRecord = selectedPaymentHistoryDetails.paymentHistoryRows.find((record) => (
+                                String(record.course || record.courseName || '').trim().toLowerCase() === courseName.trim().toLowerCase() &&
+                                Number(record.installmentNumber || 0) === installmentNumber
+                              ))
+                              const isPaid = amount > 0 && paidAmount >= amount
+                              const dueDate = installment.dueDate || installment.date || ''
+                              const isOverdue = !isPaid && dueDate && new Date(dueDate) < new Date()
+                              return <tr key={`${courseName}-${index}-${amount}`}>
+                                <td><strong>Installment {index + 1}/{courseStudent.installmentSchedule.length}</strong></td>
+                                <td>{formatBranchRupees(amount)}</td>
+                                <td>{formatBranchPaymentDate(dueDate)}</td>
+                                <td>{paidAmount > 0 ? formatBranchPaymentMode(paidRecord || installment) : '-'}</td>
+                                <td>{paidAmount > 0 ? (paidRecord?.paymentDateLabel || formatBranchPaymentDate(installment.paymentDate || installment.paidDate || installment.paidAt)) : '-'}</td>
+                                <td><span className={`branch-payment-status-badge is-${isPaid ? 'paid' : isOverdue ? 'overdue' : paidAmount > 0 ? 'partial' : 'pending'}`}>{isPaid ? 'Paid' : isOverdue ? 'Due' : paidAmount > 0 ? 'Partially Paid' : 'Pending'}</span></td>
+                              </tr>
+                            }),
+                          ]
+                        })
+                        : selectedPaymentHistoryDetails?.installmentRows?.length ? selectedPaymentHistoryDetails.installmentRows.map((installment) => (
+                          <tr key={`${installment.installmentNumber}-${installment.dueDate || installment.paidDate || installment.amount}`}>
+                            <td><strong>{installment.installmentLabel}</strong></td>
+                            <td>{formatBranchRupees(installment.amount || 0)}</td>
+                            <td>{formatBranchPaymentDate(installment.dueDate)}</td>
+                            <td>{installment.paymentMode || '-'}</td>
+                            <td>{installment.paidDate || '-'}</td>
+                            <td><span className={`branch-payment-status-badge is-${installment.statusTone}`}>{installment.status || '-'}</span></td>
+                          </tr>
+                        )) : (
                         <tr>
                           <td colSpan="6" className="branch-payment-history-empty-state">No installment details found.</td>
                         </tr>
-                      )}
+                        )}
                     </tbody>
                   </table>
                 </div>
@@ -13061,6 +13352,7 @@ else {
                     <thead>
                       <tr>
                         <th>Payment Date</th>
+                        <th>Course</th>
                         <th>Amount</th>
                         <th>Payment Mode</th>
                         <th>Installment Number</th>
@@ -13072,6 +13364,7 @@ else {
                       {selectedPaymentHistoryDetails?.paymentHistoryRows?.length ? selectedPaymentHistoryDetails.paymentHistoryRows.map((record) => (
                         <tr key={record.id}>
                           <td>{record.paymentDateLabel || '-'}</td>
+                          <td>{record.course || record.courseName || '-'}</td>
                           <td><strong>{formatBranchRupees(record.amount || 0)}</strong></td>
                           <td>{record.paymentModeLabel || '-'}</td>
                           <td>{record.installmentNumber ? `${record.installmentNumber}/${selectedPaymentHistoryDetails.installmentRows?.length || '-'}` : '-'}</td>
@@ -13092,7 +13385,7 @@ else {
                         </tr>
                       )) : (
                         <tr>
-                          <td colSpan="6" className="branch-payment-history-empty-state">No payment history found.</td>
+                          <td colSpan="7" className="branch-payment-history-empty-state">No payment history found.</td>
                         </tr>
                       )}
                     </tbody>
@@ -13581,7 +13874,7 @@ else {
               visibleBranchPaymentRows.map(
                 ({ student, summary }) => (
 
-                  <tr key={student.studentId}>
+                  <tr key={`${student.studentId || student.id}-${student.courseId || student.courseName || 'course'}`}>
 
                     <td>
                       <strong>
