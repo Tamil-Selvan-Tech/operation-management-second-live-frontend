@@ -121,6 +121,7 @@ import { BranchDiscontinuationManagementPage } from './BranchDiscontinuationMana
 import { Student360Page } from './Student360Page'
 import { calculateBatchCourseEndDate, getBatchAvailability } from '../lib/batchAllocation'
 import { StudentCalendarPage } from './StudentCalendarPage'
+import CompletedStudentsPage from './CompletedStudentsPage'
 import RecordPayment from '../components/payments/RecordPayment'
 import { buildModernPaymentReceiptHtml } from '../components/payments/RecordPayment'
 import '../components/payments/RecordPayment.css'
@@ -2074,6 +2075,7 @@ function getBranchDashboardSectionFromPath(pathname = '', search = '') {
   if (section === 'faculty-edit-requests') return 'faculty-edit-requests'
   if (section === 'discontinuations') return 'discontinuations'
   if (section === 'students') return 'students'
+  if (section === 'completed-students') return 'completed-students'
   if (section === 'courses') return 'courses'
   if (section === 'installments') return 'installments'
   if (section === 'faculty') return 'faculty'
@@ -3488,7 +3490,7 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
   const [expandedSidebarGroups, setExpandedSidebarGroups] = useState(() => ({
     courses: false,
     faculty: activeSection === 'batches',
-    students: ['students', 'courses', 'batches', 'installments', 'progress-notifications', 'institute-leave', 'faculty-leave', 'discontinuations'].includes(activeSection),
+    students: ['students', 'student-management', 'completed-students', 'courses', 'batches', 'installments', 'progress-notifications', 'institute-leave', 'faculty-leave', 'discontinuations'].includes(activeSection),
     management: ['institute-leave', 'faculty-leave', 'progress-notifications', 'faculty-edit-requests', 'discontinuations'].includes(activeSection),
   }))
   const [expandedSidebarNestedGroups, setExpandedSidebarNestedGroups] = useState({})
@@ -3559,7 +3561,7 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
   }, [isSidebarFlyoutMode, openSidebarFlyout])
 
   useEffect(() => {
-    const parentByChild = { faculty: 'faculty', students: 'students', courses: 'students', batches: 'students', installments: 'students', payments: 'payments', 'exams-results': 'academic', 'academic-tests': 'academic', 'institute-leave': 'students', 'faculty-leave': 'students', 'progress-notifications': 'students', 'faculty-edit-requests': 'management', discontinuations: 'students' }
+    const parentByChild = { faculty: 'faculty', students: 'academic', 'student-management': 'academic', 'completed-students': 'academic', courses: 'academic', batches: 'academic', installments: 'academic', payments: 'payments', 'exams-results': 'academic', 'academic-tests': 'academic', 'institute-leave': 'academic', 'faculty-leave': 'academic', 'progress-notifications': 'academic', 'faculty-edit-requests': 'academic', discontinuations: 'academic' }
     const parent = parentByChild[activeSection]
     if (!parent) return
     setExpandedSidebarGroups((current) => current[parent] ? current : { ...current, [parent]: true })
@@ -8784,6 +8786,42 @@ useEffect(() => {
       })
       .filter((student) => {
         if (studentStatusFilter === 'all') return true
+        if (studentStatusFilter === 'course-completed') {
+          const courseStatuses = [
+            student?.courseCompletion,
+            ...Object.values(student?.courseCompletionByCourse || {}),
+          ].map((value) => String(value || '').trim().toUpperCase())
+          if (courseStatuses.includes('COMPLETED')) return true
+
+          const academicProgressByCourse = student?.academicTestProgressByCourse || {}
+          const hasCompletedCourse = [
+            {
+              courseId: student?.courseId,
+              progress: student?.courseProgress ?? student?.courseCompletionPercentage ?? student?.progress,
+            },
+            ...(Array.isArray(student?.courseEnrollments) ? student.courseEnrollments : []),
+          ].some((course) => {
+            if (Number(course?.progress ?? course?.courseProgress ?? course?.courseCompletionPercentage) < 100) return false
+            const courseId = String(course?.courseId || course?.id || '').trim()
+            const academicProgress = academicProgressByCourse[courseId] || student?.academicTestProgress || null
+            return Number(academicProgress?.pendingTests || 0) === 0
+          })
+
+          if (hasCompletedCourse) return true
+
+          // Some course progress is calculated from faculty work entries on
+          // this page instead of being persisted on the student snapshot.
+          return branchCourseCards.some((course) => {
+            const progressSummary = buildFacultyTodayWorkProgressSummary(
+              facultyTodayWorkEntries,
+              course,
+              { ...student, courseId: course.id, courseName: course.name },
+            )
+            if (Number(progressSummary?.courseProgress) < 100) return false
+            const academicProgress = academicProgressByCourse[String(course.id)] || student?.academicTestProgress || null
+            return Number(academicProgress?.pendingTests || 0) === 0
+          })
+        }
         const statusValue = String(student?.status || student?.recordStatus || student?.studentStatus || 'Active').trim().toLowerCase()
         return statusValue === String(studentStatusFilter).toLowerCase()
       })
@@ -8805,7 +8843,7 @@ useEffect(() => {
         const comparison = String(leftValue).localeCompare(String(rightValue), undefined, { numeric: true, sensitivity: 'base' })
         return studentSortOrder === 'asc' ? comparison : -comparison
       })
-  }, [appliedStudentSearchTerm, branchStudentsForDisplay, studentCourseFilter, studentSortBy, studentSortOrder, studentStatusFilter])
+  }, [appliedStudentSearchTerm, branchCourseCards, branchStudentsForDisplay, facultyTodayWorkEntries, studentCourseFilter, studentSortBy, studentSortOrder, studentStatusFilter])
 
   const totalStudentPages = Math.max(1, Math.ceil(filteredBranchStudents.length / BRANCH_STUDENTS_PER_PAGE))
   const safeStudentPage = Math.min(studentPage, totalStudentPages)
@@ -9738,7 +9776,10 @@ useEffect(() => {
             { id: 'courses', label: 'Course Management', icon: BookOpen },
             { id: 'batches', label: 'Batch Management', icon: Layers3 },
             { id: 'faculty-skills', label: 'Faculty Skills Upgrade', icon: GraduationCap },
-            { id: 'students', label: 'Student Management', icon: Users },
+            { id: 'student-management', label: 'Student Management', icon: Users, children: [
+              { id: 'students', label: 'Student Management', icon: Users },
+              { id: 'completed-students', label: 'Completed Students', icon: CheckCircle2 },
+            ] },
             { id: 'exams-results', label: 'Exams and Result', icon: FileText, children: [
               { id: 'exams-results', label: 'Syllabus Test', icon: FileText },
               { id: 'academic-tests', label: 'Academic Test', icon: FileText, children: [
@@ -10262,6 +10303,7 @@ useEffect(() => {
                   onBack={() => navigate('/branch-dashboard?section=students')}
                 />
               ) : null}
+              {activeSection === 'completed-students' ? <CompletedStudentsPage /> : null}
               {activeSection === 'faculty-skills' ? <FacultySkillsUpgradePage embedded /> : null}
               {activeSection === 'dashboard' ? (
                 <>
@@ -10764,10 +10806,11 @@ useEffect(() => {
                       />
                       <BranchCourseFilterSelect
                         value={studentStatusFilter}
-                        width={132}
+                        width={170}
                         ariaLabel="Filter students by status"
                         options={[
                           { value: 'all', label: 'All status' },
+                          { value: 'course-completed', label: 'Course Completed' },
                           ...studentFilterOptions.statuses.map(([value, label]) => ({ value, label })),
                         ]}
                         onChange={(value) => { setStudentStatusFilter(value); setStudentPage(1) }}
@@ -10995,13 +11038,11 @@ else {
           const fallbackCourseProgress = studentKeys
             .map((key) => branchStudentCourseProgressByKey.get(key))
             .find((value) => Number.isFinite(value))
-          const studentCourseProgress = Number.isFinite(storedCourseProgress)
-            ? Math.min(100, Math.max(0, storedCourseProgress))
-            : Number.isFinite(directCourseProgress)
-              ? Math.min(100, Math.max(0, directCourseProgress))
-              : (Number.isFinite(fallbackCourseProgress)
-                ? Math.min(100, Math.max(0, fallbackCourseProgress))
-                : (effectiveCourse ? 0 : null))
+          const studentProgressValues = [storedCourseProgress, directCourseProgress, fallbackCourseProgress]
+            .filter(Number.isFinite)
+          const studentCourseProgress = studentProgressValues.length
+            ? Math.min(100, Math.max(0, ...studentProgressValues))
+            : (effectiveCourse ? 0 : null)
           const hasCourseProgress = Number.isFinite(studentCourseProgress)
 
           const enrollmentSource = Array.isArray(stu.courseEnrollments) && stu.courseEnrollments.length
@@ -11216,13 +11257,13 @@ else {
               // faculty progress and payment records are complete. Prefer the
               // effective row values, while still honoring an explicit test
               // result when it is available.
+              // Course completion depends only on learning completion. Payment
+              // status is displayed separately and must not block this label.
               const courseCompletionStatus = isStudentDiscontinued
                 ? 'DISCONTINUED'
-                : progressValue >= 100 && isCoursePaymentCompleted && (
-                !academicProgress || areAcademicTestsCompleted
-              )
-                ? 'COMPLETED'
-                : 'IN_PROGRESS'
+                : progressValue >= 100 && (!academicProgress || areAcademicTestsCompleted)
+                  ? 'COMPLETED'
+                  : 'IN_PROGRESS'
               const courseStatus = isCoursePaymentCompleted
                 ? 'Completed'
                 : item.isPendingSequentialCourse
@@ -11236,7 +11277,11 @@ else {
                     : 'Upcoming'
               return { ...item, coursePaidAmount, paidPercentage, progressValue, courseCompletionStatus, nextCourseInstallment, nextCourseDueDate, courseStatus, rowInstallments: courseInstallments }
             })
-            const coursesWithNextInstallment = courseRows.filter((courseRow) => courseRow.nextCourseInstallment)
+            const displayCourseRows = studentStatusFilter === 'course-completed'
+              ? courseRows.filter((courseRow) => courseRow.courseCompletionStatus === 'COMPLETED')
+              : courseRows
+            if (!displayCourseRows.length) return null
+            const coursesWithNextInstallment = displayCourseRows.filter((courseRow) => courseRow.nextCourseInstallment)
             const combinedNextInstallmentAmount = coursesWithNextInstallment.reduce((sum, courseRow) => (
               sum + Math.max(
                 Number(courseRow.nextCourseInstallment.amount || 0) - Number(courseRow.nextCourseInstallment.paidAmount || 0),
@@ -11255,16 +11300,16 @@ else {
               ? (combinedInstallmentNumbers.length === 1 ? `Installment ${combinedInstallmentNumbers[0]}` : 'Next installments')
               : ''
             const combinedCourseCountLabel = `· ${coursesWithNextInstallment.length} courses`
-            const hasPartiallyPaidInstallment = courseRows.some((courseRow) => (
+            const hasPartiallyPaidInstallment = displayCourseRows.some((courseRow) => (
               courseRow.rowInstallments.some((installment) => {
                 const amount = Number(installment.amount ?? installment.installmentAmount ?? 0)
                 const paid = Number(installment.paidAmount ?? installment.amountPaid ?? 0)
                 return paid > 0 && paid < amount
               })
             ))
-            const combinedPaymentStatus = courseRows.every((courseRow) => courseRow.courseStatus === 'Completed')
+            const combinedPaymentStatus = displayCourseRows.every((courseRow) => courseRow.courseStatus === 'Completed')
               ? 'Completed'
-              : courseRows.some((courseRow) => courseRow.courseStatus === 'Overdue')
+              : displayCourseRows.some((courseRow) => courseRow.courseStatus === 'Overdue')
                 ? 'Overdue'
                 : hasPartiallyPaidInstallment
                   ? 'Partial'
@@ -11272,7 +11317,7 @@ else {
 
             return (
               <Fragment key={stu.studentId || stu.id}>
-                {courseRows.map((courseRow, index) => {
+                {displayCourseRows.map((courseRow, index) => {
                   const courseActionMenuId = `${stu.studentId || stu.id}::${courseRow.courseId || index}`
                   return (
                   <tr
@@ -11290,10 +11335,10 @@ else {
                     }}
                   >
                     {index === 0 ? (
-                      <td className="branch-student-id-cell branch-student-group-cell" rowSpan={courseRows.length}>
+                      <td className="branch-student-id-cell branch-student-group-cell" rowSpan={displayCourseRows.length}>
                         <strong>{stu.studentId || '-'}</strong>
                         <span>{stu.studentName || '-'}</span>
-                        <small>{courseRows.length} Courses</small>
+                        <small>{displayCourseRows.length} Courses</small>
                       </td>
                     ) : null}
                     <td className="branch-student-course-group-cell">
@@ -11327,7 +11372,7 @@ else {
                         )}
                       </td>
                     ) : index === 0 ? (
-                      <td rowSpan={courseRows.length}>
+                      <td rowSpan={displayCourseRows.length}>
                         <span className={`branch-student-payment-status ${courseRow.courseCompletionStatus.toLowerCase()}`}>
                           {courseRow.courseCompletionStatus === 'DISCONTINUED' ? 'Discontinued' : courseRow.courseCompletionStatus === 'COMPLETED' ? 'Course Completed' : 'In Progress'}
                         </span>
@@ -11352,7 +11397,7 @@ else {
                       </>
                     ) : index === 0 ? (
                       <>
-                        <td rowSpan={courseRows.length}>
+                        <td rowSpan={displayCourseRows.length}>
                           {isStudentDiscontinued ? <span className="branch-no-installment">-</span> : coursesWithNextInstallment.length ? (
                             <div className="branch-next-installment">
                               <strong>{formatFee(combinedNextInstallmentAmount)}</strong>
@@ -11361,14 +11406,14 @@ else {
                             </div>
                           ) : <span className="branch-no-installment">-</span>}
                         </td>
-                        <td rowSpan={courseRows.length}><span className="branch-student-due-date">{isStudentDiscontinued ? '-' : formatDueDate(combinedNextDueDate)}</span></td>
-                        <td rowSpan={courseRows.length}><span className={`branch-student-payment-status ${isStudentDiscontinued ? 'discontinued' : combinedPaymentStatus.toLowerCase()}`}>{isStudentDiscontinued ? 'Discontinued' : combinedPaymentStatus}</span></td>
+                        <td rowSpan={displayCourseRows.length}><span className="branch-student-due-date">{isStudentDiscontinued ? '-' : formatDueDate(combinedNextDueDate)}</span></td>
+                        <td rowSpan={displayCourseRows.length}><span className={`branch-student-payment-status ${isStudentDiscontinued ? 'discontinued' : combinedPaymentStatus.toLowerCase()}`}>{isStudentDiscontinued ? 'Discontinued' : combinedPaymentStatus}</span></td>
                       </>
                     ) : null}
                     {isSequentialArrangement && courseRow.isPendingSequentialCourse ? (
                       <td style={{ textAlign: 'center' }}><span className="faculty-today-work-empty-label">-</span></td>
                     ) : isSequentialArrangement || index === 0 ? (
-                      <td {...(!isSequentialArrangement ? { rowSpan: courseRows.length } : {})} style={{ textAlign: 'center' }}>
+                      <td {...(!isSequentialArrangement ? { rowSpan: displayCourseRows.length } : {})} style={{ textAlign: 'center' }}>
                         <div className={`branch-student-actions-cell ${studentActionMenuId === courseActionMenuId ? 'menu-open' : ''}`}>
                           <button
                             type="button"
@@ -11417,6 +11462,12 @@ else {
               </Fragment>
             )
           }
+
+          const singleCourseAcademicProgress = stu.academicTestProgressByCourse?.[stu.courseId] || stu.academicTestProgress || null
+          const singleCourseCompleted = !isStudentDiscontinued
+            && studentCourseProgress >= 100
+            && Number(singleCourseAcademicProgress?.pendingTests || 0) === 0
+          if (studentStatusFilter === 'course-completed' && !singleCourseCompleted) return null
 
           return (
             <tr
@@ -11489,7 +11540,6 @@ else {
                 {(() => {
                   const academicProgress = stu.academicTestProgressByCourse?.[stu.courseId] || stu.academicTestProgress || null
                   const isCompleted = studentCourseProgress >= 100
-                    && installmentProgress.paidInstallmentPercentage >= 100
                     && Number(academicProgress?.pendingTests || 0) === 0
                   const completionStatus = isStudentDiscontinued ? 'DISCONTINUED' : isCompleted ? 'COMPLETED' : 'IN_PROGRESS'
                   return (
