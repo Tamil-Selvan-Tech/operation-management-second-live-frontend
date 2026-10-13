@@ -5648,10 +5648,10 @@ const nextName = trimmedValue
             { id: 'my-batches', label: 'Batches', icon: Layers3 },
             { id: 'course-progress', label: 'Course Progress', icon: BarChart3, route: 'my-courses' },
           ] },
-          { id: 'exams', label: 'Exams', icon: BookOpen },
-          { id: 'skill-development', label: 'Skill Development', icon: GraduationCap },
-          { id: 'other-faculty-batches', label: 'Other Faculty Batches', icon: Layers3 },
           { id: 'students', label: 'Student Management', icon: Users },
+          { id: 'skill-development', label: 'Skill Development', icon: GraduationCap },
+          { id: 'exams', label: 'Exams', icon: BookOpen },
+          { id: 'other-faculty-batches', label: 'Other Faculty Batches', icon: Layers3 },
           { id: 'leave-management', label: 'Leave Management', icon: CalendarDays, children: [
             { id: 'leave-requests', label: 'Leave Requests', icon: FileText },
             { id: 'my-calendar', label: 'Calendar', icon: CalendarDays },
@@ -6580,13 +6580,25 @@ const nextName = trimmedValue
                                   const academicTotalTests = Math.max(0, Number(academicProgress?.totalTests ?? academicProgress?.total ?? 0))
                                   const academicCompletedTests = Math.max(0, Number(academicProgress?.completedTests ?? academicProgress?.completed ?? (academicTotalTests - Number(academicProgress?.pendingTests ?? academicProgress?.pending ?? 0))))
                                   const academicPercentage = Math.min(100, Math.max(0, Number(academicProgress?.percentage ?? academicProgress?.progress ?? (academicTotalTests > 0 ? (academicCompletedTests / academicTotalTests) * 100 : 0))))
-                                  const academicTestsLabel = academicProgress && academicTotalTests > 0
+                                  let academicTestsLabel = academicProgress && academicTotalTests > 0
                                     ? `${Math.min(academicTotalTests, academicCompletedTests)}/${academicTotalTests} · ${Math.round(academicPercentage)}%`
                                     : courseStatus === 'COMPLETED'
                                       ? '100% Complete'
                                       : academicProgress
                                         ? `${Math.max(0, Number(academicProgress.pendingTests ?? academicProgress.pending ?? 0))} pending`
                                         : '-'
+                                  const academicTotalProjects = Math.max(0, Number(academicProgress?.totalProjects ?? 0))
+                                  const academicCompletedProjects = Math.max(0, Number(academicProgress?.completedProjects ?? (academicTotalProjects - Number(academicProgress?.pendingProjects ?? 0))))
+                                  const academicProjectPercentage = Math.min(100, Math.max(0, Number(academicProgress?.projectPercentage ?? (academicTotalProjects > 0 ? (academicCompletedProjects / academicTotalProjects) * 100 : 100))))
+                                  const academicTotalRequirements = academicTotalTests + academicTotalProjects
+                                  const academicCompletedRequirements = Math.min(academicTotalRequirements, academicCompletedTests + academicCompletedProjects)
+                                  const academicOverallPercentage = academicTotalRequirements > 0
+                                    ? Math.round((academicCompletedRequirements / academicTotalRequirements) * 100)
+                                    : Math.round(Math.min(academicPercentage, academicProjectPercentage))
+                                  const academicSummaryCount = academicTotalRequirements > 0
+                                    ? `Academic ${academicCompletedRequirements}/${academicTotalRequirements}`
+                                    : academicTestsLabel
+                                  const hasAcademicSummary = academicTotalRequirements > 0
                                   const completionDate = student.courseCompletedAt ||
                                     lifecycleMetrics.enrollment?.courseCompletedAt ||
                                     student.courseCompletionDate ||
@@ -6617,7 +6629,9 @@ const nextName = trimmedValue
                                     </div>
                                   </td>
                                   <td className="faculty-student-academic-column">
-                                    <span className={courseStatus === 'COMPLETED' ? 'faculty-student-academic-complete' : ''}>{academicTestsLabel}</span>
+                                    <span className={courseStatus === 'COMPLETED' ? 'faculty-student-academic-complete' : ''}>
+                                      {hasAcademicSummary ? <><span>{academicSummaryCount}</span><strong>{academicOverallPercentage}%</strong></> : academicTestsLabel}
+                                    </span>
                                   </td>
                                   <td><span className={`faculty-student-course-status ${courseStatus.toLowerCase()}`}>{courseStatus === 'DISCONTINUED' ? 'Discontinued' : getCourseStatusLabel(courseStatus)}</span></td>
                                   <td className="faculty-student-completion-date-column">{completionDate ? formatStudentDate(completionDate) : '-'}</td>

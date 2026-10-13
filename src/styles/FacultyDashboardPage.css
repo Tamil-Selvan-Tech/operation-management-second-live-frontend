@@ -942,8 +942,8 @@ body.faculty-notification-menu-open .super-admin-content {
 
 .super-admin-page .faculty-students-table-shell .branch-dashboard-table th:nth-child(8),
 .super-admin-page .faculty-students-table-shell .branch-dashboard-table td:nth-child(8) {
-  width: 170px;
-  min-width: 170px;
+  width: 220px;
+  min-width: 220px;
   text-align: center;
 }
 
@@ -2746,7 +2746,8 @@ body.faculty-notification-menu-open .super-admin-content {
 }
 
 .faculty-student-records-table {
-  min-width: 1050px;
+  min-width: 1180px;
+  table-layout: fixed;
 }
 
 .super-admin-page .faculty-student-records-shell .faculty-student-records-table {
@@ -2815,28 +2816,53 @@ body.faculty-notification-menu-open .super-admin-content {
 }
 
 .faculty-student-records-table .faculty-student-academic-column {
-  width: 145px;
-  min-width: 145px;
-  white-space: nowrap;
+  width: 225px;
+  min-width: 225px;
+  white-space: normal;
   text-align: left;
+  vertical-align: middle;
   overflow: visible;
 }
 
+.faculty-student-records-table th.faculty-student-academic-column,
+.faculty-student-records-table td.faculty-student-academic-column {
+  text-align: left;
+  vertical-align: middle;
+}
+
 .faculty-student-academic-complete {
-  display: inline-flex;
+  display: flex;
+  flex-direction: column;
   align-items: center;
+  justify-content: center;
+  width: 220px;
+  min-width: 220px;
+  margin: 0;
+  box-sizing: border-box;
   min-height: 28px;
-  padding: 5px 10px;
-  border: 1px solid #bfdbfe;
-  border-radius: 999px;
-  color: #1d4ed8;
-  background: #eff6ff;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  color: #2563eb;
+  background: transparent;
   font-size: 0.78rem;
   font-weight: 800;
+  line-height: 1.15;
+  text-align: center;
+  white-space: nowrap;
+  gap: 3px;
+  transform: translateX(-68px);
+}
+
+.faculty-student-academic-complete strong {
+  font-size: 0.76rem;
   line-height: 1;
 }
 
+.faculty-student-records-table th:nth-last-child(2),
 .faculty-student-records-table td:nth-last-child(2) {
+  width: 140px;
+  min-width: 140px;
   white-space: nowrap;
   overflow: visible;
 }
