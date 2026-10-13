@@ -3,7 +3,7 @@ import { CheckCircle2, ChevronLeft, ChevronRight, Eye, RefreshCcw, Search, X } f
 import { listCompletedStudentCourses } from '../services/completedStudentService'
 import '../styles/CompletedStudentsPage.css'
 
-const PAGE_SIZE = 20
+const PAGE_SIZE = 5
 
 function valueOf(value) {
   return value === 0 || value ? String(value) : 'N/A'
@@ -119,6 +119,20 @@ function getAcademicTestsForRow(academicProgressByStudent, studentId, courseId, 
       value,
     }
   })
+}
+
+function getModalSections(fields) {
+  const sectionDefinitions = [
+    { title: 'Student Information', match: (label) => ['Student ID', 'Student Name', 'Contact Number', 'Email ID', 'Database Source', 'Branch Admin Name', 'Student Status'].includes(label) },
+    { title: 'Course & Schedule', match: (label) => ['Course', 'Course Starting Date', 'Course Ending Date', 'Weekday / Weekend', 'Online / Offline', 'Batch Timing', 'Faculty Name', 'Attendance Percentage'].includes(label) },
+    { title: 'Fees & Payment', match: (label) => ['Course Fees', 'Registration Fees', 'Payment Plan', 'Payment Mode', 'Receipt Number', 'Paid Amount', 'Pending Amount'].includes(label) || /Installment$/.test(label) },
+    { title: 'Academic Performance', match: (label) => label.startsWith('Academic Test') || label.startsWith('Project') },
+  ]
+  const remaining = fields.filter(([label]) => !sectionDefinitions.some((section) => section.match(label)))
+  return [
+    ...sectionDefinitions.map((section) => ({ ...section, fields: fields.filter(([label]) => section.match(label)) })).filter((section) => section.fields.length),
+    ...(remaining.length ? [{ title: 'Additional Details', fields: remaining }] : []),
+  ]
 }
 
 function StatusPill({ value }) {
@@ -356,7 +370,7 @@ export function CompletedStudentsPage({ academicProgressByStudent = new Map(), b
 
       <footer className="completed-students-pagination"><span>{state.meta?.total ? `Showing page ${state.meta.page} of ${totalPages}` : 'No records'}</span><div><button type="button" onClick={() => setPage((current) => Math.max(1, current - 1))} disabled={page <= 1 || state.loading}><ChevronLeft size={17} /></button><button type="button" onClick={() => setPage((current) => Math.min(totalPages, current + 1))} disabled={page >= totalPages || state.loading}><ChevronRight size={17} /></button></div></footer>
 
-      {selected ? <div className="completed-students-modal-backdrop" role="presentation" onClick={() => setSelected(null)}><section className="completed-students-modal" role="dialog" aria-modal="true" aria-labelledby="completed-student-details-title" onClick={(event) => event.stopPropagation()}><button type="button" className="completed-students-modal-close" onClick={() => setSelected(null)} aria-label="Close"><X size={18} /></button><p className="completed-students-kicker">COURSE RECORD</p><h2 id="completed-student-details-title">{valueOf(selected.studentName)}</h2><div className="completed-students-detail-grid">{buildFields(selected).map(([label, value]) => <div key={label}><span>{label}</span><strong>{valueOf(value)}</strong></div>)}</div></section></div> : null}
+      {selected ? <div className="completed-students-modal-backdrop" role="presentation" onClick={() => setSelected(null)}><section className="completed-students-modal" role="dialog" aria-modal="true" aria-labelledby="completed-student-details-title" onClick={(event) => event.stopPropagation()}><header className="completed-students-modal-header"><div><p className="completed-students-kicker">COURSE RECORD</p><h2 id="completed-student-details-title">{valueOf(selected.studentName)}</h2><span>{valueOf(selected.studentId)}{selected.courseName ? ` · ${selected.courseName}` : ''}</span></div><button type="button" className="completed-students-modal-close" onClick={() => setSelected(null)} aria-label="Close"><X size={18} /></button></header><div className="completed-students-modal-body">{getModalSections(buildFields(selected)).map((section) => <section className="completed-students-modal-section" key={section.title}><h3>{section.title}</h3><dl>{section.fields.map(([label, value]) => <div className="completed-students-modal-field" key={label}><dt>{label}</dt><dd>{valueOf(value)}</dd></div>)}</dl></section>)}</div></section></div> : null}
     </section>
   )
 }
