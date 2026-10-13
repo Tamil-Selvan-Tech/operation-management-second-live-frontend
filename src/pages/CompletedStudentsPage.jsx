@@ -30,16 +30,23 @@ function hasValue(value) {
   return value !== null && value !== undefined && value !== '' && String(value).trim().toUpperCase() !== 'N/A'
 }
 
-function currentStudentFinancials(student = {}) {
+function currentStudentFinancials(student = {}, courseId = '', courseName = '') {
   const courseEntries = Array.isArray(student.courseEnrollments) && student.courseEnrollments.length
     ? student.courseEnrollments
     : Array.isArray(student.courses) ? student.courses : []
-  const primaryCourse = courseEntries[0] || {}
+  const normalizedCourseId = String(courseId || '').trim().toLowerCase()
+  const normalizedCourseName = String(courseName || '').trim().toLowerCase()
+  const primaryCourse = courseEntries.find((course) => {
+    const entryId = String(course?.courseId || course?.id || course?.course?.id || '').trim().toLowerCase()
+    const entryName = String(course?.courseName || course?.name || course?.course?.name || '').trim().toLowerCase()
+    return (normalizedCourseId && entryId === normalizedCourseId) || (normalizedCourseName && entryName === normalizedCourseName)
+  }) || courseEntries[0] || {}
   const installments = Array.isArray(student.installmentSchedule) && student.installmentSchedule.length
     ? student.installmentSchedule
     : Array.isArray(primaryCourse.installmentSchedule) ? primaryCourse.installmentSchedule : []
-  const totalFees = Number(student.finalFee ?? student.courseAmount ?? student.totalAmount ?? student.afterDiscount
-    ?? primaryCourse.finalCourseAmount ?? primaryCourse.totalCourseAmount ?? primaryCourse.courseAmount ?? primaryCourse.totalAmount ?? 0)
+  const totalFees = Number(primaryCourse.finalCourseAmount ?? primaryCourse.finalFee ?? primaryCourse.totalCourseAmount
+    ?? primaryCourse.courseAmount ?? primaryCourse.courseFee ?? primaryCourse.finalAmount ?? primaryCourse.amount ?? primaryCourse.totalAmount
+    ?? student.finalFee ?? student.finalAmount ?? student.courseAmount ?? student.courseFees ?? student.totalFee ?? student.totalAmount ?? student.afterDiscount ?? 0)
   const paidAmount = installments.length
     ? installments.reduce((sum, item) => sum + Number(item.paidAmount ?? item.amountPaid ?? 0), 0)
     : Number(student.paidAmount ?? student.totalPaid ?? student.amountPaid ?? primaryCourse.paidAmount ?? primaryCourse.totalPaid ?? 0)
@@ -72,7 +79,7 @@ function StatusPill({ value }) {
   return <span className={`completed-students-status completed-students-status--${String(value || '').toLowerCase()}`}>{valueOf(value)}</span>
 }
 
-export function CompletedStudentsPage({ completedStudents = [], completedStudentsLoading = false, students = [] } = {}) {
+export function CompletedStudentsPage({ branchAdminName = '', completedStudents = [], completedStudentsLoading = false, courseCatalog = [], students = [] } = {}) {
   const [tab, setTab] = useState('COMPLETED')
   const [search, setSearch] = useState('')
   const [appliedSearch, setAppliedSearch] = useState('')
@@ -95,10 +102,19 @@ export function CompletedStudentsPage({ completedStudents = [], completedStudent
         const completedSource = Array.isArray(completedStudents) ? completedStudents : []
         const localRows = completedSource.map((student) => {
           const matchedStudent = currentStudents.find((item) => String(item.studentId || item.id || '').trim().toLowerCase() === String(student.studentId || student.id || '').trim().toLowerCase()) || student
-          const financials = currentStudentFinancials(matchedStudent)
+          const courseId = matchedStudent.courseId || matchedStudent.course?.id || ''
+          const courseName = matchedStudent.courseName || matchedStudent.courseInterested || matchedStudent.course?.name || ''
+          const catalogCourse = (Array.isArray(courseCatalog) ? courseCatalog : []).find((course) => (
+            (courseId && String(course?.id || '').trim() === String(courseId).trim())
+            || String(course?.name || '').trim().toLowerCase() === String(courseName).trim().toLowerCase()
+          ))
+          const financials = currentStudentFinancials(matchedStudent, courseId, courseName)
           return {
+            ...matchedStudent,
             recordId: matchedStudent.recordId || matchedStudent.id || matchedStudent.studentId,
             studentId: matchedStudent.studentId || matchedStudent.id,
+            courseId,
+            branchAdminName: matchedStudent.branchAdminName || branchAdminName,
             studentName: matchedStudent.studentName || matchedStudent.name,
             courseName: matchedStudent.courseName || matchedStudent.courseInterested || matchedStudent.course?.name,
             courseStartDate: matchedStudent.courseStartDate || matchedStudent.startDate,
@@ -106,6 +122,8 @@ export function CompletedStudentsPage({ completedStudents = [], completedStudent
             batchName: matchedStudent.batchName || matchedStudent.batch?.name,
             facultyName: matchedStudent.facultyName || matchedStudent.faculty?.name,
             attendancePercentage: matchedStudent.attendancePercentage ?? matchedStudent.attendancePercent ?? 100,
+            courseFees: financials.totalFees || matchedStudent.courseFees || matchedStudent.totalFee || matchedStudent.finalFee,
+            registrationFees: matchedStudent.registrationFees ?? catalogCourse?.registrationFees ?? catalogCourse?.registrationFee,
             totalFees: financials.totalFees,
             paidAmount: financials.paidAmount || financials.totalFees,
             pendingAmount: financials.paidAmount ? financials.pendingAmount : 0,
@@ -207,7 +225,7 @@ export function CompletedStudentsPage({ completedStudents = [], completedStudent
       })
       setCounts((current) => ({ ...current, [lifecycle]: fallbackData.length }))
     }
-  }, [appliedSearch, completedStudents, completedStudentsLoading, page, sortBy, sortOrder, students, tab])
+  }, [appliedSearch, branchAdminName, completedStudents, completedStudentsLoading, courseCatalog, page, sortBy, sortOrder, students, tab])
 
   useEffect(() => {
     const timer = window.setTimeout(() => { void load() }, 0)

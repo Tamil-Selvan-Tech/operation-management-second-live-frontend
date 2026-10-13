@@ -9000,9 +9000,42 @@ useEffect(() => {
     let active = true
     setIsBranchAcademicProgressLoaded(false)
     const branchIdForReports = branchStudentScope.id || branchStudentScope.branchCode || ''
+    const reportCandidates = branchStudentsForDisplay.filter((student) => {
+      const entries = Array.isArray(student?.courseEnrollments) && student.courseEnrollments.length
+        ? student.courseEnrollments
+        : Array.isArray(student?.courses) && student.courses.length
+          ? student.courses
+          : [{
+              courseId: student?.courseId,
+              courseName: student?.courseName || student?.courseInterested || student?.course?.name,
+              courseProgress: student?.courseProgress ?? student?.courseCompletionPercentage ?? student?.progress,
+            }]
+      return entries.some((entry) => {
+        const courseId = String(entry?.courseId || entry?.id || entry?.course?.id || student?.courseId || '').trim()
+        const courseName = String(entry?.courseName || entry?.name || entry?.course?.name || student?.courseName || student?.courseInterested || '').trim()
+        const catalogCourse = branchCourseCards.find((course) => (
+          (courseId && String(course?.id || '').trim() === courseId)
+          || String(course?.name || '').trim().toLowerCase() === courseName.toLowerCase()
+        ))
+        const savedProgress = Number(entry?.courseProgress ?? entry?.courseCompletionPercentage ?? entry?.progress ?? (entries.length === 1 ? student?.courseProgress : NaN))
+        const workProgress = catalogCourse
+          ? Number(buildFacultyTodayWorkProgressSummary(facultyTodayWorkEntries, catalogCourse, { ...student, courseId, courseName })?.courseProgress)
+          : Number.NaN
+        return Math.max(
+          Number.isFinite(savedProgress) ? savedProgress : 0,
+          Number.isFinite(workProgress) ? workProgress : 0,
+        ) >= 100
+      })
+    })
+
+    if (!reportCandidates.length) {
+      setBranchAcademicProgressByStudent(new Map())
+      setIsBranchAcademicProgressLoaded(true)
+      return undefined
+    }
 
     Promise.allSettled(
-      branchStudentsForDisplay.map(async (student) => {
+      reportCandidates.map(async (student) => {
         const studentId = String(student?.studentId || student?.id || '').trim()
         if (!studentId) return null
         const [academicResult, syllabusResult] = await Promise.allSettled([
@@ -9040,7 +9073,7 @@ useEffect(() => {
     })
 
     return () => { active = false }
-  }, [branchStudentScope.branchCode, branchStudentScope.id, branchStudentsForDisplay])
+  }, [branchCourseCards, branchStudentScope.branchCode, branchStudentScope.id, branchStudentsForDisplay, facultyTodayWorkEntries])
 
   const branchStudentCourseProgressByKey = useMemo(() => {
     const progressByStudentKey = new Map()
@@ -10526,7 +10559,7 @@ useEffect(() => {
                   onBack={() => navigate('/branch-dashboard?section=students')}
                 />
               ) : null}
-              {activeSection === 'completed-students' ? <CompletedStudentsPage completedStudents={completedStudentsForLifecycle} completedStudentsLoading={!isBranchAcademicProgressLoaded} students={branchStudentsForDisplay} /> : null}
+              {activeSection === 'completed-students' ? <CompletedStudentsPage branchAdminName={branchAdminDisplay} completedStudents={completedStudentsForLifecycle} completedStudentsLoading={!isBranchAcademicProgressLoaded} courseCatalog={branchCourseCards} students={branchStudentsForDisplay} /> : null}
               {activeSection === 'faculty-skills' ? <FacultySkillsUpgradePage embedded /> : null}
               {activeSection === 'dashboard' ? (
                 <>

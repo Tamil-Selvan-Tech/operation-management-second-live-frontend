@@ -23,6 +23,8 @@
 .completed-students-table-wrap td strong, .completed-students-table-wrap td small { display: block; }
 .completed-students-table-wrap td small { margin-top: 4px; color: #94a3b8; font-size: .69rem; }
 .completed-students-state { height: 180px; color: #64748b; text-align: center !important; }
+.completed-students-table-wrap tbody > tr:has(td.completed-students-state:not(:has(svg))) td.completed-students-state { position: relative; height: 180px; overflow: hidden; color: transparent; font-size: 0; background: repeating-linear-gradient(180deg, transparent 0 18px, #f1f5f9 18px 30px, transparent 30px 48px); }
+.completed-students-table-wrap tbody > tr:has(td.completed-students-state:not(:has(svg))) td.completed-students-state::after { content: ''; position: absolute; inset: 0; background: linear-gradient(90deg, transparent 20%, rgba(219, 234, 254, .85) 50%, transparent 80%); background-size: 200% 100%; animation: completed-students-skeleton 1.25s ease-in-out infinite; }
 .completed-students-state svg, .completed-students-state strong, .completed-students-state span { display: block; margin: 0 auto 7px; }
 .completed-students-view { min-height: 30px; padding: 0 9px; font-size: .72rem; }
 .completed-students-status { display: inline-flex; padding: 5px 8px; border-radius: 999px; background: #eff6ff; color: #1d4ed8; font-size: .68rem; font-weight: 850; }
