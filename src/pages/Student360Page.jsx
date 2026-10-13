@@ -355,6 +355,47 @@ function AttendanceCalendarSection({ student, studentId, enrollment, isMultiCour
   )
 }
 
+function getCourseCompletionFromMap(student = {}, courseId = '', courseName = '') {
+  const completionByCourse = student.courseCompletionByCourse
+  if (!completionByCourse || typeof completionByCourse !== 'object' || Array.isArray(completionByCourse)) return ''
+
+  const normalizedCourseId = String(courseId || '').trim().toLowerCase()
+  const normalizedCourseName = String(courseName || '').trim().toLowerCase()
+  const matchingEntry = Object.entries(completionByCourse).find(([key]) => {
+    const normalizedKey = String(key || '').trim().toLowerCase()
+    return (normalizedCourseId && normalizedKey === normalizedCourseId) ||
+      (normalizedCourseName && normalizedKey === normalizedCourseName)
+  })
+  const value = matchingEntry?.[1]
+  return typeof value === 'object'
+    ? value.courseCompletion || value.courseCompletionStatus || value.completionStatus || value.status || (value.isCompleted ? 'COMPLETED' : '')
+    : value || ''
+}
+
+function isEnrollmentCompleted(enrollment = {}, student = {}) {
+  const completion = enrollment.courseCompletion ||
+    enrollment.courseCompletionStatus ||
+    enrollment.completionStatus ||
+    enrollment.completionState ||
+    enrollment.status
+  if (String(completion || '').trim().toUpperCase() === 'COMPLETED') return true
+  if (enrollment.isCompleted === true || enrollment.completed === true) return true
+
+  const progress = Number(enrollment.courseProgress ?? enrollment.courseCompletionPercentage ?? enrollment.progress)
+  if (Number.isFinite(progress) && progress >= 100) return true
+
+  const endDate = String(enrollment.courseEndDate || enrollment.endDate || '').slice(0, 10)
+  const today = new Date()
+  const todayKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
+  if (/^\d{4}-\d{2}-\d{2}$/.test(endDate) && endDate <= todayKey && String(enrollment.status || '').toUpperCase() !== 'DISCONTINUED') return true
+
+  const isPrimaryEnrollment = String(enrollment.courseId || '').trim() === String(student.courseId || student.course?.id || '').trim()
+  const studentCompletion = isPrimaryEnrollment
+    ? student.courseCompletion || student.courseCompletionStatus || student.completionStatus
+    : ''
+  return String(studentCompletion || '').trim().toUpperCase() === 'COMPLETED'
+}
+
 function getStudentCourseEnrollments(student = {}, branchCourseCards = []) {
   const source = Array.isArray(student.courseEnrollments) && student.courseEnrollments.length
     ? student.courseEnrollments
@@ -385,7 +426,7 @@ function getStudentCourseEnrollments(student = {}, branchCourseCards = []) {
       paymentPlan: student.paymentPlan || '',
       status: student.arrangementStatus || student.status || 'ACTIVE',
       courseProgress: student.courseProgress ?? student.courseCompletionPercentage ?? student.progress,
-      courseCompletion: student.courseCompletion || student.courseCompletionStatus || 'IN_PROGRESS',
+      courseCompletion: student.courseCompletion || student.courseCompletionStatus || getCourseCompletionFromMap(student, student.courseId || student.course?.id, student.courseName || student.courseInterested || student.course?.name) || 'IN_PROGRESS',
     }]
   }
 
@@ -415,7 +456,7 @@ function getStudentCourseEnrollments(student = {}, branchCourseCards = []) {
       courseAmount: course.totalCourseAmount ?? course.courseAmount ?? course.totalAmount ?? (isPrimaryCourse ? student.courseAmount : ''),
       paymentPlan: course.paymentPlan || course.paymentPlanName || (isPrimaryCourse ? student.paymentPlan : '') || '',
       courseProgress: savedProgress ?? (isPrimaryCourse ? getCourseProgress(student) : null),
-      courseCompletion: course.courseCompletion || course.courseCompletionStatus || (isPrimaryCourse ? student.courseCompletion || student.courseCompletionStatus : 'IN_PROGRESS'),
+      courseCompletion: course.courseCompletion || course.courseCompletionStatus || course.completionStatus || getCourseCompletionFromMap(student, courseId, courseName) || (isPrimaryCourse ? student.courseCompletion || student.courseCompletionStatus : 'IN_PROGRESS'),
     }
   })
 }
@@ -931,8 +972,8 @@ export function Student360Page({
       .map((item, index) => ({ ...item, sourceInstallmentNumber: item.installmentNumber || item.number || selectedCourseInstallmentOffset + index + 1, installmentNumber: index + 1, number: index + 1 }))
     : schedule
   const priorCoursesCompleted = selectedCourseIndex > 0 && courseEnrollments.slice(0, selectedCourseIndex).every((enrollment) => {
-    const isPrimaryEnrollment = String(enrollment.courseId || '') === String(student.courseId || student.course?.id || '')
-    return String(enrollment.courseCompletion || (isPrimaryEnrollment ? student.courseCompletion : '') || '').toUpperCase() === 'COMPLETED'
+    const mapCompletion = getCourseCompletionFromMap(student, enrollment.courseId, enrollment.courseName)
+    return isEnrollmentCompleted({ ...enrollment, courseCompletion: enrollment.courseCompletion || mapCompletion }, student)
   })
   const isSelectedCoursePending = String(selectedCourse.status || '').toUpperCase() === 'PENDING'
   const isAwaitingSelectedCourseSchedule = isSelectedCoursePending && priorCoursesCompleted

@@ -314,7 +314,7 @@ function getCourseProgressForDisplay(course = {}, courseDetails = null, fallback
   // records completed modules. Keep the course summary consistent with that
   // module-level progress until the enrollment value is synchronized.
   if (moduleProgress !== null) {
-    return Math.min(100, Math.max(0, savedProgress ?? 0, moduleProgress))
+    return Math.min(100, Math.max(0, moduleProgress))
   }
 
   return savedProgress === null ? null : Math.min(100, Math.max(0, savedProgress))

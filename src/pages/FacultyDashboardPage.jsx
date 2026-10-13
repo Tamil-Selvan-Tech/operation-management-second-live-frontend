@@ -6140,20 +6140,36 @@ const nextName = trimmedValue
                                   courseName: student.courseInterested || student.courseName || selectedStudentsCourse?.name || selectedStudentsCourse?.courseName,
                                 })
                                 const paidAmountLabel = formatCourseAmount(paymentProgress.paidAmount)
-                                const studentKey = normalizeWorkStudentId(student.id || student.studentId || '')
+                                const selectedCourseId = String(selectedStudentsCourse?.id || selectedStudentsCourse?.courseId || '').trim()
+                                const selectedCourseName = String(selectedStudentsCourse?.name || selectedStudentsCourse?.courseName || '').trim().toLowerCase()
+                                const selectedStudentEnrollment = [
+                                  ...(Array.isArray(student?.courseEnrollments) ? student.courseEnrollments : []),
+                                  ...(Array.isArray(student?.courses) ? student.courses : []),
+                                ].find((enrollment) => (
+                                  (selectedCourseId && String(enrollment?.courseId || enrollment?.id || enrollment?.course?.id || '').trim() === selectedCourseId) ||
+                                  (selectedCourseName && String(enrollment?.courseName || enrollment?.name || enrollment?.course?.name || '').trim().toLowerCase() === selectedCourseName)
+                                ))
+                                const progressStudent = {
+                                  ...student,
+                                  courseId: selectedCourseId || student?.courseId,
+                                  courseName: selectedCourseName || student?.courseName,
+                                  batchId: selectedStudentsBatch?.batchId || selectedStudentsBatch?.id || student?.batchId,
+                                  batchName: selectedStudentsBatch?.batchName || selectedStudentsBatch?.code || student?.batchName,
+                                  batchTiming: selectedStudentsBatch?.timing || selectedStudentsBatch?.batchTiming || student?.batchTiming,
+                                }
                                 // Attendance is independent from course progress. An absent
                                 // student must keep the progress earned on earlier work days.
                                 const progressEntries = facultyTodayWorkEntries
                                 const workEntry = getFacultyTodayWorkEntriesForStudent(
                                   progressEntries,
-                                  student,
-                                  '',
-                                )[0] || todayWorkEntriesByStudent.get(studentKey) || null
+                                  progressStudent,
+                                  selectedCourseId,
+                                )[0] || null
                                 const workCourse = workEntry
                                   ? courseCatalog.find((course) => String(course?.id || '').trim() === String(workEntry.courseId || '').trim()) || selectedStudentsCourse || selectedCourse || null
                                   : null
                                 const workProgressSummary = workEntry
-                                  ? buildFacultyTodayWorkProgressSummary(progressEntries, workCourse || {}, student)
+                                  ? buildFacultyTodayWorkProgressSummary(progressEntries, workCourse || {}, progressStudent)
                                   : null
                                 const workProgress = workProgressSummary
                                   ? {
@@ -6172,7 +6188,12 @@ const nextName = trimmedValue
                                 // const workModuleProgressLabel = workProgressSummary
                                 //   ? `${getCourseModuleName(workProgressSummary.moduleSummary?.module || workProgress?.module || {})} - ${Math.round(workProgress.moduleProgress)}% Complete`
                                 //   : '-'
-                                const storedCourseProgress = Number(student?.courseProgress)
+                                const storedCourseProgress = Number(
+                                  selectedStudentEnrollment?.courseProgress ??
+                                  selectedStudentEnrollment?.courseCompletionPercentage ??
+                                  selectedStudentEnrollment?.progress ??
+                                  student?.courseProgress,
+                                )
                                 const workCourseProgress = workProgress
                                   ? Math.min(100, Math.max(0, Number(workProgress.courseProgress)))
                                   : Number.isFinite(storedCourseProgress)

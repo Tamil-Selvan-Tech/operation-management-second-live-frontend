@@ -11822,11 +11822,18 @@ else {
               // so a stale zero does not hide the faculty's progress. The
               // latest matching faculty entry is also a fallback when this
               // branch's course snapshot has no module structure to summarize.
-              const availableProgressValues = [savedProgress, computedProgress, latestWorkEntryProgress]
-                .filter(Number.isFinite)
-              const progressValue = availableProgressValues.length
-                ? Math.min(100, Math.max(0, ...availableProgressValues))
-                : 0
+              // Keep this aligned with the Faculty Students page: a
+              // course-specific Today Work summary is authoritative, while
+              // the persisted enrollment value is only a fallback. Taking
+              // the maximum here lets stale saved 100% values override the
+              // actual progress shown by Faculty.
+              const progressValue = Number.isFinite(computedProgress)
+                ? Math.min(100, Math.max(0, computedProgress))
+                : Number.isFinite(latestWorkEntryProgress)
+                  ? Math.min(100, Math.max(0, latestWorkEntryProgress))
+                  : Number.isFinite(savedProgress)
+                    ? Math.min(100, Math.max(0, savedProgress))
+                    : 0
               const courseInstallments = installmentRowsByCourse[index]
               const nextCourseInstallment = courseInstallments.find((installment) => Number(installment.paidAmount || 0) < Number(installment.amount || 0))
               const nextCourseDueDate = nextCourseInstallment?.dueDate || nextCourseInstallment?.date || ''
