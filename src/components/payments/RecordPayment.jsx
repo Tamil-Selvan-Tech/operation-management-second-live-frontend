@@ -90,13 +90,13 @@ const applyReceiptPaymentToSchedule = (
   return result;
 };
 
-const normalizeReceiptScheduleToCourseFee = (schedule, totalCourseFee, totalPaid) => {
+const normalizeReceiptScheduleToCourseFee = (schedule, totalCourseFee, totalPaid, paymentDate = '') => {
   const source = Array.isArray(schedule) ? schedule : [];
   const fee = Math.max(Number(totalCourseFee) || 0, 0);
   let remainingFee = fee;
   let remainingPaid = Math.max(Number(totalPaid) || 0, 0);
 
-  return source.reduce((rows, installment, index) => {
+  const rows = source.reduce((rows, installment, index) => {
     const originalAmount = Math.max(getReceiptInstallmentAmount(installment), 0);
     const amount = fee > 0 ? Math.min(originalAmount, remainingFee) : originalAmount;
     if (fee > 0) remainingFee = Math.max(remainingFee - amount, 0);
@@ -112,6 +112,39 @@ const normalizeReceiptScheduleToCourseFee = (schedule, totalCourseFee, totalPaid
     });
     return rows;
   }, []);
+
+  // Older sequential records can contain an incomplete course schedule
+  // (for example 7,000 + 5,500 against a 19,500 course fee). Keep the
+  // receipt financially complete by adding the missing final installment.
+  const scheduledTotal = rows.reduce((sum, installment) => sum + getReceiptInstallmentAmount(installment), 0);
+  const missingAmount = Math.max(fee - scheduledTotal, 0);
+  if (missingAmount > 0.009) {
+    const missingInstallment = {
+      installmentNumber: rows.length + 1,
+      number: rows.length + 1,
+      amount: missingAmount,
+      paidAmount: 0,
+      dueDate: paymentDate || '',
+      status: 'Pending',
+    };
+    const firstDueDate = rows[0]?.dueDate || rows[0]?.date || '';
+    const firstDueAfterPayment = paymentDate && firstDueDate && new Date(firstDueDate) > new Date(paymentDate);
+    if (firstDueAfterPayment) {
+      rows.unshift(missingInstallment);
+      let paidRemaining = Math.max(Number(totalPaid) || 0, 0);
+      rows.forEach((installment) => {
+        const installmentAmount = getReceiptInstallmentAmount(installment);
+        installment.paidAmount = Math.min(installmentAmount, paidRemaining);
+        paidRemaining = Math.max(paidRemaining - installment.paidAmount, 0);
+      });
+    } else rows.push(missingInstallment);
+    rows.forEach((installment, index) => {
+      installment.installmentNumber = index + 1;
+      installment.number = index + 1;
+    });
+  }
+
+  return rows;
 };
 
 export const buildModernPaymentReceiptHtml = ({
@@ -156,6 +189,7 @@ export const buildModernPaymentReceiptHtml = ({
     installments,
     totalCourseFee,
     totalPaid,
+    paymentDate,
   );
   const displayInstallments = applyReceiptPaymentToSchedule(
     normalizedInstallments,
@@ -313,10 +347,10 @@ const getPlanInstallmentCount = (enrollment = {}) => {
 
 const getCourseInstallmentSlice = (studentRecord = {}, enrollments = [], selectedEnrollment = {}) => {
   const explicit = selectedEnrollment.installmentSchedule || selectedEnrollment.paymentPlan?.installments;
-  if (Array.isArray(explicit) && explicit.length) return explicit;
   const all = Array.isArray(studentRecord.installmentSchedule) ? studentRecord.installmentSchedule : [];
+  if (!all.length && Array.isArray(explicit) && explicit.length) return explicit;
   const selectedIndex = enrollments.indexOf(selectedEnrollment);
-  if (!all.length || selectedIndex < 0) return [];
+  if (!all.length || selectedIndex < 0) return Array.isArray(explicit) ? explicit : [];
   const counts = enrollments.map(getPlanInstallmentCount);
   const unknownIndexes = counts.map((value, index) => value ? -1 : index).filter((index) => index >= 0);
   const remaining = Math.max(all.length - counts.reduce((sum, value) => sum + value, 0), 0);
@@ -324,9 +358,14 @@ const getCourseInstallmentSlice = (studentRecord = {}, enrollments = [], selecte
     const each = Math.floor(remaining / unknownIndexes.length);
     let remainder = remaining % unknownIndexes.length;
     unknownIndexes.forEach((index) => { counts[index] = each + (remainder-- > 0 ? 1 : 0); });
+  } else if (selectedIndex === counts.length - 1 && remaining > 0) {
+    // Some legacy sequential records store one fewer plan count than the
+    // shared schedule. The final course owns the remaining installments.
+    counts[selectedIndex] += remaining;
   }
   const offset = counts.slice(0, selectedIndex).reduce((sum, value) => sum + value, 0);
-  return all.slice(offset, offset + counts[selectedIndex]);
+  const sharedSlice = all.slice(offset, offset + counts[selectedIndex]);
+  return sharedSlice.length ? sharedSlice : (Array.isArray(explicit) ? explicit : []);
 };
 
 const EMPTY_STUDENT = {};
@@ -465,10 +504,19 @@ const RecordPayment = ({ student, students = [], onClose, branchProfile = null }
         return pendingAmount > 0 && (!formData.amountToPay || Math.abs(pendingAmount - Number(formData.amountToPay)) < 0.01);
       }) ?? -1
     : -1;
-  const sequentialLocalPaymentIndex = pendingCourseInstallmentIndex >= 0
+  const amountMatchedCourseInstallmentIndex = shouldUseCoursePaymentData
+    ? activeStudent.installmentSchedule?.findIndex((installment) => {
+        const installmentAmount = Number(installment.amount ?? installment.installmentAmount ?? 0);
+        const requestedAmount = Number(formData.amountReceived || formData.amountToPay || 0);
+        return installmentAmount > 0 && requestedAmount > 0 && Math.abs(installmentAmount - requestedAmount) < 0.01;
+      }) ?? -1
+    : -1;
+  const sequentialLocalPaymentIndex = amountMatchedCourseInstallmentIndex >= 0
+    ? amountMatchedCourseInstallmentIndex
+    : pendingCourseInstallmentIndex >= 0
     ? pendingCourseInstallmentIndex
     : courseLocalInstallmentIndex >= 0
-      ? Math.max(sequentialLocalPaymentNumber - 1, 0)
+      ? courseLocalInstallmentIndex
       : -1;
   const paymentAgainstDisplayLabel = courseLocalInstallmentIndex >= 0 || pendingCourseInstallmentIndex >= 0
     ? `Installment ${(sequentialLocalPaymentIndex >= 0 ? sequentialLocalPaymentIndex + 1 : sequentialLocalPaymentNumber) || courseLocalInstallmentIndex + 1}`

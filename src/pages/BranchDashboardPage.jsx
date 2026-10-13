@@ -1342,19 +1342,24 @@ function branchAmountInWords(value) {
 
 function getBranchSequentialCourseInstallments(student = {}, enrollments = [], selectedEnrollment = {}) {
   const explicit = selectedEnrollment.installmentSchedule || selectedEnrollment.paymentPlan?.installments
-  if (Array.isArray(explicit) && explicit.length) return explicit
   const all = Array.isArray(student.installmentSchedule) ? student.installmentSchedule : []
+  if (!all.length && Array.isArray(explicit) && explicit.length) return explicit
   const selectedIndex = enrollments.indexOf(selectedEnrollment)
-  if (!all.length || selectedIndex < 0) return []
+  if (!all.length || selectedIndex < 0) return Array.isArray(explicit) ? explicit : []
   const counts = enrollments.map((enrollment) => Math.max(Number(enrollment.installmentCount || enrollment.paymentPlanInstallmentCount || enrollment.paymentPlan?.installmentCount || enrollment.installmentSchedule?.length || enrollment.paymentPlan?.installments?.length || 0), 0))
   const unknownIndexes = counts.map((value, index) => value ? -1 : index).filter((index) => index >= 0)
   const remaining = Math.max(all.length - counts.reduce((sum, value) => sum + value, 0), 0)
   if (unknownIndexes.length) {
     const each = Math.floor(remaining / unknownIndexes.length)
     unknownIndexes.forEach((index, position) => { counts[index] = each + (position < remaining % unknownIndexes.length ? 1 : 0) })
+  } else if (selectedIndex === counts.length - 1 && remaining > 0) {
+    // Keep all remaining shared-schedule installments with the final
+    // sequential course when older records have an incomplete plan count.
+    counts[selectedIndex] += remaining
   }
   const offset = counts.slice(0, selectedIndex).reduce((sum, value) => sum + value, 0)
-  return all.slice(offset, offset + counts[selectedIndex])
+  const sharedSlice = all.slice(offset, offset + counts[selectedIndex])
+  return sharedSlice.length ? sharedSlice : (Array.isArray(explicit) ? explicit : [])
 }
 
 function downloadBranchStudentReceipt(payment = {}, student = {}, context = {}) {
@@ -1396,8 +1401,14 @@ function downloadBranchStudentReceipt(payment = {}, student = {}, context = {}) 
   const paymentInstallmentIndex = sourceReceiptInstallments.findIndex((installment, index) => (
     Number(installment.installmentNumber || installment.number || index + 1) === paymentInstallmentNumber
   ))
-  const receiptPaymentFor = paymentInstallmentIndex >= 0
-    ? `Installment ${paymentInstallmentIndex + 1}`
+  const amountMatchedReceiptIndex = sourceReceiptInstallments.findIndex((installment) => (
+    Number(installment.amount ?? installment.installmentAmount ?? 0) > 0 &&
+    Math.abs(Number(installment.amount ?? installment.installmentAmount ?? 0) - amount) < 0.01
+  ))
+  const receiptPaymentFor = amountMatchedReceiptIndex >= 0
+    ? `Installment ${amountMatchedReceiptIndex + 1}`
+    : paymentInstallmentIndex >= 0
+      ? `Installment ${paymentInstallmentIndex + 1}`
     : payment.payAgainst || 'Payment'
   const receiptInstallments = sourceReceiptInstallments.map((installment, index) => ({
     ...installment,
@@ -8945,25 +8956,47 @@ const branchStudentsForDisplay = useMemo(
         }
 
     const coursePaymentRows = matchedStudent ? getBranchStudentCourseRows(matchedStudent) : []
-    const paymentSummary = coursePaymentRows.length > 1
+    const arrangementValue = String(
+      matchedStudent?.arrangementType ||
+      matchedStudent?.enrollmentType ||
+      matchedStudent?.courseArrangement ||
+      selectedPaymentHistory.arrangementType ||
+      selectedPaymentHistory.enrollmentType ||
+      '',
+    ).trim().toUpperCase()
+    const hasMultiCoursePaymentRecord = Array.isArray(selectedPaymentHistory.courseBreakdown) && selectedPaymentHistory.courseBreakdown.length > 1
+    const isSequentialStudent = arrangementValue === 'SEQUENTIAL' || (coursePaymentRows.length > 1 && !hasMultiCoursePaymentRecord)
+    const selectedCourseName = String(selectedPaymentHistory.course || selectedPaymentHistory.courseName || '').trim().toLowerCase()
+    const sequentialCourseRows = isSequentialStudent && coursePaymentRows.length > 1
+      ? coursePaymentRows.filter(({ student: courseStudent }) => (
+          String(courseStudent.courseName || '').trim().toLowerCase() === selectedCourseName ||
+          (selectedPaymentHistory.courseId && String(courseStudent.courseId || '').trim() === String(selectedPaymentHistory.courseId).trim())
+        )).slice(0, 1)
+      : coursePaymentRows
+    const displayCoursePaymentRows = isSequentialStudent && coursePaymentRows.length > 1
+      ? (sequentialCourseRows.length ? sequentialCourseRows : coursePaymentRows.slice(0, 1))
+      : sequentialCourseRows
+    const paymentSummary = displayCoursePaymentRows.length === 1 && coursePaymentRows.length > 1
+      ? displayCoursePaymentRows[0].summary
+      : displayCoursePaymentRows.length > 1
       ? {
           ...computeBranchStudentPaymentSummary(resolvedStudent),
-          totalFee: coursePaymentRows.reduce((sum, row) => sum + Number(row.summary.totalFee || 0), 0),
-          paidAmount: coursePaymentRows.reduce((sum, row) => sum + Number(row.summary.paidAmount || 0), 0),
-          pendingAmount: coursePaymentRows.reduce((sum, row) => sum + Number(row.summary.pendingAmount || 0), 0),
-          nextInstallment: coursePaymentRows
+          totalFee: displayCoursePaymentRows.reduce((sum, row) => sum + Number(row.summary.totalFee || 0), 0),
+          paidAmount: displayCoursePaymentRows.reduce((sum, row) => sum + Number(row.summary.paidAmount || 0), 0),
+          pendingAmount: displayCoursePaymentRows.reduce((sum, row) => sum + Number(row.summary.pendingAmount || 0), 0),
+          nextInstallment: displayCoursePaymentRows
             .map((row) => row.summary.nextInstallment)
             .find(Boolean) || null,
-          nextInstallmentAmount: coursePaymentRows.reduce((sum, row) => sum + Number(row.summary.nextInstallmentAmount || 0), 0),
-          nextDueDate: coursePaymentRows
+          nextInstallmentAmount: displayCoursePaymentRows.reduce((sum, row) => sum + Number(row.summary.nextInstallmentAmount || 0), 0),
+          nextDueDate: displayCoursePaymentRows
             .map((row) => row.summary.nextDueDate)
             .filter(Boolean)
             .sort()[0] || null,
-          paymentStatus: coursePaymentRows.every((row) => row.summary.paymentStatus === 'Completed')
+          paymentStatus: displayCoursePaymentRows.every((row) => row.summary.paymentStatus === 'Completed')
             ? 'Completed'
-            : coursePaymentRows.some((row) => row.summary.paymentStatus === 'Overdue')
+            : displayCoursePaymentRows.some((row) => row.summary.paymentStatus === 'Overdue')
               ? 'Overdue'
-              : coursePaymentRows.some((row) => row.summary.paidAmount > 0)
+              : displayCoursePaymentRows.some((row) => row.summary.paidAmount > 0)
                 ? 'Partially Paid'
                 : 'Pending',
         }
@@ -8985,15 +9018,26 @@ const branchStudentsForDisplay = useMemo(
     )
       .slice()
       .sort((left, right) => new Date(right.dateRaw || right.paymentDate || 0).getTime() - new Date(left.dateRaw || left.paymentDate || 0).getTime())
+    const displayPaymentHistoryRecords = isSequentialStudent && selectedCourseName
+      ? paymentHistoryRecords.filter((record) => String(record.course || record.courseName || '').trim().toLowerCase() === selectedCourseName)
+      : paymentHistoryRecords
 
-    const installmentRows = installmentSchedule.length
-      ? installmentSchedule.map((installment, index) => {
+    const scopedInstallmentSchedule = displayCoursePaymentRows.length === 1 && coursePaymentRows.length > 1
+      ? (displayCoursePaymentRows[0].student.installmentSchedule || []).map((installment, index) => ({
+          ...installment,
+          originalInstallmentNumber: installment.installmentNumber || installment.number || index + 1,
+          installmentNumber: index + 1,
+          number: index + 1,
+        }))
+      : installmentSchedule
+    const installmentRows = scopedInstallmentSchedule.length
+      ? scopedInstallmentSchedule.map((installment, index) => {
           const installmentNumber = Number(
             installment.installmentNumber || installment.number || index + 1,
           ) || index + 1
-          const paymentRecord = paymentHistoryRecords.find((record) => {
+          const paymentRecord = displayPaymentHistoryRecords.find((record) => {
             const recordInstallmentNumber = getBranchPaymentHistoryInstallmentNumber(record)
-            return recordInstallmentNumber === installmentNumber
+            return recordInstallmentNumber === installmentNumber || recordInstallmentNumber === Number(installment.originalInstallmentNumber || 0)
           }) || null
           const amount = Number(installment.amount ?? installment.installmentAmount ?? 0)
           const paidAmount = Number(installment.paidAmount ?? installment.amountPaid ?? paymentRecord?.amount ?? 0)
@@ -9004,7 +9048,7 @@ const branchStudentsForDisplay = useMemo(
           const status = String(installment.status || '').trim() || (isPaid ? 'Paid' : isOverdue ? 'Due' : paidAmount > 0 ? 'Pending' : 'Pending')
           return {
             installmentNumber,
-            installmentLabel: `${installmentNumber}/${installmentSchedule.length}`,
+            installmentLabel: `${installmentNumber}/${scopedInstallmentSchedule.length}`,
             amount,
             paidAmount,
             dueDate,
@@ -9013,14 +9057,18 @@ const branchStudentsForDisplay = useMemo(
                 ? formatBranchPaymentMode(paymentRecord)
                 : String(installment.paymentMode || resolvedStudent.paymentMode || '-').trim()
               : '-',
-            paidDate: paymentRecord ? formatBranchPaymentDate(paymentRecord.dateRaw || paymentRecord.paymentDate || paymentRecord.date) : formatBranchPaymentDate(installment.paymentDate || installment.paidAt || installment.paidDate || ''),
+            paidDate: paidAmount > 0
+              ? paymentRecord
+                ? formatBranchPaymentDate(paymentRecord.dateRaw || paymentRecord.paymentDate || paymentRecord.date)
+                : formatBranchPaymentDate(installment.paymentDate || installment.paidAt || installment.paidDate || '')
+              : '-',
             receiptNumber: paymentRecord ? getBranchPaymentReceiptNumber(paymentRecord) : String(installment.receiptNumber || installment.receiptNo || installment.receipt || '').trim(),
             transactionReference: paymentRecord ? getBranchPaymentTransactionReference(paymentRecord) : String(installment.transactionReference || installment.transactionRef || '').trim(),
             status: isPaid ? 'Paid' : isOverdue ? 'Due' : status,
             statusTone: isPaid ? 'paid' : isOverdue ? 'overdue' : paidAmount > 0 ? 'partial' : 'pending',
           }
         })
-      : paymentHistoryRecords.map((record, index) => {
+      : displayPaymentHistoryRecords.map((record, index) => {
           const installmentNumber = getBranchPaymentHistoryInstallmentNumber(record)
           const amount = Number(record.amount || 0)
           const paidDate = formatBranchPaymentDate(record.dateRaw || record.paymentDate || record.date)
@@ -9040,7 +9088,7 @@ const branchStudentsForDisplay = useMemo(
           }
         })
 
-    const paymentHistoryRows = paymentHistoryRecords.map((record) => {
+    const paymentHistoryRows = displayPaymentHistoryRecords.map((record) => {
       const installmentNumber = getBranchPaymentHistoryInstallmentNumber(record)
       const recordCourseRow = coursePaymentRows.find(({ student: courseStudent }) => (
         String(courseStudent.courseName || '').trim().toLowerCase() === String(record.course || record.courseName || '').trim().toLowerCase() ||
@@ -9075,7 +9123,7 @@ const branchStudentsForDisplay = useMemo(
     return {
       student: resolvedStudent,
       paymentSummary,
-      coursePaymentRows,
+      coursePaymentRows: displayCoursePaymentRows,
       installmentRows,
       paymentHistoryRows,
       nextInstallmentRecord,
