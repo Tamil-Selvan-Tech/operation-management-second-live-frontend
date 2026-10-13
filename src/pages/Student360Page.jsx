@@ -881,12 +881,14 @@ export function Student360Page({
       ? getAcademicTestProgress(student, academicProgressState.report, selectedCourse?.courseId || student?.courseId, selectedCourse?.courseName)
       : { totalTests: 0, completedTests: 0, pendingTests: 0, percentage: 0 }
     : null
-  const selectedCourseCatalog = isMultiCourseStudent
-    ? branchCourseCards.find((course) => (
-      String(course?.id || course?.courseId || '').trim() === String(selectedCourse.courseId || '').trim() ||
-      String(course?.name || '').trim().toLowerCase() === String(selectedCourse.courseName || '').trim().toLowerCase()
-    ))
-    : null
+  // Resolve the catalog course for both single- and multi-course students.
+  // The Students list derives progress from Today Work when the persisted
+  // enrollment value is stale (commonly 0); the detail page must use the same
+  // course-specific source for single-course students as well.
+  const selectedCourseCatalog = branchCourseCards.find((course) => (
+    String(course?.id || course?.courseId || '').trim() === String(selectedCourse.courseId || '').trim() ||
+    String(course?.name || '').trim().toLowerCase() === String(selectedCourse.courseName || '').trim().toLowerCase()
+  ))
   const isSequentialMultiCourseStudent = isMultiCourseStudent
     && String(student.arrangementType || '').trim().toUpperCase() === 'SEQUENTIAL'
   const courseInstallmentCounts = isSequentialMultiCourseStudent
@@ -904,19 +906,6 @@ export function Student360Page({
     : schedule
   const priorCoursesCompleted = selectedCourseIndex > 0 && courseEnrollments.slice(0, selectedCourseIndex).every((enrollment) => {
     const isPrimaryEnrollment = String(enrollment.courseId || '') === String(student.courseId || student.course?.id || '')
-    const savedProgress = enrollment.courseProgress ?? (isPrimaryEnrollment ? student.courseProgress : null)
-    const priorCatalogCourse = branchCourseCards.find((course) => (
-      String(course?.id || course?.courseId || '').trim() === String(enrollment.courseId || '').trim() ||
-      String(course?.name || '').trim().toLowerCase() === String(enrollment.courseName || '').trim().toLowerCase()
-    ))
-    const workProgress = priorCatalogCourse
-      ? buildFacultyTodayWorkProgressSummary(facultyTodayWorkEntries, priorCatalogCourse, {
-        ...student,
-        courseId: enrollment.courseId,
-        courseName: enrollment.courseName,
-      })?.courseProgress
-      : null
-    const progressValues = [savedProgress, workProgress].map(Number).filter(Number.isFinite)
     return String(enrollment.courseCompletion || (isPrimaryEnrollment ? student.courseCompletion : '') || '').toUpperCase() === 'COMPLETED'
   })
   const isSelectedCoursePending = String(selectedCourse.status || '').toUpperCase() === 'PENDING'
@@ -970,7 +959,7 @@ export function Student360Page({
     ? [selectedAssignmentBatch, ...selectableAssignmentBatches]
     : selectableAssignmentBatches
 
-  const selectedCourseProgressSummary = isMultiCourseStudent && selectedCourseCatalog
+  const selectedCourseProgressSummary = selectedCourseCatalog
     ? buildFacultyTodayWorkProgressSummary(facultyTodayWorkEntries, selectedCourseCatalog, {
       ...student,
       courseId: selectedCourse.courseId,
@@ -1284,7 +1273,7 @@ export function Student360Page({
             <article className="student360-summary-card"><span className="student360-summary-icon blue"><BookOpen size={19} /></span><div><span>Course</span><strong>{displayValue(student.courseInterested || student.courseName)}</strong><small className="student360-course-type">{displayValue(student.courseType || student.course?.courseType, 'Course type not set')}</small></div></article>
             <article className="student360-summary-card"><span className="student360-summary-icon cyan"><GraduationCap size={19} /></span><div><span>Batch</span><strong>{displayValue(student.batchName || student.batch)}</strong><small>{displayValue(student.batchTiming || student.classSchedule, 'Schedule not set')}</small></div></article>
             <article className="student360-summary-card"><span className="student360-summary-icon indigo"><UserRound size={19} /></span><div><span>Faculty</span><strong>{displayValue(student.facultyName)}</strong><small>Assigned faculty</small></div></article>
-            <article className="student360-summary-card student360-summary-progress-card"><span className="student360-summary-icon green"><CheckCircle2 size={19} /></span><div><span>Course Progress</span><strong>{Math.round(courseProgress)}%</strong><div className="student360-summary-progress-track"><span style={{ width: `${courseProgress}%` }} /></div><small>{student.courseEndDate ? `End date: ${formatDate(student.courseEndDate)}` : 'End date not set'}</small></div></article>
+            <article className="student360-summary-card student360-summary-progress-card"><span className="student360-summary-icon green"><CheckCircle2 size={19} /></span><div><span>Course Progress</span><strong>{selectedCourseProgressValue === null ? `${Math.round(courseProgress)}%` : `${Math.round(selectedCourseProgressValue)}%`}</strong><div className="student360-summary-progress-track"><span style={{ width: `${selectedCourseProgressValue ?? courseProgress}%` }} /></div><small>{student.courseEndDate ? `End date: ${formatDate(student.courseEndDate)}` : 'End date not set'}</small></div></article>
           </>
         )}
         <article className={`student360-summary-card student360-summary-academic-progress-card${isSelectedCoursePending ? ' is-upcoming-course' : ''}`}><span className="student360-summary-icon violet"><GraduationCap size={19} /></span><div><span>Academic Test Progress</span>{academicTestProgress ? <><strong>{academicTestProgress.completedTests} / {academicTestProgress.totalTests} Completed</strong><div className="student360-summary-progress-track"><span style={{ width: `${Math.min(100, Math.max(0, Number(academicTestProgress.percentage) || 0))}%` }} /></div><small>{academicTestProgress.totalTests ? `${academicTestProgress.pendingTests} Pending · ${academicTestProgress.percentage}%` : 'No Academic Tests · 0%'}</small></> : <><strong className="student360-summary-loading">{academicTestProgressError ? 'Unavailable' : 'Loading...'}</strong><small>{academicTestProgressError || 'Academic test progress'}</small></>}</div>{canManageSelectedCourseSchedule ? <button type="button" className="student360-upcoming-badge student360-schedule-batch-trigger" onClick={openScheduleBatchModal}>{isEditingSelectedCourseAssignment ? 'Edit Schedule & Batch' : 'Schedule & Batch'}</button> : isSelectedCoursePending ? <span className="student360-upcoming-badge">Upcoming</span> : null}</article>

@@ -120,6 +120,7 @@ import { BranchInstallmentTemplatesPage } from './BranchInstallmentTemplatesPage
 import { BranchDiscontinuationManagementPage } from './BranchDiscontinuationManagementPage'
 import { Student360Page } from './Student360Page'
 import { getBranchStudentAcademicReports } from '../services/academicTestService'
+import { getBranchStudentSyllabusReports } from '../services/examService'
 import { calculateBatchCourseEndDate, getBatchAvailability } from '../lib/batchAllocation'
 import { StudentCalendarPage } from './StudentCalendarPage'
 import CompletedStudentsPage from './CompletedStudentsPage'
@@ -355,7 +356,13 @@ function getFetchedAcademicProgress(index = null, courseId = '', courseName = ''
   if (!index) return null
   const normalizedCourseId = String(courseId || '').trim().toLowerCase()
   const normalizedCourseName = String(courseName || '').trim().toLowerCase()
-  const items = index.byCourse[normalizedCourseId] || index.byCourse[normalizedCourseName] || []
+  const matchedItems = index.byCourse[normalizedCourseId] || index.byCourse[normalizedCourseName] || []
+  // Older report records may omit or use a different course key. When no
+  // course-specific evaluations match, use the student-scoped report rather
+  // than incorrectly treating a completed course as 0/2 pending.
+  const items = matchedItems.length
+    ? matchedItems
+    : [...new Set(Object.values(index.byCourse).flat())]
   const totals = index.payload?.courseTotals || {}
   const totalOverride = totals[normalizedCourseId] ?? totals[normalizedCourseName]
   return index.buildProgress(items, totalOverride)
@@ -363,14 +370,24 @@ function getFetchedAcademicProgress(index = null, courseId = '', courseName = ''
 
 function getStudentAcademicProgress(student = {}, courseId = '', courseName = '', fetchedByStudent = new Map()) {
   const studentKey = String(student?.studentId || student?.id || '').trim().toLowerCase()
-  const fetchedIndex = fetchedByStudent.get(studentKey)
-  if (fetchedIndex) return getFetchedAcademicProgress(fetchedIndex, courseId, courseName)
-
   const byCourse = student?.academicTestProgressByCourse || {}
-  return byCourse[String(courseId || '').trim()]
+  const persistedProgress = byCourse[String(courseId || '').trim()]
     || byCourse[courseId]
     || student?.academicTestProgress
-    || null
+  const fetchedIndex = fetchedByStudent.get(studentKey)
+  if (fetchedIndex) {
+    const fetchedProgress = getFetchedAcademicProgress(fetchedIndex, courseId, courseName)
+    if (fetchedProgress?.totalTests > 0) {
+      // Prefer a more complete persisted course result when a legacy report
+      // resolves the total but misses the matching completed evaluations.
+      if (persistedProgress && Number(persistedProgress.completedTests || 0) > Number(fetchedProgress.completedTests || 0)) {
+        return persistedProgress
+      }
+      return fetchedProgress
+    }
+  }
+
+  return persistedProgress || null
 }
 
 function getBranchEntityPrefix(branchCode, entityPrefix) {
@@ -8946,8 +8963,28 @@ useEffect(() => {
       branchStudentsForDisplay.map(async (student) => {
         const studentId = String(student?.studentId || student?.id || '').trim()
         if (!studentId) return null
-        const response = await getBranchStudentAcademicReports(studentId, branchIdForReports)
-        return [studentId.toLowerCase(), getAcademicProgressIndex(response)]
+        const [academicResult, syllabusResult] = await Promise.allSettled([
+          getBranchStudentAcademicReports(studentId, branchIdForReports),
+          getBranchStudentSyllabusReports(studentId, branchIdForReports),
+        ])
+        const academicResponse = academicResult.status === 'fulfilled' ? academicResult.value : {}
+        const syllabusResponse = syllabusResult.status === 'fulfilled' ? syllabusResult.value : {}
+        const academicPayload = academicResponse?.data || academicResponse || {}
+        const syllabusPayload = syllabusResponse?.data || syllabusResponse || {}
+        const syllabusEvaluations = (Array.isArray(syllabusPayload.items) ? syllabusPayload.items : []).map((item) => ({
+          ...item,
+          evaluationId: item.evaluationId || item.id,
+          courseId: item.courseId || null,
+          status: item.status || 'SUBMITTED',
+        }))
+        const mergedResponse = {
+          ...academicPayload,
+          evaluations: [
+            ...(Array.isArray(academicPayload.evaluations) ? academicPayload.evaluations : []),
+            ...syllabusEvaluations,
+          ],
+        }
+        return [studentId.toLowerCase(), getAcademicProgressIndex(mergedResponse)]
       }),
     ).then((results) => {
       if (!active) return
