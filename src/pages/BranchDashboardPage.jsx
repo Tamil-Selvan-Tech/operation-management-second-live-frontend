@@ -9041,6 +9041,38 @@ useEffect(() => {
     return progressByStudentKey
   }, [branchCourseCards, branchStudentsForDisplay, branchTodayWorkEntriesByStudent, facultyTodayWorkEntries])
 
+  const completedStudentsForLifecycle = useMemo(() => {
+    return branchStudentsForDisplay.filter((student) => {
+      const entries = Array.isArray(student?.courseEnrollments) && student.courseEnrollments.length
+        ? student.courseEnrollments
+        : Array.isArray(student?.courses) && student.courses.length
+          ? student.courses
+          : [{
+              courseId: student?.courseId,
+              courseName: student?.courseName || student?.courseInterested || student?.course?.name,
+              courseProgress: student?.courseProgress ?? student?.courseCompletionPercentage ?? student?.progress,
+            }]
+      return entries.some((entry) => {
+        const courseId = String(entry?.courseId || entry?.id || entry?.course?.id || student?.courseId || '').trim()
+        const courseName = String(entry?.courseName || entry?.name || entry?.course?.name || student?.courseName || student?.courseInterested || '').trim()
+        const catalogCourse = branchCourseCards.find((course) => (
+          (courseId && String(course?.id || '').trim() === courseId)
+          || String(course?.name || '').trim().toLowerCase() === courseName.toLowerCase()
+        ))
+        const workProgress = catalogCourse
+          ? Number(buildFacultyTodayWorkProgressSummary(facultyTodayWorkEntries, catalogCourse, { ...student, courseId, courseName })?.courseProgress)
+          : Number.NaN
+        const savedProgress = Number(entry?.courseProgress ?? entry?.courseCompletionPercentage ?? entry?.progress ?? (entries.length === 1 ? student?.courseProgress : NaN))
+        const progress = Math.max(
+          Number.isFinite(savedProgress) ? savedProgress : 0,
+          Number.isFinite(workProgress) ? workProgress : 0,
+        )
+        const academicProgress = getStudentAcademicProgress(student, courseId, courseName, branchAcademicProgressByStudent)
+        return progress >= 100 && isAcademicTestProgressComplete(academicProgress)
+      })
+    })
+  }, [branchAcademicProgressByStudent, branchCourseCards, branchStudentsForDisplay, facultyTodayWorkEntries])
+
   const branchStudentProgressByNotificationKey = useMemo(() => {
     const progressByStudentKey = new Map()
 
@@ -10450,7 +10482,7 @@ useEffect(() => {
                   onBack={() => navigate('/branch-dashboard?section=students')}
                 />
               ) : null}
-              {activeSection === 'completed-students' ? <CompletedStudentsPage /> : null}
+              {activeSection === 'completed-students' ? <CompletedStudentsPage completedStudents={completedStudentsForLifecycle} /> : null}
               {activeSection === 'faculty-skills' ? <FacultySkillsUpgradePage embedded /> : null}
               {activeSection === 'dashboard' ? (
                 <>

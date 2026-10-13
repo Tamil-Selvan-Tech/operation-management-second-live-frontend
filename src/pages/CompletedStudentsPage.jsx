@@ -48,7 +48,7 @@ function StatusPill({ value }) {
   return <span className={`completed-students-status completed-students-status--${String(value || '').toLowerCase()}`}>{valueOf(value)}</span>
 }
 
-export function CompletedStudentsPage() {
+export function CompletedStudentsPage({ completedStudents = [] } = {}) {
   const [tab, setTab] = useState('COMPLETED')
   const [search, setSearch] = useState('')
   const [appliedSearch, setAppliedSearch] = useState('')
@@ -63,12 +63,36 @@ export function CompletedStudentsPage() {
     setState((current) => ({ ...current, loading: true, error: '' }))
     try {
       const result = await listCompletedStudentCourses({ lifecycle, search: appliedSearch, sortBy, sortOrder, page: requestedPage, limit: PAGE_SIZE })
-      setState({ ...result, loading: false, error: '' })
-      setCounts((current) => ({ ...current, [lifecycle]: result.meta?.total ?? result.data.length }))
+      const normalizedCompleted = Array.isArray(completedStudents) ? completedStudents : []
+      const apiRows = lifecycle === 'COMPLETED'
+        ? result.data.filter((row) => normalizedCompleted.some((student) => String(student.studentId || student.id || '').trim().toLowerCase() === String(row.studentId || '').trim().toLowerCase()))
+        : result.data
+      const apiStudentIds = new Set(apiRows.map((row) => String(row.studentId || '').trim().toLowerCase()))
+      const supplementalRows = lifecycle === 'COMPLETED'
+        ? normalizedCompleted
+          .filter((student) => !apiStudentIds.has(String(student.studentId || student.id || '').trim().toLowerCase()))
+          .map((student) => ({
+            recordId: student.recordId || student.id || student.studentId,
+            studentId: student.studentId || student.id,
+            studentName: student.studentName || student.name,
+            courseName: student.courseName || student.courseInterested || student.course?.name,
+            courseStartDate: student.courseStartDate || student.startDate,
+            courseEndDate: student.courseEndDate || student.endDate,
+            batchName: student.batchName || student.batch?.name,
+            facultyName: student.facultyName || student.faculty?.name,
+            totalFees: student.finalFee || student.totalAmount || student.courseAmount,
+            paidAmount: student.paidAmount || student.totalPaid,
+            pendingAmount: student.pendingAmount,
+            lifecycleStatus: 'COMPLETED',
+          }))
+        : []
+      const data = [...apiRows, ...supplementalRows]
+      setState({ ...result, data, loading: false, error: '' })
+      setCounts((current) => ({ ...current, [lifecycle]: lifecycle === 'COMPLETED' ? data.length : (result.meta?.total ?? result.data.length) }))
     } catch (error) {
       setState({ data: [], meta: null, loading: false, error: error?.message || 'Unable to load student records.' })
     }
-  }, [appliedSearch, page, sortBy, sortOrder, tab])
+  }, [appliedSearch, completedStudents, page, sortBy, sortOrder, tab])
 
   useEffect(() => {
     const timer = window.setTimeout(() => { void load() }, 0)
