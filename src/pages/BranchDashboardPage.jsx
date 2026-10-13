@@ -315,6 +315,16 @@ function getAcademicProgressIndex(response = null) {
       return !(value.includes('PROJECT') && !value.includes('TEST'))
     })
     : rawEvaluations
+  const allByCourse = {}
+  rawEvaluations.forEach((evaluation) => {
+    const courseId = String(evaluation?.courseId || '').trim().toLowerCase()
+    const courseName = String(evaluation?.courseName || '').trim().toLowerCase()
+    const keys = [courseId, courseName].filter(Boolean)
+    keys.forEach((key) => {
+      if (!allByCourse[key]) allByCourse[key] = []
+      allByCourse[key].push(evaluation)
+    })
+  })
   const byCourse = {}
 
   evaluations.forEach((evaluation) => {
@@ -349,7 +359,7 @@ function getAcademicProgressIndex(response = null) {
     }
   }
 
-  return { payload, byCourse, buildProgress }
+  return { payload, byCourse, allByCourse, buildProgress }
 }
 
 function getFetchedAcademicProgress(index = null, courseId = '', courseName = '') {
@@ -10559,7 +10569,7 @@ useEffect(() => {
                   onBack={() => navigate('/branch-dashboard?section=students')}
                 />
               ) : null}
-              {activeSection === 'completed-students' ? <CompletedStudentsPage branchAdminName={branchAdminDisplay} completedStudents={completedStudentsForLifecycle} completedStudentsLoading={!isBranchAcademicProgressLoaded} courseCatalog={branchCourseCards} students={branchStudentsForDisplay} /> : null}
+              {activeSection === 'completed-students' ? <CompletedStudentsPage academicProgressByStudent={branchAcademicProgressByStudent} branchAdminName={branchAdminDisplay} completedStudents={completedStudentsForLifecycle} completedStudentsLoading={!isBranchAcademicProgressLoaded} courseCatalog={branchCourseCards} students={branchStudentsForDisplay} /> : null}
               {activeSection === 'faculty-skills' ? <FacultySkillsUpgradePage embedded /> : null}
               {activeSection === 'dashboard' ? (
                 <>

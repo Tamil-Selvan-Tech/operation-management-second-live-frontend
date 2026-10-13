@@ -83,11 +83,49 @@ function buildFields(row) {
   })
 }
 
+function getAcademicTestsForRow(academicProgressByStudent, studentId, courseId, courseName) {
+  const index = academicProgressByStudent instanceof Map
+    ? academicProgressByStudent.get(String(studentId || '').trim().toLowerCase())
+    : null
+  if (!index) return []
+  const idKey = String(courseId || '').trim().toLowerCase()
+  const nameKey = String(courseName || '').trim().toLowerCase()
+  const evaluations = index.allByCourse?.[idKey] || index.allByCourse?.[nameKey] || index.byCourse?.[idKey] || index.byCourse?.[nameKey] || []
+  const hasCombinedEvaluation = evaluations.some((evaluation) => {
+    const type = String(evaluation?.type || evaluation?.testType || evaluation?.evaluationType || '').trim().toUpperCase()
+    return type.includes('TEST') && type.includes('PROJECT')
+  })
+  const projectEvaluations = evaluations.filter((evaluation) => {
+    const type = String(evaluation?.type || evaluation?.testType || evaluation?.evaluationType || '').trim().toUpperCase()
+    return type.includes('PROJECT') && !type.includes('TEST')
+  })
+  const countedEvaluations = hasCombinedEvaluation
+    ? evaluations.filter((evaluation) => {
+      const type = String(evaluation?.type || evaluation?.testType || evaluation?.evaluationType || '').trim().toUpperCase()
+      const name = String(evaluation?.name || evaluation?.title || evaluation?.testName || '').trim().toUpperCase()
+      return !(type.includes('PROJECT') && !type.includes('TEST')) && !(name === 'PROJECT' && !type.includes('TEST'))
+    })
+    : evaluations
+  return countedEvaluations.map((evaluation, index) => {
+    const percentage = Number(evaluation?.percentage)
+    const evaluationType = String(evaluation?.type || evaluation?.testType || evaluation?.evaluationType || '').trim().toUpperCase()
+    const projectPercentage = projectEvaluations.length ? Number(projectEvaluations[0]?.percentage) : Number.NaN
+    const testValue = Number.isFinite(percentage) ? `${percentage}%` : (String(evaluation?.status || '').trim() || 'Not Evaluated')
+    const value = evaluationType.includes('TEST') && evaluationType.includes('PROJECT') && Number.isFinite(projectPercentage)
+      ? `Test: ${testValue} · Project: ${projectPercentage}%`
+      : testValue
+    return {
+      label: `Academic Test ${index + 1}`,
+      value,
+    }
+  })
+}
+
 function StatusPill({ value }) {
   return <span className={`completed-students-status completed-students-status--${String(value || '').toLowerCase()}`}>{valueOf(value)}</span>
 }
 
-export function CompletedStudentsPage({ branchAdminName = '', completedStudents = [], completedStudentsLoading = false, courseCatalog = [], students = [] } = {}) {
+export function CompletedStudentsPage({ academicProgressByStudent = new Map(), branchAdminName = '', completedStudents = [], completedStudentsLoading = false, courseCatalog = [], students = [] } = {}) {
   const [tab, setTab] = useState('COMPLETED')
   const [search, setSearch] = useState('')
   const [appliedSearch, setAppliedSearch] = useState('')
@@ -167,6 +205,7 @@ export function CompletedStudentsPage({ branchAdminName = '', completedStudents 
             installmentValues,
             paymentPlanLabel: displayPaymentPlan,
             studentStatus: matchedStudent.studentStatus || matchedStudent.studentLifecycleStatus || matchedStudent.lifecycleStatus || 'Active',
+            academicTests: getAcademicTestsForRow(academicProgressByStudent, matchedStudent.studentId || matchedStudent.id, courseId, courseName),
             registrationFees: matchedStudent.registrationFees ?? catalogCourse?.registrationFees ?? catalogCourse?.registrationFee,
             totalFees: financials.totalFees,
             paidAmount: financials.paidAmount || financials.totalFees,
@@ -269,7 +308,7 @@ export function CompletedStudentsPage({ branchAdminName = '', completedStudents 
       })
       setCounts((current) => ({ ...current, [lifecycle]: fallbackData.length }))
     }
-  }, [appliedSearch, branchAdminName, completedStudents, completedStudentsLoading, courseCatalog, page, sortBy, sortOrder, students, tab])
+  }, [academicProgressByStudent, appliedSearch, branchAdminName, completedStudents, completedStudentsLoading, courseCatalog, page, sortBy, sortOrder, students, tab])
 
   useEffect(() => {
     const timer = window.setTimeout(() => { void load() }, 0)
