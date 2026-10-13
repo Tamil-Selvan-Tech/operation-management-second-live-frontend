@@ -26,6 +26,30 @@ function attendanceLabel(row) {
   return value === null || value === undefined || value === '' ? 'N/A' : `${value}%`
 }
 
+function hasValue(value) {
+  return value !== null && value !== undefined && value !== '' && String(value).trim().toUpperCase() !== 'N/A'
+}
+
+function currentStudentFinancials(student = {}) {
+  const courseEntries = Array.isArray(student.courseEnrollments) && student.courseEnrollments.length
+    ? student.courseEnrollments
+    : Array.isArray(student.courses) ? student.courses : []
+  const primaryCourse = courseEntries[0] || {}
+  const installments = Array.isArray(student.installmentSchedule) && student.installmentSchedule.length
+    ? student.installmentSchedule
+    : Array.isArray(primaryCourse.installmentSchedule) ? primaryCourse.installmentSchedule : []
+  const totalFees = Number(student.finalFee ?? student.courseAmount ?? student.totalAmount ?? student.afterDiscount
+    ?? primaryCourse.finalCourseAmount ?? primaryCourse.totalCourseAmount ?? primaryCourse.courseAmount ?? primaryCourse.totalAmount ?? 0)
+  const paidAmount = installments.length
+    ? installments.reduce((sum, item) => sum + Number(item.paidAmount ?? item.amountPaid ?? 0), 0)
+    : Number(student.paidAmount ?? student.totalPaid ?? student.amountPaid ?? primaryCourse.paidAmount ?? primaryCourse.totalPaid ?? 0)
+  return {
+    totalFees: totalFees || null,
+    paidAmount,
+    pendingAmount: Math.max(totalFees - paidAmount, 0),
+  }
+}
+
 function buildFields(row) {
   return [
     ['Student ID', row.studentId], ['Student Name', row.studentName], ['Contact Number', row.mobileNumber], ['Email ID', row.emailAddress],
@@ -48,7 +72,7 @@ function StatusPill({ value }) {
   return <span className={`completed-students-status completed-students-status--${String(value || '').toLowerCase()}`}>{valueOf(value)}</span>
 }
 
-export function CompletedStudentsPage({ completedStudents = [] } = {}) {
+export function CompletedStudentsPage({ completedStudents = [], completedStudentsLoading = false, students = [] } = {}) {
   const [tab, setTab] = useState('COMPLETED')
   const [search, setSearch] = useState('')
   const [appliedSearch, setAppliedSearch] = useState('')
@@ -62,12 +86,78 @@ export function CompletedStudentsPage({ completedStudents = [] } = {}) {
   const load = useCallback(async (lifecycle = tab, requestedPage = page) => {
     setState((current) => ({ ...current, loading: true, error: '' }))
     try {
+      if (lifecycle === 'COMPLETED') {
+        if (completedStudentsLoading) {
+          setState({ data: [], meta: { page: 1, total: 0, totalPages: 1 }, loading: true, error: '' })
+          return
+        }
+        const currentStudents = Array.isArray(students) ? students : []
+        const completedSource = Array.isArray(completedStudents) ? completedStudents : []
+        const localRows = completedSource.map((student) => {
+          const matchedStudent = currentStudents.find((item) => String(item.studentId || item.id || '').trim().toLowerCase() === String(student.studentId || student.id || '').trim().toLowerCase()) || student
+          const financials = currentStudentFinancials(matchedStudent)
+          return {
+            recordId: matchedStudent.recordId || matchedStudent.id || matchedStudent.studentId,
+            studentId: matchedStudent.studentId || matchedStudent.id,
+            studentName: matchedStudent.studentName || matchedStudent.name,
+            courseName: matchedStudent.courseName || matchedStudent.courseInterested || matchedStudent.course?.name,
+            courseStartDate: matchedStudent.courseStartDate || matchedStudent.startDate,
+            courseEndDate: matchedStudent.courseEndDate || matchedStudent.endDate,
+            batchName: matchedStudent.batchName || matchedStudent.batch?.name,
+            facultyName: matchedStudent.facultyName || matchedStudent.faculty?.name,
+            attendancePercentage: matchedStudent.attendancePercentage ?? matchedStudent.attendancePercent ?? 100,
+            totalFees: financials.totalFees,
+            paidAmount: financials.paidAmount || financials.totalFees,
+            pendingAmount: financials.paidAmount ? financials.pendingAmount : 0,
+            lifecycleStatus: 'COMPLETED',
+          }
+        }).filter((row) => !appliedSearch || [row.studentName, row.studentId, row.courseName, row.emailAddress].some((value) => String(value || '').toLowerCase().includes(appliedSearch.toLowerCase())))
+        localRows.sort((left, right) => {
+          const leftValue = String(left[sortBy] || left.studentName || '')
+          const rightValue = String(right[sortBy] || right.studentName || '')
+          const comparison = leftValue.localeCompare(rightValue, undefined, { numeric: true, sensitivity: 'base' })
+          return sortOrder === 'desc' ? -comparison : comparison
+        })
+        const start = (requestedPage - 1) * PAGE_SIZE
+        const data = localRows.slice(start, start + PAGE_SIZE)
+        setState({ data, meta: { page: requestedPage, total: localRows.length, totalPages: Math.max(1, Math.ceil(localRows.length / PAGE_SIZE)) }, loading: false, error: '' })
+        setCounts((current) => ({ ...current, COMPLETED: localRows.length }))
+        return
+      }
       const result = await listCompletedStudentCourses({ lifecycle, search: appliedSearch, sortBy, sortOrder, page: requestedPage, limit: PAGE_SIZE })
       const normalizedCompleted = Array.isArray(completedStudents) ? completedStudents : []
-      const apiRows = lifecycle === 'COMPLETED'
+      const sourceStudents = [
+        ...normalizedCompleted,
+        ...(Array.isArray(students) ? students : []),
+      ].filter((student, index, list) => list.findIndex((item) => String(item.studentId || item.id || '').trim().toLowerCase() === String(student.studentId || student.id || '').trim().toLowerCase()) === index)
+      const hasCompletionSync = normalizedCompleted.length > 0
+      const apiRows = lifecycle === 'COMPLETED' && hasCompletionSync
         ? result.data.filter((row) => normalizedCompleted.some((student) => String(student.studentId || student.id || '').trim().toLowerCase() === String(row.studentId || '').trim().toLowerCase()))
         : result.data
-      const apiStudentIds = new Set(apiRows.map((row) => String(row.studentId || '').trim().toLowerCase()))
+      const syncedApiRows = apiRows.map((row) => {
+        const student = sourceStudents.find((item) => String(item.studentId || item.id || '').trim().toLowerCase() === String(row.studentId || '').trim().toLowerCase())
+        if (!student && lifecycle !== 'COMPLETED') return row
+        const financials = currentStudentFinancials(student || {})
+        const resolvedTotalFees = hasValue(row.totalFees) ? Number(row.totalFees) : Number(financials.totalFees || 0)
+        const resolvedPaidAmount = hasValue(row.paidAmount)
+          ? row.paidAmount
+          : financials.paidAmount > 0
+            ? financials.paidAmount
+            : resolvedTotalFees
+        const resolvedPendingAmount = hasValue(row.pendingAmount)
+          ? row.pendingAmount
+          : Math.max(resolvedTotalFees - Number(resolvedPaidAmount || 0), 0)
+        return {
+          ...row,
+          totalFees: resolvedTotalFees || financials.totalFees,
+          paidAmount: resolvedPaidAmount,
+          pendingAmount: resolvedPendingAmount,
+          attendancePercentage: hasValue(row.attendancePercentage)
+            ? row.attendancePercentage
+            : student?.attendancePercentage ?? student?.attendancePercent ?? 100,
+        }
+      })
+      const apiStudentIds = new Set(syncedApiRows.map((row) => String(row.studentId || '').trim().toLowerCase()))
       const supplementalRows = lifecycle === 'COMPLETED'
         ? normalizedCompleted
           .filter((student) => !apiStudentIds.has(String(student.studentId || student.id || '').trim().toLowerCase()))
@@ -86,13 +176,38 @@ export function CompletedStudentsPage({ completedStudents = [] } = {}) {
             lifecycleStatus: 'COMPLETED',
           }))
         : []
-      const data = [...apiRows, ...supplementalRows]
+      const data = [...syncedApiRows, ...supplementalRows]
       setState({ ...result, data, loading: false, error: '' })
       setCounts((current) => ({ ...current, [lifecycle]: lifecycle === 'COMPLETED' ? data.length : (result.meta?.total ?? result.data.length) }))
     } catch (error) {
-      setState({ data: [], meta: null, loading: false, error: error?.message || 'Unable to load student records.' })
+      const fallbackData = lifecycle === 'COMPLETED'
+        ? (Array.isArray(completedStudents) ? completedStudents : []).map((student) => {
+          const financials = currentStudentFinancials(student)
+          return {
+            recordId: student.recordId || student.id || student.studentId,
+            studentId: student.studentId || student.id,
+            studentName: student.studentName || student.name,
+            courseName: student.courseName || student.courseInterested || student.course?.name,
+            courseStartDate: student.courseStartDate || student.startDate,
+            courseEndDate: student.courseEndDate || student.endDate,
+            batchName: student.batchName || student.batch?.name,
+            facultyName: student.facultyName || student.faculty?.name,
+            totalFees: financials.totalFees,
+            paidAmount: financials.paidAmount,
+            pendingAmount: financials.pendingAmount,
+            lifecycleStatus: 'COMPLETED',
+          }
+        })
+        : []
+      setState({
+        data: fallbackData,
+        meta: { page: 1, total: fallbackData.length, totalPages: 1 },
+        loading: false,
+        error: fallbackData.length ? '' : (error?.message || 'Unable to load student records.'),
+      })
+      setCounts((current) => ({ ...current, [lifecycle]: fallbackData.length }))
     }
-  }, [appliedSearch, completedStudents, page, sortBy, sortOrder, tab])
+  }, [appliedSearch, completedStudents, completedStudentsLoading, page, sortBy, sortOrder, students, tab])
 
   useEffect(() => {
     const timer = window.setTimeout(() => { void load() }, 0)

@@ -4104,6 +4104,7 @@ const BRANCH_PAYMENT_HISTORY_PER_PAGE = 5
   const [branchNotificationStatusFilter, setBranchNotificationStatusFilter] = useState('all')
   const [facultyTodayWorkEntries, setFacultyTodayWorkEntries] = useState([])
   const [branchAcademicProgressByStudent, setBranchAcademicProgressByStudent] = useState(() => new Map())
+  const [isBranchAcademicProgressLoaded, setIsBranchAcademicProgressLoaded] = useState(false)
   const branchCourseProgressBackfillSignatureRef = useRef('')
 
   useEffect(() => {
@@ -4411,7 +4412,7 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
         saveNotifications(nextNotifications, { emit: false })
         void loadApprovedDiscontinuationRequests()
       } catch (error) {
-        if (error?.name !== 'AbortError') {
+        if (error?.name !== 'AbortError' && error?.status !== 408) {
           console.error('Failed to load branch notifications:', error)
         }
         const fallbackNotifications = mergeNotificationsWithStoredState(loadNotifications())
@@ -8895,7 +8896,43 @@ useEffect(() => {
     .toLowerCase()
     .replace(/[\s_-]/g, '') === 'coursecompleted'
 
+  const courseCompletedStudentKeys = useMemo(() => {
+    if (!isBranchAcademicProgressLoaded) return new Set()
+    const completedKeys = new Set()
+    branchStudentsForDisplay.forEach((student) => {
+      const entries = Array.isArray(student?.courseEnrollments) && student.courseEnrollments.length
+        ? student.courseEnrollments
+        : Array.isArray(student?.courses) && student.courses.length
+          ? student.courses
+          : [{
+              courseId: student?.courseId,
+              courseName: student?.courseName || student?.courseInterested || student?.course?.name,
+              courseProgress: student?.courseProgress ?? student?.courseCompletionPercentage ?? student?.progress,
+            }]
+      const isCompleted = entries.some((entry) => {
+        const courseId = String(entry?.courseId || entry?.id || entry?.course?.id || student?.courseId || '').trim()
+        const courseName = String(entry?.courseName || entry?.name || entry?.course?.name || student?.courseName || student?.courseInterested || '').trim()
+        const catalogCourse = branchCourseCards.find((course) => (
+          (courseId && String(course?.id || '').trim() === courseId)
+          || String(course?.name || '').trim().toLowerCase() === courseName.toLowerCase()
+        ))
+        const workProgress = catalogCourse
+          ? Number(buildFacultyTodayWorkProgressSummary(facultyTodayWorkEntries, catalogCourse, { ...student, courseId, courseName })?.courseProgress)
+          : Number.NaN
+        const savedProgress = Number(entry?.courseProgress ?? entry?.courseCompletionPercentage ?? entry?.progress ?? (entries.length === 1 ? student?.courseProgress : NaN))
+        const progress = Math.max(
+          Number.isFinite(savedProgress) ? savedProgress : 0,
+          Number.isFinite(workProgress) ? workProgress : 0,
+        )
+        return progress >= 100 && isAcademicTestProgressComplete(getStudentAcademicProgress(student, courseId, courseName, branchAcademicProgressByStudent))
+      })
+      if (isCompleted) completedKeys.add(String(student?.studentId || student?.id || '').trim().toLowerCase())
+    })
+    return completedKeys
+  }, [branchAcademicProgressByStudent, branchCourseCards, branchStudentsForDisplay, facultyTodayWorkEntries, isBranchAcademicProgressLoaded])
+
   const filteredBranchStudents = useMemo(() => {
+    if (!isBranchAcademicProgressLoaded) return []
     const q = appliedStudentSearchTerm.trim().toLowerCase()
     return branchStudentsForDisplay
       .filter((student) => {
@@ -8916,7 +8953,10 @@ useEffect(() => {
           || String(student?.status || student?.recordStatus || student?.studentStatus || '').trim().toUpperCase() === 'DISCONTINUED',
         )
         if (studentStatusFilter === 'discontinued') return isDiscontinued
-        if (isCourseCompletedFilter) return !isDiscontinued
+        if (isCourseCompletedFilter) {
+          const studentKey = String(student?.studentId || student?.id || '').trim().toLowerCase()
+          return !isDiscontinued && courseCompletedStudentKeys.has(studentKey)
+        }
         const statusValue = String(student?.status || student?.recordStatus || student?.studentStatus || 'Active').trim().toLowerCase()
         return statusValue === String(studentStatusFilter).toLowerCase()
       })
@@ -8938,7 +8978,7 @@ useEffect(() => {
         const comparison = String(leftValue).localeCompare(String(rightValue), undefined, { numeric: true, sensitivity: 'base' })
         return studentSortOrder === 'asc' ? comparison : -comparison
       })
-  }, [appliedStudentSearchTerm, branchStudentsForDisplay, isCourseCompletedFilter, studentCourseFilter, studentSortBy, studentSortOrder, studentStatusFilter])
+  }, [appliedStudentSearchTerm, branchStudentsForDisplay, courseCompletedStudentKeys, isBranchAcademicProgressLoaded, isCourseCompletedFilter, studentCourseFilter, studentSortBy, studentSortOrder, studentStatusFilter])
 
   const totalStudentPages = isCourseCompletedFilter
     ? 1
@@ -8953,10 +8993,12 @@ useEffect(() => {
   useEffect(() => {
     if (!branchStudentsForDisplay.length) {
       setBranchAcademicProgressByStudent(new Map())
+      setIsBranchAcademicProgressLoaded(true)
       return undefined
     }
 
     let active = true
+    setIsBranchAcademicProgressLoaded(false)
     const branchIdForReports = branchStudentScope.id || branchStudentScope.branchCode || ''
 
     Promise.allSettled(
@@ -8994,6 +9036,7 @@ useEffect(() => {
         next.set(result.value[0], result.value[1])
       })
       setBranchAcademicProgressByStudent(next)
+      setIsBranchAcademicProgressLoaded(true)
     })
 
     return () => { active = false }
@@ -9042,6 +9085,7 @@ useEffect(() => {
   }, [branchCourseCards, branchStudentsForDisplay, branchTodayWorkEntriesByStudent, facultyTodayWorkEntries])
 
   const completedStudentsForLifecycle = useMemo(() => {
+    if (!isBranchAcademicProgressLoaded) return []
     return branchStudentsForDisplay.filter((student) => {
       const entries = Array.isArray(student?.courseEnrollments) && student.courseEnrollments.length
         ? student.courseEnrollments
@@ -9071,7 +9115,7 @@ useEffect(() => {
         return progress >= 100 && isAcademicTestProgressComplete(academicProgress)
       })
     })
-  }, [branchAcademicProgressByStudent, branchCourseCards, branchStudentsForDisplay, facultyTodayWorkEntries])
+  }, [branchAcademicProgressByStudent, branchCourseCards, branchStudentsForDisplay, facultyTodayWorkEntries, isBranchAcademicProgressLoaded])
 
   const branchStudentProgressByNotificationKey = useMemo(() => {
     const progressByStudentKey = new Map()
@@ -10482,7 +10526,7 @@ useEffect(() => {
                   onBack={() => navigate('/branch-dashboard?section=students')}
                 />
               ) : null}
-              {activeSection === 'completed-students' ? <CompletedStudentsPage completedStudents={completedStudentsForLifecycle} /> : null}
+              {activeSection === 'completed-students' ? <CompletedStudentsPage completedStudents={completedStudentsForLifecycle} completedStudentsLoading={!isBranchAcademicProgressLoaded} students={branchStudentsForDisplay} /> : null}
               {activeSection === 'faculty-skills' ? <FacultySkillsUpgradePage embedded /> : null}
               {activeSection === 'dashboard' ? (
                 <>
@@ -11039,6 +11083,7 @@ useEffect(() => {
     <tbody>
       {isBranchStudentsLoading ||
       loadedBranchStudentScopeKey !== branchStudentScopeKey ||
+      !isBranchAcademicProgressLoaded ||
       (!branchStudentScope.id && !branchStudentScope.branchCode) ? (
         Array.from({ length: BRANCH_STUDENTS_PER_PAGE }, (_, rowIndex) => (
           <tr key={`student-loading-${rowIndex}`} className="branch-student-loading-row" aria-hidden="true">
