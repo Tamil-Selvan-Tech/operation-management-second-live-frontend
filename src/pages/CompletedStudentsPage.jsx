@@ -41,9 +41,13 @@ function currentStudentFinancials(student = {}, courseId = '', courseName = '') 
     const entryName = String(course?.courseName || course?.name || course?.course?.name || '').trim().toLowerCase()
     return (normalizedCourseId && entryId === normalizedCourseId) || (normalizedCourseName && entryName === normalizedCourseName)
   }) || courseEntries[0] || {}
-  const installments = Array.isArray(student.installmentSchedule) && student.installmentSchedule.length
-    ? student.installmentSchedule
-    : Array.isArray(primaryCourse.installmentSchedule) ? primaryCourse.installmentSchedule : []
+  const installments = Array.isArray(primaryCourse.installmentSchedule) && primaryCourse.installmentSchedule.length
+    ? primaryCourse.installmentSchedule
+      : Array.isArray(primaryCourse.paymentPlan?.installments)
+        ? primaryCourse.paymentPlan.installments
+        : Array.isArray(student.installmentSchedule) && student.installmentSchedule.length
+          ? student.installmentSchedule
+          : Array.isArray(student.paymentPlan?.installments) ? student.paymentPlan.installments : []
   const totalFees = Number(primaryCourse.finalCourseAmount ?? primaryCourse.finalFee ?? primaryCourse.totalCourseAmount
     ?? primaryCourse.courseAmount ?? primaryCourse.courseFee ?? primaryCourse.finalAmount ?? primaryCourse.amount ?? primaryCourse.totalAmount
     ?? student.finalFee ?? student.finalAmount ?? student.courseAmount ?? student.courseFees ?? student.totalFee ?? student.totalAmount ?? student.afterDiscount ?? 0)
@@ -54,20 +58,24 @@ function currentStudentFinancials(student = {}, courseId = '', courseName = '') 
     totalFees: totalFees || null,
     paidAmount,
     pendingAmount: Math.max(totalFees - paidAmount, 0),
+    installments,
   }
 }
 
 function buildFields(row) {
+  const installmentValues = Array.isArray(row.installmentValues) && row.installmentValues.length
+    ? row.installmentValues
+    : [row.installment1, row.installment2, row.installment3]
   return [
     ['Student ID', row.studentId], ['Student Name', row.studentName], ['Contact Number', row.mobileNumber], ['Email ID', row.emailAddress],
     ['Course', row.courseName], ['Database Source', row.source], ['Branch Admin Name', row.branchAdminName],
     ['Course Starting Date', formatDate(row.courseStartDate)], ['Course Ending Date', formatDate(row.courseEndDate)],
     ['Weekday / Weekend', row.scheduleType || row.classSchedule], ['Online / Offline', row.courseMode || row.mode],
     ['Batch Timing', row.batchTiming], ['Faculty Name', row.facultyName], ['Attendance Percentage', attendanceLabel(row)],
-    ['Course Fees', formatMoney(row.courseFees)], ['Registration Fees', formatMoney(row.registrationFees)],
-    ['First Installment', formatMoney(row.installment1)], ['Second Installment', formatMoney(row.installment2)], ['Third Installment', formatMoney(row.installment3)],
+    ['Course Fees', formatMoney(row.courseFees)], ['Registration Fees', formatMoney(row.registrationFees)], ['Payment Plan', row.paymentPlanLabel],
+    ...installmentValues.map((amount, index) => [`${index === 0 ? 'First' : index === 1 ? 'Second' : index === 2 ? 'Third' : `${index + 1}th`} Installment`, formatMoney(amount)]),
     ['Paid Amount', formatMoney(row.paidAmount)], ['Pending Amount', formatMoney(row.pendingAmount)],
-    ['Student Status', row.studentStatus], ['Remarks', row.remarks],
+    ['Student Status', row.studentStatus], ...(hasValue(row.remarks) ? [['Remarks', row.remarks]] : []),
     ...(Array.isArray(row.academicTests) ? row.academicTests.map((test) => [test.label, test.value]) : []),
   ].filter(([label, value]) => {
     const installmentField = /^(First|Second|Third) Installment$/.test(label)
@@ -108,7 +116,37 @@ export function CompletedStudentsPage({ branchAdminName = '', completedStudents 
             (courseId && String(course?.id || '').trim() === String(courseId).trim())
             || String(course?.name || '').trim().toLowerCase() === String(courseName).trim().toLowerCase()
           ))
+          const selectedEnrollment = (Array.isArray(matchedStudent.courseEnrollments) ? matchedStudent.courseEnrollments : []).find((entry) => (
+            (courseId && String(entry?.courseId || entry?.id || entry?.course?.id || '').trim() === String(courseId).trim())
+            || String(entry?.courseName || entry?.name || entry?.course?.name || '').trim().toLowerCase() === String(courseName).trim().toLowerCase()
+          ))
+          const selectedPlanId = selectedEnrollment?.paymentPlanId || selectedEnrollment?.paymentPlan?.id || matchedStudent.paymentPlanId
+          const configuredPlans = Array.isArray(catalogCourse?.paymentPlans)
+            ? catalogCourse.paymentPlans
+            : Array.isArray(catalogCourse?.paymentPlanSelections) ? catalogCourse.paymentPlanSelections : []
+          const selectedPlan = configuredPlans.find((plan) => [plan?.id, plan?.templateId, plan?.paymentPlanId].some((id) => String(id || '').trim() === String(selectedPlanId || '').trim()))
           const financials = currentStudentFinancials(matchedStudent, courseId, courseName)
+          const selectedPlanInstallments = Array.isArray(selectedPlan?.installments) ? selectedPlan.installments : []
+          const installmentSource = financials.installments.length ? financials.installments : selectedPlanInstallments
+          const selectedInstallmentCount = Number(
+            selectedEnrollment?.installmentCount
+            || selectedEnrollment?.paymentPlanInstallmentCount
+            || selectedPlan?.installmentCount
+            || matchedStudent.paymentPlanInstallmentCount
+            || 0,
+          )
+          const installmentAmount = (index) => {
+            const installment = installmentSource[index]
+            return typeof installment === 'number' ? installment : installment?.amount ?? installment?.installmentAmount ?? installment?.value ?? installment?.fee
+          }
+          const installmentLimit = selectedInstallmentCount > 0 ? selectedInstallmentCount : installmentSource.length
+          const installmentValues = installmentSource.slice(0, installmentLimit).map((_, index) => installmentAmount(index)).filter((amount) => amount !== null && amount !== undefined && amount !== '')
+          const paymentPlanLabel = String(selectedPlan?.type || selectedPlan?.name || selectedPlan?.label || matchedStudent.paymentPlan || '').toLowerCase().replace(/[\s_-]/g, '')
+          const isFullPaymentPlan = paymentPlanLabel.includes('fullpayment') || paymentPlanLabel === 'full' || paymentPlanLabel.includes('onetime') || Number(selectedPlan?.installmentCount) === 1
+          const displayPaymentPlan = isFullPaymentPlan
+            ? 'Full Installment Plan'
+            : selectedPlan?.name || selectedPlan?.label || selectedEnrollment?.paymentPlan || matchedStudent.paymentPlan || (selectedInstallmentCount > 0 ? `${selectedInstallmentCount} Installment Plan` : '')
+          if (!installmentValues.length && isFullPaymentPlan && financials.totalFees !== null) installmentValues.push(financials.totalFees)
           return {
             ...matchedStudent,
             recordId: matchedStudent.recordId || matchedStudent.id || matchedStudent.studentId,
@@ -123,6 +161,12 @@ export function CompletedStudentsPage({ branchAdminName = '', completedStudents 
             facultyName: matchedStudent.facultyName || matchedStudent.faculty?.name,
             attendancePercentage: matchedStudent.attendancePercentage ?? matchedStudent.attendancePercent ?? 100,
             courseFees: financials.totalFees || matchedStudent.courseFees || matchedStudent.totalFee || matchedStudent.finalFee,
+            installment1: installmentAmount(0),
+            installment2: installmentAmount(1),
+            installment3: installmentAmount(2),
+            installmentValues,
+            paymentPlanLabel: displayPaymentPlan,
+            studentStatus: matchedStudent.studentStatus || matchedStudent.studentLifecycleStatus || matchedStudent.lifecycleStatus || 'Active',
             registrationFees: matchedStudent.registrationFees ?? catalogCourse?.registrationFees ?? catalogCourse?.registrationFee,
             totalFees: financials.totalFees,
             paidAmount: financials.paidAmount || financials.totalFees,
