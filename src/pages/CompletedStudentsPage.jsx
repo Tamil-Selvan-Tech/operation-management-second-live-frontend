@@ -72,7 +72,7 @@ function buildFields(row) {
     ['Course Starting Date', formatDate(row.courseStartDate)], ['Course Ending Date', formatDate(row.courseEndDate)],
     ['Weekday / Weekend', row.scheduleType || row.classSchedule], ['Online / Offline', row.courseMode || row.mode],
     ['Batch Timing', row.batchTiming], ['Faculty Name', row.facultyName], ['Attendance Percentage', attendanceLabel(row)],
-    ['Course Fees', formatMoney(row.courseFees)], ['Registration Fees', formatMoney(row.registrationFees)], ['Payment Plan', row.paymentPlanLabel],
+    ['Course Fees', formatMoney(row.courseFees)], ['Registration Fees', formatMoney(row.registrationFees)], ['Payment Plan', row.paymentPlanLabel], ['Payment Mode', row.paymentModeLabel], ['Receipt Number', row.receiptNumber],
     ...installmentValues.map((amount, index) => [`${index === 0 ? 'First' : index === 1 ? 'Second' : index === 2 ? 'Third' : `${index + 1}th`} Installment`, formatMoney(amount)]),
     ['Paid Amount', formatMoney(row.paidAmount)], ['Pending Amount', formatMoney(row.pendingAmount)],
     ['Student Status', row.studentStatus], ...(hasValue(row.remarks) ? [['Remarks', row.remarks]] : []),
@@ -125,7 +125,7 @@ function StatusPill({ value }) {
   return <span className={`completed-students-status completed-students-status--${String(value || '').toLowerCase()}`}>{valueOf(value)}</span>
 }
 
-export function CompletedStudentsPage({ academicProgressByStudent = new Map(), branchAdminName = '', completedStudents = [], completedStudentsLoading = false, courseCatalog = [], students = [] } = {}) {
+export function CompletedStudentsPage({ academicProgressByStudent = new Map(), branchAdminName = '', completedStudents = [], completedStudentsLoading = false, courseCatalog = [], paymentHistoryRecords = [], students = [] } = {}) {
   const [tab, setTab] = useState('COMPLETED')
   const [search, setSearch] = useState('')
   const [appliedSearch, setAppliedSearch] = useState('')
@@ -164,6 +164,14 @@ export function CompletedStudentsPage({ academicProgressByStudent = new Map(), b
             : Array.isArray(catalogCourse?.paymentPlanSelections) ? catalogCourse.paymentPlanSelections : []
           const selectedPlan = configuredPlans.find((plan) => [plan?.id, plan?.templateId, plan?.paymentPlanId].some((id) => String(id || '').trim() === String(selectedPlanId || '').trim()))
           const financials = currentStudentFinancials(matchedStudent, courseId, courseName)
+          const allStudentPayments = (Array.isArray(paymentHistoryRecords) ? paymentHistoryRecords : []).filter((payment) => String(payment?.studentId || '').trim().toLowerCase() === String(matchedStudent.studentId || matchedStudent.id || '').trim().toLowerCase())
+          const coursePayments = allStudentPayments.filter((payment) => String(payment?.course || payment?.courseName || '').trim().toLowerCase() === String(courseName).trim().toLowerCase())
+          const studentPayments = coursePayments.length ? coursePayments : allStudentPayments
+          const firstInstallmentPayment = studentPayments.find((payment) => {
+            const explicitNumber = Number(payment?.installmentNumber || payment?.number)
+            const labelNumber = String(payment?.payAgainst || payment?.description || '').match(/installment\s*(\d+)/i)?.[1]
+            return explicitNumber === 1 || Number(labelNumber) === 1
+          }) || studentPayments[0] || {}
           const selectedPlanInstallments = Array.isArray(selectedPlan?.installments) ? selectedPlan.installments : []
           const installmentSource = financials.installments.length ? financials.installments : selectedPlanInstallments
           const selectedInstallmentCount = Number(
@@ -204,6 +212,8 @@ export function CompletedStudentsPage({ academicProgressByStudent = new Map(), b
             installment3: installmentAmount(2),
             installmentValues,
             paymentPlanLabel: displayPaymentPlan,
+            paymentModeLabel: firstInstallmentPayment.paymentMode || firstInstallmentPayment.mode || matchedStudent.paymentMode || 'Installment',
+            receiptNumber: firstInstallmentPayment.receiptNumber || firstInstallmentPayment.receiptNo || firstInstallmentPayment.receipt || firstInstallmentPayment.receiptId || firstInstallmentPayment.id || '',
             studentStatus: matchedStudent.studentStatus || matchedStudent.studentLifecycleStatus || matchedStudent.lifecycleStatus || 'Active',
             academicTests: getAcademicTestsForRow(academicProgressByStudent, matchedStudent.studentId || matchedStudent.id, courseId, courseName),
             registrationFees: matchedStudent.registrationFees ?? catalogCourse?.registrationFees ?? catalogCourse?.registrationFee,
@@ -308,7 +318,7 @@ export function CompletedStudentsPage({ academicProgressByStudent = new Map(), b
       })
       setCounts((current) => ({ ...current, [lifecycle]: fallbackData.length }))
     }
-  }, [academicProgressByStudent, appliedSearch, branchAdminName, completedStudents, completedStudentsLoading, courseCatalog, page, sortBy, sortOrder, students, tab])
+  }, [academicProgressByStudent, appliedSearch, branchAdminName, completedStudents, completedStudentsLoading, courseCatalog, page, paymentHistoryRecords, sortBy, sortOrder, students, tab])
 
   useEffect(() => {
     const timer = window.setTimeout(() => { void load() }, 0)

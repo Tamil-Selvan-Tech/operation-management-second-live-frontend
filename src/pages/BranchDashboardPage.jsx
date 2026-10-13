@@ -2007,7 +2007,7 @@ function buildBranchStudentLedgerFallback(student = {}, paymentHistoryRecords = 
         referenceType: 'payment',
         referenceId: String(record.id || record.receiptNumber || '').trim(),
         paymentMode: String(record.paymentMode || record.mode || '').trim(),
-        receiptNumber: String(record.receiptNumber || '').trim(),
+        receiptNumber: getBranchPaymentReceiptNumber(record),
         payAgainst: String(record.payAgainst || '').trim(),
         transactionReference: String(record.transactionReference || '').trim(),
         notes: String(record.notes || '').trim(),
@@ -8026,7 +8026,7 @@ const studentCourseOptions = useMemo(() => {
         date: formatBranchPaymentDate(
           record.dateRaw || record.paymentDateRaw || record.paymentDate || record.createdAt || record.date || '',
         ),
-        receiptNumber: String(record.receiptNumber || '').trim(),
+        receiptNumber: getBranchPaymentReceiptNumber(record),
         payAgainst: getBranchPaymentHistoryDisplayText(
           record.payAgainst,
           record.description,
@@ -10569,7 +10569,7 @@ useEffect(() => {
                   onBack={() => navigate('/branch-dashboard?section=students')}
                 />
               ) : null}
-              {activeSection === 'completed-students' ? <CompletedStudentsPage academicProgressByStudent={branchAcademicProgressByStudent} branchAdminName={branchAdminDisplay} completedStudents={completedStudentsForLifecycle} completedStudentsLoading={!isBranchAcademicProgressLoaded} courseCatalog={branchCourseCards} students={branchStudentsForDisplay} /> : null}
+              {activeSection === 'completed-students' ? <CompletedStudentsPage academicProgressByStudent={branchAcademicProgressByStudent} branchAdminName={branchAdminDisplay} completedStudents={completedStudentsForLifecycle} completedStudentsLoading={!isBranchAcademicProgressLoaded} courseCatalog={branchCourseCards} paymentHistoryRecords={allPaymentHistoryRecords} students={branchStudentsForDisplay} /> : null}
               {activeSection === 'faculty-skills' ? <FacultySkillsUpgradePage embedded /> : null}
               {activeSection === 'dashboard' ? (
                 <>
