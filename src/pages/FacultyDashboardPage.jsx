@@ -56,6 +56,8 @@ import { getFacultyDashboardOverview, getFacultyMyBatchesSummary } from '../serv
 import { PaginationBar } from '../components/PaginationBar'
 import { listCourses } from '../services/courseService'
 import { getCurrentFacultyProfile } from '../services/facultyService'
+import { getMyWeekOffRequests } from '../services/facultyWeekOffService'
+import { dateForDay, dateKey, getEffectiveWeeklyOffForDate } from '../lib/facultyWeekOff'
 import { clearBranchCourseListCache, listBranchCourses } from '../services/branchCourseService'
 import {
   createCourseEditRequest,
@@ -74,7 +76,7 @@ import { StudentCalendarPage } from './StudentCalendarPage'
 import '../styles/BranchStudentAttendance.css'
 import { useAuth } from '../auth/useAuth'
 import { loadFacultyRegistry } from '../lib/facultyAuth'
-import { BRANCH_STUDENTS_KEY, listBranchStudentsByLifecycle, loadBranchStudents } from '../lib/branchStudentStore'
+import { BRANCH_STUDENTS_KEY, listBranchStudentsByLifecycle } from '../lib/branchStudentStore'
 import {
   loadNotifications as loadStoredNotifications,
   addNotification,
@@ -114,6 +116,83 @@ import AcademicTestPage from './AcademicTestPage'
 import AcademicTestPreparationPage from './AcademicTestPreparationPage'
 import AcademicTestReportPage from './AcademicTestReportPage'
 import '../styles/FacultyAcademicTestMenu.css'
+
+function getNextFacultyWeekOff(defaultWeekOffDay, requests = []) {
+  const regularDay = String(defaultWeekOffDay || '').trim().toUpperCase()
+  const approved = requests.filter((request) => String(request?.status || '').trim().toUpperCase() === 'APPROVED')
+  const overriddenDates = new Set(approved.map((request) => {
+    const weekStart = String(request?.requestedWeekStartDate || request?.weekStartDate || '').slice(0, 10)
+    return String(request?.defaultWeekOffDate || dateForDay(weekStart, request?.defaultWeekOffDay || regularDay) || '').slice(0, 10)
+  }).filter(Boolean))
+  const dayNames = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY']
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  for (let offset = 0; offset < 366; offset += 1) {
+    const candidate = new Date(today)
+    candidate.setDate(today.getDate() + offset)
+    const candidateDate = dateKey(candidate)
+    const alternate = approved.find((request) => String(request?.requestedWeekOffDate || '').slice(0, 10) === candidateDate)
+    if (alternate) return { date: candidateDate, day: String(alternate.requestedWeekOffDay || '').trim().toUpperCase(), temporary: true }
+    if (regularDay && dayNames[candidate.getDay()] === regularDay && !overriddenDates.has(candidateDate)) {
+      return { date: candidateDate, day: regularDay, temporary: false }
+    }
+  }
+  return { date: '', day: regularDay, temporary: false }
+}
+
+function FacultyBatchWeekTypeFilter({ value, onChange }) {
+  const [isOpen, setIsOpen] = useState(false)
+  const containerRef = useRef(null)
+  const options = [
+    { value: 'all', label: 'All batches' },
+    { value: 'weekday', label: 'Weekday' },
+    { value: 'weekend', label: 'Weekend' },
+  ]
+  const selectedOption = options.find((option) => option.value === value) || options[0]
+
+  useEffect(() => {
+    if (!isOpen) return undefined
+    const closeOnOutsideClick = (event) => {
+      if (!containerRef.current?.contains(event.target)) setIsOpen(false)
+    }
+    document.addEventListener('pointerdown', closeOnOutsideClick)
+    return () => document.removeEventListener('pointerdown', closeOnOutsideClick)
+  }, [isOpen])
+
+  return (
+    <div ref={containerRef} className={`super-admin-branch-filter branch-course-custom-filter ${isOpen ? 'is-open' : ''}`.trim()} style={{ width: '160px' }}>
+      <button
+        type="button"
+        className="super-admin-branch-filter-trigger"
+        aria-label="Filter batches by week type"
+        aria-expanded={isOpen}
+        onClick={() => setIsOpen((current) => !current)}
+      >
+        <span>{selectedOption.label}</span>
+        <ChevronDown size={15} strokeWidth={2.2} aria-hidden="true" />
+      </button>
+      {isOpen ? (
+        <div className="super-admin-branch-filter-menu" role="listbox" aria-label="Filter batches by week type">
+          {options.map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              role="option"
+              aria-selected={option.value === value}
+              className={`super-admin-branch-filter-option ${option.value === value ? 'is-selected' : ''}`.trim()}
+              onClick={() => {
+                onChange(option.value)
+                setIsOpen(false)
+              }}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  )
+}
 
 function getInitials(name) {
   const value = String(name || '').trim()
@@ -400,10 +479,10 @@ function buildFacultyStudentViewRecord(student = {}, facultyRecords = []) {
 
 function getStudentIdentityKey(student = {}) {
   const primaryKey =
-    String(student?.id || '').trim().toLowerCase() ||
     String(student?.studentId || '').trim().toLowerCase() ||
     String(student?.emailAddress || '').trim().toLowerCase() ||
     String(student?.mobileNumber || '').trim().toLowerCase() ||
+    String(student?.id || '').trim().toLowerCase() ||
     String(student?.studentCode || '').trim().toLowerCase()
 
   if (primaryKey) {
@@ -424,20 +503,69 @@ function getStudentIdentityKey(student = {}) {
     .join('|')
 }
 
-function getCourseEnrollmentForStudent(student = {}, course = {}) {
+function getCourseEnrollmentForStudent(student = {}, course = {}, batch = {}) {
   const courseId = String(course?.id || course?.courseId || '').trim().toLowerCase()
+  const courseCode = normalizeCourseKey(course?.courseCode || course?.code || '')
   const courseName = normalizeCourseKey(course?.name || course?.courseName || '')
+  const batchId = String(batch?.id || batch?.batchId || batch?.batchEntryId || '').trim().toLowerCase()
+  const batchName = normalizeCourseKey(batch?.name || batch?.batchName || batch?.code || '')
   const enrollments = Array.isArray(student?.courseEnrollments)
     ? student.courseEnrollments
     : Array.isArray(student?.courses)
       ? student.courses
       : []
 
-  return enrollments.find((enrollment) => {
+  // Faculty rows can already be expanded from a single enrollment (the same
+  // shape used by the branch-admin student table). Nested enrollment data is
+  // authoritative when present because the top-level student course can be a
+  // stale primary-course snapshot for parallel-course students.
+  const directCourseId = String(student?.courseId || student?.course?.id || '').trim().toLowerCase()
+  const directCourseCode = normalizeCourseKey(student?.courseCode || student?.course?.courseCode || '')
+  const directCourseName = normalizeCourseKey(student?.courseName || student?.courseInterested || student?.course?.name || '')
+  const directBatchId = String(student?.batchId || student?.batchEntryId || '').trim().toLowerCase()
+  const directBatchName = normalizeCourseKey(student?.batchName || student?.batch || '')
+  const directCourseMatch = (!courseId && !courseCode && !courseName) ||
+    (courseId && directCourseId === courseId) ||
+    (courseCode && directCourseCode === courseCode) ||
+    (courseName && directCourseName === courseName)
+  const directBatchMatch = (!batchId && !batchName) ||
+    (batchId && directBatchId === batchId) ||
+    (batchName && directBatchName === batchName)
+  const scoredEnrollments = enrollments.map((enrollment) => {
     const enrollmentId = String(enrollment?.courseId || enrollment?.course?.id || enrollment?.id || '').trim().toLowerCase()
+    const enrollmentCode = normalizeCourseKey(enrollment?.courseCode || enrollment?.course?.courseCode || '')
     const enrollmentName = normalizeCourseKey(enrollment?.courseName || enrollment?.course?.name || enrollment?.name || '')
-    return (courseId && enrollmentId === courseId) || (courseName && enrollmentName === courseName)
-  }) || null
+    const enrollmentBatchId = String(enrollment?.batchId || enrollment?.batchEntryId || '').trim().toLowerCase()
+    const enrollmentBatchName = normalizeCourseKey(enrollment?.batchName || enrollment?.batch || '')
+    const matchesCourse = (!courseId && !courseCode && !courseName) ||
+      (courseId && enrollmentId === courseId) ||
+      (courseCode && enrollmentCode === courseCode) ||
+      (courseName && enrollmentName === courseName)
+    const matchesBatch = (!batchId && !batchName) || (batchId && enrollmentBatchId === batchId) || (batchName && enrollmentBatchName === batchName)
+    return {
+      enrollment,
+      score: (matchesCourse ? 2 : 0) + (matchesBatch ? 1 : 0),
+      matchesCourse,
+      matchesBatch,
+    }
+  }).filter((item) => {
+    // When both selectors are present, never let another course in the same
+    // batch win the match. This is important for parallel-course students.
+    if ((courseId || courseCode || courseName) && (batchId || batchName)) {
+      return item.matchesCourse && item.matchesBatch
+    }
+    return item.matchesCourse || item.matchesBatch
+  })
+
+  if (scoredEnrollments.length) {
+    return scoredEnrollments.sort((left, right) => right.score - left.score)[0].enrollment
+  }
+
+  if (directCourseMatch && directBatchMatch && (directCourseId || directCourseCode || directCourseName)) {
+    return student
+  }
+
+  return null
 }
 
 function getCourseAcademicTestProgress(student = {}, course = {}, enrollment = null) {
@@ -454,38 +582,20 @@ function getCourseAcademicTestProgress(student = {}, course = {}, enrollment = n
   return enrollment?.academicTestProgress || byCourse[matchingKey] || student?.academicTestProgress || null
 }
 
-function getCourseCompletionStatus(student = {}, course = {}, enrollment = null) {
-  const courseId = String(course?.id || course?.courseId || enrollment?.courseId || '').trim().toLowerCase()
-  const courseName = normalizeCourseKey(course?.name || course?.courseName || enrollment?.courseName || '')
-  const byCourse = student?.courseCompletionByCourse && typeof student.courseCompletionByCourse === 'object'
-    ? student.courseCompletionByCourse
-    : {}
-  const matchingKey = Object.keys(byCourse).find((key) => {
-    const normalizedKey = String(key || '').trim().toLowerCase()
-    return (courseId && normalizedKey === courseId) || (courseName && normalizedKey === courseName)
-  })
-
-  return String(
-    byCourse[matchingKey] ||
-    enrollment?.courseCompletion ||
-    enrollment?.courseCompletionStatus ||
-    student?.courseCompletion ||
-    student?.courseCompletionStatus ||
-    '',
-  ).trim().toUpperCase()
-}
-
-function getFacultyStudentLifecycle(student = {}, course = {}) {
+function getFacultyStudentLifecycle(student = {}, course = {}, progressOverride = null) {
   const enrollment = getCourseEnrollmentForStudent(student, course)
   const scopedStudent = enrollment
     ? { ...student, ...enrollment, courseId: enrollment.courseId || student.courseId, courseName: enrollment.courseName || student.courseName }
     : student
-  const courseProgress = Number(
+  const storedCourseProgress = Number(
     scopedStudent?.courseProgress ??
     scopedStudent?.courseProgressPercentage ??
     scopedStudent?.progress ??
     0,
   )
+  const courseProgress = Number.isFinite(Number(progressOverride))
+    ? Number(progressOverride)
+    : storedCourseProgress
   const paymentProgress = getStudentPaymentProgress(student, {
     courseId: scopedStudent?.courseId || course?.id || course?.courseId,
     courseName: scopedStudent?.courseName || course?.name || course?.courseName,
@@ -527,13 +637,27 @@ function getFacultyStudentLifecycle(student = {}, course = {}) {
         ? Number(paymentProgress?.paidInstallmentPercentage || 0)
         : storedPaidProgress
   const academicTestProgress = getCourseAcademicTestProgress(student, course, enrollment)
+  const completionByCourse = scopedStudent?.courseCompletionByCourse || student?.courseCompletionByCourse || {}
+  const completionKey = String(scopedStudent?.courseId || course?.id || course?.courseId || '').trim()
+  const explicitCompletionStatus = String(
+    enrollment?.courseCompletionStatus ||
+    enrollment?.courseCompletion ||
+    completionByCourse[completionKey] ||
+    scopedStudent?.courseCompletionStatus ||
+    scopedStudent?.courseCompletion ||
+    '',
+  ).trim().toUpperCase()
+  const explicitlyCompleted = ['COMPLETED', 'COMPLETE'].includes(explicitCompletionStatus)
   const totalTests = Number(academicTestProgress?.totalTests ?? academicTestProgress?.total ?? 0)
   const pendingTests = Number(academicTestProgress?.pendingTests ?? academicTestProgress?.pending ?? 0)
   const academicPercentage = Number(academicTestProgress?.percentage ?? academicTestProgress?.progress ?? 0)
+  const totalProjects = Number(academicTestProgress?.totalProjects ?? 0)
+  const pendingProjects = Number(academicTestProgress?.pendingProjects ?? 0)
+  const projectsComplete = totalProjects === 0 || pendingProjects === 0 || academicTestProgress?.projectsComplete === true
   // Keep this in sync with the backend completion rule: no pending academic
   // tests means complete, including courses that have no test metadata yet.
   const academicComplete = !academicTestProgress || (
-    pendingTests === 0 && (
+    pendingTests === 0 && projectsComplete && (
       totalTests > 0 ||
       academicPercentage >= 100 ||
       academicTestProgress.completed === true ||
@@ -541,21 +665,72 @@ function getFacultyStudentLifecycle(student = {}, course = {}) {
       academicTestProgress.pendingTests === 0
     )
   )
-  const storedCourseCompletion = getCourseCompletionStatus(student, course, enrollment)
-
   return {
-    // A per-course COMPLETED status is calculated by the backend from the
-    // same progress/payment/test rules. Use it when test metadata is absent,
-    // but never allow it to override incomplete course or payment progress.
-    isCompleted: courseProgress >= 100 && (
-      storedCourseCompletion === 'COMPLETED' ||
-      (paidProgress >= 100 && academicComplete)
-    ),
+    // Payment completion is tracked separately. A course is completed only
+    // when its learning progress and academic tests are complete.
+    // A fully completed course must leave Active Students even when the
+    // academic progress snapshot is stale or missing for that enrollment.
+    isCompleted: Boolean(enrollment?.courseCompletedAt || scopedStudent?.courseCompletedAt) || explicitlyCompleted || (courseProgress >= 100 && academicComplete),
     courseProgress: Math.min(100, Math.max(0, courseProgress)),
     paidProgress: Math.min(100, Math.max(0, paidProgress)),
     academicTestProgress,
     enrollment,
   }
+}
+
+function isFacultyStudentCourseComplete(student = {}, course = {}, batch = {}) {
+  const enrollment = getCourseEnrollmentForStudent(student, course, batch)
+  const completionByCourse = student?.courseCompletionByCourse && typeof student.courseCompletionByCourse === 'object'
+    ? student.courseCompletionByCourse
+    : {}
+  const courseId = String(enrollment?.courseId || course?.id || course?.courseId || '').trim().toLowerCase()
+  const courseName = normalizeCourseKey(enrollment?.courseName || course?.name || course?.courseName || '')
+  const mappedCompletion = Object.entries(completionByCourse).find(([key]) => {
+    const normalizedKey = String(key || '').trim().toLowerCase()
+    return (courseId && normalizedKey === courseId) || (courseName && normalizeCourseKey(key) === courseName)
+  })?.[1]
+  const completionStatus = String(
+    enrollment?.courseCompletionStatus ||
+    enrollment?.courseCompletion ||
+    (enrollment?.status === 'COMPLETED' ? 'COMPLETED' : '') ||
+    mappedCompletion ||
+    student?.courseCompletionStatus ||
+    student?.courseCompletion ||
+    '',
+  ).trim().toUpperCase()
+  const progress = Number(
+    enrollment?.courseProgress ??
+    enrollment?.courseProgressPercentage ??
+    student?.courseProgress ??
+    student?.courseProgressPercentage ??
+    student?.progress ??
+    0,
+  )
+  const academicTestProgress = getCourseAcademicTestProgress(student, course, enrollment)
+  const pendingTests = Number(academicTestProgress?.pendingTests ?? academicTestProgress?.pending ?? 0)
+  const totalTests = Number(academicTestProgress?.totalTests ?? academicTestProgress?.total ?? 0)
+  const academicPercentage = Number(academicTestProgress?.percentage ?? academicTestProgress?.progress ?? 0)
+  const totalProjects = Number(academicTestProgress?.totalProjects ?? 0)
+  const pendingProjects = Number(academicTestProgress?.pendingProjects ?? 0)
+  const projectsComplete = totalProjects === 0 || pendingProjects === 0 || academicTestProgress?.projectsComplete === true
+  const academicComplete = !academicTestProgress || (
+    pendingTests === 0 && projectsComplete && (
+      totalTests > 0 ||
+      academicPercentage >= 100 ||
+      academicTestProgress.completed === true ||
+      academicTestProgress.isComplete === true
+    )
+  )
+  const completedAt = enrollment?.courseCompletedAt || student?.courseCompletedAt || null
+  const selectedBatchId = String(batch?.id || batch?.batchId || batch?.batchEntryId || '').trim().toLowerCase()
+  const selectedBatchName = normalizeCourseKey(batch?.name || batch?.batchName || batch?.code || '')
+  const studentBatchId = String(student?.batchId || student?.batchEntryId || '').trim().toLowerCase()
+  const studentBatchName = normalizeCourseKey(student?.batchName || student?.batch || '')
+  const belongsToSelectedBatch = !selectedBatchId && !selectedBatchName
+    ? true
+    : (selectedBatchId && studentBatchId === selectedBatchId) || (selectedBatchName && studentBatchName === selectedBatchName)
+  const hasCompletedLegacyBatchRow = !enrollment && belongsToSelectedBatch && progress >= 100 && academicComplete
+  return Boolean(completedAt) || ['COMPLETED', 'COMPLETE'].includes(completionStatus) || (progress >= 100 && academicComplete) || hasCompletedLegacyBatchRow
 }
 
 function dedupeStudentsByIdentity(students = []) {
@@ -575,11 +750,15 @@ function dedupeStudentsByIdentity(students = []) {
 function dedupeStudentsWithinBatch(students = []) {
   const seen = new Set()
   return (Array.isArray(students) ? students : []).filter((student) => {
-    const studentKey = String(student?.id || student?.studentId || student?.emailAddress || '').trim().toLowerCase()
-    const courseKey = String(student?.courseId || student?.courseName || student?.courseInterested || '').trim().toLowerCase()
-    const key = `${studentKey}|${courseKey}`
-    if (!studentKey || seen.has(key)) return false
-    seen.add(key)
+    const studentKey = String(
+      student?.studentId ||
+      student?.emailAddress ||
+      student?.mobileNumber ||
+      student?.id ||
+      '',
+    ).trim().toLowerCase()
+    if (!studentKey || seen.has(studentKey)) return false
+    seen.add(studentKey)
     return true
   })
 }
@@ -620,6 +799,24 @@ function getExactFacultyStudents(students = [], facultyId = '', facultyName = ''
 
 function normalizeWorkStudentId(value = '') {
   return String(value || '').trim().toLowerCase()
+}
+
+function getStudentAttendanceKeys(student = {}) {
+  const nestedStudent = student?.student && typeof student.student === 'object' ? student.student : {}
+  const enrollment = student?.enrollment || student?.courseEnrollment || {}
+
+  return Array.from(new Set([
+    student?.id,
+    student?.studentId,
+    student?.studentCode,
+    student?._id,
+    nestedStudent?.id,
+    nestedStudent?.studentId,
+    nestedStudent?.studentCode,
+    enrollment?.studentId,
+    enrollment?.studentCode,
+    student?.emailAddress,
+  ].map(normalizeWorkStudentId).filter(Boolean)))
 }
 
 function getWorkStudentIds(entry = {}) {
@@ -671,10 +868,19 @@ function extractStudentAttendanceStatuses(payload = {}) {
   const statuses = {}
 
   rows.forEach((row) => {
-    const studentId = normalizeWorkStudentId(row?.studentId || row?.studentCode || row?.id || row?.student?.id)
-    const rawStatus = String(row?.attendanceStatus || row?.attendanceStatusLabel || row?.status || '').trim().toUpperCase()
-    if (!studentId || !isAttendanceMarkedStatus(rawStatus)) return
-    statuses[studentId] = rawStatus
+    const studentKeys = getStudentAttendanceKeys(row)
+    const saveStatus = (value) => {
+      const status = String(value || '').trim().toUpperCase()
+      if (!studentKeys.length || !isAttendanceMarkedStatus(status)) return
+      studentKeys.forEach((key) => {
+        statuses[key] = status
+      })
+    }
+
+    saveStatus(row?.attendanceStatus || row?.attendanceStatusLabel || row?.status)
+    ;(Array.isArray(row?.records) ? row.records : []).forEach((record) => {
+      saveStatus(record?.attendanceStatus || record?.attendanceStatusLabel || record?.status)
+    })
   })
 
   return statuses
@@ -686,11 +892,7 @@ function getCurrentStudentAttendanceStatus(statuses = {}, student = {}) {
 }
 
 function getStudentAttendanceStatus(statuses = {}, student = {}) {
-  const keys = [student?.id, student?.studentId, student?.studentCode, student?.emailAddress]
-    .map((value) => normalizeWorkStudentId(value))
-    .filter(Boolean)
-
-  return keys.map((key) => statuses[key]).find(Boolean) || ''
+  return getStudentAttendanceKeys(student).map((key) => statuses[key]).find(Boolean) || ''
 }
 
 function normalizeSubmoduleProgressStatus(value = '') {
@@ -1215,15 +1417,17 @@ function getFacultyBatchProgressStudents(batch = {}, course = {}, students = [],
   const courseId = String(course?.id || course?.courseId || '').trim().toLowerCase()
   const courseName = normalizeCourseKey(course?.name || course?.courseName || '')
 
-  return dedupeStudentsWithinBatch((Array.isArray(students) ? students : []).filter((student) => {
+  const scopedStudents = (Array.isArray(students) ? students : []).filter((student) => {
+    if (isFacultyStudentCourseComplete(student, course, batch)) return false
+    const enrollment = getCourseEnrollmentForStudent(student, course, batch)
     const context = resolveFacultyBatchContextForStudent(student, backfillRecords)
     // Direct assignment fields on the student are authoritative. Profile
     // context is only a legacy fallback and must not move a student to a
     // different batch or course.
-    const studentCourseId = String(student?.courseId || context?.courseId || '').trim().toLowerCase()
-    const studentCourseName = normalizeCourseKey(student?.courseInterested || student?.courseName || student?.course?.name || context?.courseName || '')
-    const studentBatchId = String(student?.batchId || student?.batchEntryId || context?.batchId || '').trim().toLowerCase()
-    const studentBatchName = normalizeCourseKey(student?.batchName || student?.batch || context?.batchName || '')
+    const studentCourseId = String(enrollment?.courseId || student?.courseId || context?.courseId || '').trim().toLowerCase()
+    const studentCourseName = normalizeCourseKey(enrollment?.courseName || student?.courseInterested || student?.courseName || student?.course?.name || context?.courseName || '')
+    const studentBatchId = String(enrollment?.batchId || enrollment?.batchEntryId || student?.batchId || student?.batchEntryId || context?.batchId || '').trim().toLowerCase()
+    const studentBatchName = normalizeCourseKey(enrollment?.batchName || enrollment?.batch || student?.batchName || student?.batch || context?.batchName || '')
 
     // Branch-course ids and master-course ids can differ even though they
     // represent the same course. Prefer an id match when available, but keep
@@ -1247,7 +1451,30 @@ function getFacultyBatchProgressStudents(batch = {}, course = {}, students = [],
     }
 
     return Boolean(batchName && studentBatchName && studentBatchName === batchName)
-  }))
+  }).map((student) => {
+    const enrollment = getCourseEnrollmentForStudent(student, course, batch)
+    if (!enrollment || enrollment === student) return student
+
+    // The parent student row can represent a different primary course. Once
+    // this batch/course is selected, all table metrics must come from its
+    // enrollment rather than leaking the primary course progress.
+    return {
+      ...student,
+      ...enrollment,
+      id: student?.id || enrollment?.id,
+      studentId: student?.studentId || enrollment?.studentId,
+      studentName: student?.studentName || enrollment?.studentName,
+      emailAddress: student?.emailAddress || enrollment?.emailAddress,
+      mobileNumber: student?.mobileNumber || enrollment?.mobileNumber,
+      courseEnrollments: student?.courseEnrollments,
+      courseId: enrollment?.courseId || course?.id || student?.courseId,
+      courseName: enrollment?.courseName || enrollment?.course?.name || course?.name || student?.courseName,
+      batchId: enrollment?.batchId || enrollment?.batchEntryId || batch?.batchId || batch?.id || student?.batchId,
+      batchName: enrollment?.batchName || enrollment?.batch || batch?.batchName || student?.batchName,
+    }
+  })
+
+  return dedupeStudentsWithinBatch(scopedStudents)
 }
 
 function isDiscontinuedStudent(student = {}) {
@@ -1257,8 +1484,26 @@ function isDiscontinuedStudent(student = {}) {
   )
 }
 
+function normalizeFacultyBatchWeekType(batch = {}) {
+  const rawValue = [
+    batch?.weekType,
+    batch?.weekdayType,
+    batch?.scheduleType,
+    batch?.classSchedule,
+    batch?.batchType,
+  ]
+    .filter(Boolean)
+    .join(' ')
+    .trim()
+    .toUpperCase()
+
+  if (rawValue.includes('WEEKEND')) return 'WEEKEND'
+  if (rawValue.includes('WEEKDAY')) return 'WEEKDAY'
+  return ''
+}
+
 function isAttendanceDayForBatch(batch = {}, date = new Date()) {
-  const weekType = String(batch?.weekType || batch?.weekdayType || '').trim().toUpperCase()
+  const weekType = normalizeFacultyBatchWeekType(batch)
   if (!weekType) return true
 
   const weekday = new Intl.DateTimeFormat('en-US', {
@@ -2080,6 +2325,18 @@ export function FacultyDashboardPage() {
     return () => { active = false; window.clearInterval(timer) }
   }, [])
 
+  useEffect(() => {
+    let active = true
+    getMyWeekOffRequests()
+      .then((requests) => {
+        if (active) setFacultyWeekOffRequests(Array.isArray(requests) ? requests : [])
+      })
+      .catch(() => {
+        if (active) setFacultyWeekOffRequests([])
+      })
+    return () => { active = false }
+  }, [])
+
   // Retrieve logged-in faculty details dynamically from registry or fallback to session
   const facultyDetails = useMemo(() => {
     const registry = loadFacultyRegistry()
@@ -2135,6 +2392,8 @@ export function FacultyDashboardPage() {
   const [dateFilter, setDateFilter] = useState('all')
   const [statusFilter, setStatusFilter] = useState('all')
   const [facultyProfile, setFacultyProfile] = useState(null)
+  const [facultyWeekOffRequests, setFacultyWeekOffRequests] = useState([])
+  const [weekOffValidationMessage, setWeekOffValidationMessage] = useState('')
   const [branchCourses, setBranchCourses] = useState([])
   const [courseCatalog, setCourseCatalog] = useState([])
   const [students, setStudents] = useState([])
@@ -2143,13 +2402,13 @@ export function FacultyDashboardPage() {
   const [selectedStudentsCourseId, setSelectedStudentsCourseId] = useState('')
   const [selectedStudentsBatchId, setSelectedStudentsBatchId] = useState('')
   const [studentsBatchSearch, setStudentsBatchSearch] = useState('')
-  const [studentsBatchWeekTypeFilter, setStudentsBatchWeekTypeFilter] = useState('all')
   const [studentsCourseBatchPage, setStudentsCourseBatchPage] = useState(1)
   const [temporarySessionContext, setTemporarySessionContext] = useState(null)
   const [viewStudentDrawer, setViewStudentDrawer] = useState(null)
   const [expandedCourseModuleIds, setExpandedCourseModuleIds] = useState([])
   const [courseModuleLimit, setCourseModuleLimit] = useState(5)
   const [batchPage, setBatchPage] = useState(1)
+  const [facultyBatchWeekTypeFilter, setFacultyBatchWeekTypeFilter] = useState('all')
   const [studentsPage, setStudentsPage] = useState(1)
   const [studentsViewMode, setStudentsViewMode] = useState('active')
   const [studentRecordsSearch, setStudentRecordsSearch] = useState('')
@@ -2377,14 +2636,14 @@ export function FacultyDashboardPage() {
             const activeRecords = await listBranchStudentsByLifecycle(branchScopeId)
             nextStudents = activeRecords
           } else {
-            nextStudents = loadBranchStudents()
+            nextStudents = []
           }
         } catch (studentError) {
-          // Keep the dashboard usable if the student list request is
-          // temporarily unavailable; the local cache is still a safe fallback.
+          // Never restore localStorage student rows here. That cache can hold
+          // a completed parallel-course enrollment and would repopulate the
+          // active batch count after the API has already removed it.
           console.error('Failed to refresh faculty students', studentError)
-          const fallbackStudents = loadBranchStudents(branchScopeId)
-          nextStudents = fallbackStudents
+          nextStudents = []
         }
 
         setBranchCourses(branchCourseList)
@@ -2716,6 +2975,51 @@ export function FacultyDashboardPage() {
     }
   }, [dashboardSummary, facultyDetails, facultyProfile, user?.id])
 
+  const facultyWeekOffStatus = useMemo(() => {
+    const today = dateKey(new Date())
+    const defaultWeekOffDay = String(
+      facultyProfile?.weeklyOffDay ||
+      facultyProfile?.weekOffDay ||
+      facultyProfile?.defaultWeeklyOffDay ||
+      dashboardSummary?.faculty?.weeklyOffDay ||
+      dashboardSummary?.faculty?.weekOffDay ||
+      dashboardSummary?.faculty?.defaultWeeklyOffDay ||
+      facultyDetails?.weeklyOffDay ||
+      facultyDetails?.weekOffDay ||
+      '',
+    ).trim().toUpperCase()
+    const approvedOverride = facultyWeekOffRequests
+      .filter((request) => String(request?.status || '').trim().toUpperCase() === 'APPROVED')
+      .find((request) => String(request?.requestedWeekOffDate || '').slice(0, 10) === today)
+    const effective = getEffectiveWeeklyOffForDate({
+      date: new Date(),
+      defaultWeekOffDay,
+      approvedOverride,
+    })
+    const isWeekOff = Boolean(today && effective.date === today)
+    return {
+      isWeekOff,
+      temporary: isWeekOff && Boolean(effective.temporary),
+      day: effective.day || defaultWeekOffDay,
+      regularDay: defaultWeekOffDay,
+      date: today,
+    }
+  }, [dashboardSummary, facultyDetails, facultyProfile, facultyWeekOffRequests])
+
+  const facultyNextWeekOff = useMemo(
+    () => getNextFacultyWeekOff(facultyWeekOffStatus.regularDay, facultyWeekOffRequests),
+    [facultyWeekOffRequests, facultyWeekOffStatus.regularDay],
+  )
+
+  const showWeekOffValidation = () => {
+    if (!facultyWeekOffStatus.isWeekOff) return
+    setWeekOffValidationMessage(
+      facultyWeekOffStatus.temporary
+        ? 'Today is your Week Off. This is an approved alternate week-off, so Attendance, Today\'s Work, and Academic Test actions are read-only today.'
+        : 'Today is your Week Off. Attendance, Today\'s Work, and Academic Test actions are read-only today.',
+    )
+  }
+
   const facultyBranch = useMemo(() => facultyDetails?.branch || {}, [facultyDetails])
   const facultyBranchScope = useMemo(() => {
     const targetBranchId = String(currentFacultyIdentity.branchId || facultyBranch.id || facultyBranch.branchId || '').trim()
@@ -2793,8 +3097,6 @@ export function FacultyDashboardPage() {
   )
 
   const facultyEnrollmentStudents = useMemo(() => {
-    const batchRecords = (Array.isArray(dashboardSummary?.batchCounts) ? dashboardSummary.batchCounts : [])
-      .flatMap((batch) => Array.isArray(batch?.studentRecords) ? batch.studentRecords : [])
     // Keep one row per course/batch assignment. Parallel-course students are
     // stored as one student record with nested enrollments, so flatten them
     // before faculty/course filtering instead of losing the second course.
@@ -2830,8 +3132,9 @@ export function FacultyDashboardPage() {
       ]
     }
 
-    return [...batchRecords, ...(Array.isArray(students) ? students : [])].flatMap(expandEnrollments)
-  }, [dashboardSummary?.batchCounts, students])
+    const freshRecords = Array.isArray(students) ? students : []
+    return freshRecords.flatMap(expandEnrollments)
+  }, [students])
 
   const backfilledStudents = useMemo(
     () => enrichStudentsWithFacultyReferences(facultyEnrollmentStudents, facultyBackfillRecords, courseCatalog),
@@ -2969,18 +3272,25 @@ export function FacultyDashboardPage() {
         name: student?.courseName || student?.courseInterested,
         courseName: student?.courseName || student?.courseInterested,
       }
-      const workEntry = getFacultyTodayWorkEntriesForStudent(
+      // Completion must be decided from the selected course enrollment. Use a
+      // matching Today\'s Work snapshot when it has newer course-specific
+      // progress than the persisted enrollment value.
+      const lifecycleStudent = student
+      const workCourseId = course?.id || course?.courseId || student?.courseId || ''
+      const matchingWorkEntries = getFacultyTodayWorkEntriesForStudent(
         facultyTodayWorkEntries,
         student,
-        course?.id || course?.courseId || '',
-      )[0] || null
-      const workProgressSummary = workEntry
+        workCourseId,
+      )
+      const workSummary = matchingWorkEntries.length
         ? buildFacultyTodayWorkProgressSummary(facultyTodayWorkEntries, course, student)
         : null
-      const lifecycleStudent = workProgressSummary?.courseProgress != null
-        ? { ...student, courseProgress: workProgressSummary.courseProgress }
-        : student
-      const lifecycle = getFacultyStudentLifecycle(lifecycleStudent, course)
+      const workProgress = Number(workSummary?.courseProgress)
+      const lifecycle = getFacultyStudentLifecycle(
+        lifecycleStudent,
+        course,
+        Number.isFinite(workProgress) ? workProgress : null,
+      )
 
       return {
         ...lifecycleStudent,
@@ -3084,18 +3394,25 @@ export function FacultyDashboardPage() {
       const normalizedCourseId = String(entry?.courseId || '').trim().toLowerCase()
       const normalizedFacultyId = String(entry?.facultyId || facultyId || '').trim().toLowerCase()
 
-      const matchedStudents = facultyStudentLifecycleRows.filter((student) => student._facultyLifecycle === 'ACTIVE').filter((student) => {
+      const matchedStudents = facultyStudentLifecycleRows
+        .filter((student) => student._facultyLifecycle === 'ACTIVE')
+        .filter((student) => !isFacultyStudentCourseComplete(student, { id: entry?.courseId, name: entry?.courseName || entry?.course }, entry))
+        .filter((student) => {
         const context = resolveFacultyBatchContextForStudent(student, facultyBackfillRecords)
         const resolvedBatch = context?.batchEntry || null
+        const entryCourse = { id: entry?.courseId, name: entry?.courseName || entry?.course }
+        const enrollment = getCourseEnrollmentForStudent(student, entryCourse, entry)
 
         const studentBatchId = String(student?.batchId || student?.batchEntryId || '').trim().toLowerCase()
         const resolvedBatchId = String(resolvedBatch?.batchId || resolvedBatch?.batchEntryId || resolvedBatch?.id || '').trim().toLowerCase()
-        const studentCourseId = String(student?.courseId || context?.courseId || '').trim().toLowerCase()
+        const studentCourseId = String(enrollment?.courseId || student?.courseId || context?.courseId || '').trim().toLowerCase()
         const studentFacultyId = String(student?.facultyId || context?.facultyId || '').trim().toLowerCase()
+        const enrollmentBatchId = String(enrollment?.batchId || enrollment?.batchEntryId || '').trim().toLowerCase()
 
         if (normalizedBatchId) {
           return (
-            ((studentBatchId && studentBatchId === normalizedBatchId) ||
+            ((enrollmentBatchId && enrollmentBatchId === normalizedBatchId) ||
+              (studentBatchId && studentBatchId === normalizedBatchId) ||
               (resolvedBatchId && resolvedBatchId === normalizedBatchId)) &&
             (!normalizedCourseId || studentCourseId === normalizedCourseId) &&
             (!normalizedFacultyId || studentFacultyId === normalizedFacultyId)
@@ -3255,7 +3572,7 @@ export function FacultyDashboardPage() {
           startPeriod: String(entry?.startPeriod || '').trim().toUpperCase(),
           endTime: String(entry?.endTime || entry?.toTime || '').trim(),
           endPeriod: String(entry?.endPeriod || '').trim().toUpperCase(),
-          weekType: String(entry?.weekType || entry?.weekdayType || '').trim().toUpperCase(),
+          weekType: normalizeFacultyBatchWeekType(entry),
           students: getBatchStudentCount(entry),
           status: String(entry?.status || 'Active').trim() || 'Active',
         }
@@ -3305,6 +3622,38 @@ export function FacultyDashboardPage() {
     if (!selectedStudentsCourse) return []
 
     const assignedBatches = facultyBatchRows.filter((batch) => doesFacultyBatchBelongToCourse(batch, selectedStudentsCourse))
+    const inferredBatches = facultyLifecycleVisibleStudents
+      .filter((student) => student?._facultyLifecycle === 'ACTIVE')
+      .map((student) => {
+        const enrollment = getCourseEnrollmentForStudent(student, selectedStudentsCourse)
+        const context = resolveFacultyBatchContextForStudent(student, facultyBackfillRecords)
+        const batch = context?.batchEntry || {}
+        const courseId = enrollment?.courseId || student?.courseId || context?.courseId || ''
+        const courseName = enrollment?.courseName || student?.courseName || student?.courseInterested || context?.courseName || ''
+        const belongsToCourse = (selectedStudentsCourse?.id && String(courseId).trim() === String(selectedStudentsCourse.id).trim())
+          || (selectedStudentsCourse?.name && normalizeCourseKey(courseName) === normalizeCourseKey(selectedStudentsCourse.name))
+        if (!belongsToCourse) return null
+        const batchId = enrollment?.batchId || student?.batchId || student?.batchEntryId || batch?.batchId || batch?.id || ''
+        const batchName = enrollment?.batchName || student?.batchName || batch?.batchName || batch?.name || ''
+        if (!batchId && !batchName) return null
+        return {
+          id: String(batchId || batchName).trim(),
+          batchId: String(batchId).trim(),
+          batchEntryId: String(batch?.id || student?.batchEntryId || '').trim(),
+          batchName: String(batchName || batchId).trim(),
+          courseId: String(courseId).trim(),
+          courseName: String(courseName).trim(),
+          batchTiming: enrollment?.batchTiming || student?.batchTiming || batch?.batchTiming || '',
+          weekType: enrollment?.scheduleType || student?.classSchedule || batch?.weekType || '',
+        }
+      })
+      .filter(Boolean)
+      .reduce((rows, batch) => {
+        const key = getFacultyFlowBatchKey(batch)
+        if (key && !rows.some((entry) => getFacultyFlowBatchKey(entry) === key)) rows.push(batch)
+        return rows
+      }, [])
+    const availableBatches = assignedBatches.length ? assignedBatches : inferredBatches
     const temporaryBatchId = String(temporarySessionContext?.item?.batchId || temporarySessionContext?.item?.id || '').trim()
     const selectedTemporaryBatch = temporaryBatchId && String(selectedStudentsBatchId || '').trim() === temporaryBatchId
       ? {
@@ -3315,8 +3664,8 @@ export function FacultyDashboardPage() {
       batchTiming: `${temporarySessionContext.item.effectiveStartTime || ''} - ${temporarySessionContext.item.effectiveEndTime || ''}`.trim(),
       }
       : null
-    if (selectedTemporaryBatch) return [selectedTemporaryBatch, ...assignedBatches.filter((batch) => getFacultyFlowBatchKey(batch) !== temporaryBatchId)]
-    if (assignedBatches.length || !temporarySessionContext?.item) return assignedBatches
+    if (selectedTemporaryBatch) return [selectedTemporaryBatch, ...availableBatches.filter((batch) => getFacultyFlowBatchKey(batch) !== temporaryBatchId)]
+    if (availableBatches.length || !temporarySessionContext?.item) return availableBatches
     return [{
       ...temporarySessionContext.item,
       id: temporaryBatchId,
@@ -3324,24 +3673,21 @@ export function FacultyDashboardPage() {
       timing: `${temporarySessionContext.item.effectiveStartTime || ''} - ${temporarySessionContext.item.effectiveEndTime || ''}`.trim(),
       batchTiming: `${temporarySessionContext.item.effectiveStartTime || ''} - ${temporarySessionContext.item.effectiveEndTime || ''}`.trim(),
     }]
-  }, [facultyBatchRows, selectedStudentsBatchId, selectedStudentsCourse, temporarySessionContext])
+  }, [facultyBackfillRecords, facultyBatchRows, facultyLifecycleVisibleStudents, selectedStudentsBatchId, selectedStudentsCourse, temporarySessionContext])
 
   const filteredStudentsCourseBatches = useMemo(() => {
     const query = studentsBatchSearch.trim().toLowerCase()
     return selectedStudentsCourseBatches.filter((batch) => {
       const batchName = String(batch.batchName || batch.name || batch.code || '').toLowerCase()
-      const weekType = String(batch.weekType || batch.weekdayType || '').trim().toLowerCase()
       const matchesSearch = !query || batchName.includes(query)
-      const matchesWeekType = studentsBatchWeekTypeFilter === 'all' || weekType === studentsBatchWeekTypeFilter
-      const activeStudentsInBatch = getFacultyBatchProgressStudents(
-        batch,
-        selectedStudentsCourse,
-        facultyLifecycleVisibleStudents,
-        facultyBackfillRecords,
-      )
-      return matchesSearch && matchesWeekType && activeStudentsInBatch.length > 0
+      return matchesSearch
     })
-  }, [facultyBackfillRecords, facultyLifecycleVisibleStudents, selectedStudentsCourse, selectedStudentsCourseBatches, studentsBatchSearch, studentsBatchWeekTypeFilter])
+  }, [facultyBackfillRecords, facultyLifecycleVisibleStudents, selectedStudentsCourse, selectedStudentsCourseBatches, studentsBatchSearch])
+
+  const filteredFacultyBatchRows = useMemo(() => {
+    if (facultyBatchWeekTypeFilter === 'all') return facultyBatchRows
+    return facultyBatchRows.filter((batch) => normalizeFacultyBatchWeekType(batch).toLowerCase() === facultyBatchWeekTypeFilter)
+  }, [facultyBatchRows, facultyBatchWeekTypeFilter])
 
   const selectedStudentsBatch = useMemo(() => {
     const normalizedBatchId = String(selectedStudentsBatchId || '').trim()
@@ -3425,7 +3771,15 @@ export function FacultyDashboardPage() {
           courseId: selectedStudentsCourse?.id || selectedStudentsCourse?.courseId || '',
           batchId: selectedStudentsBatch?.batchId || selectedStudentsBatch?.batchEntryId || selectedStudentsBatch?.id || '',
         })
-        if (active) setStudentAttendanceStatuses(extractStudentAttendanceStatuses(overview))
+        if (active) {
+          const refreshedStatuses = extractStudentAttendanceStatuses(overview)
+          // Keep the just-saved local status when an immediate refresh still
+          // returns a stale or incomplete attendance overview.
+          setStudentAttendanceStatuses((current) => ({
+            ...current,
+            ...refreshedStatuses,
+          }))
+        }
       } catch {
         if (active) setStudentAttendanceStatuses({})
       }
@@ -3553,6 +3907,16 @@ export function FacultyDashboardPage() {
 
   const studentsFlowVisibleStudents = selectedStudentsBatch ? selectedBatchStudents : facultyLifecycleVisibleStudents
   const studentsFlowActionableStudents = studentsFlowVisibleStudents.filter((student) => !isDiscontinuedStudent(student))
+  const todayWorkPresentStudents = useMemo(
+    () => studentsFlowActionableStudents.filter((student) => (
+      String(
+        todayWorkForm.attendanceByStudent?.[getTodayWorkStudentId(student)]
+          || getCurrentStudentAttendanceStatus(studentAttendanceStatuses, student)
+          || '',
+      ).trim().toUpperCase() === 'PRESENT'
+    )),
+    [studentAttendanceStatuses, studentsFlowActionableStudents, todayWorkForm.attendanceByStudent],
+  )
   const studentsFlowLevel = selectedStudentsBatch ? 3 : selectedStudentsCourse ? 2 : 1
   const todayWorkCourse = useMemo(() => {
     if (studentsFlowLevel === 3) {
@@ -3640,23 +4004,27 @@ export function FacultyDashboardPage() {
 
   useEffect(() => {
     setStudentsCourseBatchPage(1)
-  }, [studentsBatchSearch, studentsBatchWeekTypeFilter, selectedStudentsCourseId])
+  }, [studentsBatchSearch, selectedStudentsCourseId])
 
   useEffect(() => {
     setStudentsCourseBatchPage((current) => Math.min(Math.max(1, current), studentsCourseBatchTotalPages))
   }, [studentsCourseBatchTotalPages])
 
   const batchesPerPage = 5
-  const totalBatchPages = Math.max(1, Math.ceil(facultyBatchRows.length / batchesPerPage))
+  const totalBatchPages = Math.max(1, Math.ceil(filteredFacultyBatchRows.length / batchesPerPage))
   const safeBatchPage = Math.min(Math.max(1, Number(batchPage) || 1), totalBatchPages)
   const paginatedFacultyBatchRows = useMemo(() => {
     const startIndex = (safeBatchPage - 1) * batchesPerPage
-    return facultyBatchRows.slice(startIndex, startIndex + batchesPerPage)
-  }, [facultyBatchRows, safeBatchPage])
+    return filteredFacultyBatchRows.slice(startIndex, startIndex + batchesPerPage)
+  }, [filteredFacultyBatchRows, safeBatchPage])
 
   useEffect(() => {
     setBatchPage((current) => Math.min(Math.max(1, current), totalBatchPages))
   }, [totalBatchPages])
+
+  useEffect(() => {
+    setBatchPage(1)
+  }, [facultyBatchWeekTypeFilter])
 
   const selectedCourseModules = useMemo(() => getCourseModels(selectedCourse), [selectedCourse])
   const visibleCourseModules = useMemo(
@@ -3918,6 +4286,10 @@ export function FacultyDashboardPage() {
   }
 
   const openTodayWorkModal = (mode = 'attendance') => {
+    if (facultyWeekOffStatus.isWeekOff) {
+      showWeekOffValidation()
+      return
+    }
     setTodayWorkMode(mode)
     const activeTodayWorkCourse = todayWorkCourse || null
     const nextSelection = getNextPendingTodayWorkSelection(
@@ -4073,21 +4445,25 @@ export function FacultyDashboardPage() {
     const currentIds = Array.isArray(todayWorkForm.submoduleIds) ? todayWorkForm.submoduleIds : []
     const hasSubmodule = currentIds.includes(normalizedSubmoduleId)
     const nextIds = hasSubmodule ? currentIds.filter((id) => id !== normalizedSubmoduleId) : [...currentIds, normalizedSubmoduleId]
-    const nextStatuses = Object.fromEntries(
-      (todayWorkForm.selectedStudentIds || []).map((studentId) => [
-        studentId,
-        {
-          ...(todayWorkForm.submoduleStatuses?.[studentId] || {}),
-              ...(hasSubmodule ? {} : { [normalizedSubmoduleId]: '' }),
-        },
-      ]),
-    )
+    const lastSelectedSubmoduleId = nextIds[nextIds.length - 1] || ''
+    const nextStatuses = Object.fromEntries((todayWorkForm.selectedStudentIds || []).map((studentId) => {
+      const currentStatuses = todayWorkForm.submoduleStatuses?.[studentId] || {}
+      return [studentId, Object.fromEntries(nextIds.map((id) => [
+        id,
+        id === lastSelectedSubmoduleId
+          ? (hasSubmodule && id !== normalizedSubmoduleId ? currentStatuses[id] || '' : '')
+          : 'Completed',
+      ]))]
+    }))
 
     setTodayWorkForm((current) => {
       return {
         ...current,
         submoduleIds: nextIds,
         submoduleStatuses: nextStatuses,
+        submoduleStatusById: lastSelectedSubmoduleId
+          ? { [lastSelectedSubmoduleId]: nextStatuses[current.selectedStudentIds?.[0] || '']?.[lastSelectedSubmoduleId] || '' }
+          : {},
       }
     })
   }
@@ -4107,18 +4483,23 @@ export function FacultyDashboardPage() {
       ]),
     )
 
-    setTodayWorkForm((current) => ({
-      ...current,
-      selectedStudentIds: targetStudentIds,
-      submoduleIds: current.submoduleIds.includes(normalizedSubmoduleId)
-        ? current.submoduleIds
-        : [...current.submoduleIds, normalizedSubmoduleId],
-      submoduleStatuses: nextStatuses,
-      submoduleStatusById: {
-        ...(todayWorkForm.submoduleStatusById || {}),
-        [normalizedSubmoduleId]: status,
-      },
-    }))
+    setTodayWorkForm((current) => {
+      const selectedIds = Array.isArray(current.submoduleIds) ? current.submoduleIds : []
+      if (selectedIds[selectedIds.length - 1] !== normalizedSubmoduleId) return current
+
+      return {
+        ...current,
+        selectedStudentIds: targetStudentIds,
+        submoduleIds: selectedIds.includes(normalizedSubmoduleId)
+          ? selectedIds
+          : [...selectedIds, normalizedSubmoduleId],
+        submoduleStatuses: nextStatuses,
+        submoduleStatusById: {
+          ...(current.submoduleStatusById || {}),
+          [normalizedSubmoduleId]: status,
+        },
+      }
+    })
   }
 
   const selectAllTodayWorkSubmodules = () => {
@@ -4128,12 +4509,17 @@ export function FacultyDashboardPage() {
       submoduleStatuses: Object.fromEntries(
         (current.selectedStudentIds || []).map((studentId) => [
           studentId,
-          Object.fromEntries(todayWorkPendingSubmoduleIds.map((submoduleId) => [
+          Object.fromEntries(todayWorkPendingSubmoduleIds.map((submoduleId, index) => [
             submoduleId,
-            current.submoduleStatuses?.[studentId]?.[submoduleId] || '',
+            index === todayWorkPendingSubmoduleIds.length - 1
+              ? current.submoduleStatuses?.[studentId]?.[submoduleId] || ''
+              : 'Completed',
           ])),
         ]),
       ),
+      submoduleStatusById: todayWorkPendingSubmoduleIds.length
+        ? { [todayWorkPendingSubmoduleIds[todayWorkPendingSubmoduleIds.length - 1]]: '' }
+        : {},
     }))
   }
 
@@ -4181,17 +4567,17 @@ export function FacultyDashboardPage() {
   }
 
   const toggleSelectAllTodayWorkStudents = () => {
-    const visibleStudentIds = studentsFlowActionableStudents.map(getTodayWorkStudentId).filter(Boolean)
-    if (!visibleStudentIds.length) return
+    const presentStudentIds = todayWorkPresentStudents.map(getTodayWorkStudentId).filter(Boolean)
+    if (!presentStudentIds.length) return
 
     setTodayWorkForm((current) => {
       const selectedIds = Array.isArray(current.selectedStudentIds) ? current.selectedStudentIds : []
-      const allSelected = visibleStudentIds.every((studentId) => selectedIds.includes(studentId))
+      const allSelected = presentStudentIds.every((studentId) => selectedIds.includes(studentId))
       return {
         ...current,
         selectedStudentIds: allSelected
-          ? selectedIds.filter((studentId) => !visibleStudentIds.includes(studentId))
-          : Array.from(new Set([...selectedIds, ...visibleStudentIds])),
+          ? selectedIds.filter((studentId) => !presentStudentIds.includes(studentId))
+          : Array.from(new Set([...selectedIds, ...presentStudentIds])),
       }
     })
   }
@@ -4311,10 +4697,25 @@ export function FacultyDashboardPage() {
         submissionMode: 'faculty-dashboard-attendance',
         students,
       })
+      const savedStatuses = selectedStudents.reduce((statusMap, student) => {
+        const payloadStudentId = getTodayWorkStudentId(student)
+        const status = String(todayWorkForm.attendanceByStudent?.[payloadStudentId] || '').trim().toUpperCase()
+        if (!isAttendanceMarkedStatus(status)) return statusMap
+
+        // Branch attendance uses an internal profile id while the faculty
+        // table may be built from the public student id. Keep both aliases
+        // in sync so a saved row never falls back to "Unmarked".
+        getStudentAttendanceKeys(student).forEach((key) => {
+          statusMap[key] = status
+        })
+        const normalizedPayloadStudentId = normalizeWorkStudentId(payloadStudentId)
+        if (normalizedPayloadStudentId) statusMap[normalizedPayloadStudentId] = status
+        return statusMap
+      }, {})
       setStudentAttendanceStatuses((current) => ({
         ...current,
         ...extractStudentAttendanceStatuses(response),
-        ...Object.fromEntries(students.map((student) => [normalizeWorkStudentId(student.studentId), student.status])),
+        ...savedStatuses,
       }))
       saveStudentCalendarAttendance(getAttendanceDateKey(), students)
       if (typeof window !== 'undefined') {
@@ -4375,9 +4776,13 @@ export function FacultyDashboardPage() {
       return null
     }
 
+    const lastSelectedSubmoduleId = selectedSubmoduleIds[selectedSubmoduleIds.length - 1]
     const unselectedSubmoduleStatus = selectedStudents.some((student) => {
       const studentId = getTodayWorkStudentId(student)
       return selectedSubmoduleIds.some((submoduleId) => {
+        // Earlier selected submodules are completed automatically. Only the
+        // last selected submodule requires a manual status choice.
+        if (submoduleId !== lastSelectedSubmoduleId) return false
         const status = todayWorkForm.submoduleStatuses?.[studentId]?.[submoduleId]
           || todayWorkForm.submoduleStatusById?.[submoduleId]
           || ''
@@ -4461,6 +4866,11 @@ export function FacultyDashboardPage() {
             const existingStatus = selectedStudentStatus
               || todayWorkForm.submoduleStatusById?.[submoduleId]
               || selectedStatus
+
+            const submoduleIndex = selectedSubmoduleIds.indexOf(submoduleId)
+            if (submoduleIndex < selectedSubmoduleIds.length - 1) {
+              return 'Completed'
+            }
 
             // A later absent attendance update must not undo a sub-module
             // that this student already completed in an earlier save.
@@ -5158,6 +5568,18 @@ const nextName = trimmedValue
   const stats = [
     { label: 'Assigned Courses', value: dashboardOverviewLoading ? '—' : String(dashboardOverview?.courseIds?.length ?? new Set(assignedCourseIds).size ?? 0), note: 'Active courses', icon: BookOpen, tone: 'blue' },
     { label: 'Total Batches', value: dashboardSummary?.totalBatches ?? '—', note: 'Across all Courses', icon: Layers3, tone: 'purple' },
+    {
+      label: 'Next Week Off',
+      value: facultyNextWeekOff.date
+        ? facultyNextWeekOff.date.split('-').reverse().join('.')
+        : 'Not configured',
+      note: facultyNextWeekOff.day
+        ? `${facultyNextWeekOff.day.charAt(0)}${facultyNextWeekOff.day.slice(1).toLowerCase()}${facultyNextWeekOff.temporary ? ' - Alternate week-off' : ''}`
+        : 'Contact Branch Admin to configure',
+      icon: CalendarDays,
+      tone: 'orange',
+      highlightNote: true,
+    },
   ]
 
   // Close profile dropdown menu on click outside
@@ -5343,7 +5765,7 @@ const nextName = trimmedValue
           if (item.id === 'exams') {
             const isExpanded = Boolean(expandedSidebarGroups.exams)
             const isSyllabusTestExpanded = Boolean(expandedSidebarGroups['syllabus-test'])
-            return <div key={item.id} className="super-admin-sidebar-item-group"><button type="button" className={`super-admin-sidebar-item ${isActive ? 'is-active' : ''}`.trim()} data-tooltip="Exams and Result" aria-expanded={isExpanded} onClick={() => setExpandedSidebarGroups((current) => ({ ...current, exams: !current.exams }))}><span className="super-admin-sidebar-icon" aria-hidden="true"><Icon size={18} strokeWidth={2.15} /></span><span>Exams and Result</span><ChevronDown size={16} strokeWidth={2.2} className={isExpanded ? 'is-expanded' : ''} aria-hidden="true" /></button>{(isExpanded || isSidebarCollapsed) ? <div className="super-admin-sidebar-submenu"><button type="button" className={`super-admin-sidebar-subitem super-admin-sidebar-nested-toggle ${isExamsRoute || isAssessmentsRoute || isExamReportsRoute ? 'is-active' : ''}`.trim()} aria-expanded={isSyllabusTestExpanded} onClick={() => setExpandedSidebarGroups((current) => ({ ...current, 'syllabus-test': !current['syllabus-test'] }))}><span className="super-admin-sidebar-subitem-icon" aria-hidden="true"><FileText size={15} strokeWidth={2.1} /></span><span>Syllabus Test</span><ChevronDown size={14} strokeWidth={2.1} className={isSyllabusTestExpanded ? 'is-expanded' : ''} aria-hidden="true" /></button>{(isSyllabusTestExpanded || isSidebarCollapsed) ? <div className="super-admin-sidebar-nested-submenu"><button type="button" className={`super-admin-sidebar-subitem ${isExamsRoute ? 'is-active' : ''}`.trim()} onClick={() => navigate('/dashboard/faculty/exams')}><span className="super-admin-sidebar-subitem-icon" aria-hidden="true"><CheckCircle2 size={15} strokeWidth={2.1} /></span><span>Test</span></button><button type="button" className={`super-admin-sidebar-subitem ${isAssessmentsRoute ? 'is-active' : ''}`.trim()} onClick={() => navigate('/dashboard/faculty/exams/assessments')}><span className="super-admin-sidebar-subitem-icon" aria-hidden="true"><FileText size={15} strokeWidth={2.1} /></span><span>Assessment</span></button><button type="button" className={`super-admin-sidebar-subitem ${isExamReportsRoute ? 'is-active' : ''}`.trim()} onClick={() => navigate('/dashboard/faculty/exams/reports')}><span className="super-admin-sidebar-subitem-icon" aria-hidden="true"><BarChart3 size={15} strokeWidth={2.1} /></span><span>Report</span></button></div> : null}<button type="button" className={`super-admin-sidebar-subitem ${isAcademicTestRoute ? 'is-active' : ''}`.trim()} aria-expanded={isAcademicTestMenuOpen} onClick={() => { setIsAcademicTestMenuOpen((current) => !current); navigate('/dashboard/faculty/exams/academic-tests') }}><span className="super-admin-sidebar-subitem-icon" aria-hidden="true"><FileText size={15} strokeWidth={2.1} /></span><span>Academic Test</span><ChevronDown size={14} strokeWidth={2.1} className={isAcademicTestMenuOpen ? 'is-expanded' : ''} aria-hidden="true" /></button>{isAcademicTestMenuOpen || isAcademicTestReportRoute ? <button type="button" className={`super-admin-sidebar-subitem ${isAcademicTestReportRoute ? 'is-active' : ''}`.trim()} onClick={() => navigate('/dashboard/faculty/exams/academic-tests/report')}><span className="super-admin-sidebar-subitem-icon" aria-hidden="true"><BarChart3 size={15} strokeWidth={2.1} /></span><span>Report</span></button> : null}</div> : null}</div>
+            return <div key={item.id} className="super-admin-sidebar-item-group"><button type="button" className={`super-admin-sidebar-item ${isActive ? 'is-active' : ''}`.trim()} data-tooltip="Exams and Result" aria-expanded={isExpanded} onClick={() => setExpandedSidebarGroups((current) => ({ ...current, exams: !current.exams }))}><span className="super-admin-sidebar-icon" aria-hidden="true"><Icon size={18} strokeWidth={2.15} /></span><span>Exams and Result</span><ChevronDown size={16} strokeWidth={2.2} className={isExpanded ? 'is-expanded' : ''} aria-hidden="true" /></button>{(isExpanded || isSidebarCollapsed) ? <div className="super-admin-sidebar-submenu"><button type="button" className={`super-admin-sidebar-subitem super-admin-sidebar-nested-toggle ${isExamsRoute || isAssessmentsRoute || isExamReportsRoute ? 'is-active' : ''}`.trim()} aria-expanded={isSyllabusTestExpanded} onClick={() => setExpandedSidebarGroups((current) => ({ ...current, 'syllabus-test': !current['syllabus-test'] }))}><span className="super-admin-sidebar-subitem-icon" aria-hidden="true"><FileText size={15} strokeWidth={2.1} /></span><span>Syllabus Test</span><ChevronDown size={14} strokeWidth={2.1} className={isSyllabusTestExpanded ? 'is-expanded' : ''} aria-hidden="true" /></button>{(isSyllabusTestExpanded || isSidebarCollapsed) ? <div className="super-admin-sidebar-nested-submenu"><button type="button" className={`super-admin-sidebar-subitem ${isExamsRoute ? 'is-active' : ''}`.trim()} onClick={() => navigate('/dashboard/faculty/exams')}><span className="super-admin-sidebar-subitem-icon" aria-hidden="true"><CheckCircle2 size={15} strokeWidth={2.1} /></span><span>Test</span></button><button type="button" className={`super-admin-sidebar-subitem ${isAssessmentsRoute ? 'is-active' : ''}`.trim()} onClick={() => navigate('/dashboard/faculty/exams/assessments')}><span className="super-admin-sidebar-subitem-icon" aria-hidden="true"><FileText size={15} strokeWidth={2.1} /></span><span>Assessment</span></button><button type="button" className={`super-admin-sidebar-subitem ${isExamReportsRoute ? 'is-active' : ''}`.trim()} onClick={() => navigate('/dashboard/faculty/exams/reports')}><span className="super-admin-sidebar-subitem-icon" aria-hidden="true"><BarChart3 size={15} strokeWidth={2.1} /></span><span>Report</span></button></div> : null}<button type="button" className={`super-admin-sidebar-subitem ${isAcademicTestRoute ? 'is-active' : ''}`.trim()} aria-expanded={isAcademicTestMenuOpen} onClick={() => { if (facultyWeekOffStatus.isWeekOff) { showWeekOffValidation(); return } setIsAcademicTestMenuOpen((current) => !current); navigate('/dashboard/faculty/exams/academic-tests') }}><span className="super-admin-sidebar-subitem-icon" aria-hidden="true"><FileText size={15} strokeWidth={2.1} /></span><span>Academic Test</span><ChevronDown size={14} strokeWidth={2.1} className={isAcademicTestMenuOpen ? 'is-expanded' : ''} aria-hidden="true" /></button>{isAcademicTestMenuOpen || isAcademicTestReportRoute ? <button type="button" className={`super-admin-sidebar-subitem ${isAcademicTestReportRoute ? 'is-active' : ''}`.trim()} onClick={() => navigate('/dashboard/faculty/exams/academic-tests/report')}><span className="super-admin-sidebar-subitem-icon" aria-hidden="true"><BarChart3 size={15} strokeWidth={2.1} /></span><span>Report</span></button> : null}</div> : null}</div>
           }
 
           return (
@@ -5668,7 +6090,23 @@ const nextName = trimmedValue
           {renderTopbar()}
 
           <main className="super-admin-content">
-            <div className="branch-dashboard-content">
+              <div className="branch-dashboard-content">
+              {facultyWeekOffStatus.isWeekOff ? (
+                <section className="faculty-weekoff-readonly-banner" role="status" aria-live="polite">
+                  <div className="faculty-weekoff-readonly-icon" aria-hidden="true"><CalendarDays size={22} strokeWidth={2.2} /></div>
+                  <div className="faculty-weekoff-readonly-copy">
+                    <strong>Today is your Week Off</strong>
+                    <span>{facultyWeekOffStatus.temporary ? 'Approved alternate week-off.' : 'Regular weekly-off.'} Attendance, Today&apos;s Work, and Academic Test actions are read-only today.</span>
+                  </div>
+                </section>
+              ) : null}
+              {weekOffValidationMessage ? (
+                <section className="faculty-weekoff-validation" role="alert">
+                  <AlertTriangle size={19} strokeWidth={2.2} aria-hidden="true" />
+                  <span>{weekOffValidationMessage}</span>
+                  <button type="button" aria-label="Close week-off message" onClick={() => setWeekOffValidationMessage('')}><X size={17} /></button>
+                </section>
+              ) : null}
               {user && user.mustResetPassword ? (
                 <section className="branch-dashboard-password-alert" aria-live="polite">
                   <div className="branch-dashboard-password-alert-copy">
@@ -5685,7 +6123,7 @@ const nextName = trimmedValue
 
               {activeSection === 'skill-development' ? <FacultySkillDevelopmentPage /> : null}
 
-              {isStudentExamReportRoute ? <FacultyStudentExamReportPage embedded /> : isExamReportsRoute ? <FacultyExamCourseGate title={new URLSearchParams(location.search).get('tab') === 'assessments' ? 'Assessment Report' : 'Syllabus Test Report'}>{({ course, batch }) => <FacultyExamReportsPage embedded selectedCourseId={course.id} selectedBatchId={batch.id || batch.batchId} />}</FacultyExamCourseGate> : isAssessmentsRoute ? <FacultyExamCourseGate title="Syllabus Test Assessment">{({ course, batch }) => <FacultyAssessmentsPage embedded selectedCourseId={course.id} selectedBatchId={batch.id || batch.batchId} />}</FacultyExamCourseGate> : isAcademicTestReportRoute ? <FacultyExamCourseGate title="Academic Test Report">{({ course, batch }) => <AcademicTestReportPage embedded selectedCourseId={course.id} selectedBatchId={batch.id || batch.batchId} />}</FacultyExamCourseGate> : isAcademicTestRoute ? (isAcademicCreateRoute ? <AcademicTestPage mode="faculty" facultyBatchStudentCounts={new Map(facultyBatchRows.map((entry) => [getFacultyFlowBatchKey(entry), entry.students]))} autoOpenCreate onCreateClose={() => { const params = new URLSearchParams(location.search); const itemId = params.get('itemId'); const batchId = params.get('batchId'); navigate(`/dashboard/faculty/exams/academic-tests/${encodeURIComponent(itemId || '')}/${encodeURIComponent(batchId || '')}?view=list&refresh=${Date.now()}`) }} /> : isAcademicTestListRoute ? <AcademicTestPage mode="faculty" /> : location.pathname.replace(/\/+$/, '') === '/dashboard/faculty/exams/academic-tests' ? <FacultyExamCourseGate title="Academic Test">{({ course, batch }) => <AcademicTestPage mode="faculty" facultyCourseId={course.id} facultyBatchId={batch.id || batch.batchId} facultyCourseProgressByBatch={facultyAllCourseBatchProgress} facultyBatchStudentCounts={new Map(facultyBatchRows.map((entry) => [getFacultyFlowBatchKey(entry), entry.students]))} />}</FacultyExamCourseGate> : <AcademicTestPreparationPage embedded facultyCourseProgressByBatch={facultyAllCourseBatchProgress} />) : isExamsRoute ? <FacultyExamCourseGate title="Syllabus Test">{({ course, batch }) => <FacultyExamsPage embedded selectedCourseId={course.id} selectedBatchId={batch.id || batch.batchId} />}</FacultyExamCourseGate> : null}
+              {isStudentExamReportRoute ? <FacultyStudentExamReportPage embedded /> : isExamReportsRoute ? <FacultyExamCourseGate title={new URLSearchParams(location.search).get('tab') === 'assessments' ? 'Assessment Report' : 'Syllabus Test Report'}>{({ course, batch }) => <FacultyExamReportsPage embedded selectedCourseId={course.id} selectedBatchId={batch.id || batch.batchId} />}</FacultyExamCourseGate> : isAssessmentsRoute ? <FacultyExamCourseGate title="Syllabus Test Assessment">{({ course, batch }) => <FacultyAssessmentsPage embedded selectedCourseId={course.id} selectedBatchId={batch.id || batch.batchId} />}</FacultyExamCourseGate> : isAcademicTestReportRoute ? <FacultyExamCourseGate title="Academic Test Report">{({ course, batch }) => <AcademicTestReportPage embedded selectedCourseId={course.id} selectedBatchId={batch.id || batch.batchId} />}</FacultyExamCourseGate> : isAcademicTestRoute ? (isAcademicCreateRoute ? <AcademicTestPage mode="faculty" facultyWeekOffBlocked={facultyWeekOffStatus.isWeekOff} onWeekOffBlocked={showWeekOffValidation} facultyBatchStudentCounts={new Map(facultyBatchRows.map((entry) => [getFacultyFlowBatchKey(entry), entry.students]))} autoOpenCreate onCreateClose={() => { const params = new URLSearchParams(location.search); const itemId = params.get('itemId'); const batchId = params.get('batchId'); navigate(`/dashboard/faculty/exams/academic-tests/${encodeURIComponent(itemId || '')}/${encodeURIComponent(batchId || '')}?view=list&refresh=${Date.now()}`) }} /> : isAcademicTestListRoute ? <AcademicTestPage mode="faculty" facultyWeekOffBlocked={facultyWeekOffStatus.isWeekOff} onWeekOffBlocked={showWeekOffValidation} /> : location.pathname.replace(/\/+$/, '') === '/dashboard/faculty/exams/academic-tests' ? <FacultyExamCourseGate title="Academic Test">{({ course, batch }) => <AcademicTestPage mode="faculty" facultyWeekOffBlocked={facultyWeekOffStatus.isWeekOff} onWeekOffBlocked={showWeekOffValidation} facultyCourseId={course.id} facultyBatchId={batch.id || batch.batchId} facultyCourseProgressByBatch={facultyAllCourseBatchProgress} facultyBatchStudentCounts={new Map(facultyBatchRows.map((entry) => [getFacultyFlowBatchKey(entry), entry.students]))} />}</FacultyExamCourseGate> : <AcademicTestPreparationPage embedded facultyCourseProgressByBatch={facultyAllCourseBatchProgress} facultyWeekOffBlocked={facultyWeekOffStatus.isWeekOff} onWeekOffBlocked={showWeekOffValidation} />) : isExamsRoute ? <FacultyExamCourseGate title="Syllabus Test">{({ course, batch }) => <FacultyExamsPage embedded selectedCourseId={course.id} selectedBatchId={batch.id || batch.batchId} />}</FacultyExamCourseGate> : null}
 
               {!isExamsRoute && !isAssessmentsRoute && !isExamReportsRoute && !isAcademicTestRoute && activeSection === 'dashboard' ? (
                 <>
@@ -5701,7 +6139,7 @@ const nextName = trimmedValue
                           <span>{stat.label}</span>
                         </div>
                         <strong style={{ fontSize: '18px' }}>{stat.value}</strong>
-                        <small>{stat.note}</small>
+                        <small className={stat.highlightNote ? 'faculty-dashboard-weekoff-day' : ''}>{stat.note}</small>
                       </article>
                     ))}
                   </div>
@@ -5980,6 +6418,16 @@ const nextName = trimmedValue
 
               {activeSection === 'my-batches' ? (
                 <FacultyDashboardSection title="My Batches" description="Overview of active learning batches under your instruction.">
+                  <div className="faculty-batches-filter-toolbar">
+                    <div className="branch-dashboard-section-summary faculty-batches-total-summary">
+                      <span>Total batches:</span>
+                      <strong>{filteredFacultyBatchRows.length}</strong>
+                    </div>
+                    <FacultyBatchWeekTypeFilter
+                      value={facultyBatchWeekTypeFilter}
+                      onChange={setFacultyBatchWeekTypeFilter}
+                    />
+                  </div>
                   <div className="branch-dashboard-table-shell">
                     <table className="branch-dashboard-table">
                       <thead>
@@ -5987,6 +6435,7 @@ const nextName = trimmedValue
                           <th style={{ width: '60px' }}>S.No</th>
                           <th>Batch Name</th>
                           <th>Course Name</th>
+                          <th>Week Type</th>
                           <th>Timings</th>
                           <th>Total Students</th>
                           <th>Status</th>
@@ -5999,6 +6448,7 @@ const nextName = trimmedValue
                               <td>{(safeBatchPage - 1) * batchesPerPage + index + 1}</td>
                               <td><strong className="text-slate-800">{batch.batchName || batch.code || '-'}</strong></td>
                               <td><strong className="text-slate-800">{batch.course}</strong></td>
+                              <td>{normalizeFacultyBatchWeekType(batch) === 'WEEKEND' ? 'Weekend' : normalizeFacultyBatchWeekType(batch) === 'WEEKDAY' ? 'Weekday' : '-'}</td>
                               <td>{batch.timing}</td>
                               <td>{batch.students} students</td>
                               <td>
@@ -6010,16 +6460,16 @@ const nextName = trimmedValue
                           ))
                         ) : (
                           <tr>
-                            <td colSpan={6}>
+                            <td colSpan={7}>
                               <div className="faculty-my-batches-empty" style={{ padding: '20px 0' }}>
-                                <strong>No batches mapped yet</strong>
+                                <strong>{facultyBatchWeekTypeFilter === 'all' ? 'No batches mapped yet' : `No ${facultyBatchWeekTypeFilter} batches found`}</strong>
                               </div>
                             </td>
                           </tr>
                         )}
                       </tbody>
                     </table>
-                    {facultyBatchRows.length > batchesPerPage ? (
+                    {filteredFacultyBatchRows.length > batchesPerPage ? (
                       <div className="faculty-batches-pagination-wrap">
                         <PaginationBar
                           currentPage={safeBatchPage}
@@ -6039,6 +6489,7 @@ const nextName = trimmedValue
                   faculty={facultyDetails}
                   facultyProfile={facultyProfile || currentFacultyIdentity}
                   assignedBatches={facultyBatchRows}
+                  weekOffRequests={facultyWeekOffRequests}
                 />
               ) : null}
 
@@ -6064,7 +6515,7 @@ const nextName = trimmedValue
                         <>
                       <button
                         type="button"
-                        className="faculty-today-work-trigger"
+                        className={`faculty-today-work-trigger ${facultyWeekOffStatus.isWeekOff ? 'is-read-only' : ''}`.trim()}
                         disabled={attendanceWeekTypeLocked || !studentsFlowActionableStudents.length}
                         title={attendanceWeekTypeLocked ? `Attendance is disabled today for this ${selectedStudentsBatch?.weekType === 'WEEKEND' ? 'weekend' : 'weekday'} batch` : 'Open Attendance'}
                         onClick={() => openTodayWorkModal('attendance')}
@@ -6074,7 +6525,7 @@ const nextName = trimmedValue
                       </button>
                       <button
                         type="button"
-                        className="faculty-today-work-trigger faculty-today-work-trigger--progress"
+                        className={`faculty-today-work-trigger faculty-today-work-trigger--progress ${facultyWeekOffStatus.isWeekOff ? 'is-read-only' : ''}`.trim()}
                         onClick={() => openTodayWorkModal('progress')}
                         disabled={!studentsFlowActionableStudents.length}
                       >
@@ -6268,7 +6719,6 @@ const nextName = trimmedValue
                           setSelectedStudentsCourseId('')
                           setSelectedStudentsBatchId('')
                           setStudentsBatchSearch('')
-                          setStudentsBatchWeekTypeFilter('all')
                         }}
                       >
                         <ArrowLeft size={16} />
@@ -6291,16 +6741,6 @@ const nextName = trimmedValue
                             aria-label="Search batches by name"
                           />
                         </label>
-                        <select
-                          className="faculty-students-batch-week-filter"
-                          value={studentsBatchWeekTypeFilter}
-                          onChange={(event) => setStudentsBatchWeekTypeFilter(event.target.value)}
-                          aria-label="Filter batches by week type"
-                        >
-                          <option value="all">All</option>
-                          <option value="weekday">Weekday</option>
-                          <option value="weekend">Weekend</option>
-                        </select>
                       </div>
 
                       {filteredStudentsCourseBatches.length ? (
@@ -6448,17 +6888,20 @@ const nextName = trimmedValue
                                   courseName: student.courseInterested || student.courseName || selectedStudentsCourse?.name || selectedStudentsCourse?.courseName,
                                 })
                                 const paidAmountLabel = formatCourseAmount(paymentProgress.paidAmount)
-                                const studentKey = normalizeWorkStudentId(student.id || student.studentId || '')
+                                const selectedCourseKey = normalizeWorkStudentId(
+                                  selectedStudentsCourse?.id || selectedStudentsCourse?.courseId || '',
+                                )
+                                const scopedLifecycle = getFacultyStudentLifecycle(student, selectedStudentsCourse || {})
                                 // Attendance is independent from course progress. An absent
                                 // student must keep the progress earned on earlier work days.
                                 const progressEntries = facultyTodayWorkEntries
                                 const workEntry = getFacultyTodayWorkEntriesForStudent(
                                   progressEntries,
                                   student,
-                                  '',
-                                )[0] || todayWorkEntriesByStudent.get(studentKey) || null
+                                  selectedCourseKey,
+                                )[0] || null
                                 const workCourse = workEntry
-                                  ? courseCatalog.find((course) => String(course?.id || '').trim() === String(workEntry.courseId || '').trim()) || selectedStudentsCourse || selectedCourse || null
+                                  ? selectedStudentsCourse || courseCatalog.find((course) => String(course?.id || '').trim() === String(workEntry.courseId || '').trim()) || selectedCourse || null
                                   : null
                                 const workProgressSummary = workEntry
                                   ? buildFacultyTodayWorkProgressSummary(progressEntries, workCourse || {}, student)
@@ -6480,9 +6923,16 @@ const nextName = trimmedValue
                                 // const workModuleProgressLabel = workProgressSummary
                                 //   ? `${getCourseModuleName(workProgressSummary.moduleSummary?.module || workProgress?.module || {})} - ${Math.round(workProgress.moduleProgress)}% Complete`
                                 //   : '-'
-                                const storedCourseProgress = Number(student?.courseProgress)
+                                const storedCourseProgress = Number(
+                                  scopedLifecycle.enrollment?.courseProgress ??
+                                  scopedLifecycle.courseProgress ??
+                                  student?.courseProgress,
+                                )
                                 const workCourseProgress = workProgress
-                                  ? Math.min(100, Math.max(0, Number(workProgress.courseProgress)))
+                                  ? Math.max(
+                                      Math.min(100, Math.max(0, Number(workProgress.courseProgress))),
+                                      Number.isFinite(storedCourseProgress) ? Math.min(100, Math.max(0, storedCourseProgress)) : 0,
+                                    )
                                   : Number.isFinite(storedCourseProgress)
                                     ? Math.min(100, Math.max(0, storedCourseProgress))
                                     : 0
@@ -7220,10 +7670,13 @@ const nextName = trimmedValue
                             : selectedStatuses.length
                               ? 'Mixed'
                               : todayWorkForm.submoduleStatusById?.[submoduleId] || '')
-                        // A status choice is locked only after the current
-                        // student scope is explicitly completed. A global
-                        // completed count must never disable a pending row.
-                        const submoduleLocked = currentStatus === 'Completed'
+                        const lastSelectedSubmoduleId = todayWorkForm.submoduleIds[todayWorkForm.submoduleIds.length - 1] || ''
+                        const isManualStatusSubmodule = checked && submoduleId === lastSelectedSubmoduleId
+                        // Every selected submodule before the last one is
+                        // completed automatically. Only the last selection
+                        // exposes the manual In Progress/Completed controls.
+                        const displayStatus = checked && !isManualStatusSubmodule ? 'Completed' : currentStatus
+                        const submoduleLocked = checked && !isManualStatusSubmodule
 
                         return (
                           <div
@@ -7246,15 +7699,15 @@ const nextName = trimmedValue
                             <div className="faculty-today-work-submodule-copy">
                               <strong>{getCourseSubmoduleName(submodule, subIndex)}</strong>
                               <span className="faculty-today-work-submodule-status faculty-today-work-submodule-status--pending">
-                                {checked ? (currentStatus || 'Choose status') : 'Not selected'}
+                                {checked ? (displayStatus || 'Choose status') : 'Not selected'}
                               </span>
                             </div>
-                            {checked ? (
+                            {checked && isManualStatusSubmodule ? (
                               <div className="faculty-today-work-submodule-status-options" onClick={(event) => event.stopPropagation()}>
                                 <button
                                   type="button"
                                   disabled={submoduleLocked}
-                                  className={currentStatus === 'In Progress' ? 'is-active' : ''}
+                                  className={displayStatus === 'In Progress' ? 'is-active' : ''}
                                   onClick={() => setTodayWorkSubmoduleStatus(submoduleId, 'In Progress')}
                                 >
                                   <span className="faculty-today-work-status-radio" aria-hidden="true" />
@@ -7263,7 +7716,7 @@ const nextName = trimmedValue
                                 <button
                                   type="button"
                                   disabled={submoduleLocked}
-                                  className={currentStatus === 'Completed' ? 'is-active' : ''}
+                                  className={displayStatus === 'Completed' ? 'is-active' : ''}
                                   onClick={() => setTodayWorkSubmoduleStatus(submoduleId, 'Completed')}
                                 >
                                   <span className="faculty-today-work-status-radio" aria-hidden="true" />
@@ -7354,11 +7807,11 @@ const nextName = trimmedValue
                     <label className="faculty-today-work-select-all">
                       <input
                         type="checkbox"
-                        checked={studentsFlowVisibleStudents.length > 0 && studentsFlowVisibleStudents.every((student) => todayWorkForm.selectedStudentIds.includes(getTodayWorkStudentId(student)))}
+                        checked={todayWorkPresentStudents.length > 0 && todayWorkPresentStudents.every((student) => todayWorkForm.selectedStudentIds.includes(getTodayWorkStudentId(student)))}
                         onChange={toggleSelectAllTodayWorkStudents}
-                        disabled={!studentsFlowVisibleStudents.length}
+                        disabled={!todayWorkPresentStudents.length}
                       />
-                      <span>Select All</span>
+                      <span>Select All Present</span>
                     </label>
                   )}
                 </div>
@@ -7381,17 +7834,35 @@ const nextName = trimmedValue
                     const studentId = getTodayWorkStudentId(student)
                     const studentName = String(student?.studentName || student?.name || `Student ${index + 1}`).trim()
                     const status = todayWorkForm.attendanceByStudent?.[studentId] || ''
-                    const checked = todayWorkForm.selectedStudentIds.includes(studentId)
+                    const isPresentStudent = status === 'PRESENT'
+                    const checked = isPresentStudent && todayWorkForm.selectedStudentIds.includes(studentId)
                     const discontinued = isDiscontinuedStudent(student)
 
                     return (
-                      <div key={studentId || `${studentName}-${index}`} className={`faculty-today-work-student-item${todayWorkMode === 'attendance' ? ' faculty-today-work-attendance-item' : ' faculty-today-work-progress-item'}${checked ? ' is-selected' : ''}`.trim()} style={{ display: 'grid', gridTemplateColumns: todayWorkMode === 'progress' ? 'auto auto minmax(0, 1fr) auto' : 'auto minmax(0, 1fr) auto', alignItems: 'center', gap: '12px' }}>
+                      <div
+                        key={studentId || `${studentName}-${index}`}
+                        className={`faculty-today-work-student-item${todayWorkMode === 'attendance' ? ' faculty-today-work-attendance-item' : ' faculty-today-work-progress-item'}${checked ? ' is-selected' : ''}`.trim()}
+                        style={{ display: 'grid', gridTemplateColumns: todayWorkMode === 'progress' ? 'auto auto minmax(0, 1fr) auto' : 'auto minmax(0, 1fr) auto', alignItems: 'center', gap: '12px', cursor: todayWorkMode === 'progress' && isPresentStudent ? 'pointer' : undefined }}
+                        onClick={() => {
+                          if (todayWorkMode === 'progress' && isPresentStudent) toggleTodayWorkStudent(studentId)
+                        }}
+                        onKeyDown={(event) => {
+                          if (todayWorkMode === 'progress' && isPresentStudent && (event.key === 'Enter' || event.key === ' ')) {
+                            event.preventDefault()
+                            toggleTodayWorkStudent(studentId)
+                          }
+                        }}
+                        role={todayWorkMode === 'progress' && isPresentStudent ? 'button' : undefined}
+                        tabIndex={todayWorkMode === 'progress' && isPresentStudent ? 0 : undefined}
+                      >
                         {todayWorkMode === 'progress' ? (
                           <input
                             type="checkbox"
                             checked={checked}
+                            disabled={!isPresentStudent}
+                            onClick={(event) => event.stopPropagation()}
                             onChange={() => toggleTodayWorkStudent(studentId)}
-                            aria-label={`Select ${studentName} for today's work`}
+                            aria-label={isPresentStudent ? `Select ${studentName} for today's work` : `${studentName} is absent and cannot be selected`}
                           />
                         ) : null}
                         <div className="faculty-avatar">{getInitials(studentName)}</div>

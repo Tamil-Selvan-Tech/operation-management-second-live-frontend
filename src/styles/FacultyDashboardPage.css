@@ -201,6 +201,7 @@ body.faculty-notification-menu-open .super-admin-content {
 .faculty-dashboard-page .branch-dashboard-stat-icon { display: inline-grid !important; width: 38px; height: 38px; flex: 0 0 38px; place-items: center; border-radius: 10px; }
 .faculty-dashboard-page .branch-dashboard-stat-card--blue .branch-dashboard-stat-icon { color: #2563eb; background: #eaf2ff; }
 .faculty-dashboard-page .branch-dashboard-stat-card--purple .branch-dashboard-stat-icon { color: #7c3aed; background: #f1eaff; }
+.faculty-dashboard-page .branch-dashboard-stat-card--orange .branch-dashboard-stat-icon { color: #b45309; background: #fff3d6; }
 .faculty-dashboard-page .branch-dashboard-stat-icon svg { color: inherit; stroke: currentColor; }
 .faculty-dashboard-page .branch-dashboard-stat-card > strong { margin-top: 15px; padding-bottom: 12px; border-bottom: 1px solid #e2e8f0; font-size: 30px !important; }
 .faculty-dashboard-page .branch-dashboard-stat-card > small { margin-top: 11px; color: #8a9ab0; font-size: 12px; }
@@ -212,6 +213,21 @@ body.faculty-notification-menu-open .super-admin-content {
 .super-admin-page .branch-dashboard-stat-icon { display: inline-grid !important; width: 32px; height: 32px; flex: 0 0 32px; place-items: center; border-radius: 9px; }
 .super-admin-page .branch-dashboard-stat-card--blue .branch-dashboard-stat-icon { color: #2563eb !important; background: #eaf2ff !important; }
 .super-admin-page .branch-dashboard-stat-card--purple .branch-dashboard-stat-icon { color: #7c3aed !important; background: #f1eaff !important; }
+.super-admin-page .branch-dashboard-stat-card--orange .branch-dashboard-stat-icon { color: #b45309 !important; background: #fff3d6 !important; }
+.super-admin-page .branch-dashboard-stat-card small.faculty-dashboard-weekoff-day {
+  display: inline-flex;
+  width: fit-content;
+  align-items: center;
+  margin-top: 9px;
+  padding: 4px 9px;
+  border: 1px solid #f6c98b;
+  border-radius: 999px;
+  color: #9a5b09;
+  background: #fff5df;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: .02em;
+}
 .super-admin-page .branch-dashboard-stat-icon svg { color: inherit !important; stroke: currentColor; }
 .super-admin-page .branch-dashboard-stat-card > strong { display: block; margin-top: 9px; padding-bottom: 8px; border-bottom: 1px solid #e2e8f0; color: #0f172a; font-size: 26px !important; line-height: 1; }
 .super-admin-page .branch-dashboard-stat-card > small { display: block; margin-top: 7px; color: #8a9ab0; font-size: 11px; }
@@ -4799,6 +4815,41 @@ body.faculty-notification-menu-open .super-admin-content {
   outline-offset: -3px;
 }
 
+.faculty-batches-filter-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.faculty-batches-total-summary {
+  min-height: 42px;
+  padding: 0 13px;
+  border: 1px solid #dbe7f5;
+  border-radius: 10px;
+  background: #f8fbff;
+  color: #64748b;
+  font-size: 0.8rem;
+  white-space: nowrap;
+}
+
+.faculty-batches-total-summary strong {
+  color: #1d4ed8;
+  font-size: 0.95rem;
+}
+
+@media (max-width: 560px) {
+  .faculty-batches-filter-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .faculty-batches-filter-toolbar .super-admin-branch-filter {
+    width: 100% !important;
+  }
+}
+
 @media (max-width: 1024px) {
   .faculty-course-table-head,
   .faculty-course-table-row {
@@ -6109,6 +6160,89 @@ body.faculty-notification-menu-open .super-admin-content {
   gap: 10px;
 }
 
+.faculty-weekoff-readonly-banner,
+.faculty-weekoff-validation {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  width: 100%;
+  box-sizing: border-box;
+  margin-bottom: 14px;
+  padding: 14px 16px;
+  border-radius: 14px;
+}
+
+.faculty-weekoff-readonly-banner {
+  border: 1px solid #f2c879;
+  background: linear-gradient(135deg, #fffaf0, #fff4d6);
+  color: #713f12;
+}
+
+.faculty-weekoff-readonly-icon {
+  display: grid;
+  flex: 0 0 38px;
+  width: 38px;
+  height: 38px;
+  place-items: center;
+  border-radius: 11px;
+  color: #a16207;
+  background: #ffedb5;
+}
+
+.faculty-weekoff-readonly-copy {
+  display: grid;
+  gap: 3px;
+}
+
+.faculty-weekoff-readonly-copy strong {
+  color: #713f12;
+  font-size: 0.95rem;
+}
+
+.faculty-weekoff-readonly-copy span {
+  color: #925d19;
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.faculty-weekoff-validation {
+  align-items: center;
+  border: 1px solid #f0a6a6;
+  background: #fff1f2;
+  color: #991b1b;
+  font-size: 0.84rem;
+  font-weight: 650;
+}
+
+.faculty-weekoff-validation span {
+  flex: 1;
+  line-height: 1.45;
+}
+
+.faculty-weekoff-validation button {
+  display: grid;
+  flex: 0 0 28px;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border: 0;
+  border-radius: 8px;
+  color: #991b1b;
+  background: transparent;
+  cursor: pointer;
+}
+
+.faculty-weekoff-validation button:hover,
+.faculty-weekoff-validation button:focus-visible {
+  background: #ffe4e6;
+}
+
+.faculty-today-work-trigger.is-read-only {
+  border-color: #d6b56a;
+  color: #8a5a12;
+  background: #fff8e7;
+}
+
 .faculty-today-work-pending-student {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
@@ -6174,6 +6308,11 @@ body.faculty-notification-menu-open .super-admin-content {
 }
 
 @media (max-width: 640px) {
+  .faculty-weekoff-readonly-banner,
+  .faculty-weekoff-validation {
+    padding: 12px;
+  }
+
   .faculty-today-work-pending-student {
     grid-template-columns: auto minmax(0, 1fr);
   }

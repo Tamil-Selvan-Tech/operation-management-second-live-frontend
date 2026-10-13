@@ -4,7 +4,9 @@ import { createPortal } from 'react-dom'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { listAllBranchCourses } from '../services/branchCourseService'
 import { listBranchBatches } from '../services/branchBatchService'
-import { createAcademicTest, createScheduledAcademicTest, deleteAcademicTest, getAcademicTestCreateOptions, getFacultyAcademicTestResults, listAcademicTests, listBranchAcademicTestReports, listFacultyScheduledAcademicTests, updateAcademicTest } from '../services/academicTestService'
+import { createAcademicTest, createScheduledAcademicTest as createScheduledAcademicTestApi, deleteAcademicTest, getAcademicTestCreateOptions, getFacultyAcademicTestResults, listAcademicTests, listBranchAcademicTestReports, listFacultyScheduledAcademicTests, updateAcademicTest } from '../services/academicTestService'
+import { getFacultyCalendar } from '../services/facultyCalendarService'
+import { getMyWeekOffRequests } from '../services/facultyWeekOffService'
 import { getFacultyDashboardOverview } from '../services/dashboardService'
 import '../styles/AcademicTestPage.css'
 import '../styles/SuperAdminDashboardPage.css'
@@ -13,6 +15,7 @@ import BranchAcademicTestReports from './BranchAcademicTestReports'
 
 const TYPE_OPTIONS = [['TEST', 'Test'], ['PROJECT', 'Project'], ['TEST_AND_PROJECT', 'Test + Project']]
 const VALID_TYPES = new Set(TYPE_OPTIONS.map(([value]) => value))
+let activeFacultyDateValidation = () => ''
 const labelType = (value) => TYPE_OPTIONS.find(([key]) => key === value)?.[1] || value || '-'
 const courseLabel = (course) => `${course?.name || '-'}${course?.courseCode ? ` / ${course.courseCode}` : ''}`
 const typeClass = (value) => `academic-test-type-badge academic-test-type-${String(value || '').toLowerCase().replaceAll('_', '-')}`
@@ -30,15 +33,62 @@ function ItemScheduleFields({ item, index, onChange }) {
     {hasProject && <div className="academic-test-schedule-section"><strong>Project</strong><div className="academic-test-project-date-grid"><label>Project Start Date<input type="date" value={item.projectStartDate || ''} onChange={(event) => update('projectStartDate', event.target.value)} /></label><label>Project End Date<input type="date" value={item.projectEndDate || ''} onChange={(event) => update('projectEndDate', event.target.value)} /></label></div></div>}
   </div>
 }
-function RequiredDateField({ label, value, onChange, showError }) { return <label>{label}<input type="date" value={value || ''} onChange={(event) => onChange(event.target.value)} />{showError && <small className="academic-test-required-message">This field is required</small>}</label> }
+function RequiredDateField({ label, value, onChange, error = '', showError = false }) {
+  const fieldId = `academic-test-${String(label || 'date').toLowerCase().replaceAll(/[^a-z0-9]+/g, '-')}`
+  const validationError = error || activeFacultyDateValidation(label, value) || (showError ? 'This field is required.' : '')
+
+  return (
+    <label className={`academic-test-date-field${validationError ? ' is-invalid' : ''}`.trim()}>
+      {label}
+      <input
+        id={fieldId}
+        type="date"
+        value={value || ''}
+        aria-invalid={Boolean(validationError)}
+        aria-describedby={validationError ? `${fieldId}-error` : undefined}
+        onChange={(event) => onChange(event.target.value)}
+      />
+      {validationError ? <small id={`${fieldId}-error`} className="academic-test-required-message">{validationError}</small> : null}
+    </label>
+  )
+}
+
+function dateRuleForBatch(batch, date, holidayDates, weekOffRequests, calendarWeekOffDates = new Set()) {
+  if (!date) return 'Select a date to continue.'
+  const candidate = new Date(`${date}T00:00:00`)
+  if (Number.isNaN(candidate.getTime())) return 'Select a valid date.'
+  const start = String(batch?.courseStartDate || batch?.startDate || '').slice(0, 10)
+  const end = String(batch?.courseEndDate || batch?.endDate || '').slice(0, 10)
+  if (start && date < start || end && date > end) return 'Select a date within this batch course period.'
+  const weekType = String(batch?.weekType || '').toUpperCase()
+  const day = candidate.getDay()
+  if (weekType === 'WEEKDAY' && (day === 0 || day === 6)) return 'This is a weekend date. Select a scheduled weekday class date.'
+  if (weekType === 'WEEKEND' && day !== 0 && day !== 6) return 'This is a weekday date. Select a scheduled weekend class date.'
+  const dayNames = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY']
+  const regularWeekOff = String(batch?.weeklyOffDay || batch?.weekOffDay || '').toUpperCase()
+  const approvedAlternate = weekOffRequests.find((request) => String(request?.status || '').toUpperCase() === 'APPROVED' && String(request?.requestedWeekOffDate || '').slice(0, 10) === date)
+  if (calendarWeekOffDates.has(date) || approvedAlternate || (regularWeekOff && dayNames[day] === regularWeekOff)) return 'This is the faculty week-off date. Select another scheduled class date.'
+  if (holidayDates.has(date)) return 'This date is a holiday or institute leave. Select another scheduled class date.'
+  return ''
+}
 function ActionMenu({ row, onView, onEdit, onDelete }) { const menuRef = useRef(null); const popoverRef = useRef(null); const closeTimer = useRef(null); const [open, setOpen] = useState(false); const [pinned, setPinned] = useState(false); const [position, setPosition] = useState({ top: 0, left: 0 }); const show = () => { if (closeTimer.current) window.clearTimeout(closeTimer.current); const rect = menuRef.current?.getBoundingClientRect(); if (rect) setPosition({ top: rect.bottom + 6, left: Math.max(8, rect.right - 126) }); setOpen(true) }; const hide = () => { if (!pinned) closeTimer.current = window.setTimeout(() => setOpen(false), 120) }; useEffect(() => () => { if (closeTimer.current) window.clearTimeout(closeTimer.current) }, []); useEffect(() => { if (!pinned) return undefined; const close = (event) => { if (!menuRef.current?.contains(event.target) && !popoverRef.current?.contains(event.target)) { setOpen(false); setPinned(false) } }; document.addEventListener('pointerdown', close); return () => document.removeEventListener('pointerdown', close) }, [pinned]); const choose = (action) => { action(row); setOpen(false); setPinned(false) }; const popover = open ? createPortal(<div ref={popoverRef} className="academic-test-action-popover" style={{ top: position.top, left: position.left }} onMouseEnter={() => { if (closeTimer.current) window.clearTimeout(closeTimer.current) }} onMouseLeave={hide}><button type="button" onClick={() => choose(onView)}><Eye size={15} /> View</button><button type="button" onClick={() => choose(onEdit)}><Pencil size={15} /> Edit</button><button type="button" className="is-danger" onClick={() => choose(onDelete)}><Trash2 size={15} /> Delete</button></div>, document.body) : null; return <div ref={menuRef} className={`academic-test-action-menu ${open ? 'is-open' : ''}`} onMouseEnter={show} onMouseLeave={hide}><button type="button" className="academic-test-more-button" aria-label="Open actions" onClick={(event) => { event.stopPropagation(); setPinned(true); show() }}><MoreVertical size={18} /></button>{popover}</div> }
 function CoursePicker({ courses, value, onChange, loading = false }) { const selectedCourse = courses.find((course) => course.id === value); const [query, setQuery] = useState(selectedCourse ? courseLabel(selectedCourse) : ''); const displayedQuery = selectedCourse && !query ? courseLabel(selectedCourse) : query; const [isOpen, setIsOpen] = useState(false); const filteredCourses = useMemo(() => { const search = query.trim().toLowerCase(); if (!search || (selectedCourse && query === courseLabel(selectedCourse))) return courses; return courses.filter((course) => [course.name, course.courseCode, course.id].some((field) => String(field || '').toLowerCase().includes(search))) }, [courses, query, selectedCourse]); const clear = () => { setQuery(''); setIsOpen(true); onChange('') }; return <div className="academic-test-course-picker"><span>Course</span><div className="academic-test-course-input-wrap"><input value={displayedQuery} placeholder={loading ? 'Loading courses...' : 'Search course name or ID'} disabled={loading} onFocus={() => setIsOpen(true)} onChange={(event) => { setQuery(event.target.value); onChange(''); setIsOpen(true) }} />{displayedQuery && <button type="button" className="academic-test-course-clear" onClick={clear} aria-label="Clear course search"><X size={17} /></button>}</div>{isOpen && <div className="academic-test-course-options">{loading ? <p className="academic-test-muted">Loading courses...</p> : filteredCourses.length ? filteredCourses.map((course) => <button type="button" className="academic-test-course-option" key={course.id} onMouseDown={(event) => event.preventDefault()} onClick={() => { onChange(course.id); setQuery(courseLabel(course)); setIsOpen(false) }}><strong>{course.name || '-'}</strong><span>{course.courseCode || course.id}</span></button>) : <p className="academic-test-muted">No matching courses found.</p>}</div>}</div> }
 
 function FacultyScheduledTestTable() { const [tests, setTests] = useState([]); const [result, setResult] = useState(null); const [error, setError] = useState(''); useEffect(() => { listFacultyScheduledAcademicTests().then(setTests).catch((e) => setError(e.message || 'Unable to load scheduled tests.')) }, []); const openResult = async (id) => { try { setResult(await getFacultyAcademicTestResults(id)) } catch (e) { setError(e.message || 'Unable to load result.') } }; return <><div className="academic-test-card academic-test-scheduled-card"><div className="academic-test-scheduled-heading"><h2>Created Tests</h2><span>{tests.length} scheduled</span></div>{error && <div className="academic-test-error">{error}</div>}<div className="academic-test-table-wrap"><table><thead><tr><th>Test</th><th>Course</th><th>Batch</th><th>Date</th><th>Time</th><th>Status</th><th>Question Paper</th><th>View Result</th></tr></thead><tbody>{tests.length ? tests.map((test) => <tr key={test.id}><td>Test {test.testNumber}</td><td>{test.course?.name || '-'}</td><td>{test.batch?.batchName || '-'}</td><td>{test.testDate}</td><td>{test.startTime} - {test.endTime}</td><td>{test.status}</td><td>{test.totalQuestions ? `${test.totalQuestions} Questions / ${test.totalMarks} Marks` : 'Prepared'}</td><td><button type="button" className="academic-test-view-button" onClick={() => openResult(test.id)}>View Result</button></td></tr>) : <tr><td colSpan="8" className="academic-test-empty">No tests created yet.</td></tr>}</tbody></table></div></div>{result && <div className="academic-test-modal-backdrop"><div className="academic-test-modal academic-test-result-modal"><div className="academic-test-modal-heading"><div><p className="academic-test-kicker">ACADEMIC TEST RESULT</p><h2>{result.test?.testName} - {result.test?.batch?.batchName || 'Batch'}</h2></div><button type="button" onClick={() => setResult(null)}><X size={18} /></button></div><div className="academic-test-table-wrap"><table><thead><tr><th>Student</th><th>Student ID</th><th>Total Q</th><th>Attempted</th><th>Correct</th><th>Wrong</th><th>Unmarked</th><th>Marks</th><th>Percentage</th><th>Status</th></tr></thead><tbody>{result.students.map((entry) => <tr key={entry.student.id}><td>{entry.student.studentName}</td><td>{entry.student.studentId}</td><td>{entry.totalQuestions || result.test.totalQuestions}</td><td>{entry.attemptedCount}</td><td>{entry.correctCount}</td><td>{entry.wrongCount}</td><td>{entry.unmarkedCount}</td><td>{entry.obtainedMarks == null ? '-' : `${entry.obtainedMarks} / ${entry.totalMarks}`}</td><td>{entry.percentage == null ? '-' : `${Number(entry.percentage).toFixed(2)}%`}</td><td>{entry.status === 'NOT_SUBMITTED' ? 'Not Submitted' : entry.status}</td></tr>)}</tbody></table></div></div></div>}</> }
 
-export default function AcademicTestPage({ mode = 'branch', autoOpenCreate = false, onCreateClose, facultyCourseId = '', facultyBatchId = '', facultyCourseProgressByBatch = null, facultyBatchStudentCounts = null }) {
+export default function AcademicTestPage({ mode = 'branch', autoOpenCreate = false, onCreateClose, facultyCourseId = '', facultyBatchId = '', facultyCourseProgressByBatch = null, facultyBatchStudentCounts = null, facultyWeekOffBlocked = false, onWeekOffBlocked }) {
   const navigate = useNavigate(); const [searchParams] = useSearchParams(); const createAutoOpenHandled = useRef(false); const isFaculty = mode === 'faculty'; const [courses, setCourses] = useState([]); const [coursesLoading, setCoursesLoading] = useState(false); const [coursesLoaded, setCoursesLoaded] = useState(false); const [batches, setBatches] = useState([]); const [rows, setRows] = useState([]); const [batchProgressById, setBatchProgressById] = useState(() => new Map()); const [reportedBatchById, setReportedBatchById] = useState(() => new Map()); const [selectedCourseId, setSelectedCourseId] = useState(''); const [selectedBatchIds, setSelectedBatchIds] = useState([]); const [items, setItems] = useState([]); const [editing, setEditing] = useState(null); const [viewing, setViewing] = useState(null); const [deleting, setDeleting] = useState(null); const [open, setOpen] = useState(false); const [loading, setLoading] = useState(true); const [saving, setSaving] = useState(false); const [error, setError] = useState(''); const [createOptions, setCreateOptions] = useState(null); const [createBatchId, setCreateBatchId] = useState(''); const [createForm, setCreateForm] = useState({ testDate: '', startTime: '10:00', endTime: '11:00', projectStartDate: '', projectEndDate: '' }); const [createError, setCreateError] = useState(''); const [createAttempted, setCreateAttempted] = useState(false); const [createSaving, setCreateSaving] = useState(false)
   const createModalOpened = useRef(false)
+  const [calendarHolidayDates, setCalendarHolidayDates] = useState(() => new Set())
+  const [calendarWeekOffDates, setCalendarWeekOffDates] = useState(() => new Set())
+  const [calendarBatchRules, setCalendarBatchRules] = useState(null)
+  const [calendarRulesLoading, setCalendarRulesLoading] = useState(false)
+  const [facultyWeekOffRequests, setFacultyWeekOffRequests] = useState([])
+  const blockFacultyWeekOffAction = () => {
+    if (!isFaculty || !facultyWeekOffBlocked) return false
+    onWeekOffBlocked?.()
+    return true
+  }
   const [facultyPage, setFacultyPage] = useState(1)
   const [searchTerm, setSearchTerm] = useState('')
   const [appliedSearchTerm, setAppliedSearchTerm] = useState('')
@@ -132,12 +182,115 @@ export default function AcademicTestPage({ mode = 'branch', autoOpenCreate = fal
   useEffect(() => { if (isFaculty || !rows.length) return undefined; const body = document.querySelector('.academic-test-page .academic-test-card tbody'); if (!body) return undefined; const tableRows = [...body.querySelectorAll('tr')].slice(0, rows.length); const cleanups = tableRows.map((rowElement, index) => { const openView = () => setViewing(rows[index]); rowElement.addEventListener('click', openView); rowElement.setAttribute('tabindex', '0'); rowElement.setAttribute('role', 'button'); const onKeyDown = (event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); openView() } }; rowElement.addEventListener('keydown', onKeyDown); return () => { rowElement.removeEventListener('click', openView); rowElement.removeEventListener('keydown', onKeyDown) } }); return () => cleanups.forEach((cleanup) => cleanup()) }, [isFaculty, rows])
    const openCreate = () => { setEditing(null); setSelectedCourseId(''); setSelectedBatchIds([]); setItems([]); setError(''); setOpen(true); void loadCourses() }; const openEdit = (row) => { const reportedBatch = (row.batches || []).map((batch) => [batch.id, batch.batchId].map((value) => String(value || '').trim().toLowerCase()).find(Boolean)).map((key) => reportedBatchById.get(key)).find(Boolean); if (reportedBatch) { const batchName = reportedBatch.batch?.batchName || reportedBatch.batchName || 'this batch'; const completedCount = Array.isArray(reportedBatch.academicTestIds) ? reportedBatch.academicTestIds.length : 0; setError(`Cannot edit Academic Tests for ${batchName}. ${completedCount || 'One or more'} test${completedCount === 1 ? '' : 's'} already completed and the report was sent.`); return } const count = Number(row.course?.academicTestCount || row.academicTestCount || row.items?.length || 0); setEditing(row); setSelectedCourseId(String(row.course?.id || '')); setSelectedBatchIds((row.batches || []).map((batch) => String(batch.id || batch.batchId || '').trim()).filter(Boolean)); setItems(Array.from({ length: count }, (_, index) => ({ ...emptyItem(), ...(row.items?.[index] || {}) }))); setError(''); setOpen(true); void loadCourses() }; const handleCourseChange = (id) => { const normalizedId = String(id || '').trim(); if (!normalizedId) { setEditing(null); setSelectedCourseId(''); setBatches([]); setSelectedBatchIds([]); setItems([]); setError(''); return }; const course = courses.find((item) => String(item.id) === normalizedId); const existing = rows.find((row) => String(row.course?.id || '') === normalizedId); const count = Number(course?.academicTestCount || existing?.academicTestCount || existing?.items?.length || 0); setEditing(null); setSelectedCourseId(normalizedId); setBatches([]); setSelectedBatchIds([]); setItems(Array.from({ length: count }, emptyItem)); setError(count > 0 ? '' : 'This course has no Academic Test count. Set the Academic Test count in Course Management first.') }; const updateItem = (index, value) => setItems((current) => current.map((entry, entryIndex) => entryIndex === index ? value : entry)); const toggleBatch = (id) => setSelectedBatchIds((current) => current.includes(id) ? current.filter((value) => value !== id) : [...current, id]); const toggleAllBatches = () => setSelectedBatchIds((current) => batches.length && batches.every((batch) => current.includes(batch.selectionId)) ? [] : batches.map((batch) => batch.selectionId))
   const save = async () => { const normalizedCourseId = String(selectedCourseId || '').trim(); const normalizedBatchIds = [...new Set(selectedBatchIds.map((id) => String(id || '').trim()).filter(Boolean))]; const invalid = items.find((item) => !VALID_TYPES.has(String(item?.testType || '').trim().toUpperCase())); if (!normalizedCourseId) return setError('Select a course to continue.'); if (!normalizedBatchIds.length) return setError('Select at least one batch to continue.'); if (!items.length) return setError('This course has no Academic Test count. Set the Academic Test count in Course Management first.'); if (invalid) return setError('Choose a test type for every test.'); setSaving(true); setError(''); try { const payload = { courseId: normalizedCourseId, batchIds: normalizedBatchIds, items: items.map(({ testType }) => ({ testType: String(testType).trim().toUpperCase() })) }; if (editing) await updateAcademicTest(editing.id, payload); else await createAcademicTest(payload); setOpen(false); await loadRows() } catch (e) { setError(e.message || 'Unable to save Academic Test.') } finally { setSaving(false) } }; const confirmDelete = async () => { if (!deleting) return; setSaving(true); try { await deleteAcademicTest(deleting.id); setDeleting(null); await loadRows() } catch (e) { setError(e.message || 'Unable to delete Academic Test.') } finally { setSaving(false) } }
-  const openFacultyCreate = async () => { setCreateError(''); setCreateAttempted(false); try { const options = await getAcademicTestCreateOptions(); const allBatches = options?.courses?.flatMap((course) => course.batches || []) || []; const withStudentCounts = (batch) => { const keys = [batch.id, batch.batchId, batch.branchBatchId].map((value) => String(value || '').trim().toLowerCase()).filter(Boolean); const count = keys.map((key) => facultyBatchStudentCounts?.get?.(key) ?? facultyBatchStudentCounts?.[key] ?? Array.from(facultyBatchStudentCounts?.entries?.() || []).find(([entryKey]) => String(entryKey || '').trim().toLowerCase() === key)?.[1]).find((value) => value != null); return count == null ? batch : { ...batch, studentCount: Number(count) || 0 } }; const enrichedCourses = (options.courses || []).map((course) => ({ ...course, batches: (course.batches || []).map(withStudentCounts) })); const enrichedOptions = { ...options, courses: enrichedCourses }; const enrichedBatches = enrichedCourses.flatMap((course) => course.batches || []); const targetItemId = String(searchParams.get('itemId') || '').trim(); const targetBatchId = String(searchParams.get('batchId') || '').trim(); const batchIdMatches = (batch) => [batch.id, batch.batchId, batch.branchBatchId].some((value) => String(value || '').trim() === targetBatchId); const targetBatches = enrichedBatches.filter(batchIdMatches); const targetedBatch = targetBatches.find((batch) => !targetItemId || String(batch.academicTestItemId || '').trim() === targetItemId) || targetBatches[0]; const filteredCourses = targetedBatch ? enrichedCourses.filter((course) => (course.batches || []).some(batchIdMatches)) : enrichedCourses; const filteredOptions = targetedBatch ? { ...enrichedOptions, courses: filteredCourses } : enrichedOptions; const firstBatch = targetedBatch || enrichedBatches.find((batch) => batch.available) || enrichedBatches[0]; setCreateOptions(filteredOptions); setCreateBatchId(firstBatch?.id || firstBatch?.batchId || ''); setCreateForm({ testDate: options?.tomorrow || '', startTime: '10:00', endTime: '11:00', projectStartDate: firstBatch?.projectStartDate || '', projectEndDate: firstBatch?.projectEndDate || '' }) } catch (e) { setCreateError(e.message || 'Unable to load Create Test options.') } }
+  const openFacultyCreate = async () => { if (blockFacultyWeekOffAction()) return; setCreateError(''); setCreateAttempted(false); try { const options = await getAcademicTestCreateOptions(); const allBatches = options?.courses?.flatMap((course) => course.batches || []) || []; const withStudentCounts = (batch) => { const keys = [batch.id, batch.batchId, batch.branchBatchId].map((value) => String(value || '').trim().toLowerCase()).filter(Boolean); const count = keys.map((key) => facultyBatchStudentCounts?.get?.(key) ?? facultyBatchStudentCounts?.[key] ?? Array.from(facultyBatchStudentCounts?.entries?.() || []).find(([entryKey]) => String(entryKey || '').trim().toLowerCase() === key)?.[1]).find((value) => value != null); return count == null ? batch : { ...batch, studentCount: Number(count) || 0 } }; const enrichedCourses = (options.courses || []).map((course) => ({ ...course, batches: (course.batches || []).map(withStudentCounts) })); const enrichedOptions = { ...options, courses: enrichedCourses }; const enrichedBatches = enrichedCourses.flatMap((course) => course.batches || []); const targetItemId = String(searchParams.get('itemId') || '').trim(); const targetBatchId = String(searchParams.get('batchId') || '').trim(); const batchIdMatches = (batch) => [batch.id, batch.batchId, batch.branchBatchId].some((value) => String(value || '').trim() === targetBatchId); const targetBatches = enrichedBatches.filter(batchIdMatches); const targetedBatch = targetBatches.find((batch) => !targetItemId || String(batch.academicTestItemId || '').trim() === targetItemId) || targetBatches[0]; const filteredCourses = targetedBatch ? enrichedCourses.filter((course) => (course.batches || []).some(batchIdMatches)) : enrichedCourses; const filteredOptions = targetedBatch ? { ...enrichedOptions, courses: filteredCourses } : enrichedOptions; const firstBatch = targetedBatch || enrichedBatches.find((batch) => batch.available) || enrichedBatches[0]; setCreateOptions(filteredOptions); setCreateBatchId(firstBatch?.id || firstBatch?.batchId || ''); setCreateForm({ testDate: options?.tomorrow || '', startTime: '10:00', endTime: '11:00', projectStartDate: firstBatch?.projectStartDate || '', projectEndDate: firstBatch?.projectEndDate || '' }) } catch (e) { setCreateError(e.message || 'Unable to load Create Test options.') } }
   useEffect(() => { if (isFaculty && (autoOpenCreate || searchParams.get('create') === '1') && !createOptions && !createAutoOpenHandled.current) { createAutoOpenHandled.current = true; void openFacultyCreate(); if (!autoOpenCreate) navigate('/dashboard/faculty/exams/academic-tests', { replace: true }) } }, [isFaculty, autoOpenCreate, searchParams, createOptions, navigate])
   useEffect(() => { if (!autoOpenCreate) return; if (createOptions) createModalOpened.current = true; if (createModalOpened.current && !createOptions) onCreateClose?.() }, [autoOpenCreate, createOptions, onCreateClose])
   const closeCreate = () => { setCreateOptions(null); onCreateClose?.() }
-  const submitFacultyCreate = async () => { setCreateAttempted(true); const matchesSelectedBatch = (batch) => [batch.id, batch.batchId, batch.branchBatchId].some((value) => String(value || '') === String(createBatchId || '')); const course = createOptions?.courses?.find((entry) => entry.batches.some(matchesSelectedBatch)); const batch = course?.batches?.find(matchesSelectedBatch); if (!batch?.academicTestItemId) return setCreateError('No next test is available for this batch.'); const needsTest = batch.testType === 'TEST' || batch.testType === 'TEST_AND_PROJECT'; const needsProject = batch.testType === 'PROJECT' || batch.testType === 'TEST_AND_PROJECT'; if ((needsTest && !createForm.testDate) || (needsProject && (!createForm.projectStartDate || !createForm.projectEndDate))) return setCreateError('Complete all required date fields before creating the test.'); setCreateSaving(true); setCreateError(''); try { await createScheduledAcademicTest({ academicTestItemId: batch.academicTestItemId, branchBatchId: batch.id || batch.batchId || batch.branchBatchId, testDate: needsTest ? createForm.testDate : null, startTime: needsTest ? createForm.startTime : null, endTime: needsTest ? createForm.endTime : null, projectStartDate: needsProject ? createForm.projectStartDate : null, projectEndDate: needsProject ? createForm.projectEndDate : null }); setCreateOptions(null); await loadRows() } catch (e) { setCreateError(e.message || 'Unable to create test.') } finally { setCreateSaving(false) } }
+  const submitFacultyCreate = async () => {
+    if (blockFacultyWeekOffAction()) return
+    setCreateAttempted(true)
+    const matchesSelectedBatch = (batch) => [batch.id, batch.batchId, batch.branchBatchId].some((value) => String(value || '') === String(createBatchId || ''))
+    const course = createOptions?.courses?.find((entry) => entry.batches.some(matchesSelectedBatch))
+    const batch = course?.batches?.find(matchesSelectedBatch)
+    if (!batch?.academicTestItemId) return setCreateError('No next test is available for this batch.')
+
+    const needsTest = batch.testType === 'TEST' || batch.testType === 'TEST_AND_PROJECT'
+    const needsProject = batch.testType === 'PROJECT' || batch.testType === 'TEST_AND_PROJECT'
+    if ((needsTest && !createForm.testDate) || (needsProject && (!createForm.projectStartDate || !createForm.projectEndDate))) {
+      return setCreateError('Complete all required date fields before creating the test.')
+    }
+    if (calendarRulesLoading) return setCreateError('Checking the selected batch calendar. Please try again in a moment.')
+    if (Object.values(createDateErrors).some(Boolean)) {
+      return setCreateError('Fix the highlighted date fields before creating the test.')
+    }
+
+    setCreateSaving(true)
+    setCreateError('')
+    try {
+      await createScheduledAcademicTest({
+        academicTestItemId: batch.academicTestItemId,
+        branchBatchId: batch.id || batch.batchId || batch.branchBatchId,
+        testDate: needsTest ? createForm.testDate : null,
+        startTime: needsTest ? createForm.startTime : null,
+        endTime: needsTest ? createForm.endTime : null,
+        projectStartDate: needsProject ? createForm.projectStartDate : null,
+        projectEndDate: needsProject ? createForm.projectEndDate : null,
+      })
+      setCreateOptions(null)
+      await loadRows()
+    } catch (e) {
+      setCreateError(e.message || 'Unable to create test.')
+    } finally {
+      setCreateSaving(false)
+    }
+  }
   const selectedCreateBatch = createOptions?.courses?.flatMap((course) => course.batches).find((batch) => [batch.id, batch.batchId, batch.branchBatchId].some((value) => String(value || '') === String(createBatchId || '')))
+  useEffect(() => {
+    if (!isFaculty || !createOptions) return undefined
+    let active = true
+    getMyWeekOffRequests().then((requests) => {
+      if (active) setFacultyWeekOffRequests(Array.isArray(requests) ? requests : [])
+    }).catch(() => { if (active) setFacultyWeekOffRequests([]) })
+    return () => { active = false }
+  }, [createOptions, isFaculty])
+  useEffect(() => {
+    if (!isFaculty || !selectedCreateBatch) return undefined
+    const startDate = String(selectedCreateBatch.courseStartDate || selectedCreateBatch.startDate || '').slice(0, 10)
+    const endDate = String(selectedCreateBatch.courseEndDate || selectedCreateBatch.endDate || '').slice(0, 10)
+    let active = true
+    setCalendarRulesLoading(true)
+    getFacultyCalendar({ startDate, endDate }).then((calendar) => {
+      if (!active) return
+      const events = Array.isArray(calendar?.events) ? calendar.events : []
+      const calendarBatch = (Array.isArray(calendar?.batches) ? calendar.batches : []).find((entry) => [entry?.id, entry?.batchId].some((value) => String(value || '').trim() && [selectedCreateBatch?.id, selectedCreateBatch?.batchId, selectedCreateBatch?.branchBatchId].some((batchValue) => String(batchValue || '').trim() === String(value || '').trim()))) || null
+      const blocked = new Set(events.filter((event) => ['HOLIDAY', 'INSTITUTE_LEAVE', 'LEAVE'].includes(String(event?.code || event?.status || '').toUpperCase().replaceAll(' ', '_'))).map((event) => String(event?.date || '').slice(0, 10)).filter(Boolean))
+      const weekOffDates = new Set(events.filter((event) => String(event?.code || event?.status || '').toUpperCase().replaceAll(' ', '_') === 'FACULTY_WEEKLY_OFF').map((event) => String(event?.date || '').slice(0, 10)).filter(Boolean))
+      setCalendarHolidayDates(blocked)
+      setCalendarWeekOffDates(weekOffDates)
+      setCalendarBatchRules(calendarBatch)
+    }).catch(() => { if (active) { setCalendarHolidayDates(new Set()); setCalendarWeekOffDates(new Set()); setCalendarBatchRules(null) } }).finally(() => {
+      if (active) setCalendarRulesLoading(false)
+    })
+    return () => { active = false }
+  }, [isFaculty, selectedCreateBatch?.batchId, selectedCreateBatch?.branchBatchId, selectedCreateBatch?.courseEndDate, selectedCreateBatch?.courseStartDate, selectedCreateBatch?.endDate, selectedCreateBatch?.id, selectedCreateBatch?.startDate])
+  const dateValidationBatch = useMemo(() => ({ ...selectedCreateBatch, ...(calendarBatchRules || {}) }), [calendarBatchRules, selectedCreateBatch])
+  const createDateErrors = useMemo(() => {
+    const batch = dateValidationBatch || {}
+    const errors = {}
+    const needsTest = batch.testType === 'TEST' || batch.testType === 'TEST_AND_PROJECT'
+    const needsProject = batch.testType === 'PROJECT' || batch.testType === 'TEST_AND_PROJECT'
+
+    if (needsTest && createForm.testDate) {
+      errors.testDate = dateRuleForBatch(batch, createForm.testDate, calendarHolidayDates, facultyWeekOffRequests, calendarWeekOffDates)
+    }
+    if (needsProject && createForm.projectStartDate) {
+      errors.projectStartDate = dateRuleForBatch(batch, createForm.projectStartDate, calendarHolidayDates, facultyWeekOffRequests, calendarWeekOffDates)
+    }
+    if (needsProject && createForm.projectEndDate) {
+      errors.projectEndDate = dateRuleForBatch(batch, createForm.projectEndDate, calendarHolidayDates, facultyWeekOffRequests, calendarWeekOffDates)
+    }
+    if (!errors.projectEndDate && createForm.projectStartDate && createForm.projectEndDate && createForm.projectEndDate < createForm.projectStartDate) {
+      errors.projectEndDate = 'Project end date must be on or after the project start date.'
+    }
+
+    return errors
+  }, [calendarHolidayDates, calendarWeekOffDates, createForm.projectEndDate, createForm.projectStartDate, createForm.testDate, dateValidationBatch, facultyWeekOffRequests])
+  activeFacultyDateValidation = (label, value) => {
+    const field = String(label || '').toLowerCase()
+    if (!value || !dateValidationBatch) return ''
+    if (field === 'project end date' && createForm.projectStartDate && value < createForm.projectStartDate) {
+      return 'Project end date must be on or after the project start date.'
+    }
+    return dateRuleForBatch(dateValidationBatch, value, calendarHolidayDates, facultyWeekOffRequests, calendarWeekOffDates)
+  }
+  const createScheduledAcademicTest = async (payload) => {
+    const batch = dateValidationBatch || {}
+    const dates = [payload.testDate, payload.projectStartDate, payload.projectEndDate].filter(Boolean)
+    const invalidMessage = dates.map((date) => dateRuleForBatch(batch, date, calendarHolidayDates, facultyWeekOffRequests, calendarWeekOffDates)).find(Boolean)
+    if (invalidMessage) throw new Error(invalidMessage)
+    if (payload.projectStartDate && payload.projectEndDate && payload.projectEndDate < payload.projectStartDate) throw new Error('Project end date must be on or after the project start date.')
+    return createScheduledAcademicTestApi(payload)
+  }
   const academicCourseOptions = useMemo(() => [...new Map(rows.map((row) => [row.course?.id || row.course?.courseCode || row.course?.name, row.course?.name || row.course?.courseCode || '-'])).entries()].filter(([value]) => value).sort((left, right) => String(left[1]).localeCompare(String(right[1]))), [rows])
   const filteredAcademicRows = useMemo(() => rows.filter((row) => {
     const query = appliedSearchTerm.trim().toLowerCase()
