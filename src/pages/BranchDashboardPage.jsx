@@ -8857,6 +8857,15 @@ useEffect(() => {
     }
   }, [branchStudentsForDisplay])
 
+  const studentLifecycleFilterOptions = [
+    { value: 'course-completed', label: 'Course Completed' },
+    { value: 'discontinued', label: 'Discontinued' },
+  ]
+  const isCourseCompletedFilter = String(studentStatusFilter || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[\s_-]/g, '') === 'coursecompleted'
+
   const filteredBranchStudents = useMemo(() => {
     const q = appliedStudentSearchTerm.trim().toLowerCase()
     return branchStudentsForDisplay
@@ -8872,35 +8881,13 @@ useEffect(() => {
       })
       .filter((student) => {
         if (studentStatusFilter === 'all') return true
-        if (studentStatusFilter === 'course-completed') {
-          const hasCompletedCourse = [
-            {
-              courseId: student?.courseId,
-              progress: student?.courseProgress ?? student?.courseCompletionPercentage ?? student?.progress,
-            },
-            ...(Array.isArray(student?.courseEnrollments) ? student.courseEnrollments : []),
-          ].some((course) => {
-            if (Number(course?.progress ?? course?.courseProgress ?? course?.courseCompletionPercentage) < 100) return false
-            const courseId = String(course?.courseId || course?.id || '').trim()
-            const academicProgress = getStudentAcademicProgress(student, courseId, course?.courseName || course?.name || '', branchAcademicProgressByStudent)
-            return isAcademicTestProgressComplete(academicProgress)
-          })
-
-          if (hasCompletedCourse) return true
-
-          // Some course progress is calculated from faculty work entries on
-          // this page instead of being persisted on the student snapshot.
-          return branchCourseCards.some((course) => {
-            const progressSummary = buildFacultyTodayWorkProgressSummary(
-              facultyTodayWorkEntries,
-              course,
-              { ...student, courseId: course.id, courseName: course.name },
-            )
-            if (Number(progressSummary?.courseProgress) < 100) return false
-            const academicProgress = getStudentAcademicProgress(student, course.id, course.name, branchAcademicProgressByStudent)
-            return isAcademicTestProgressComplete(academicProgress)
-          })
-        }
+        const isDiscontinued = Boolean(
+          student?.isDiscontinued
+          || String(student?.discontinuationStatus || '').trim().toUpperCase() === 'APPROVED'
+          || String(student?.status || student?.recordStatus || student?.studentStatus || '').trim().toUpperCase() === 'DISCONTINUED',
+        )
+        if (studentStatusFilter === 'discontinued') return isDiscontinued
+        if (isCourseCompletedFilter) return !isDiscontinued
         const statusValue = String(student?.status || student?.recordStatus || student?.studentStatus || 'Active').trim().toLowerCase()
         return statusValue === String(studentStatusFilter).toLowerCase()
       })
@@ -8922,14 +8909,17 @@ useEffect(() => {
         const comparison = String(leftValue).localeCompare(String(rightValue), undefined, { numeric: true, sensitivity: 'base' })
         return studentSortOrder === 'asc' ? comparison : -comparison
       })
-  }, [appliedStudentSearchTerm, branchAcademicProgressByStudent, branchCourseCards, branchStudentsForDisplay, facultyTodayWorkEntries, studentCourseFilter, studentSortBy, studentSortOrder, studentStatusFilter])
+  }, [appliedStudentSearchTerm, branchStudentsForDisplay, isCourseCompletedFilter, studentCourseFilter, studentSortBy, studentSortOrder, studentStatusFilter])
 
-  const totalStudentPages = Math.max(1, Math.ceil(filteredBranchStudents.length / BRANCH_STUDENTS_PER_PAGE))
+  const totalStudentPages = isCourseCompletedFilter
+    ? 1
+    : Math.max(1, Math.ceil(filteredBranchStudents.length / BRANCH_STUDENTS_PER_PAGE))
   const safeStudentPage = Math.min(studentPage, totalStudentPages)
   const visibleBranchStudents = useMemo(() => {
+    if (isCourseCompletedFilter) return filteredBranchStudents
     const start = (safeStudentPage - 1) * BRANCH_STUDENTS_PER_PAGE
     return filteredBranchStudents.slice(start, start + BRANCH_STUDENTS_PER_PAGE)
-  }, [filteredBranchStudents, safeStudentPage])
+  }, [filteredBranchStudents, isCourseCompletedFilter, safeStudentPage])
 
   useEffect(() => {
     if (!branchStudentsForDisplay.length) {
@@ -10918,8 +10908,10 @@ useEffect(() => {
                         ariaLabel="Filter students by status"
                         options={[
                           { value: 'all', label: 'All status' },
-                          { value: 'course-completed', label: 'Course Completed' },
-                          ...studentFilterOptions.statuses.map(([value, label]) => ({ value, label })),
+                          ...studentLifecycleFilterOptions,
+                          ...studentFilterOptions.statuses
+                            .filter(([value]) => !studentLifecycleFilterOptions.some((option) => option.value === value))
+                            .map(([value, label]) => ({ value, label })),
                         ]}
                         onChange={(value) => { setStudentStatusFilter(value); setStudentPage(1) }}
                       />
@@ -11384,8 +11376,11 @@ else {
             })
             const allCoursesCompleted = courseRows.length > 0
               && courseRows.every((courseRow) => courseRow.courseCompletionStatus === 'COMPLETED')
-            if (studentStatusFilter === 'course-completed' && !allCoursesCompleted) return null
-            const displayCourseRows = courseRows
+            const completedCourseRows = courseRows.filter((courseRow) => courseRow.courseCompletionStatus === 'COMPLETED')
+            if (isCourseCompletedFilter && !completedCourseRows.length) return null
+            const displayCourseRows = isCourseCompletedFilter
+              ? completedCourseRows
+              : courseRows
             if (!displayCourseRows.length) return null
             const overallCourseCompletionStatus = isStudentDiscontinued
               ? 'DISCONTINUED'
@@ -11429,6 +11424,7 @@ else {
             return (
               <Fragment key={stu.studentId || stu.id}>
                 {displayCourseRows.map((courseRow, index) => {
+                  if (isCourseCompletedFilter && courseRow.courseCompletionStatus !== 'COMPLETED') return null
                   const courseActionMenuId = `${stu.studentId || stu.id}::${courseRow.courseId || index}`
                   return (
                   <tr
@@ -11578,7 +11574,7 @@ else {
           const singleCourseCompleted = !isStudentDiscontinued
             && studentCourseProgress >= 100
             && isAcademicTestProgressComplete(singleCourseAcademicProgress)
-          if (studentStatusFilter === 'course-completed' && !singleCourseCompleted) return null
+          if (isCourseCompletedFilter && !singleCourseCompleted) return null
 
           return (
             <tr
@@ -11841,7 +11837,7 @@ else {
     </tbody>
   </table>
 </div>
-                  {filteredBranchStudents.length > BRANCH_STUDENTS_PER_PAGE ? (
+                  {totalStudentPages > 1 ? (
                     <div className="branch-course-pagination">
                       <button
                         type="button"
