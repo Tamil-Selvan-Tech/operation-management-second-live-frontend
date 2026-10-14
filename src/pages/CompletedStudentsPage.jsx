@@ -186,6 +186,12 @@ export function CompletedStudentsPage({ academicProgressByStudent = new Map(), b
           const allStudentPayments = (Array.isArray(paymentHistoryRecords) ? paymentHistoryRecords : []).filter((payment) => String(payment?.studentId || '').trim().toLowerCase() === String(matchedStudent.studentId || matchedStudent.id || '').trim().toLowerCase())
           const coursePayments = allStudentPayments.filter((payment) => String(payment?.course || payment?.courseName || '').trim().toLowerCase() === String(courseName).trim().toLowerCase())
           const studentPayments = coursePayments.length ? coursePayments : allStudentPayments
+          const paymentHistoryPaidAmount = coursePayments.reduce((sum, payment) => sum + Number(payment?.amount ?? payment?.paidAmount ?? payment?.amountPaid ?? payment?.credit ?? 0), 0)
+          const rawCoursePaidAmount = coursePayments.length ? paymentHistoryPaidAmount : Number(financials.paidAmount || 0)
+          const courseTotalFees = Number(financials.totalFees || 0)
+          const coursePaidAmount = courseTotalFees > 0
+            ? Math.min(rawCoursePaidAmount, courseTotalFees)
+            : rawCoursePaidAmount
           const firstInstallmentPayment = studentPayments.find((payment) => {
             const explicitNumber = Number(payment?.installmentNumber || payment?.number)
             const labelNumber = String(payment?.payAgainst || payment?.description || '').match(/installment\s*(\d+)/i)?.[1]
@@ -237,8 +243,8 @@ export function CompletedStudentsPage({ academicProgressByStudent = new Map(), b
             academicTests: getAcademicTestsForRow(academicProgressByStudent, matchedStudent.studentId || matchedStudent.id, courseId, courseName),
             registrationFees: matchedStudent.registrationFees ?? catalogCourse?.registrationFees ?? catalogCourse?.registrationFee,
             totalFees: financials.totalFees,
-            paidAmount: financials.paidAmount || financials.totalFees,
-            pendingAmount: financials.paidAmount ? financials.pendingAmount : 0,
+            paidAmount: coursePaidAmount,
+            pendingAmount: Math.max(courseTotalFees - coursePaidAmount, 0),
             lifecycleStatus: 'COMPLETED',
           }
         }).filter((row) => !appliedSearch || [row.studentName, row.studentId, row.courseName, row.emailAddress].some((value) => String(value || '').toLowerCase().includes(appliedSearch.toLowerCase())))
