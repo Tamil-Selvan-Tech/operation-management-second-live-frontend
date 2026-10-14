@@ -244,6 +244,11 @@ export default function AcademicTestPreparationPage({ facultyCourseProgressByBat
     setShowBuilder(searchParams.get('view') === 'builder')
     setMessage(searchParams.get('message') || '')
   }, [searchParams.toString()])
+  useEffect(() => {
+    if (searchParams.get('view') === 'list') {
+      navigate('/dashboard/faculty/exams/academic-tests', { replace: true })
+    }
+  }, [navigate, searchParams])
   useEffect(() => { if (!resultActionOpen) return undefined; const closeOnOutsideClick = (event) => { if (!event.target.closest('.academic-preparation-result-actions-overlay')) setResultActionOpen(false) }; document.addEventListener('click', closeOnOutsideClick); return () => document.removeEventListener('click', closeOnOutsideClick) }, [resultActionOpen])
   const [retestTarget, setRetestTarget] = useState(null)
   const [retestForm, setRetestForm] = useState({ testDate: '', startTime: '10:00', endTime: '11:00' })
@@ -253,6 +258,7 @@ export default function AcademicTestPreparationPage({ facultyCourseProgressByBat
   const [assessmentMarks, setAssessmentMarks] = useState({})
   const [assessmentSaving, setAssessmentSaving] = useState(false)
   const [courseProgress, setCourseProgress] = useState(null)
+  const courseProgressContextRef = useRef('')
 
   const blockFacultyWeekOffAction = () => {
     if (!facultyWeekOffBlocked) return false
@@ -276,18 +282,29 @@ export default function AcademicTestPreparationPage({ facultyCourseProgressByBat
   }, [itemId, batchId, searchParams.toString()])
   useEffect(() => {
     let active = true
-    setCourseProgress(null)
     const selectedBatchIds = [batchId, data?.batch?.id, data?.batch?.batchId].map((value) => String(value || '').trim().toLowerCase()).filter(Boolean)
+    const progressContextKey = [itemId, ...selectedBatchIds].join('|')
+    if (courseProgressContextRef.current !== progressContextKey) {
+      courseProgressContextRef.current = progressContextKey
+      setCourseProgress(null)
+    }
+    const findExternalProgress = () => Array.from(facultyCourseProgressByBatch?.entries?.() || [])
+      .find(([key]) => selectedBatchIds.includes(String(key || '').trim().toLowerCase()))?.[1]
+    const externalProgress = Number(findExternalProgress())
+    if (Number.isFinite(externalProgress)) {
+      setCourseProgress(Math.round(Math.max(0, Math.min(100, externalProgress))))
+      return () => { active = false }
+    }
     getFacultyMyBatchesSummary().then((summary) => {
       if (!active) return
       const selectedBatch = (summary?.batchCounts || []).find((entry) => [entry?.batchId, entry?.id].some((value) => selectedBatchIds.includes(String(value || '').trim().toLowerCase())))
       const value = Number(selectedBatch?.courseProgress)
-      const externalValue = Array.from(facultyCourseProgressByBatch?.entries?.() || []).find(([key]) => selectedBatchIds.includes(String(key || '').trim().toLowerCase()))?.[1]
+      const externalValue = findExternalProgress()
       const progressValue = Number(externalValue ?? value)
       setCourseProgress(Number.isFinite(progressValue) ? Math.round(Math.max(0, Math.min(100, progressValue))) : 0)
     }).catch(() => {
       if (!active) return
-      const externalValue = Array.from(facultyCourseProgressByBatch?.entries?.() || []).find(([key]) => selectedBatchIds.includes(String(key || '').trim().toLowerCase()))?.[1]
+      const externalValue = findExternalProgress()
       const progressValue = Number(externalValue)
       setCourseProgress(Number.isFinite(progressValue) ? Math.round(Math.max(0, Math.min(100, progressValue))) : 0)
     })

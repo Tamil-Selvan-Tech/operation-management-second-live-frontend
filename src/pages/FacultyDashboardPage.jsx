@@ -56,6 +56,7 @@ import { getFacultyDashboardOverview, getFacultyMyBatchesSummary } from '../serv
 import { PaginationBar } from '../components/PaginationBar'
 import { listCourses } from '../services/courseService'
 import { getCurrentFacultyProfile } from '../services/facultyService'
+import { getAcademicBatchReport } from '../services/academicTestService'
 import { getMyWeekOffRequests } from '../services/facultyWeekOffService'
 import { dateForDay, dateKey, getEffectiveWeeklyOffForDate } from '../lib/facultyWeekOff'
 import { clearBranchCourseListCache, listBranchCourses } from '../services/branchCourseService'
@@ -637,26 +638,16 @@ function getFacultyStudentLifecycle(student = {}, course = {}, progressOverride 
         ? Number(paymentProgress?.paidInstallmentPercentage || 0)
         : storedPaidProgress
   const academicTestProgress = getCourseAcademicTestProgress(student, course, enrollment)
-  const completionByCourse = scopedStudent?.courseCompletionByCourse || student?.courseCompletionByCourse || {}
-  const completionKey = String(scopedStudent?.courseId || course?.id || course?.courseId || '').trim()
-  const explicitCompletionStatus = String(
-    enrollment?.courseCompletionStatus ||
-    enrollment?.courseCompletion ||
-    completionByCourse[completionKey] ||
-    scopedStudent?.courseCompletionStatus ||
-    scopedStudent?.courseCompletion ||
-    '',
-  ).trim().toUpperCase()
-  const explicitlyCompleted = ['COMPLETED', 'COMPLETE'].includes(explicitCompletionStatus)
   const totalTests = Number(academicTestProgress?.totalTests ?? academicTestProgress?.total ?? 0)
   const pendingTests = Number(academicTestProgress?.pendingTests ?? academicTestProgress?.pending ?? 0)
   const academicPercentage = Number(academicTestProgress?.percentage ?? academicTestProgress?.progress ?? 0)
   const totalProjects = Number(academicTestProgress?.totalProjects ?? 0)
   const pendingProjects = Number(academicTestProgress?.pendingProjects ?? 0)
   const projectsComplete = totalProjects === 0 || pendingProjects === 0 || academicTestProgress?.projectsComplete === true
-  // Keep this in sync with the backend completion rule: no pending academic
-  // tests means complete, including courses that have no test metadata yet.
-  const academicComplete = !academicTestProgress || (
+  // A missing academic-test snapshot is not proof that the academic tests are
+  // complete. Course progress alone must never move a student out of Active
+  // Students; the academic report must also confirm completion.
+  const academicComplete = Boolean(academicTestProgress) && (
     pendingTests === 0 && projectsComplete && (
       totalTests > 0 ||
       academicPercentage >= 100 ||
@@ -668,9 +659,9 @@ function getFacultyStudentLifecycle(student = {}, course = {}, progressOverride 
   return {
     // Payment completion is tracked separately. A course is completed only
     // when its learning progress and academic tests are complete.
-    // A fully completed course must leave Active Students even when the
-    // academic progress snapshot is stale or missing for that enrollment.
-    isCompleted: Boolean(enrollment?.courseCompletedAt || scopedStudent?.courseCompletedAt) || explicitlyCompleted || (courseProgress >= 100 && academicComplete),
+    // Completion requires both course progress and academic-test completion.
+    // Do not let a persisted status/date bypass the academic-test requirement.
+    isCompleted: courseProgress >= 100 && academicComplete,
     courseProgress: Math.min(100, Math.max(0, courseProgress)),
     paidProgress: Math.min(100, Math.max(0, paidProgress)),
     academicTestProgress,
@@ -680,24 +671,6 @@ function getFacultyStudentLifecycle(student = {}, course = {}, progressOverride 
 
 function isFacultyStudentCourseComplete(student = {}, course = {}, batch = {}) {
   const enrollment = getCourseEnrollmentForStudent(student, course, batch)
-  const completionByCourse = student?.courseCompletionByCourse && typeof student.courseCompletionByCourse === 'object'
-    ? student.courseCompletionByCourse
-    : {}
-  const courseId = String(enrollment?.courseId || course?.id || course?.courseId || '').trim().toLowerCase()
-  const courseName = normalizeCourseKey(enrollment?.courseName || course?.name || course?.courseName || '')
-  const mappedCompletion = Object.entries(completionByCourse).find(([key]) => {
-    const normalizedKey = String(key || '').trim().toLowerCase()
-    return (courseId && normalizedKey === courseId) || (courseName && normalizeCourseKey(key) === courseName)
-  })?.[1]
-  const completionStatus = String(
-    enrollment?.courseCompletionStatus ||
-    enrollment?.courseCompletion ||
-    (enrollment?.status === 'COMPLETED' ? 'COMPLETED' : '') ||
-    mappedCompletion ||
-    student?.courseCompletionStatus ||
-    student?.courseCompletion ||
-    '',
-  ).trim().toUpperCase()
   const progress = Number(
     enrollment?.courseProgress ??
     enrollment?.courseProgressPercentage ??
@@ -713,7 +686,9 @@ function isFacultyStudentCourseComplete(student = {}, course = {}, batch = {}) {
   const totalProjects = Number(academicTestProgress?.totalProjects ?? 0)
   const pendingProjects = Number(academicTestProgress?.pendingProjects ?? 0)
   const projectsComplete = totalProjects === 0 || pendingProjects === 0 || academicTestProgress?.projectsComplete === true
-  const academicComplete = !academicTestProgress || (
+  // Missing academic-test data means the student is still active. The report
+  // data is the source of truth for whether every academic requirement ended.
+  const academicComplete = Boolean(academicTestProgress) && (
     pendingTests === 0 && projectsComplete && (
       totalTests > 0 ||
       academicPercentage >= 100 ||
@@ -721,16 +696,7 @@ function isFacultyStudentCourseComplete(student = {}, course = {}, batch = {}) {
       academicTestProgress.isComplete === true
     )
   )
-  const completedAt = enrollment?.courseCompletedAt || student?.courseCompletedAt || null
-  const selectedBatchId = String(batch?.id || batch?.batchId || batch?.batchEntryId || '').trim().toLowerCase()
-  const selectedBatchName = normalizeCourseKey(batch?.name || batch?.batchName || batch?.code || '')
-  const studentBatchId = String(student?.batchId || student?.batchEntryId || '').trim().toLowerCase()
-  const studentBatchName = normalizeCourseKey(student?.batchName || student?.batch || '')
-  const belongsToSelectedBatch = !selectedBatchId && !selectedBatchName
-    ? true
-    : (selectedBatchId && studentBatchId === selectedBatchId) || (selectedBatchName && studentBatchName === selectedBatchName)
-  const hasCompletedLegacyBatchRow = !enrollment && belongsToSelectedBatch && progress >= 100 && academicComplete
-  return Boolean(completedAt) || ['COMPLETED', 'COMPLETE'].includes(completionStatus) || (progress >= 100 && academicComplete) || hasCompletedLegacyBatchRow
+  return progress >= 100 && academicComplete
 }
 
 function dedupeStudentsByIdentity(students = []) {
@@ -1418,7 +1384,11 @@ function getFacultyBatchProgressStudents(batch = {}, course = {}, students = [],
   const courseName = normalizeCourseKey(course?.name || course?.courseName || '')
 
   const scopedStudents = (Array.isArray(students) ? students : []).filter((student) => {
-    if (isFacultyStudentCourseComplete(student, course, batch)) return false
+    // Lifecycle rows already include the authoritative batch-report result.
+    // Do not re-check them with the older student snapshot, otherwise a
+    // completed student can be added back to the active batch list.
+    if (student?._facultyLifecycle === 'COMPLETED') return false
+    if (!student?._facultyLifecycle && isFacultyStudentCourseComplete(student, course, batch)) return false
     const enrollment = getCourseEnrollmentForStudent(student, course, batch)
     const context = resolveFacultyBatchContextForStudent(student, backfillRecords)
     // Direct assignment fields on the student are authoritative. Profile
@@ -2397,7 +2367,10 @@ export function FacultyDashboardPage() {
   const [branchCourses, setBranchCourses] = useState([])
   const [courseCatalog, setCourseCatalog] = useState([])
   const [students, setStudents] = useState([])
+  const [facultyAcademicReportProgress, setFacultyAcademicReportProgress] = useState(() => new Map())
+  const [facultyAcademicBatchProgress, setFacultyAcademicBatchProgress] = useState(() => new Map())
   const [studentAttendanceStatuses, setStudentAttendanceStatuses] = useState({})
+  const studentAttendanceContextRef = useRef('')
   const [selectedCourseId, setSelectedCourseId] = useState('')
   const [selectedStudentsCourseId, setSelectedStudentsCourseId] = useState('')
   const [selectedStudentsBatchId, setSelectedStudentsBatchId] = useState('')
@@ -3292,18 +3265,81 @@ export function FacultyDashboardPage() {
         Number.isFinite(workProgress) ? workProgress : null,
       )
 
+      // The academic report is the source of truth for the batch-level
+      // completion state. Student records can contain an older academic
+      // snapshot, so use the matching batch report when it confirms that all
+      // configured evaluations are complete.
+      const enrollment = lifecycle.enrollment || getCourseEnrollmentForStudent(student, course)
+      const batchContext = resolveFacultyBatchContextForStudent(student, facultyBackfillRecords)
+      const batchProgressKeys = [
+        enrollment?.batchId,
+        enrollment?.batchEntryId,
+        student?.batchId,
+        student?.batchEntryId,
+        student?.batchName,
+        student?.batch,
+        batchContext?.batchId,
+        batchContext?.batchGroupId,
+        batchContext?.batchName,
+        batchContext?.batchEntry?.id,
+        batchContext?.batchEntry?.batchId,
+      ].map((value) => normalizeWorkStudentId(value || '')).filter(Boolean)
+      const studentIdentityKeys = [student?.studentId, student?.id, student?.emailAddress]
+        .map((value) => normalizeWorkStudentId(value || ''))
+        .filter(Boolean)
+      const uniqueBatchProgresses = Array.from(new Set(facultyAcademicBatchProgress.values()))
+      const incompleteBatchProgress = uniqueBatchProgresses.find((progress) => (
+        Number(progress?.total || 0) > 0 &&
+        Number(progress?.completed || 0) < Number(progress.total)
+      )) || null
+      const singleBatchProgress = uniqueBatchProgresses.length === 1 &&
+        Number(uniqueBatchProgresses[0]?.total || 0) > 0 &&
+        Number(uniqueBatchProgresses[0]?.completed || 0) >= 0
+        ? uniqueBatchProgresses[0]
+        : null
+      const batchAcademicProgress = batchProgressKeys
+        .map((key) => facultyAcademicBatchProgress.get(key))
+        .find(Boolean) || studentIdentityKeys
+          .map((key) => facultyAcademicBatchProgress.get(key))
+          .find(Boolean) || incompleteBatchProgress || singleBatchProgress
+      const batchAcademicComplete = Number(batchAcademicProgress?.total || 0) > 0 &&
+        Number(batchAcademicProgress?.completed || 0) >= Number(batchAcademicProgress.total)
+      // A student may have completed one evaluation while another evaluation
+      // is still pending for the batch. Do not remove anyone until the batch
+      // report itself confirms that every configured evaluation is complete
+      // for every student. Once the batch report is complete, it is the
+      // source of truth for every student in that batch.
+      const academicBatchCompleteForStudent = batchAcademicComplete
+      const hasIncompleteAcademicBatchReport = Number(batchAcademicProgress?.total || 0) > 0 && !batchAcademicComplete
+      const lifecycleMetrics = hasIncompleteAcademicBatchReport
+        ? { ...lifecycle, isCompleted: false }
+        : academicBatchCompleteForStudent && lifecycle.courseProgress >= 100
+        ? {
+          ...lifecycle,
+          isCompleted: true,
+          academicTestProgress: {
+            ...(lifecycle.academicTestProgress || {}),
+            totalEvaluations: Number(batchAcademicProgress.total),
+            completedEvaluations: Number(batchAcademicProgress.completed),
+            pendingEvaluations: 0,
+            evaluationPercentage: 100,
+            academicComplete: true,
+          },
+        }
+        : lifecycle
+
       return {
         ...lifecycleStudent,
         _facultyCourse: course,
         _facultyLifecycle: isDiscontinuedStudent(student)
           ? 'DISCONTINUED'
-          : lifecycle.isCompleted
+          : lifecycleMetrics.isCompleted
             ? 'COMPLETED'
             : 'ACTIVE',
-        _facultyLifecycleMetrics: lifecycle,
+        _facultyLifecycleMetrics: lifecycleMetrics,
       }
     })
-  }, [assignedCourses, courseCatalog, facultyScopedStudents, facultyTodayWorkEntries])
+  }, [assignedCourses, courseCatalog, facultyAcademicBatchProgress, facultyBackfillRecords, facultyScopedStudents, facultyTodayWorkEntries])
 
   const facultyLifecycleVisibleStudents = useMemo(() => {
     const mode = studentsViewMode === 'records' ? 'COMPLETED' : String(studentsViewMode || 'active').toUpperCase()
@@ -3393,10 +3429,14 @@ export function FacultyDashboardPage() {
       const normalizedBatchId = String(entry?.batchId || entry?.batchEntryId || entry?.id || '').trim().toLowerCase()
       const normalizedCourseId = String(entry?.courseId || '').trim().toLowerCase()
       const normalizedFacultyId = String(entry?.facultyId || facultyId || '').trim().toLowerCase()
+      const reportProgress = facultyAcademicBatchProgress.get(normalizedBatchId) ||
+        facultyAcademicBatchProgress.get(normalizeWorkStudentId(getFacultyFlowBatchKey(entry)))
+      if (Number(reportProgress?.total || 0) > 0 && Number(reportProgress?.completed || 0) >= Number(reportProgress.total)) {
+        return 0
+      }
 
       const matchedStudents = facultyStudentLifecycleRows
         .filter((student) => student._facultyLifecycle === 'ACTIVE')
-        .filter((student) => !isFacultyStudentCourseComplete(student, { id: entry?.courseId, name: entry?.courseName || entry?.course }, entry))
         .filter((student) => {
         const context = resolveFacultyBatchContextForStudent(student, facultyBackfillRecords)
         const resolvedBatch = context?.batchEntry || null
@@ -3593,7 +3633,7 @@ export function FacultyDashboardPage() {
     // cross-branch batch references; only an explicit faculty batch
     // assignment is valid for this dashboard.
     return []
-  }, [backfilledStudents, currentFacultyIdentity.branchCode, currentFacultyIdentity.branchId, currentFacultyIdentity.facultyEmail, currentFacultyIdentity.facultyId, currentFacultyIdentity.facultyName, facultyProfile?.batchEntries, dashboardSummary, facultyScopedStudents, facultyStudentLifecycleRows])
+  }, [backfilledStudents, currentFacultyIdentity.branchCode, currentFacultyIdentity.branchId, currentFacultyIdentity.facultyEmail, currentFacultyIdentity.facultyId, currentFacultyIdentity.facultyName, facultyAcademicBatchProgress, facultyProfile?.batchEntries, dashboardSummary, facultyScopedStudents, facultyStudentLifecycleRows])
 
   const facultyCourseRows = useMemo(() => {
     return assignedCourses.map((course) => {
@@ -3675,6 +3715,82 @@ export function FacultyDashboardPage() {
     }]
   }, [facultyBackfillRecords, facultyBatchRows, facultyLifecycleVisibleStudents, selectedStudentsBatchId, selectedStudentsCourse, temporarySessionContext])
 
+  useEffect(() => {
+    const batchesToLoad = selectedStudentsCourseBatches.length ? selectedStudentsCourseBatches : facultyBatchRows
+    if (!batchesToLoad.length) {
+      // Keep the last known report progress. Once a batch becomes completed it
+      // may disappear from the active-batch rows, but Completed Student Records
+      // still needs that report to classify its students correctly.
+      return undefined
+    }
+
+    let active = true
+    const loadBatchAcademicProgress = async () => {
+      const next = new Map()
+      await Promise.all(batchesToLoad.map(async (batch) => {
+        const candidates = [...new Set([batch?.id, batch?.batchId, batch?.batchEntryId].map((value) => String(value || '').trim()).filter(Boolean))]
+        let report = null
+        for (const candidate of candidates) {
+          try {
+            report = await getAcademicBatchReport(candidate)
+            if (report) break
+          } catch {
+            // Try the next batch identifier shape.
+          }
+        }
+        if (!report) return
+        const reportStudentProgress = (Array.isArray(report.students) ? report.students : []).map((row) => {
+          const tests = Array.isArray(row?.tests) ? row.tests : []
+          const projectCompleted = row?.project?.marksAwarded != null
+          const completedTests = tests.filter((test) => {
+            const status = String(test?.final?.status || '').toUpperCase()
+            return ['SUBMITTED', 'EVALUATED'].includes(status) && (test?.testType !== 'TEST_AND_PROJECT' || projectCompleted)
+          }).length
+          const standaloneProject = projectCompleted && !tests.some((test) => test?.testType === 'TEST_AND_PROJECT')
+          return {
+            completed: completedTests + (standaloneProject ? 1 : 0),
+            studentKeys: [row?.student?.studentId, row?.student?.id, row?.student?.emailAddress, row?.studentId, row?.id, row?.emailAddress]
+              .map((value) => normalizeWorkStudentId(value || ''))
+              .filter(Boolean),
+          }
+        })
+        const studentCounts = reportStudentProgress.map((item) => item.completed)
+        const completedStudentKeys = reportStudentProgress
+          .filter((item) => item.completed > 0)
+          .flatMap((item) => item.studentKeys)
+        const courseForBatch = selectedStudentsCourse || { id: batch?.courseId, name: batch?.courseName || batch?.course }
+        const matchingStudents = getFacultyBatchStudentRecords(facultyScopedStudents, {
+          facultyName: currentFacultyIdentity.facultyName,
+          facultyId: currentFacultyIdentity.facultyId,
+          courseId: courseForBatch?.id || courseForBatch?.courseId || batch?.courseId,
+          courseName: courseForBatch?.name || courseForBatch?.courseName || batch?.courseName || batch?.course,
+          batchName: batch?.batchName || batch?.name || batch?.code,
+          batchId: batch?.id || batch?.batchId || batch?.batchEntryId,
+        })
+        const total = matchingStudents.reduce((maximum, student) => {
+          const progress = getFacultyStudentLifecycle(student, courseForBatch, batch).academicTestProgress || {}
+          return Math.max(maximum, Number(progress.totalEvaluations ?? ((progress.totalTests || progress.total || 0) + (progress.totalProjects || 0))) || 0)
+        }, 0)
+        const completed = studentCounts.length ? Math.min(...studentCounts) : 0
+        const batchProgress = {
+          completed,
+          total: total || Math.max(completed, report.tests?.length || 0),
+          completedStudentKeys,
+        }
+        const batchKey = getFacultyFlowBatchKey(batch)
+        next.set(batchKey, batchProgress)
+        const normalizedBatchKey = normalizeWorkStudentId(batchKey)
+        if (normalizedBatchKey && normalizedBatchKey !== batchKey) next.set(normalizedBatchKey, batchProgress)
+        completedStudentKeys.forEach((studentKey) => next.set(studentKey, batchProgress))
+      }))
+      if (active) {
+        setFacultyAcademicBatchProgress((current) => next.size ? next : current)
+      }
+    }
+    void loadBatchAcademicProgress()
+    return () => { active = false }
+  }, [currentFacultyIdentity.facultyId, currentFacultyIdentity.facultyName, facultyBatchRows, facultyScopedStudents, selectedStudentsCourse, selectedStudentsCourseBatches])
+
   const filteredStudentsCourseBatches = useMemo(() => {
     const query = studentsBatchSearch.trim().toLowerCase()
     return selectedStudentsCourseBatches.filter((batch) => {
@@ -3695,6 +3811,64 @@ export function FacultyDashboardPage() {
 
     return selectedStudentsCourseBatches.find((batch) => getFacultyFlowBatchKey(batch) === normalizedBatchId) || null
   }, [selectedStudentsBatchId, selectedStudentsCourseBatches])
+
+  useEffect(() => {
+    const batchId = String(selectedStudentsBatch?.id || selectedStudentsBatch?.batchId || '').trim()
+    if (!batchId) {
+      setFacultyAcademicReportProgress(new Map())
+      return undefined
+    }
+
+    let active = true
+    const batchCandidates = [...new Set([
+      selectedStudentsBatch?.id,
+      selectedStudentsBatch?.batchId,
+      selectedStudentsBatch?.batchEntryId,
+    ].map((value) => String(value || '').trim()).filter(Boolean))]
+    const loadReport = async () => {
+      let report = null
+      for (const candidate of batchCandidates) {
+        try {
+          report = await getAcademicBatchReport(candidate)
+          if (report) break
+        } catch {
+          // Try the next batch identifier shape used by the faculty summary.
+        }
+      }
+      if (!report) throw new Error('Academic report unavailable')
+      return report
+    }
+    loadReport()
+      .then((report) => {
+        if (!active) return
+        const progressByStudent = new Map()
+        ;(Array.isArray(report?.students) ? report.students : []).forEach((row) => {
+          const studentKeys = [row?.student?.studentId, row?.student?.id, row?.student?.emailAddress]
+            .map((value) => normalizeWorkStudentId(value || ''))
+            .filter(Boolean)
+          if (!studentKeys.length) return
+          const tests = Array.isArray(row?.tests) ? row.tests : []
+          const projectCompleted = row?.project?.marksAwarded != null
+          const completedTests = tests.filter((test) => {
+            const status = String(test?.final?.status || '').toUpperCase()
+            const testCompleted = ['SUBMITTED', 'EVALUATED'].includes(status)
+            return testCompleted && (test?.testType !== 'TEST_AND_PROJECT' || projectCompleted)
+          }).length
+          const standaloneProjectCompleted = projectCompleted && !tests.some((test) => test?.testType === 'TEST_AND_PROJECT')
+          studentKeys.forEach((key) => progressByStudent.set(key, {
+            completedEvaluations: completedTests + (standaloneProjectCompleted ? 1 : 0),
+          }))
+        })
+        setFacultyAcademicReportProgress(progressByStudent)
+      })
+      .catch(() => {
+        if (active) setFacultyAcademicReportProgress(new Map())
+      })
+
+    return () => {
+      active = false
+    }
+  }, [selectedStudentsBatch?.batchId, selectedStudentsBatch?.id])
 
   const attendanceDate = getAttendanceDateKey(attendanceClock)
 
@@ -3757,12 +3931,23 @@ export function FacultyDashboardPage() {
 
   useEffect(() => {
     if (!selectedStudentsCourse || !currentFacultyIdentity.facultyId) {
-      setStudentAttendanceStatuses({})
+      if (studentAttendanceContextRef.current) {
+        studentAttendanceContextRef.current = ''
+        setStudentAttendanceStatuses({})
+      }
       return undefined
     }
 
     let active = true
-    setStudentAttendanceStatuses({})
+    const attendanceContextKey = [
+      attendanceDate,
+      selectedStudentsCourse?.id || selectedStudentsCourse?.courseId || '',
+      selectedStudentsBatch?.batchId || selectedStudentsBatch?.batchEntryId || selectedStudentsBatch?.id || '',
+    ].join('|')
+    if (studentAttendanceContextRef.current !== attendanceContextKey) {
+      studentAttendanceContextRef.current = attendanceContextKey
+      setStudentAttendanceStatuses({})
+    }
     const loadStudentAttendance = async () => {
       try {
         const overview = await getCurrentFacultyAttendanceOverview({
@@ -3781,7 +3966,8 @@ export function FacultyDashboardPage() {
           }))
         }
       } catch {
-        if (active) setStudentAttendanceStatuses({})
+        // Keep the last known status visible when a refresh fails. A failed
+        // refresh must not make a marked student flash back to Unmarked.
       }
     }
 
@@ -3799,6 +3985,9 @@ export function FacultyDashboardPage() {
   const selectedBatchStudents = useMemo(() => {
     if (temporarySessionContext?.students?.length && selectedStudentsBatch?.batchId === temporarySessionContext.item?.batchId) return temporarySessionContext.students
     if (!selectedStudentsBatch) return []
+    const academicProgress = facultyAcademicBatchProgress.get(getFacultyFlowBatchKey(selectedStudentsBatch)) ||
+      facultyAcademicBatchProgress.get(normalizeWorkStudentId(getFacultyFlowBatchKey(selectedStudentsBatch)))
+    if (Number(academicProgress?.total || 0) > 0 && Number(academicProgress?.completed || 0) >= Number(academicProgress.total)) return []
     return getFacultyBatchProgressStudents(
       selectedStudentsBatch,
       selectedStudentsCourse,
@@ -3806,6 +3995,7 @@ export function FacultyDashboardPage() {
       facultyBackfillRecords,
     )
   }, [
+    facultyAcademicBatchProgress,
     facultyBackfillRecords,
     facultyLifecycleVisibleStudents,
     selectedStudentsBatch,
@@ -3903,7 +4093,7 @@ export function FacultyDashboardPage() {
     })
     selectedCourseBatchProgress.forEach((value, key) => progressByBatch.set(key, value))
     return progressByBatch
-  }, [assignedCourses, facultyBackfillRecords, facultyBatchRows, facultyScopedStudents, facultyTodayWorkEntries, selectedCourseBatchProgress])
+  }, [assignedCourses, facultyAcademicBatchProgress, facultyBackfillRecords, facultyBatchRows, facultyScopedStudents, facultyTodayWorkEntries, selectedCourseBatchProgress])
 
   const studentsFlowVisibleStudents = selectedStudentsBatch ? selectedBatchStudents : facultyLifecycleVisibleStudents
   const studentsFlowActionableStudents = studentsFlowVisibleStudents.filter((student) => !isDiscontinuedStudent(student))
@@ -6564,7 +6754,7 @@ const nextName = trimmedValue
                                 {studentsViewMode === 'active' ? <th>Faculty</th> : null}
                                 <th className="faculty-student-progress-column">Course Progress</th>
                                 <th className="faculty-student-progress-column faculty-student-progress-column--paid">Paid Progress</th>
-                                <th className="faculty-student-academic-column">Academic Tests</th>
+                                <th className="faculty-student-academic-column"><span className="faculty-student-academic-heading">Academic Tests</span></th>
                                 <th>Course Status</th>
                                 <th className="faculty-student-completion-date-column">Completion Date</th>
                               </tr>
@@ -6577,6 +6767,7 @@ const nextName = trimmedValue
                                     ? 'DISCONTINUED'
                                     : lifecycleMetrics.isCompleted ? 'COMPLETED' : getCourseStatusFromProgress(student.courseProgress)
                                   const academicProgress = lifecycleMetrics.academicTestProgress
+                                  const hasEvaluationSummary = Number.isFinite(Number(academicProgress?.totalEvaluations))
                                   const academicTotalTests = Math.max(0, Number(academicProgress?.totalTests ?? academicProgress?.total ?? 0))
                                   const academicCompletedTests = Math.max(0, Number(academicProgress?.completedTests ?? academicProgress?.completed ?? (academicTotalTests - Number(academicProgress?.pendingTests ?? academicProgress?.pending ?? 0))))
                                   const academicPercentage = Math.min(100, Math.max(0, Number(academicProgress?.percentage ?? academicProgress?.progress ?? (academicTotalTests > 0 ? (academicCompletedTests / academicTotalTests) * 100 : 0))))
@@ -6590,10 +6781,16 @@ const nextName = trimmedValue
                                   const academicTotalProjects = Math.max(0, Number(academicProgress?.totalProjects ?? 0))
                                   const academicCompletedProjects = Math.max(0, Number(academicProgress?.completedProjects ?? (academicTotalProjects - Number(academicProgress?.pendingProjects ?? 0))))
                                   const academicProjectPercentage = Math.min(100, Math.max(0, Number(academicProgress?.projectPercentage ?? (academicTotalProjects > 0 ? (academicCompletedProjects / academicTotalProjects) * 100 : 100))))
-                                  const academicTotalRequirements = academicTotalTests + academicTotalProjects
-                                  const academicCompletedRequirements = Math.min(academicTotalRequirements, academicCompletedTests + academicCompletedProjects)
-                                  const academicOverallPercentage = academicTotalRequirements > 0
-                                    ? Math.round((academicCompletedRequirements / academicTotalRequirements) * 100)
+                                  const academicTotalRequirements = hasEvaluationSummary
+                                    ? Math.max(0, Number(academicProgress.totalEvaluations))
+                                    : academicTotalTests + academicTotalProjects
+                                  const academicCompletedRequirements = hasEvaluationSummary
+                                    ? Math.min(academicTotalRequirements, Math.max(0, Number(academicProgress.completedEvaluations ?? 0)))
+                                    : Math.min(academicTotalRequirements, academicCompletedTests + academicCompletedProjects)
+                                  const academicOverallPercentage = hasEvaluationSummary
+                                    ? Math.round(Math.min(100, Math.max(0, Number(academicProgress.evaluationPercentage ?? (academicTotalRequirements > 0 ? (academicCompletedRequirements / academicTotalRequirements) * 100 : 0)))))
+                                    : academicTotalRequirements > 0
+                                      ? Math.round((academicCompletedRequirements / academicTotalRequirements) * 100)
                                     : Math.round(Math.min(academicPercentage, academicProjectPercentage))
                                   const academicSummaryCount = academicTotalRequirements > 0
                                     ? `Academic ${academicCompletedRequirements}/${academicTotalRequirements}`
@@ -6769,24 +6966,56 @@ const nextName = trimmedValue
                                 <th>Present</th>
                                 <th>Absent</th>
                                 <th>Course Progress</th>
+                                <th>Academic Test</th>
                                 <th>Actions</th>
                               </tr>
                             </thead>
                             <tbody>
                               {paginatedStudentsCourseBatches.map((batch, index) => {
-                                const batchProgress = selectedCourseBatchProgress.get(getFacultyFlowBatchKey(batch)) || 0
-                                const batchStudents = getFacultyBatchProgressStudents(
+                                const reportBatchProgress = facultyAcademicBatchProgress.get(getFacultyFlowBatchKey(batch)) ||
+                                  facultyAcademicBatchProgress.get(normalizeWorkStudentId(getFacultyFlowBatchKey(batch)))
+                                const reportCompleted = Number(reportBatchProgress?.total || 0) > 0 &&
+                                  Number(reportBatchProgress?.completed || 0) >= Number(reportBatchProgress.total)
+                                const activeBatchStudents = getFacultyBatchProgressStudents(
                                   batch,
                                   selectedStudentsCourse,
-                                  facultyScopedStudents,
+                                  facultyLifecycleVisibleStudents,
                                   facultyBackfillRecords,
                                 )
+                                const batchStudents = reportCompleted ? [] : activeBatchStudents
+                                const batchProgress = batchStudents.length
+                                  ? (selectedCourseBatchProgress.get(getFacultyFlowBatchKey(batch)) || 0)
+                                  : 0
                                 const batchAttendanceCounts = batchStudents.reduce((counts, student) => {
                                   const status = getStudentAttendanceStatus(studentAttendanceStatuses, student)
                                   if (status === 'PRESENT') counts.present += 1
                                   if (status === 'ABSENT') counts.absent += 1
                                   return counts
                                 }, { present: 0, absent: 0 })
+                                const academicBatchStudents = getFacultyBatchStudentRecords(facultyLifecycleVisibleStudents, {
+                                  facultyName: currentFacultyIdentity.facultyName,
+                                  facultyId: currentFacultyIdentity.facultyId,
+                                  courseId: selectedStudentsCourse?.id || selectedStudentsCourse?.courseId || batch?.courseId,
+                                  courseName: selectedStudentsCourse?.name || selectedStudentsCourse?.courseName || batch?.courseName,
+                                  batchName: batch?.batchName || batch?.name || batch?.code,
+                                  batchId: batch?.id || batch?.batchId || batch?.batchEntryId,
+                                })
+                                const academicProgresses = academicBatchStudents
+                                  .map((student) => getFacultyStudentLifecycle(student, selectedStudentsCourse || {}, batch).academicTestProgress)
+                                  .filter(Boolean)
+                                const academicTotal = academicProgresses.length
+                                  ? Math.max(...academicProgresses.map((progress) => Number(progress?.totalEvaluations ?? ((progress?.totalTests || progress?.total || 0) + (progress?.totalProjects || 0))) || 0))
+                                  : 0
+                                const academicCompleted = academicProgresses.length
+                                  ? Math.min(...academicProgresses.map((progress) => Number(progress?.completedEvaluations ?? ((progress?.completedTests || progress?.completed || 0) + (progress?.completedProjects || 0))) || 0), academicTotal)
+                                  : 0
+                                const resolvedAcademicTotal = batchStudents.length
+                                  ? (reportBatchProgress?.total || academicTotal)
+                                  : 0
+                                const resolvedAcademicCompleted = batchStudents.length
+                                  ? (reportBatchProgress ? Math.min(reportBatchProgress.completed, resolvedAcademicTotal) : academicCompleted)
+                                  : 0
+                                const academicPercentage = resolvedAcademicTotal > 0 ? Math.round((resolvedAcademicCompleted / resolvedAcademicTotal) * 100) : 0
 
                                 return (
                                 <tr
@@ -6815,6 +7044,14 @@ const nextName = trimmedValue
                                         <span style={{ width: `${batchProgress}%` }} />
                                       </div>
                                       <strong>{batchProgress}% Complete</strong>
+                                    </div>
+                                  </td>
+                                  <td>
+                                    <div className="faculty-batch-progress-cell" aria-label={`Academic test progress ${resolvedAcademicCompleted} of ${resolvedAcademicTotal}`}>
+                                      <div className="faculty-batch-progress-bar" aria-hidden="true">
+                                        <span style={{ width: `${academicPercentage}%` }} />
+                                      </div>
+                                      <strong>{resolvedAcademicCompleted}/{resolvedAcademicTotal}</strong>
                                     </div>
                                   </td>
                                   <td>
@@ -6887,6 +7124,7 @@ const nextName = trimmedValue
                               <th>Paid</th>
                               {/* <th>Module Progress</th> */}
                               <th>Course Progress</th>
+                              <th>Academic Test</th>
                               <th>Actions</th>
                             </tr>
                           </thead>
@@ -6972,6 +7210,30 @@ const nextName = trimmedValue
                                     ? Math.min(100, Math.max(0, storedCourseProgress))
                                     : 0
                                 const workCourseProgressLabel = `${Math.round(workCourseProgress)}% Complete`
+                                const academicTestProgress = scopedLifecycle.academicTestProgress || {}
+                                const academicReportProgress = facultyAcademicReportProgress.get(normalizeWorkStudentId(student.studentId || ''))
+                                  || facultyAcademicReportProgress.get(normalizeWorkStudentId(student.id || ''))
+                                  || facultyAcademicReportProgress.get(normalizeWorkStudentId(student.emailAddress || ''))
+                                const academicTestTotal = Math.max(0, Number(academicTestProgress.totalTests ?? academicTestProgress.total ?? 0))
+                                const academicProjectTotal = Math.max(0, Number(academicTestProgress.totalProjects ?? 0))
+                                const academicEvaluationTotal = Math.max(
+                                  0,
+                                  Number(academicTestProgress.totalEvaluations ?? (academicTestTotal + academicProjectTotal)),
+                                )
+                                const academicTestCompleted = Math.min(
+                                  academicEvaluationTotal,
+                                  Math.max(
+                                    0,
+                                    Number(
+                                      academicReportProgress?.completedEvaluations ??
+                                      (academicTestProgress.academicComplete === true
+                                        ? academicEvaluationTotal
+                                        : academicTestProgress.completedEvaluations ??
+                                          ((academicTestProgress.completedTests ?? academicTestProgress.completed ?? (academicTestTotal - Number(academicTestProgress.pendingTests ?? academicTestProgress.pending ?? 0))) +
+                                          (academicTestProgress.completedProjects ?? (academicProjectTotal - Number(academicTestProgress.pendingProjects ?? 0))))),
+                                    ),
+                                  ),
+                                )
                                 if (isDiscontinuedStudent(student)) {
                                   return (
                                     <tr key={student.id || student.studentId || `${studentName}-${index}`} className="faculty-student-discontinued-row">
@@ -7065,6 +7327,7 @@ const nextName = trimmedValue
                                         </div>
                                       </div>
                                     </td>
+                                    <td>{academicTestCompleted}/{academicEvaluationTotal}</td>
                                     <td>
                                       <button
                                         type="button"
@@ -7082,7 +7345,7 @@ const nextName = trimmedValue
                               })
                             ) : (
                               <tr>
-                                <td className="faculty-students-empty-cell" colSpan={9}>
+                                <td className="faculty-students-empty-cell" colSpan={10}>
                                   <div className="faculty-my-batches-empty">
                                     <strong>No students found</strong>
                                     <p>Students selected with this batch will show up here once they are saved.</p>
