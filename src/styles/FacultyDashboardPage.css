@@ -2724,11 +2724,170 @@ body.faculty-notification-menu-open .super-admin-content {
   white-space: nowrap;
 }
 
+.faculty-student-course-status.discontinued {
+  color: #be123c;
+  background: #ffe4e6;
+}
+
+.faculty-student-records-table {
+  min-width: 1050px;
+}
+
+.super-admin-page .faculty-student-records-shell .faculty-student-records-table {
+  min-width: 1450px;
+}
+
+.super-admin-page .faculty-student-records-shell .faculty-student-records-table th,
+.super-admin-page .faculty-student-records-shell .faculty-student-records-table td {
+  overflow: visible;
+  text-overflow: clip;
+}
+
+.faculty-student-records-table .faculty-student-batch-column {
+  width: 220px;
+  min-width: 220px;
+  white-space: nowrap;
+}
+
+.faculty-student-records-table .faculty-student-completion-date-column {
+  width: 145px;
+  min-width: 145px;
+  white-space: nowrap;
+}
+
+/* Completed/discontinued records do not have a Faculty column, so keep the
+   identity columns compact instead of inheriting the wider batch layout. */
+.super-admin-page .faculty-student-records-shell--records .faculty-student-records-table th:nth-child(2),
+.super-admin-page .faculty-student-records-shell--records .faculty-student-records-table td:nth-child(2),
+.super-admin-page .faculty-student-records-shell--discontinued .faculty-student-records-table th:nth-child(2),
+.super-admin-page .faculty-student-records-shell--discontinued .faculty-student-records-table td:nth-child(2) {
+  width: 145px;
+  min-width: 145px;
+}
+
+.super-admin-page .faculty-student-records-shell--records .faculty-student-records-table th:nth-child(3),
+.super-admin-page .faculty-student-records-shell--records .faculty-student-records-table td:nth-child(3),
+.super-admin-page .faculty-student-records-shell--discontinued .faculty-student-records-table th:nth-child(3),
+.super-admin-page .faculty-student-records-shell--discontinued .faculty-student-records-table td:nth-child(3) {
+  width: 145px;
+  min-width: 145px;
+}
+
+.super-admin-page .faculty-student-records-shell--records .faculty-student-records-table th:nth-child(4),
+.super-admin-page .faculty-student-records-shell--records .faculty-student-records-table td:nth-child(4),
+.super-admin-page .faculty-student-records-shell--discontinued .faculty-student-records-table th:nth-child(4),
+.super-admin-page .faculty-student-records-shell--discontinued .faculty-student-records-table td:nth-child(4) {
+  width: 190px;
+  min-width: 190px;
+}
+
+/* Keep progress percentages and bars on the same left edge in every view. */
+.faculty-student-records-table .faculty-student-progress-column {
+  width: 140px;
+  min-width: 140px;
+  box-sizing: border-box;
+  padding-right: 20px;
+  text-align: left;
+  vertical-align: middle;
+}
+
+.faculty-student-records-table .faculty-student-progress-column--paid {
+  width: 140px;
+  min-width: 140px;
+  padding-left: 20px;
+  padding-right: 0;
+}
+
+.faculty-student-records-table .faculty-student-academic-column {
+  width: 145px;
+  min-width: 145px;
+  white-space: nowrap;
+  text-align: left;
+  overflow: visible;
+}
+
+.faculty-student-academic-complete {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 5px 10px;
+  border: 1px solid #bfdbfe;
+  border-radius: 999px;
+  color: #1d4ed8;
+  background: #eff6ff;
+  font-size: 0.78rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.faculty-student-records-table td:nth-last-child(2) {
+  white-space: nowrap;
+  overflow: visible;
+}
+
+.faculty-student-progress-meter {
+  display: grid;
+  gap: 5px;
+  width: 100px;
+  min-width: 100px;
+}
+
+.faculty-student-progress-meter__header {
+  display: block;
+  color: #2563eb;
+  font-size: .78rem;
+  font-weight: 800;
+  text-align: left !important;
+}
+
+.faculty-student-progress-meter__track {
+  width: 100%;
+  height: 7px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #dbe5f0;
+}
+
+.faculty-student-progress-meter__track span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #3b82f6, #2563eb);
+  transition: width .25s ease;
+}
+
+.faculty-student-progress-meter--paid .faculty-student-progress-meter__header {
+  color: #169b55;
+}
+
+.faculty-student-progress-meter--paid {
+  min-width: 100px;
+}
+
+.faculty-student-progress-meter--paid .faculty-student-progress-meter__track {
+  width: 100px;
+}
+
+.faculty-student-progress-meter--paid .faculty-student-progress-meter__track span {
+  background: linear-gradient(90deg, #34c759, #16a34a);
+}
+
 .super-admin-page .faculty-students-table-shell .faculty-student-records-table th:nth-child(1),
 .super-admin-page .faculty-students-table-shell .faculty-student-records-table td:nth-child(1) {
   width: 150px;
   min-width: 150px;
   white-space: nowrap;
+}
+
+@media (max-width: 760px) {
+  .faculty-student-records-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .faculty-student-records-toolbar input {
+    width: 100%;
+  }
 }
 
 .super-admin-page .faculty-students-table-shell .faculty-student-records-table th:nth-child(1) {
