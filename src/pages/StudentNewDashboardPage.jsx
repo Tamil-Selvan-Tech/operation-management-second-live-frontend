@@ -19,6 +19,8 @@ import {
   Phone,
   Users,
   GraduationCap,
+  FileText,
+  BriefcaseBusiness,
   Building2,
   BarChart3,
   Clock3,
@@ -997,9 +999,9 @@ export function StudentNewDashboardPage() {
    : paymentHistoryRows
  const nextInstallment = displayedInstallmentRows.find((installment) => !['paid', 'completed', 'success'].includes(String(installment.status).toLowerCase()))
  const qualification = student?.qualification || '-'
- const passedOutYear = student?.passedOutYear ?? student?.yearOfPassing ?? '-'
+ const passedOutYear = String(student?.passedOutYear ?? student?.yearOfPassing ?? '').trim()
  const batchName = student?.batchName || (typeof student?.batch === 'string' ? student.batch : '') || student?.batch?.name || '-'
- const studentStatus = student?.currentStatus || student?.status || '-'
+ const studentStatus = student?.customCurrentStatus || student?.currentStatus || student?.status || '-'
  const learningProgress = useMemo(() => getModuleProgress(student), [student])
  const attendanceView = useMemo(() => {
    const items = attendanceOverview?.[attendanceTab] || []
@@ -1557,7 +1559,7 @@ const handleLogoutConfirm = async () => {
                     <h1>{displayName}</h1>
                     <div className="student-new-profile-header-meta">
                       <span>Student ID: {student?.studentId || '-'}</span>
-                      <span>{qualification} <b>•</b> {passedOutYear}</span>
+                      <span>{qualification}{passedOutYear ? <> <b>•</b> {passedOutYear}</> : null}</span>
                     </div>
                   </div>
                 </div>
@@ -1583,7 +1585,10 @@ const handleLogoutConfirm = async () => {
                       </div>
                       <div className="student-new-profile-fields student-new-profile-fields-two-column">
                         <div className="student-new-profile-field"><GraduationCap size={16} /><div><span>Qualification</span><strong>{qualification}</strong></div></div>
-                        <div className="student-new-profile-field"><CalendarDays size={16} /><div><span>Passed Out Year</span><strong>{passedOutYear}</strong></div></div>
+                        {passedOutYear ? <div className="student-new-profile-field"><CalendarDays size={16} /><div><span>Passed Out Year</span><strong>{passedOutYear}</strong></div></div> : null}
+                        <div className="student-new-profile-field"><GraduationCap size={16} /><div><span>Education</span><strong>{[student?.educationLevel, student?.educationStatus].filter(Boolean).join(' · ') || '-'}</strong></div></div>
+                        <div className="student-new-profile-field"><FileText size={16} /><div><span>Purpose</span><strong>{student?.customPurpose || student?.purpose || '-'}</strong></div></div>
+                        {student?.currentStatus === 'Employee' ? <div className="student-new-profile-field"><BriefcaseBusiness size={16} /><div><span>Company / Designation</span><strong>{[student?.companyName, student?.designation].filter(Boolean).join(' · ') || '-'}</strong></div></div> : null}
                         {dashboardCourses.map((course, index) => <Fragment key={`profile-academic-${course.courseId || index}`}>
                           <div className="student-new-profile-field"><BookOpen size={16} /><div><span>{dashboardCourses.length > 1 ? `Course ${index + 1}` : 'Course'}</span><strong>{course.courseName || '-'}{String(course.status || '').toUpperCase() === 'PENDING' ? <> <em className="student-course-upcoming-badge">Upcoming</em></> : isCourseCompleted(course, courseDetailsById[String(course.courseId || '')], student) ? <> <em className="student-course-completed-badge">Completed</em></> : null}</strong></div></div>
                           <div className="student-new-profile-field"><Users size={16} /><div><span>{dashboardCourses.length > 1 ? `Batch ${index + 1}` : 'Batch'}</span><strong>{course.batchName || '-'}</strong></div></div>
