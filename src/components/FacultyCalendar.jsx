@@ -3,6 +3,7 @@ import { CalendarDays, CalendarOff, CheckCircle2, ChevronLeft, ChevronRight, Fla
 import { getFacultyCalendar, getFacultyLeaveRequests } from '../services/facultyCalendarService'
 import { getFacultyAttendanceStatus } from '../services/attendanceService'
 import { FACULTY_ATTENDANCE_SYNC_EVENT } from '../lib/facultyAttendanceStore'
+import { dateForDay } from '../lib/facultyWeekOff'
 import { statusStyle } from '../config/facultyCalendarStatusColors'
 import '../styles/FacultyCalendar.css'
 
@@ -67,8 +68,8 @@ function halfDayFinished(event, date) {
   return now.getHours() * 60 + now.getMinutes() >= end
 }
 
-function SummaryCard({ icon: Icon, label, value, note, tone = 'blue' }) {
-  return <article className={`faculty-calendar-summary-card faculty-calendar-summary-card--${tone}`}>
+function SummaryCard({ icon: Icon, label, value, note, tone = 'blue', highlightNote = false }) {
+  return <article className={`faculty-calendar-summary-card faculty-calendar-summary-card--${tone} ${highlightNote ? 'faculty-calendar-summary-card--highlight-note' : ''}`}>
     <span className="faculty-calendar-summary-icon"><Icon size={20} strokeWidth={2.2} /></span>
     <div><span>{label}</span><strong>{value ?? '—'}</strong>{note ? <small>{note}</small> : null}</div>
   </article>
@@ -95,7 +96,34 @@ function CellBatchPreview({ batch, date, onSelect }) {
   </button>
 }
 
-export function FacultyCalendar({ faculty, facultyProfile, assignedBatches }) {
+function nextFacultyWeekOff(defaultWeekOffDay, requests = []) {
+  const normalizedDay = String(defaultWeekOffDay || '').trim().toUpperCase()
+  const weekdayKeys = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY']
+  const approved = requests.filter((request) => String(request?.status || '').trim().toUpperCase() === 'APPROVED')
+  const replacementDates = new Set(approved.map((request) => {
+    const requestedWeekStart = String(request?.requestedWeekStartDate || request?.weekStartDate || '').slice(0, 10)
+    return String(request?.defaultWeekOffDate || dateForDay(requestedWeekStart, request?.defaultWeekOffDay || normalizedDay) || '').slice(0, 10)
+  }).filter(Boolean))
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+
+  for (let offset = 0; offset < 366; offset += 1) {
+    const candidate = new Date(today)
+    candidate.setDate(today.getDate() + offset)
+    const candidateDate = isoDate(candidate)
+    const alternate = approved.find((request) => String(request?.requestedWeekOffDate || '').slice(0, 10) === candidateDate)
+    if (alternate) {
+      return { date: candidateDate, day: String(alternate.requestedWeekOffDay || '').trim().toUpperCase(), temporary: true }
+    }
+    const candidateDay = weekdayKeys[candidate.getDay()]
+    if (normalizedDay && candidateDay === normalizedDay && !replacementDates.has(candidateDate)) {
+      return { date: candidateDate, day: normalizedDay, temporary: false }
+    }
+  }
+  return { date: '', day: normalizedDay, temporary: false }
+}
+
+export function FacultyCalendar({ faculty, facultyProfile, assignedBatches, weekOffRequests = [] }) {
   const [calendar, setCalendar] = useState(null)
   const [leaveRequests, setLeaveRequests] = useState([])
   const [month, setMonth] = useState(null)
@@ -144,6 +172,24 @@ export function FacultyCalendar({ faculty, facultyProfile, assignedBatches }) {
 
     return uniqueBatchIds.size
   }, [assignedBatches, permanentBatches])
+  const regularWeekOffDay = useMemo(() => String(
+    facultyProfile?.weeklyOffDay ||
+    facultyProfile?.weekOffDay ||
+    facultyProfile?.defaultWeeklyOffDay ||
+    batches.find((batch) => batch?.weeklyOffDay || batch?.weekOffDay)?.weeklyOffDay ||
+    batches.find((batch) => batch?.weeklyOffDay || batch?.weekOffDay)?.weekOffDay ||
+    '',
+  ).trim().toUpperCase(), [batches, facultyProfile])
+  const approvedWeekOffRequests = useMemo(() => (Array.isArray(weekOffRequests) ? weekOffRequests : [])
+    .filter((request) => String(request?.status || '').trim().toUpperCase() === 'APPROVED'), [weekOffRequests])
+  const nextWeekOff = useMemo(() => nextFacultyWeekOff(regularWeekOffDay, approvedWeekOffRequests), [approvedWeekOffRequests, regularWeekOffDay])
+  const overriddenRegularWeekOffDates = useMemo(() => new Set(approvedWeekOffRequests.map((request) => {
+    const requestedWeekStart = String(request?.requestedWeekStartDate || request?.weekStartDate || '').slice(0, 10)
+    return String(request?.defaultWeekOffDate || dateForDay(requestedWeekStart, request?.defaultWeekOffDay || regularWeekOffDay) || '').slice(0, 10)
+  }).filter(Boolean)), [approvedWeekOffRequests, regularWeekOffDay])
+  const approvedAlternateWeekOffs = useMemo(() => new Map(approvedWeekOffRequests
+    .map((request) => [String(request?.requestedWeekOffDate || '').slice(0, 10), request])
+    .filter(([date]) => Boolean(date))), [approvedWeekOffRequests])
 
   const load = useCallback(async () => {
     setLoading(true); setError('')
@@ -203,8 +249,11 @@ export function FacultyCalendar({ faculty, facultyProfile, assignedBatches }) {
         const date = isoDate(cursor)
         if (!existingDates.has(date)) {
           const weekday = DAY_NAMES[cursor.getDay()].toUpperCase()
-          const weeklyOff = batches.find((batch) => String(batch.weeklyOffDay || '').toUpperCase() === weekday)
-          result.push({ date, code: weeklyOff ? 'FACULTY_WEEKLY_OFF' : 'NO_CLASS', reason: weeklyOff?.weeklyOffDay || '' })
+          const alternateWeekOff = approvedAlternateWeekOffs.get(date)
+          const weeklyOff = alternateWeekOff || (overriddenRegularWeekOffDates.has(date)
+            ? null
+            : batches.find((batch) => String(batch.weeklyOffDay || batch.weekOffDay || '').toUpperCase() === weekday))
+          result.push({ date, code: weeklyOff ? 'FACULTY_WEEKLY_OFF' : 'NO_CLASS', reason: weeklyOff?.requestedWeekOffDay || weeklyOff?.weeklyOffDay || '' })
         }
         cursor.setDate(cursor.getDate() + 1)
       }
@@ -214,7 +263,7 @@ export function FacultyCalendar({ faculty, facultyProfile, assignedBatches }) {
       : normalizeStatus(event) === 'HOLIDAY' && !event.name && !event.holidayName
         ? { ...event, name: holidayName(event) }
         : event)
-  }, [batches, calendar, facultyId, leaveRequests, range.end, range.start, workLogStatus])
+  }, [approvedAlternateWeekOffs, batches, calendar, facultyId, leaveRequests, overriddenRegularWeekOffDates, range.end, range.start, workLogStatus])
 
   const days = useMemo(() => {
     if (!month) return []
@@ -286,7 +335,6 @@ export function FacultyCalendar({ faculty, facultyProfile, assignedBatches }) {
   const classCount = events.filter((event) => ['CLASS', 'SCHEDULED', 'COMPLETED', 'REASSIGNED', 'COMBINED', 'RESCHEDULED', 'RESCHEDULED_ORIGINAL'].includes(normalizeStatus(event))).length
   const viewedMonthKey = month ? `${month.getFullYear()}-${String(month.getMonth() + 1).padStart(2, '0')}` : ''
   const holidayCount = new Set(events.filter((event) => normalizeStatus(event) === 'HOLIDAY' && String(event.date || '').startsWith(viewedMonthKey)).map((event) => String(event.date).slice(0, 10))).size
-  const weeklyOffCount = events.filter((event) => normalizeStatus(event) === 'FACULTY_WEEKLY_OFF').length
   const hasCalendarData = Boolean(calendar && !loading && !error)
   const selectedBoundaryBatches = selected ? boundaryBatchesByDate[selected.date] || [] : []
   useEffect(() => {
@@ -310,7 +358,7 @@ export function FacultyCalendar({ faculty, facultyProfile, assignedBatches }) {
       <SummaryCard icon={Sparkles} label="Assigned Courses" value={hasCalendarData ? courses.size : null} note={hasCalendarData ? `${classCount} scheduled events` : 'Loading schedule…'} />
       <SummaryCard icon={CheckCircle2} label="Assigned Batches" value={hasCalendarData ? assignedBatchCount : null} note="Active teaching batches" tone="green" />
       <SummaryCard icon={Timer} label="General Holidays" value={hasCalendarData ? holidayCount : null} note="Selected month" tone="red" />
-      <SummaryCard icon={CalendarOff} label="Weekly Off Days" value={hasCalendarData ? weeklyOffCount : null} note={batches.map((batch) => batch.weeklyOffDay).filter(Boolean).join(', ') || 'No weekly off configured'} tone="red" />
+      <SummaryCard icon={CalendarOff} label="Next Week Off" value={hasCalendarData && nextWeekOff.date ? nextWeekOff.date.split('-').reverse().join('.') : 'Not configured'} note={nextWeekOff.day ? `${nextWeekOff.day.charAt(0)}${nextWeekOff.day.slice(1).toLowerCase()}${nextWeekOff.temporary ? ' - Alternate week-off' : ''}` : 'No weekly off configured'} tone="red" highlightNote />
     </div>
     <div className="faculty-calendar-card"><div className="faculty-calendar-panel-head"><div><span className="faculty-calendar-eyebrow">FACULTY CALENDAR</span><h2>{month?.toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })}</h2><p>Use the arrows or month tabs to browse your complete teaching schedule.</p></div><div className="faculty-calendar-navigation"><button type="button" onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() - 1, 1))} disabled={!calendarMonths.length || month <= calendarMonths[0]}><ChevronLeft /></button><div><strong>{month?.toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })}</strong><span>{Math.max(1, calendarMonths.findIndex((item) => item.getFullYear() === month?.getFullYear() && item.getMonth() === month?.getMonth()) + 1)} / {calendarMonths.length || 1}</span></div><button type="button" onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() + 1, 1))} disabled={!calendarMonths.length || month >= calendarMonths.at(-1)}><ChevronRight /></button></div></div>
       <div className="faculty-calendar-month-strip">{calendarMonths.map((item) => <button key={item.toISOString()} type="button" className={item.getFullYear() === month?.getFullYear() && item.getMonth() === month?.getMonth() ? 'is-active' : ''} onClick={() => setMonth(item)}>{item.toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })}</button>)}</div>
