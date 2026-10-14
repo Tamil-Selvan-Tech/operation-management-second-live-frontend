@@ -3995,13 +3995,9 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
 
       if (embeddedMode) {
         setIsMobileSidebarOpen(false)
-        navigate(
-          {
-            pathname: location.pathname,
-            search: isDashboard ? '' : `?section=${encodeURIComponent(nextSection)}`,
-          },
-          { replace },
-        )
+        // Embedded branch dashboards live inside the Super Admin route. Do
+        // not navigate the parent URL or it will remount back to Dashboard.
+        setRequestedSidebarSection(nextSection)
         return
       }
 
@@ -10954,7 +10950,7 @@ useEffect(() => {
                 />
               ) : null}
               {activeSection === 'completed-students' ? <CompletedStudentsPage academicProgressByStudent={branchAcademicProgressByStudent} branchAdminName={branchAdminDisplay} completedStudents={completedStudentsForLifecycle} completedStudentsLoading={!isBranchAcademicProgressLoaded} courseCatalog={branchCourseCards} paymentHistoryRecords={allPaymentHistoryRecords} students={branchStudentsForDisplay} /> : null}
-              {activeSection === 'faculty-skills' ? <FacultySkillsUpgradePage embedded /> : null}
+              {activeSection === 'faculty-skills' ? <FacultySkillsUpgradePage embedded branchId={branchData?.id || branchData?.branchId || branchProfile?.id || branchProfile?.branchId || ''} /> : null}
               {activeSection === 'dashboard' ? (
                 <>
                   <div className="branch-dashboard-overview-intro">
