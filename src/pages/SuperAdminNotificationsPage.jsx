@@ -29,7 +29,6 @@ import { request } from '../services/apiClient'
 import { listBranches } from '../services/branchService'
 import { unwrapNotifications } from '../services/notificationService'
 import {
-  loadNotifications,
   markNotificationsAsRead,
   mergeNotificationsWithStoredState,
   saveNotifications,
@@ -354,7 +353,10 @@ export function SuperAdminNotificationsPage() {
       saveNotifications(mergedNotifications, { emit: false })
       setNotifications(mergedNotifications)
     } catch {
-      setNotifications(mergeNotificationsWithStoredState(loadNotifications().map(normalizeNotificationItem)))
+      // Notifications belong to the active backend/database. Do not render
+      // stale browser-cached records when the API is unavailable.
+      saveNotifications([], { emit: false })
+      setNotifications([])
     } finally {
       setIsRefreshing(false)
     }
