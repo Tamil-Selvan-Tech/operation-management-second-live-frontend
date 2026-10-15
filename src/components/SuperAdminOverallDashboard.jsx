@@ -1,19 +1,27 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
-  AlertCircle, Banknote, CalendarDays, Check, Clock3, GripVertical, IndianRupee, LayoutDashboard, LayoutGrid, Pin, RefreshCcw, RotateCcw, Search, Users, Wallet, Building2, X,
+  AlertCircle, ArrowUpRight, Banknote, CalendarDays, Check, Clock3, GripVertical, IndianRupee, LayoutDashboard, LayoutGrid, Pin, RefreshCcw, RotateCcw, Search, Users, Wallet, Building2, X,
 } from 'lucide-react'
 import { formatOverviewCurrency, getSuperAdminOverview } from '../services/superAdminDashboardService'
 import { request } from '../services/apiClient'
 import { TrendingCourses } from './TrendingCourses'
 import { useLocation, useNavigate } from 'react-router-dom'
+import { formatSuperAdminDateRange, getSuperAdminDateRange, SUPER_ADMIN_DATE_PRESETS } from '../lib/superAdminDateRange'
 
 const emptyValue = '—'
 const DASHBOARD_LAYOUT_STORAGE_KEY = 'cispro:super-admin-dashboard-layout'
 const DEFAULT_METRIC_ORDER = ['totalBranches', 'totalStudents', 'thisMonthAdmissions', 'totalPayment', 'thisMonthPayment', 'totalOutstanding', 'thisMonthDue', 'todayDue', 'overdueAmount', 'dueStudents', 'todayCollection']
 
-function MetricCard({ label, value, icon: Icon, tone = '', variant = '', comparison = null, scopeLabel, isLoading = false }) {
-  return <article className={`sa-overall-metric ${tone} ${variant} ${isLoading ? 'is-loading' : ''}`.trim()}>
-    <div className="sa-overall-metric-top"><span className="sa-overall-metric-icon"><Icon size={18} strokeWidth={2.1} /></span><span className="sa-overall-metric-label">{label}</span></div>
+function MetricCard({ label, value, icon: Icon, tone = '', variant = '', comparison = null, scopeLabel, isLoading = false, onClick = null, href = '' }) {
+  const isClickable = typeof onClick === 'function'
+  const handleKeyDown = (event) => {
+    if (!isClickable || (event.key !== 'Enter' && event.key !== ' ')) return
+    event.preventDefault()
+    onClick()
+  }
+
+  return <article className={`sa-overall-metric ${tone} ${variant} ${isLoading ? 'is-loading' : ''} ${isClickable ? 'is-clickable' : ''}`.trim()} role={isClickable ? 'link' : undefined} tabIndex={isClickable ? 0 : undefined} onClick={isClickable ? onClick : undefined} onKeyDown={isClickable ? handleKeyDown : undefined} aria-label={isClickable ? `Open ${label}` : undefined} title={isClickable ? href : undefined}>
+    <div className="sa-overall-metric-top"><span className="sa-overall-metric-icon"><Icon size={18} strokeWidth={2.1} /></span><span className="sa-overall-metric-label">{label}</span>{isClickable ? <span className="sa-overall-metric-link-icon" aria-hidden="true"><ArrowUpRight size={18} strokeWidth={2.3} /></span> : null}</div>
     <strong className="sa-overall-metric-value">{isLoading ? <span className="sa-metric-skeleton-value" /> : value}</strong>
     <div className="sa-overall-metric-divider" />
     <div className="sa-overall-metric-bottom">{isLoading ? <span className="sa-metric-skeleton-meta" /> : comparison ? <><span className={`sa-overall-change ${comparison.direction}`}>{comparison.value}</span><small>{comparison.label}</small></> : <small>{scopeLabel}</small>}</div>
@@ -111,20 +119,29 @@ export function SuperAdminOverallDashboard({ branches, userKey = 'super-admin', 
   })
   const savedMetricLayoutRef = useRef(metricLayout)
   const [draggedMetric, setDraggedMetric] = useState(null)
+  const [datePreset, setDatePreset] = useState('thisMonth')
+  const [customStartDate, setCustomStartDate] = useState('')
+  const [customEndDate, setCustomEndDate] = useState('')
+  const [appliedDateRange, setAppliedDateRange] = useState(null)
+  const [dateFilterError, setDateFilterError] = useState('')
 
   const load = useCallback(async () => {
     setIsLoading(true)
     setError('')
     setOverview(null)
     try {
-      const nextOverview = await getSuperAdminOverview(selectedBranch?.branchId || branchIdFromUrl || null)
+      const nextOverview = await getSuperAdminOverview(selectedBranch?.branchId || branchIdFromUrl || null, appliedDateRange ? {
+        period: appliedDateRange.preset === 'custom' ? 'customrange' : appliedDateRange.preset,
+        startDate: appliedDateRange.startDate,
+        endDate: appliedDateRange.endDate,
+      } : {})
       setOverview(nextOverview)
     } catch (loadError) {
       setError(loadError?.status === 404 ? 'No matching branch found.' : 'Unable to load branch dashboard data.')
     } finally {
       setIsLoading(false)
     }
-  }, [branchIdFromUrl, selectedBranch?.branchId])
+  }, [appliedDateRange, branchIdFromUrl, selectedBranch?.branchId])
 
   const loadBranchPerformance = useCallback(async () => {
     if (branchPerformancePeriod === 'customRange' && (!branchPerformanceStartDate || !branchPerformanceEndDate || branchPerformanceStartDate > branchPerformanceEndDate)) return
@@ -251,19 +268,28 @@ export function SuperAdminOverallDashboard({ branches, userKey = 'super-admin', 
   const todayDueComparison = getDayComparison(overview?.todayDue, overview?.yesterdayDue)
   const todayCollectionComparison = getDayComparison(overview?.todayCollection, overview?.yesterdayCollection)
   const scopeLabel = selectedBranch ? `${selectedBranch.branchName} Branch` : ''
-  const metric = (label, value, icon, tone, currency = true, variant = '', comparison = null) => <MetricCard label={selectedBranch && label === 'Total branches' ? 'Selected branch' : label} value={isLoading ? emptyValue : selectedBranch && label === 'Total branches' ? `${selectedBranch.branchName}` : currency ? formatOverviewCurrency(value) : (value ?? 0)} icon={icon} tone={tone} variant={variant} comparison={comparison} scopeLabel={scopeLabel} isLoading={isLoading} />
+  const activeDateLabel = appliedDateRange ? formatSuperAdminDateRange(appliedDateRange) : 'Default dashboard view'
+  const metricPeriodLabel = appliedDateRange ? 'Selected period' : 'This month'
+  const metricLinks = {
+    'Total branches': '/dashboard/super-admin?section=branches',
+    'Total students': '/dashboard/super-admin?section=students',
+  }
+  const metric = (label, value, icon, tone, currency = true, variant = '', comparison = null) => {
+    const href = metricLinks[label]
+    return <MetricCard label={selectedBranch && label === 'Total branches' ? 'Selected branch' : label} value={isLoading ? emptyValue : selectedBranch && label === 'Total branches' ? `${selectedBranch.branchName}` : currency ? formatOverviewCurrency(value) : (value ?? 0)} icon={icon} tone={tone} variant={variant} comparison={comparison} scopeLabel={scopeLabel} isLoading={isLoading} href={href} onClick={href ? () => navigate(href) : null} />
+  }
   const metricDefinitions = {
     totalBranches: { label: 'Total branches', description: 'Total number of active branches on the dashboard', icon: Building2, tone: 'blue', node: metric('Total branches', overview?.totalBranches, Building2, 'blue', false) },
     totalStudents: { label: 'Total students', description: 'Total number of registered students on the dashboard', icon: Users, tone: 'purple', node: metric('Total students', overview?.totalStudents, Users, 'purple', false) },
-    thisMonthAdmissions: { label: 'This month admissions', description: 'Total admissions in the current month', icon: CalendarDays, tone: 'orange', node: metric('This month admissions', overview?.thisMonthAdmissions, CalendarDays, 'orange', false, '', admissionsComparison) },
+    thisMonthAdmissions: { label: `${metricPeriodLabel} admissions`, description: 'Admissions recorded in the selected period', icon: CalendarDays, tone: 'orange', node: metric(`${metricPeriodLabel} admissions`, overview?.thisMonthAdmissions, CalendarDays, 'orange', false, '', admissionsComparison) },
     totalPayment: { label: 'Total payment collected', description: 'Total amount collected across branches', icon: Wallet, tone: 'blue', node: metric('Total payment collected', overview?.totalPayment, Wallet, 'blue') },
-    thisMonthPayment: { label: 'This month payment', description: 'Total payment received this month', icon: IndianRupee, tone: 'green', node: metric('This month payment', overview?.thisMonthPayment, IndianRupee, 'green', true, '', paymentComparison) },
+    thisMonthPayment: { label: `${metricPeriodLabel} payment`, description: 'Total payment received in the selected period', icon: IndianRupee, tone: 'green', node: metric(`${metricPeriodLabel} payment`, overview?.thisMonthPayment, IndianRupee, 'green', true, '', paymentComparison) },
     totalOutstanding: { label: 'Total outstanding', description: 'Total pending amount from students', icon: Clock3, tone: 'orange', node: metric('Total outstanding', overview?.totalOutstanding, Clock3, 'orange') },
-    thisMonthDue: { label: 'This month due', description: 'Total amount due this month', icon: CalendarDays, tone: 'purple', node: metric('This month due', overview?.thisMonthDue, CalendarDays, 'purple') },
-    todayDue: { label: "Today's due", description: 'Total amount due today', icon: Clock3, tone: 'orange', node: metric("Today's due", overview?.todayDue, Clock3, 'orange', true, '', todayDueComparison) },
+    thisMonthDue: { label: `${metricPeriodLabel} due`, description: 'Total amount due in the selected period', icon: CalendarDays, tone: 'purple', node: metric(`${metricPeriodLabel} due`, overview?.thisMonthDue, CalendarDays, 'purple') },
+    todayDue: { label: appliedDateRange ? 'Due at period end' : "Today's due", description: 'Total amount due at the selected period end', icon: Clock3, tone: 'orange', node: metric(appliedDateRange ? 'Due at period end' : "Today's due", overview?.todayDue, Clock3, 'orange', true, '', todayDueComparison) },
     overdueAmount: { label: 'Overdue amount', description: 'Total overdue amount', icon: AlertCircle, tone: 'red', node: metric('Overdue amount', overview?.overdueAmount, AlertCircle, 'red') },
     dueStudents: { label: 'Due students', description: 'Students with pending payments', icon: Users, tone: 'purple', node: metric('Due students', overview?.dueStudents, Users, 'purple', false) },
-    todayCollection: { label: "Today's collection", description: 'Total amount collected today', icon: Banknote, tone: 'green', node: metric("Today's collection", overview?.todayCollection, Banknote, 'green', true, '', todayCollectionComparison) },
+    todayCollection: { label: appliedDateRange ? 'Period collection' : "Today's collection", description: 'Total amount collected in the selected period', icon: Banknote, tone: 'green', node: metric(appliedDateRange ? 'Period collection' : "Today's collection", overview?.todayCollection, Banknote, 'green', true, '', todayCollectionComparison) },
   }
 
   const persistMetricLayout = (nextLayout) => {
@@ -338,6 +364,27 @@ export function SuperAdminOverallDashboard({ branches, userKey = 'super-admin', 
     })
   }
   const clearBranch = () => { setBranchQuery(''); setIsBranchSearchOpen(false); navigate(location.pathname) }
+  const applyDateFilter = () => {
+    const nextRange = getSuperAdminDateRange(datePreset, customStartDate, customEndDate)
+    if (!nextRange) {
+      setDateFilterError('Please select a valid From Date and To Date. From Date must not be later than To Date.')
+      return
+    }
+    setDateFilterError('')
+    setAppliedDateRange(nextRange)
+  }
+  const resetDateFilter = () => {
+    setDatePreset('thisMonth')
+    setCustomStartDate('')
+    setCustomEndDate('')
+    setDateFilterError('')
+    setAppliedDateRange(null)
+  }
+  const selectDatePreset = (preset) => {
+    setDatePreset(preset)
+    setDateFilterError('')
+    if (preset !== 'custom') setAppliedDateRange(getSuperAdminDateRange(preset, customStartDate, customEndDate))
+  }
   const branchPerformanceRows = useMemo(() => {
     const rows = branchPerformance
     return [...rows].sort((left, right) => {
@@ -349,6 +396,15 @@ export function SuperAdminOverallDashboard({ branches, userKey = 'super-admin', 
 
   return <div className="sa-overall-dashboard">
     <div className="sa-overall-intro"><div><p className="sa-overall-kicker"><LayoutDashboard size={15} /> {selectedBranch ? 'Branch view' : 'Consolidated view'}</p><h1>Overall Dashboard</h1><p>{selectedBranch ? `Showing complete performance data for ${selectedBranch.branchName} Branch.` : 'Combined performance across every active branch.'}</p></div><div className="sa-overall-actions"><div className="sa-branch-search-wrap"><label className="sa-branch-search"><span className="sa-branch-search-icon" aria-hidden="true"><Search size={16} /></span><input value={selectedBranch ? `${selectedBranch.branchName} Branch • ${selectedBranch.branchId}` : branchQuery} onChange={(event) => { setBranchQuery(event.target.value); setIsBranchSearchOpen(true) }} onFocus={() => setIsBranchSearchOpen(true)} placeholder="Search branch by ID or branch name..." aria-label="Search branch by ID or branch name" />{selectedBranch ? <button type="button" onClick={clearBranch} aria-label="Clear selected branch"><X size={16} /></button> : null}</label>{isBranchSearchOpen && !selectedBranch && branchQuery.trim() ? <div className="sa-branch-search-results">{matchingBranches.length ? matchingBranches.map((branch) => <button type="button" key={branch.id || branch.branchId} onMouseDown={() => selectBranch(branch)}><strong>{branch.branchName} Branch</strong><span>{branch.branchId} · {branch.branchCity || branch.branchDistrict || 'Location unavailable'} · Active</span></button>) : <p>No matching branch found.</p>}</div> : null}</div><span className="sa-overall-scope"><Building2 size={15} /> {selectedBranch ? `${selectedBranch.branchName} Branch` : 'All active branches'}</span><button type="button" className="sa-overall-customize" onClick={() => { setMetricLayout(savedMetricLayoutRef.current); setIsCustomizeOpen(true) }}><LayoutGrid size={17} /> Customize Dashboard</button><button type="button" className="sa-overall-refresh" onClick={() => void load()} disabled={isLoading}><RefreshCcw size={15} className={isLoading ? 'is-spinning' : ''} /> Refresh</button></div></div>
+    <section className="sa-date-filter" aria-label="Dashboard date range filter">
+      <div className="sa-date-filter-heading"><div><strong>Date range</strong><span>Applied: {activeDateLabel}</span></div>{isLoading ? <span className="sa-date-filter-loading">Updating dashboard…</span> : null}</div>
+      <div className="sa-date-filter-presets" role="group" aria-label="Date range presets">
+        {SUPER_ADMIN_DATE_PRESETS.map((preset) => <button key={preset.value} type="button" className={datePreset === preset.value ? 'is-selected' : ''} onClick={() => selectDatePreset(preset.value)}>{preset.label}</button>)}
+      </div>
+      {datePreset === 'custom' ? <div className="sa-date-filter-custom"><label>From date<input type="date" value={customStartDate} onChange={(event) => { setCustomStartDate(event.target.value); setDateFilterError('') }} /></label><label>To date<input type="date" value={customEndDate} onChange={(event) => { setCustomEndDate(event.target.value); setDateFilterError('') }} /></label></div> : null}
+      {dateFilterError ? <p className="sa-date-filter-error" role="alert">{dateFilterError}</p> : null}
+      <div className="sa-date-filter-actions"><button type="button" className="sa-date-filter-apply" onClick={applyDateFilter} disabled={isLoading}>Apply</button><button type="button" className="sa-date-filter-reset" onClick={resetDateFilter} disabled={isLoading && !appliedDateRange}>Reset</button></div>
+    </section>
     {error ? <div className="sa-overall-alert"><AlertCircle size={18} /> <span>{error}</span><button type="button" onClick={() => void load()}>Try again</button></div> : null}
     <div className="sa-overall-metrics sa-overall-summary-grid" aria-label="Overall dashboard summary">
       {orderedMetricKeys.filter((key) => !metricLayout.hidden.includes(key)).map((key) => <div key={key}>{metricDefinitions[key].node}</div>)}

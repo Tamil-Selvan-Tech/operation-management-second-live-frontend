@@ -5620,9 +5620,32 @@ body.super-admin-sidebar-open {
 
 /* Reference-style summary cards: one compact, consistent structure for every metric. */
 .sa-overall-summary-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
+.sa-date-filter { display: grid; gap: 12px; margin: 18px 0 14px; padding: 14px 16px; border: 1px solid #e1eaf4; border-radius: 12px; background: #fbfdff; }
+.sa-date-filter-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.sa-date-filter-heading > div { display: grid; gap: 3px; }
+.sa-date-filter-heading strong { color: #1c3554; font-size: 13px; }
+.sa-date-filter-heading span { color: #8090a5; font-size: 11px; }
+.sa-date-filter-loading { color: #2775ed !important; font-weight: 650; }
+.sa-date-filter-presets { display: flex; flex-wrap: wrap; gap: 7px; }
+.sa-date-filter-presets button, .sa-date-filter-reset, .sa-date-filter-apply { border: 1px solid #dce6f1; border-radius: 7px; background: #fff; color: #5f7188; cursor: pointer; font-size: 11px; font-weight: 650; padding: 7px 10px; }
+.sa-date-filter-presets button:hover, .sa-date-filter-reset:hover { border-color: #9fc2f2; color: #2775ed; }
+.sa-date-filter-presets button.is-selected { border-color: #2775ed; background: #edf5ff; color: #1763c5; }
+.sa-date-filter-custom { display: flex; flex-wrap: wrap; gap: 10px; }
+.sa-date-filter-custom label { display: grid; gap: 4px; color: #687990; font-size: 10px; font-weight: 650; }
+.sa-date-filter-custom input { min-width: 145px; border: 1px solid #dce6f1; border-radius: 7px; color: #2a3e58; font: inherit; padding: 7px 8px; }
+.sa-date-filter-error { margin: 0; color: #c03945; font-size: 11px; font-weight: 600; }
+.sa-date-filter-actions { display: flex; gap: 8px; }
+.sa-date-filter-apply { border-color: #2775ed; background: #2775ed; color: #fff; }
+.sa-date-filter-apply:hover { background: #1763c5; }
+.sa-date-filter-actions button:disabled { cursor: wait; opacity: .55; }
 .sa-overall-summary-grid .sa-overall-metric { display: flex; flex-direction: column; justify-content: flex-start; gap: 0; min-height: 126px; padding: 12px 14px 10px; border: 1px solid #e4e9f0; border-radius: 12px; background: #fff; box-shadow: 0 4px 14px rgba(22, 40, 72, .045); }
 .sa-overall-summary-grid .sa-overall-metric:hover { border-color: #d6e0ec; box-shadow: 0 7px 20px rgba(22, 40, 72, .075); }
+.sa-overall-summary-grid .sa-overall-metric.is-clickable { cursor: pointer; }
+.sa-overall-summary-grid .sa-overall-metric.is-clickable:focus-visible { outline: 3px solid rgba(47, 128, 237, .28); outline-offset: 2px; }
 .sa-overall-metric-top { display: flex !important; align-items: center; gap: 10px; min-height: 31px; }
+.sa-overall-metric-link-icon { display: grid; place-items: center; flex: 0 0 34px; width: 34px; height: 34px; margin-left: auto; border-radius: 9px; background: #eafaf2; color: #159466; }
+.sa-overall-metric.purple .sa-overall-metric-link-icon { background: #f2edff; color: #7048c8; }
+.sa-overall-metric.blue .sa-overall-metric-link-icon { background: #edf5ff; color: #2775ed; }
 .sa-overall-summary-grid .sa-overall-metric-icon { flex: 0 0 31px; width: 31px; height: 31px; border-radius: 8px; }
 .sa-overall-summary-grid .sa-overall-metric-label { overflow: hidden; color: #687990; font-size: 12px; font-weight: 650; line-height: 1.25; text-overflow: ellipsis; white-space: nowrap; }
 .sa-overall-summary-grid .sa-overall-metric-value { display: block; margin: 10px 0 8px; overflow: hidden; color: #14243a; font-size: 25px; font-weight: 750; letter-spacing: -.025em; line-height: 1.1; text-overflow: ellipsis; white-space: nowrap; }
@@ -5647,6 +5670,7 @@ body.super-admin-sidebar-open {
 .sa-overall-summary-grid .sa-overall-metric.red .sa-overall-metric-icon { background: #fff0f1; color: #e23d4b; }
 @media (max-width: 1100px) { .sa-overall-summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 560px) { .sa-overall-summary-grid { grid-template-columns: 1fr; } .sa-overall-summary-grid .sa-overall-metric { min-height: 126px; } }
+@media (max-width: 560px) { .sa-date-filter-heading { align-items: flex-start; flex-direction: column; } .sa-date-filter-presets button { flex: 1 1 calc(50% - 7px); } .sa-date-filter-custom label, .sa-date-filter-custom input { width: 100%; } }
 
 /* Summary card customization */
 .sa-customize-backdrop { position: fixed; z-index: 1200; inset: 0; display: grid; place-items: center; padding: 20px; background: rgba(15, 31, 55, .42); }
