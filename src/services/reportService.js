@@ -67,3 +67,7 @@ export async function downloadFacultyAttendanceReport(query = {}) {
 export async function downloadAllFacultyAttendanceReport(query = {}) {
   return downloadReport('/reports/all-faculty-attendance', query, 'all-faculty-attendance-report.xlsx')
 }
+
+export async function downloadBranchMonthlyStudentReport(query = {}, fileName = '') {
+  return downloadReport('/reports/branch-monthly-students', query, 'branch-monthly-report.xlsx', fileName)
+}

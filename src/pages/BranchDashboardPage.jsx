@@ -114,6 +114,7 @@ import { BranchStudentAttendance } from '../components/BranchStudentAttendance'
 import { getBranchDashboardWidgets, saveBranchDashboardWidgets } from '../services/branchDashboardWidgetService'
 import { BranchBatchManagementSection } from './BranchBatchManagementSection'
 import { BranchAttendanceReportModal } from '../components/BranchAttendanceReportModal'
+import { BranchMonthlyReportModal } from '../components/BranchMonthlyReportModal'
 import { InstituteLeavePage } from './InstituteLeavePage'
 import { FacultyEditRequestsView, ProgressNotificationsView } from '../components/BranchManagementViews'
 import { BranchInstallmentTemplatesPage } from './BranchInstallmentTemplatesPage'
@@ -3940,6 +3941,7 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
     }
   })
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false)
+  const [isMonthlyReportOpen, setIsMonthlyReportOpen] = useState(false)
   const [isMobileViewport, setIsMobileViewport] = useState(() => (
     typeof window !== 'undefined' && window.matchMedia('(max-width: 991px)').matches
   ))
@@ -11471,6 +11473,14 @@ useEffect(() => {
                   description="Manage student registrations for this branch."
                   actions={(
                     <>
+                      <button
+                        type="button"
+                        className="button branch-monthly-report-trigger"
+                        onClick={() => setIsMonthlyReportOpen(true)}
+                      >
+                        <FileText size={16} aria-hidden="true" />
+                        Monthly Report
+                      </button>
                       <button
                         type="button"
                         className="button button-solid"
@@ -19037,6 +19047,10 @@ else {
           courseId={attendanceReportTarget?.courseId || ''}
           branchId={branchProfile?.id || branchProfile?.branchId || branchData?.id || branchData?.branchId || ''}
           onClose={() => setAttendanceReportTarget(null)}
+        />
+        <BranchMonthlyReportModal
+          isOpen={isMonthlyReportOpen}
+          onClose={() => setIsMonthlyReportOpen(false)}
         />
         {inactiveBranchActionPopup ? (
           <div className="branch-modal-backdrop" role="presentation">
