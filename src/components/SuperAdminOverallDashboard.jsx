@@ -20,7 +20,7 @@ function MetricCard({ label, value, icon: Icon, tone = '', variant = '', compari
     onClick()
   }
 
-  return <article className={`sa-overall-metric ${tone} ${variant} ${isLoading ? 'is-loading' : ''} ${isClickable ? 'is-clickable' : ''}`.trim()} role={isClickable ? 'link' : undefined} tabIndex={isClickable ? 0 : undefined} onClick={isClickable ? onClick : undefined} onKeyDown={isClickable ? handleKeyDown : undefined} aria-label={isClickable ? `Open ${label}` : undefined} title={isClickable ? href : undefined}>
+  return <article className={`sa-overall-metric ${tone} ${variant} ${isLoading ? 'is-loading' : ''} ${isClickable ? 'is-clickable' : ''}`.trim()} role={isClickable ? 'link' : undefined} tabIndex={isClickable ? 0 : undefined} onClick={isClickable ? onClick : undefined} onKeyDown={isClickable ? handleKeyDown : undefined} aria-label={isClickable ? `Open ${label}` : undefined}>
     <div className="sa-overall-metric-top"><span className="sa-overall-metric-icon"><Icon size={18} strokeWidth={2.1} /></span><span className="sa-overall-metric-label">{label}</span>{isClickable ? <span className="sa-overall-metric-link-icon" aria-hidden="true"><ArrowUpRight size={18} strokeWidth={2.3} /></span> : null}</div>
     <strong className="sa-overall-metric-value">{isLoading ? <span className="sa-metric-skeleton-value" /> : value}</strong>
     <div className="sa-overall-metric-divider" />
@@ -277,7 +277,6 @@ export function SuperAdminOverallDashboard({ branches, userKey = 'super-admin', 
     'Total students': '/dashboard/super-admin?section=students',
     'Selected period admissions': '/dashboard/super-admin?section=metric-admissions',
     'This month admissions': '/dashboard/super-admin?section=metric-admissions',
-    'Total payment collected': '/dashboard/super-admin?section=metric-total-payment',
     'Selected period payment': '/dashboard/super-admin?section=metric-month-payment',
     'This month payment': '/dashboard/super-admin?section=metric-month-payment',
     'Total outstanding': '/dashboard/super-admin?section=metric-outstanding',

@@ -6373,6 +6373,9 @@ body.super-admin-sidebar-open {
 .super-admin-detail-empty { color: #6d8098; padding: 48px 24px; text-align: center; }
 .super-admin-detail-status { background: #fff; border: 1px solid #d5e1f2; border-radius: 10px; color: #274568; min-height: 42px; padding: 0 12px; }
 .super-admin-detail-branch-filter { min-width: 150px; }
+.super-admin-detail-total { padding: 10px 14px; border: 1px solid #cfe0f5; border-radius: 999px; color: #166534; background: #f0fdf4; font-size: 13px; font-weight: 800; white-space: nowrap; }
+.super-admin-detail-table td.is-highlighted-amount { color: #166534; background: #f0fdf4; font-weight: 800; }
+.super-admin-detail-table th.is-highlighted-amount { color: #166534; background: #dcfce7; }
 .super-admin-detail-multiline { display: grid; gap: 4px; white-space: normal; }
 .super-admin-global-header-actions > .super-admin-student-search { display: inline-flex; align-items: center; gap: 8px; width: 260px; min-height: 42px; box-sizing: border-box; padding: 0 12px; border: 1px solid #cbd9ea; border-radius: 10px; background: #fff; }
 .super-admin-global-header-actions > .super-admin-student-search svg { flex: 0 0 auto; color: #7890ad; }
