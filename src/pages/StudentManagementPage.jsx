@@ -42,7 +42,8 @@ import { FACULTY_BATCH_ATTENDANCE_SYNC_EVENT, resolveStudentBatchAttendanceStatu
 import { loadStudentSnapshot, mergeStudentsWithSnapshot, saveStudentSnapshot } from '../lib/studentSnapshot'
 import { useMobileMenu } from '../layouts/mobileMenuContext'
 
-const statusOptions = ['Student', 'Employee', 'Other']
+const statusOptions = ['House Holder', 'College Student', 'Fresher', 'School', 'Business', 'Employee', 'Other', 'Custom']
+const purposeOptions = ['Project', 'Internship', 'Learning', 'Job / Placement', 'Up Skilling', 'Career Change', 'Certification', 'Custom']
 const recordStatusOptions = ['Active', 'Inactive']
 const paymentModeOptions = ['Installment', 'Full Payment']
 const sourceOptions = ['Justdial', 'Sulekha', 'Website', 'Poster', 'Others']
@@ -117,7 +118,13 @@ function createEmptyForm() {
     qualification: '',
     passedOutYear: '',
     currentStatus: '',
+    customCurrentStatus: '',
+    purpose: '',
+    customPurpose: '',
+    educationLevel: '',
+    educationStatus: '',
     designation: '',
+    companyName: '',
     location: '',
     source: '',
     status: 'Active',
@@ -524,15 +531,23 @@ function validateForm(form, course = null) {
   if (!form.qualification.trim()) errors.qualification = 'Qualification is required.'
 
   const passedOutYear = Number(form.passedOutYear)
-  if (!/^\d{4}$/.test(String(form.passedOutYear).trim()) || passedOutYear < 1950) {
+  const isCollegeStudent = String(form.currentStatus || '').trim().toLowerCase() === 'college student'
+  const isFresher = String(form.currentStatus || '').trim().toLowerCase() === 'fresher'
+  if (isCollegeStudent && form.educationStatus === 'Passed Out' && (!/^\d{4}$/.test(String(form.passedOutYear).trim()) || passedOutYear < 1950)) {
     errors.passedOutYear = 'Enter a valid passed out year.'
   }
 
   if (!form.currentStatus) errors.currentStatus = 'Please select the current status.'
+  if (isCollegeStudent && !form.educationLevel) errors.educationLevel = 'Education level is required.'
+  if (isCollegeStudent && !form.educationStatus) errors.educationStatus = 'Education status is required.'
+  if ((isFresher || (isCollegeStudent && form.educationStatus === 'Passed Out')) && !form.passedOutYear) errors.passedOutYear = 'Passed out year is required.'
+  if (form.currentStatus === 'Custom' && !form.customCurrentStatus.trim()) errors.customCurrentStatus = 'Custom current status is required.'
+  if (form.purpose === 'Custom' && !form.customPurpose.trim()) errors.customPurpose = 'Custom purpose is required.'
 
   if (form.currentStatus === 'Employee' && !form.designation.trim()) {
     errors.designation = 'Designation is required for employees.'
   }
+  if (form.currentStatus === 'Employee' && !form.companyName.trim()) errors.companyName = 'Company name is required for employees.'
 
   if (!form.location.trim()) errors.location = 'Location is required.'
   if (!form.source) errors.source = 'Please select a source.'
@@ -578,9 +593,11 @@ function validateStep(form, stepIndex, course = null) {
       'facultyName',
       'batch',
       'qualification',
-      'passedOutYear',
+      'passedOutYear', 'educationLevel', 'educationStatus',
       'currentStatus',
-      ...(String(form.currentStatus || '') === 'Employee' ? ['designation'] : []),
+      ...(String(form.currentStatus || '') === 'Employee' ? ['designation', 'companyName'] : []),
+      ...(String(form.currentStatus || '') === 'Custom' ? ['customCurrentStatus'] : []),
+      ...(String(form.purpose || '') === 'Custom' ? ['customPurpose'] : []),
       'source',
     ],
     2: [
@@ -1671,7 +1688,13 @@ export function StudentManagementPage() {
     qualification: student.qualification || '',
     passedOutYear: student.passedOutYear || '',
     currentStatus: student.currentStatus || '',
+    customCurrentStatus: student.customCurrentStatus || '',
+    purpose: student.purpose || '',
+    customPurpose: student.customPurpose || '',
+    educationLevel: student.educationLevel || '',
+    educationStatus: student.educationStatus || '',
     designation: student.designation || '',
+    companyName: student.companyName || '',
     location: student.location || '',
     source: student.source || '',
     status: student.status || 'Active',
@@ -2288,7 +2311,12 @@ export function StudentManagementPage() {
       }
       setOpenActionMenuId('')
 
-      void loadStudents({ silent: true })
+      // The PATCH response is authoritative. Avoid an immediate list reload
+      // here because an older in-flight list request can overwrite the saved
+      // current status/purpose with stale values.
+      if (!editingStudentId) {
+        void loadStudents({ silent: true })
+      }
     } catch (error) {
       const errorMessage = apiErrorMessage(error, 'Unable to save student details.')
       const normalizedErrorMessage = String(errorMessage || '').toLowerCase()
@@ -2431,7 +2459,13 @@ export function StudentManagementPage() {
       qualification: currentStudent.qualification || '',
       passedOutYear: currentStudent.passedOutYear || '',
       currentStatus: currentStudent.currentStatus || '',
+      customCurrentStatus: currentStudent.customCurrentStatus || '',
+      purpose: currentStudent.purpose || '',
+      customPurpose: currentStudent.customPurpose || '',
+      educationLevel: currentStudent.educationLevel || '',
+      educationStatus: currentStudent.educationStatus || '',
       designation: currentStudent.designation || '',
+      companyName: currentStudent.companyName || '',
       source: currentStudent.source || '',
       status: currentStudent.status || 'Active',
       paymentMode: currentStudent.paymentMode || 'Installment',
@@ -3130,7 +3164,22 @@ export function StudentManagementPage() {
                       />
                     </Field>
 
-                  <Field label="Select Passed Out Year" required error={shouldShowError('passedOutYear') ? errors.passedOutYear : ''}>
+                  {String(form.currentStatus || '').trim().toLowerCase() !== 'school' && form.currentStatus ? <>
+                    {String(form.currentStatus || '').trim().toLowerCase() === 'college student' ? <Field label="Education Level" required error={shouldShowError('educationLevel') ? errors.educationLevel : ''}>
+                      <select value={form.educationLevel} onChange={(event) => updateField('educationLevel', event.target.value)}>
+                        <option value="">Select education level</option>
+                        <option value="UG">UG</option>
+                        <option value="PG">PG</option>
+                      </select>
+                    </Field> : null}
+                    {String(form.currentStatus || '').trim().toLowerCase() === 'college student' ? <Field label="Education Status" required error={shouldShowError('educationStatus') ? errors.educationStatus : ''}>
+                      <select value={form.educationStatus} onChange={(event) => setForm((current) => ({ ...current, educationStatus: event.target.value, passedOutYear: event.target.value === 'Passed Out' ? current.passedOutYear : '' }))}>
+                        <option value="">Select education status</option>
+                        <option value="Currently Pursuing">Currently Pursuing</option>
+                        <option value="Passed Out">Passed Out</option>
+                      </select>
+                    </Field> : null}
+                    {(String(form.currentStatus || '').trim().toLowerCase() !== 'college student' || form.educationStatus === 'Passed Out') ? <Field label="Select Passed Out Year" required={String(form.currentStatus || '').trim().toLowerCase() === 'fresher' || form.educationStatus === 'Passed Out'} error={shouldShowError('passedOutYear') ? errors.passedOutYear : ''}>
                     <div className="student-year-select-stack">
                       <div className="student-year-select-control">
                         <span className="student-year-select-icon" aria-hidden="true">
@@ -3166,12 +3215,25 @@ export function StudentManagementPage() {
                         />
                       ) : null}
                     </div>
-                  </Field>
+                    </Field> : null}
+                  </> : null}
 
                     <Field label="Select Current Status" required icon={<FieldIcon kind="status" />} error={shouldShowError('currentStatus') ? errors.currentStatus : ''}>
                       <select
                         value={form.currentStatus}
-                        onChange={(event) => updateField('currentStatus', event.target.value)}
+                        onChange={(event) => {
+                          const value = event.target.value
+                          setForm((current) => ({
+                            ...current,
+                            currentStatus: value,
+                            customCurrentStatus: value === 'Custom' ? current.customCurrentStatus : '',
+                            educationLevel: value === 'College Student' ? current.educationLevel : '',
+                            educationStatus: value === 'College Student' ? current.educationStatus : '',
+                            passedOutYear: value === 'College Student' ? current.passedOutYear : '',
+                            designation: value === 'Employee' ? current.designation : '',
+                            companyName: value === 'Employee' ? current.companyName : '',
+                          }))
+                        }}
                         onBlur={() => markTouched('currentStatus')}
                       >
                         <option value="">Select status</option>
@@ -3182,6 +3244,21 @@ export function StudentManagementPage() {
                         ))}
                       </select>
                     </Field>
+
+                    {form.currentStatus === 'Custom' ? <Field label="Custom Current Status" required error={shouldShowError('customCurrentStatus') ? errors.customCurrentStatus : ''}>
+                      <input value={form.customCurrentStatus} onChange={(event) => updateField('customCurrentStatus', event.target.value)} placeholder="Enter current status" />
+                    </Field> : null}
+
+                    <Field label="Purpose" error={shouldShowError('purpose') ? errors.purpose : ''}>
+                      <select value={form.purpose} onChange={(event) => setForm((current) => ({ ...current, purpose: event.target.value, customPurpose: event.target.value === 'Custom' ? current.customPurpose : '' }))}>
+                        <option value="">Select purpose</option>
+                        {purposeOptions.map((purpose) => <option key={purpose} value={purpose}>{purpose}</option>)}
+                      </select>
+                    </Field>
+
+                    {form.purpose === 'Custom' ? <Field label="Custom Purpose" required error={shouldShowError('customPurpose') ? errors.customPurpose : ''}>
+                      <input value={form.customPurpose} onChange={(event) => updateField('customPurpose', event.target.value)} placeholder="Enter purpose" />
+                    </Field> : null}
 
                     <Field
                       label="Enter Designation"
@@ -3197,6 +3274,10 @@ export function StudentManagementPage() {
                         placeholder="Job title or designation"
                       />
                     </Field>
+
+                    {form.currentStatus === 'Employee' ? <Field label="Company Name" required error={shouldShowError('companyName') ? errors.companyName : ''}>
+                      <input value={form.companyName} onChange={(event) => updateField('companyName', event.target.value)} placeholder="Company name" />
+                    </Field> : null}
 
                     <Field
                       label="Select Source"
@@ -3536,7 +3617,19 @@ export function StudentManagementPage() {
                           <DrawerFormControl
                             as="select"
                             value={form.currentStatus}
-                            onChange={(event) => updateField('currentStatus', event.target.value)}
+                            onChange={(event) => {
+                              const value = event.target.value
+                              setForm((current) => ({
+                                ...current,
+                                currentStatus: value,
+                                customCurrentStatus: value === 'Custom' ? current.customCurrentStatus : '',
+                                educationLevel: value === 'College Student' ? current.educationLevel : '',
+                                educationStatus: value === 'College Student' ? current.educationStatus : '',
+                                passedOutYear: value === 'College Student' || value === 'Fresher' ? current.passedOutYear : '',
+                                designation: value === 'Employee' ? current.designation : '',
+                                companyName: value === 'Employee' ? current.companyName : '',
+                              }))
+                            }}
                             options={statusOptions}
                             placeholder="Select status"
                           />
@@ -3545,6 +3638,24 @@ export function StudentManagementPage() {
                       <tr>
                         <th>Designation</th>
                         <td><DrawerFormControl value={form.designation} onChange={(event) => updateField('designation', event.target.value)} /></td>
+                        <th>Purpose</th>
+                        <td>
+                          <DrawerFormControl
+                            as="select"
+                            value={form.purpose}
+                            onChange={(event) => setForm((current) => ({
+                              ...current,
+                              purpose: event.target.value,
+                              customPurpose: event.target.value === 'Custom' ? current.customPurpose : '',
+                            }))}
+                            options={purposeOptions}
+                            placeholder="Select purpose"
+                          />
+                        </td>
+                      </tr>
+                      <tr>
+                        <th>Custom Purpose</th>
+                        <td><DrawerFormControl value={form.customPurpose} onChange={(event) => updateField('customPurpose', event.target.value)} disabled={form.purpose !== 'Custom'} /></td>
                         <th>Admission Date</th>
                         <td><DrawerFormControl type="date" value={form.admissionDate} onChange={(event) => updateField('admissionDate', event.target.value)} /></td>
                       </tr>

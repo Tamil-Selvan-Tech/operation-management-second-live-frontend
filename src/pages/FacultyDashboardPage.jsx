@@ -462,6 +462,8 @@ function buildFacultyStudentViewRecord(student = {}, facultyRecords = []) {
     parentSpouseNumber: String(student?.parentSpouseNumber || student?.parentMobileNumber || student?.parentPhoneNumber || student?.parentNumber || '').trim(),
     address: String(student?.address || student?.location || [student?.city, student?.state, student?.country].filter(Boolean).join(', ') || '').trim(),
     qualification: String(student?.qualification || student?.highestQualification || student?.education || '').trim(),
+    educationLevel: String(student?.educationLevel || '').trim(),
+    educationStatus: String(student?.educationStatus || '').trim(),
     designation: String(student?.designation || student?.currentDesignation || student?.jobTitle || '').trim(),
     passedOutYear: String(student?.passedOutYear || student?.passOutYear || student?.graduationYear || '').trim(),
     currentStatus: String(student?.currentStatus || student?.employmentStatus || student?.studentStatus || '').trim(),
@@ -7474,34 +7476,38 @@ const nextName = trimmedValue
 
                         <div className="student-detail-grid">
                           <div className="student-detail-item">
-                            <span>Qualification</span>
-                            <strong>{viewStudentDrawer.qualification || '-'}</strong>
-                          </div>
-                          <div className="student-detail-item">
-                            <span>Designation</span>
-                            <strong>{viewStudentDrawer.designation || '-'}</strong>
-                          </div>
-                          <div className="student-detail-item">
-                            <span>Passed Out Year</span>
-                            <strong>{viewStudentDrawer.passedOutYear || '-'}</strong>
-                          </div>
-                          <div className="student-detail-item">
                             <span>Student Status</span>
                             <strong>{viewStudentDrawer.currentStatus || '-'}</strong>
                           </div>
-                        </div>
-                        {(viewStudentDrawer.courseAssignments || []).map((assignment, index) => (
-                          <div className="student-detail-grid student-course-assignment-grid" key={assignment.courseId || `${assignment.courseName}-${index}`}>
-                            <div className="student-detail-item">
-                              <span>{(viewStudentDrawer.courseAssignments || []).length > 1 ? `Course ${index + 1}` : 'Course Name'}</span>
-                              <strong>{assignment.courseName || '-'}</strong>
-                            </div>
-                            <div className="student-detail-item">
-                              <span>Faculty Name</span>
-                              <strong>{assignment.facultyName || '-'}</strong>
-                            </div>
+                          <div className="student-detail-item">
+                            <span>Qualification</span>
+                            <strong>{viewStudentDrawer.qualification || '-'}</strong>
                           </div>
-                        ))}
+                          {String(viewStudentDrawer.educationLevel || '').trim() ? (
+                            <div className="student-detail-item">
+                              <span>Education Level</span>
+                              <strong>{viewStudentDrawer.educationLevel}</strong>
+                            </div>
+                          ) : null}
+                          {String(viewStudentDrawer.educationStatus || '').trim() ? (
+                            <div className="student-detail-item">
+                              <span>Education Status</span>
+                              <strong>{viewStudentDrawer.educationStatus}</strong>
+                            </div>
+                          ) : null}
+                          {String(viewStudentDrawer.designation || '').trim() ? (
+                            <div className="student-detail-item">
+                              <span>Designation</span>
+                              <strong>{viewStudentDrawer.designation}</strong>
+                            </div>
+                          ) : null}
+                          {String(viewStudentDrawer.passedOutYear || '').trim() ? (
+                            <div className="student-detail-item">
+                              <span>Passed Out Year</span>
+                              <strong>{viewStudentDrawer.passedOutYear}</strong>
+                            </div>
+                          ) : null}
+                        </div>
                       </div>
 
                       <div className="student-drawer-section-card">
@@ -7519,6 +7525,14 @@ const nextName = trimmedValue
                           <div className="student-course-assignment-block" key={assignment.courseId || `${assignment.courseName}-${index}`}>
                             {(viewStudentDrawer.courseAssignments || []).length > 1 ? <h5>{assignment.courseName || `Course ${index + 1}`}</h5> : null}
                             <div className="student-detail-grid">
+                              <div className="student-detail-item">
+                                <span>Course Name</span>
+                                <strong>{assignment.courseName || '-'}</strong>
+                              </div>
+                              <div className="student-detail-item">
+                                <span>Faculty Name</span>
+                                <strong>{assignment.facultyName || '-'}</strong>
+                              </div>
                               <div className="student-detail-item">
                                 <span>Batch Name</span>
                                 <strong>{assignment.batchName || '-'}</strong>

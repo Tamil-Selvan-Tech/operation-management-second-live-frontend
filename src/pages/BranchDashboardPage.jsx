@@ -437,10 +437,16 @@ const STUDENT_FORM_STEP_ONE_FIELDS = [
   'qualification',
   'passedOutYear',
   'passedOutYearCustom',
+  'educationLevel',
+  'educationStatus',
 ]
 const STUDENT_FORM_STEP_TWO_FIELDS = [
   'currentStatus',
+  'customCurrentStatus',
+  'purpose',
+  'customPurpose',
   'designation',
+  'companyName',
   'source',
   'sourceOther',
   'remarks',
@@ -766,8 +772,14 @@ function createInitialStudentForm(branchId) {
     qualification: '',
     passedOutYear: '',
     passedOutYearCustom: '',
+    educationLevel: '',
+    educationStatus: '',
     currentStatus: '',
+    customCurrentStatus: '',
+    purpose: '',
+    customPurpose: '',
     designation: '',
+    companyName: '',
     source: '',
     sourceOther: '',
     remarks: '',
@@ -831,8 +843,14 @@ function buildStudentFormFromRecord(student = {}) {
     qualification: student.qualification || '',
     passedOutYear: student.passedOutYear || '',
     passedOutYearCustom: student.passedOutYearCustom || '',
+    educationLevel: student.educationLevel || '',
+    educationStatus: student.educationStatus || '',
     currentStatus: student.currentStatus || '',
+    customCurrentStatus: student.customCurrentStatus || '',
+    purpose: student.purpose || '',
+    customPurpose: student.customPurpose || '',
     designation: student.designation || '',
+    companyName: student.companyName || '',
     source: student.source || '',
     sourceOther: student.sourceOther || '',
     remarks: student.remarks || '',
@@ -966,10 +984,17 @@ function validateStudentForm(form, students = []) {
   if (!form.city) errors.city = 'City is required.'
   if (!safeTrim(form.address)) errors.address = 'Address is required.'
   if (!safeTrim(form.qualification)) errors.qualification = 'Qualification is required.'
-  if (!form.passedOutYear) errors.passedOutYear = 'Passed Out Year is required.'
+  const isCollegeStudent = form.currentStatus === 'College Student'
+  const isFresher = form.currentStatus === 'Fresher'
+  if (isCollegeStudent && !form.educationLevel) errors.educationLevel = 'Education Level is required.'
+  if (isCollegeStudent && !form.educationStatus) errors.educationStatus = 'Education Status is required.'
+  if ((isFresher || (isCollegeStudent && form.educationStatus === 'Passed Out')) && !form.passedOutYear) errors.passedOutYear = 'Passed Out Year is required.'
   if (form.passedOutYear === 'Custom' && !safeTrim(form.passedOutYearCustom)) errors.passedOutYearCustom = 'Please specify the year.'
   if (!form.currentStatus) errors.currentStatus = 'Current Status is required.'
+  if (form.currentStatus === 'Custom' && !safeTrim(form.customCurrentStatus)) errors.customCurrentStatus = 'Custom Current Status is required.'
+  if (form.purpose === 'Custom' && !safeTrim(form.customPurpose)) errors.customPurpose = 'Custom Purpose is required.'
   if (form.currentStatus === 'Employee' && !safeTrim(form.designation)) errors.designation = 'Designation is required for employees.'
+  if (form.currentStatus === 'Employee' && !safeTrim(form.companyName)) errors.companyName = 'Company Name is required for employees.'
   if (!form.source) errors.source = 'This field is required.'
   if (form.source === 'Others' && !safeTrim(form.sourceOther)) errors.sourceOther = 'Please specify.'
   if (!form.admissionDate) errors.admissionDate = 'Admission Date is required.'
@@ -4007,13 +4032,9 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
 
       if (embeddedMode) {
         setIsMobileSidebarOpen(false)
-        navigate(
-          {
-            pathname: location.pathname,
-            search: isDashboard ? '' : `?section=${encodeURIComponent(nextSection)}`,
-          },
-          { replace },
-        )
+        // Embedded branch dashboards live inside the Super Admin route. Do
+        // not navigate the parent URL or it will remount back to Dashboard.
+        setRequestedSidebarSection(nextSection)
         return
       }
 
@@ -10965,7 +10986,7 @@ useEffect(() => {
                 />
               ) : null}
               {activeSection === 'completed-students' ? <CompletedStudentsPage academicProgressByStudent={branchAcademicProgressByStudent} branchAdminName={branchAdminDisplay} completedStudents={completedStudentsForLifecycle} completedStudentsLoading={!isBranchAcademicProgressLoaded} courseCatalog={branchCourseCards} paymentHistoryRecords={allPaymentHistoryRecords} students={branchStudentsForDisplay} /> : null}
-              {activeSection === 'faculty-skills' ? <FacultySkillsUpgradePage embedded /> : null}
+              {activeSection === 'faculty-skills' ? <FacultySkillsUpgradePage embedded branchId={branchData?.id || branchData?.branchId || branchProfile?.id || branchProfile?.branchId || ''} /> : null}
               {activeSection === 'dashboard' ? (
                 <>
                   <div className="branch-dashboard-overview-intro">
@@ -16627,10 +16648,25 @@ else {
                     </div>
 
                     <div className="student-detail-item">
+                      <span>Education</span>
+                      <strong>{[viewStudentDrawer.educationLevel, viewStudentDrawer.educationStatus].filter(Boolean).join(' / ') || '-'}</strong>
+                    </div>
+
+                    <div className="student-detail-item">
                       <span>Designation</span>
                       <strong>
                         {viewStudentDrawer.designation || '-'}
                       </strong>
+                    </div>
+
+                    <div className="student-detail-item">
+                      <span>Purpose</span>
+                      <strong>{viewStudentDrawer.customPurpose || viewStudentDrawer.purpose || '-'}</strong>
+                    </div>
+
+                    <div className="student-detail-item">
+                      <span>Company Name</span>
+                      <strong>{viewStudentDrawer.companyName || '-'}</strong>
                     </div>
 
                   </div>
@@ -17660,9 +17696,33 @@ else {
           />
         </Field>
 
+        {studentForm.currentStatus === 'College Student' && (
+        <>
+        <Field
+          label="Education Level"
+          required
+          error={shouldShowStudentError('educationLevel') ? studentFormValidationErrors.educationLevel : ''}
+        >
+          <select value={studentForm.educationLevel} onChange={(e) => updateStudentField('educationLevel', e.target.value)} disabled={studentFormMode === 'view'}>
+            <option value="">Select Education Level</option>
+            <option value="UG">UG</option>
+            <option value="PG">PG</option>
+          </select>
+        </Field>
+        <Field
+          label="Education Status"
+          required
+          error={shouldShowStudentError('educationStatus') ? studentFormValidationErrors.educationStatus : ''}
+        >
+          <select value={studentForm.educationStatus} onChange={(e) => setStudentForm((c) => ({ ...c, educationStatus: e.target.value, passedOutYear: e.target.value === 'Passed Out' ? c.passedOutYear : '', passedOutYearCustom: e.target.value === 'Passed Out' ? c.passedOutYearCustom : '' }))} disabled={studentFormMode === 'view'}>
+            <option value="">Select Education Status</option>
+            <option value="Currently Pursuing">Currently Pursuing</option>
+            <option value="Passed Out">Passed Out</option>
+          </select>
+        </Field>
         <Field
           label="Passed Out Year"
-          required
+          required={studentForm.educationStatus === 'Passed Out'}
           error={
             shouldShowStudentError('passedOutYear')
               ? studentFormValidationErrors.passedOutYear
@@ -17696,7 +17756,7 @@ else {
           </select>
         </Field>
 
-        {studentForm.passedOutYear === 'Custom' && (
+        {studentForm.educationStatus === 'Passed Out' && studentForm.passedOutYear === 'Custom' && (
           <Field
             label="Specify Year"
             required
@@ -17725,6 +17785,8 @@ else {
               disabled={studentFormMode === 'view'}
             />
           </Field>
+        )}
+        </>
         )}
 
       </div>
@@ -17769,8 +17831,13 @@ else {
               setStudentForm((c) => ({
                 ...c,
                 currentStatus: val,
-                designation:
-                  val !== 'Employee' ? '' : c.designation,
+                customCurrentStatus: val === 'Custom' ? c.customCurrentStatus : '',
+                educationLevel: val !== 'School' ? c.educationLevel : '',
+                educationStatus: val !== 'School' ? c.educationStatus : '',
+                passedOutYear: val !== 'School' ? c.passedOutYear : '',
+                passedOutYearCustom: val !== 'School' ? c.passedOutYearCustom : '',
+                designation: val === 'Employee' ? c.designation : '',
+                companyName: val === 'Employee' ? c.companyName : '',
               }));
             }}
             onBlur={() =>
@@ -17784,11 +17851,69 @@ else {
             <option value="" disabled>
               Select Status
             </option>
-            <option value="Student">Student</option>
+            <option value="House Holder">House Holder</option>
+            <option value="College Student">College Student</option>
+            <option value="Fresher">Fresher</option>
+            <option value="School">School</option>
+            <option value="Business">Business</option>
             <option value="Employee">Employee</option>
             <option value="Other">Other</option>
+            <option value="Custom">Custom</option>
           </select>
         </Field>
+
+        {studentForm.currentStatus && studentForm.currentStatus !== 'School' && (
+          <>
+            {studentForm.currentStatus === 'College Student' ? <Field label="Education Level" required error={shouldShowStudentError('educationLevel') ? studentFormValidationErrors.educationLevel : ''}>
+              <select value={studentForm.educationLevel} onChange={(e) => updateStudentField('educationLevel', e.target.value)} disabled={studentFormMode === 'view'}>
+                <option value="">Select Education Level</option>
+                <option value="UG">UG</option>
+                <option value="PG">PG</option>
+              </select>
+            </Field> : null}
+            {studentForm.currentStatus === 'College Student' ? <Field label="Education Status" required error={shouldShowStudentError('educationStatus') ? studentFormValidationErrors.educationStatus : ''}>
+              <select value={studentForm.educationStatus} onChange={(e) => setStudentForm((current) => ({ ...current, educationStatus: e.target.value, passedOutYear: e.target.value === 'Passed Out' ? current.passedOutYear : '' }))} disabled={studentFormMode === 'view'}>
+                <option value="">Select Education Status</option>
+                <option value="Currently Pursuing">Currently Pursuing</option>
+                <option value="Passed Out">Passed Out</option>
+              </select>
+            </Field> : null}
+            {(studentForm.currentStatus !== 'College Student' || studentForm.educationStatus === 'Passed Out') && (
+              <Field label="Passed Out Year" required={studentForm.currentStatus === 'Fresher' || studentForm.educationStatus === 'Passed Out'} error={shouldShowStudentError('passedOutYear') ? studentFormValidationErrors.passedOutYear : ''}>
+                <select value={studentForm.passedOutYear} onChange={(e) => updateStudentField('passedOutYear', e.target.value)} disabled={studentFormMode === 'view'}>
+                  <option value="">Select Year</option>
+                  {PASSED_OUT_YEARS.map((year) => <option key={year} value={year}>{year}</option>)}
+                </select>
+              </Field>
+            )}
+          </>
+        )}
+
+        {studentForm.currentStatus === 'Custom' && (
+          <Field label="Custom Current Status" required error={shouldShowStudentError('customCurrentStatus') ? studentFormValidationErrors.customCurrentStatus : ''}>
+            <input type="text" placeholder="Enter current status" value={studentForm.customCurrentStatus} onChange={(e) => updateStudentField('customCurrentStatus', e.target.value)} disabled={studentFormMode === 'view'} />
+          </Field>
+        )}
+
+        <Field label="Purpose" error={shouldShowStudentError('purpose') ? studentFormValidationErrors.purpose : ''}>
+          <select value={studentForm.purpose} onChange={(e) => setStudentForm((c) => ({ ...c, purpose: e.target.value, customPurpose: e.target.value === 'Custom' ? c.customPurpose : '' }))} disabled={studentFormMode === 'view'}>
+            <option value="">Select Purpose</option>
+            <option value="Project">Project</option>
+            <option value="Internship">Internship</option>
+            <option value="Learning">Learning</option>
+            <option value="Job / Placement">Job / Placement</option>
+            <option value="Up Skilling">Up Skilling</option>
+            <option value="Career Change">Career Change</option>
+            <option value="Certification">Certification</option>
+            <option value="Custom">Custom</option>
+          </select>
+        </Field>
+
+        {studentForm.purpose === 'Custom' && (
+          <Field label="Custom Purpose" required error={shouldShowStudentError('customPurpose') ? studentFormValidationErrors.customPurpose : ''}>
+            <input type="text" placeholder="Enter purpose" value={studentForm.customPurpose} onChange={(e) => updateStudentField('customPurpose', e.target.value)} disabled={studentFormMode === 'view'} />
+          </Field>
+        )}
 
         <Field
           label="Designation"
@@ -17822,6 +17947,12 @@ else {
             }
           />
         </Field>
+
+        {studentForm.currentStatus === 'Employee' && (
+          <Field label="Company Name" required error={shouldShowStudentError('companyName') ? studentFormValidationErrors.companyName : ''}>
+            <input type="text" placeholder="Enter company name" value={studentForm.companyName} onChange={(e) => updateStudentField('companyName', e.target.value)} disabled={studentFormMode === 'view'} />
+          </Field>
+        )}
 
         <Field
           label="How did you know about our Institute?"

@@ -20,8 +20,9 @@ export async function updateFacultySkillAssignment(id, payload) {
   return unwrap(await request(`/faculty-skills/${id}`, { method: 'PATCH', body: JSON.stringify(payload) }))
 }
 
-export async function cancelFacultySkillAssignment(id) {
-  return unwrap(await request(`/faculty-skills/${id}/cancel`, { method: 'PATCH' }))
+export async function cancelFacultySkillAssignment(id, params = {}) {
+  const query = new URLSearchParams(params).toString()
+  return unwrap(await request(`/faculty-skills/${id}/cancel${query ? `?${query}` : ''}`, { method: 'PATCH' }))
 }
 
 export async function getFacultySkillAssignment(id, params = {}) {

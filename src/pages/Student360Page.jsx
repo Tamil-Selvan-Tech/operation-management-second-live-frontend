@@ -1481,8 +1481,11 @@ export function Student360Page({
           <SectionCard title="Education & Enrollment" description="Academic background and current learning assignment." className="student360-anchor-card" id="enrollment">
             <div className="student360-detail-grid">
               <DetailItem label="Qualification" value={student.qualification} icon={GraduationCap} />
-              <DetailItem label="Passed Out Year" value={student.passedOutYear} icon={GraduationCap} />
+              {String(student.passedOutYear || '').trim() ? <DetailItem label="Passed Out Year" value={student.passedOutYear} icon={GraduationCap} /> : null}
+              <DetailItem label="Education" value={[student.educationLevel, student.educationStatus].filter(Boolean).join(' / ')} />
+              <DetailItem label="Purpose" value={student.customPurpose || student.purpose} />
               {String(student.designation || '').trim() ? <DetailItem label="Designation" value={student.designation} /> : null}
+              {String(student.companyName || '').trim() ? <DetailItem label="Company Name" value={student.companyName} /> : null}
               {isMultiCourseStudent ? (() => {
                 const courseNumber = selectedCourseIndex + 1
                 const courseLabel = selectedCourse.courseName || `Course ${courseNumber}`
