@@ -74,6 +74,9 @@ function normalizeStoredStudentRecord(record = {}) {
     courseSchedule: record.courseSchedule || record.classSchedule || record.schedule || nestedBatch.courseSchedule || nestedBatch.classSchedule || nestedBatch.schedule || '',
     courseStartDate: record.courseStartDate || record.courseStart || record.startDate || nestedBatch.courseStartDate || nestedBatch.startDate || '',
     courseDuration: record.courseDuration || record.duration || nestedCourse.duration || nestedCourse.courseDuration || '',
+    passedOutYear: record.passedOutYear || record.passOutYear || record.yearOfPassing || record.graduationYear || record.educationDetails?.yearOfPassing || '',
+    currentStatus: record.currentStatus || '',
+    customCurrentStatus: record.customCurrentStatus || '',
     courseEndDate: record.courseEndDate || '',
     courseProgress: record.courseProgress,
     courseCompletedAt: record.courseCompletedAt || null,
@@ -92,6 +95,14 @@ function normalizeStoredStudentRecord(record = {}) {
 
 function mergePreservedStudentFields(incoming = {}, existing = {}) {
   const nextRecord = { ...incoming }
+
+  if (!String(nextRecord.passedOutYear || nextRecord.passOutYear || nextRecord.yearOfPassing || '').trim()) {
+    const preservedYear = existing.passedOutYear || existing.passOutYear || existing.yearOfPassing || existing.graduationYear || ''
+    if (preservedYear) {
+      nextRecord.passedOutYear = preservedYear
+      nextRecord.yearOfPassing = preservedYear
+    }
+  }
 
   if (nextRecord.courseProgress === undefined && existing.courseProgress !== undefined) {
     nextRecord.courseProgress = existing.courseProgress

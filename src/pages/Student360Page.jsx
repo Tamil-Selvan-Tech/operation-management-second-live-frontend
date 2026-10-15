@@ -936,6 +936,17 @@ export function Student360Page({
   }, [initialStudent])
 
   useEffect(() => {
+    const initialStudentKeys = [initialStudent?.studentId, initialStudent?.studentCode, initialStudent?.id, initialStudent?._id]
+      .map((value) => String(value || '').trim().toLowerCase())
+      .filter(Boolean)
+    if (!initialStudent || !initialStudentKeys.includes(String(resolvedStudentId || '').trim().toLowerCase())) return
+    setStudentRecord((current) => {
+      if (current?.data === initialStudent) return current
+      return { studentId: resolvedStudentId, data: initialStudent }
+    })
+  }, [initialStudent, resolvedStudentId])
+
+  useEffect(() => {
     if (!assignmentModalOpen) return undefined
     document.body.classList.add('student360-assignment-open')
     return () => document.body.classList.remove('student360-assignment-open')
@@ -1481,8 +1492,8 @@ export function Student360Page({
           <SectionCard title="Education & Enrollment" description="Academic background and current learning assignment." className="student360-anchor-card" id="enrollment">
             <div className="student360-detail-grid">
               <DetailItem label="Qualification" value={student.qualification} icon={GraduationCap} />
+              <DetailItem label="Current Status" value={student.currentStatus} icon={UserRound} />
               {String(student.passedOutYear || '').trim() ? <DetailItem label="Passed Out Year" value={student.passedOutYear} icon={GraduationCap} /> : null}
-              <DetailItem label="Education" value={[student.educationLevel, student.educationStatus].filter(Boolean).join(' / ')} />
               <DetailItem label="Purpose" value={student.customPurpose || student.purpose} />
               {String(student.designation || '').trim() ? <DetailItem label="Designation" value={student.designation} /> : null}
               {String(student.companyName || '').trim() ? <DetailItem label="Company Name" value={student.companyName} /> : null}

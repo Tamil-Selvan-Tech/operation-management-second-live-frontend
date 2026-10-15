@@ -435,13 +435,13 @@ const STUDENT_FORM_STEP_ONE_FIELDS = [
   'city',
   'address',
   'qualification',
-  'passedOutYear',
-  'passedOutYearCustom',
-  'educationLevel',
-  'educationStatus',
 ]
 const STUDENT_FORM_STEP_TWO_FIELDS = [
   'currentStatus',
+  'educationLevel',
+  'educationStatus',
+  'passedOutYear',
+  'passedOutYearCustom',
   'customCurrentStatus',
   'purpose',
   'customPurpose',
@@ -841,7 +841,12 @@ function buildStudentFormFromRecord(student = {}) {
     city: student.city || '',
     address: student.address || '',
     qualification: student.qualification || '',
-    passedOutYear: student.passedOutYear || '',
+    passedOutYear: student.passedOutYear
+      || student.passOutYear
+      || student.yearOfPassing
+      || student.graduationYear
+      || student.educationDetails?.yearOfPassing
+      || '',
     passedOutYearCustom: student.passedOutYearCustom || '',
     educationLevel: student.educationLevel || '',
     educationStatus: student.educationStatus || '',
@@ -8158,15 +8163,70 @@ const studentCourseOptions = useMemo(() => {
   const handleStudentCourseSearchChange = (value) => {
     const nextValue = String(value || '')
     setStudentCourseSearch(nextValue)
+  }
 
-    const normalizedValue = nextValue.trim().toLowerCase()
-    const selectedValues = [selectedStudentCourse?.id, selectedStudentCourse?.courseCode, selectedStudentCourse?.name]
-      .map((item) => String(item || '').trim().toLowerCase())
-      .filter(Boolean)
-
-    if (!normalizedValue || (studentForm.courseId && !selectedValues.includes(normalizedValue))) {
-      handleStudentCourseChange('')
-    }
+  function renderStudentCourseSearchField() {
+    return (
+    <Field
+      label="Select Course"
+      className="student-course-step-course"
+      required
+      error={
+        shouldShowStudentError('courseId')
+          ? studentFormValidationErrors.courseId
+          : ''
+      }
+    >
+      <div style={{ position: 'relative' }}>
+        <input
+          type="search"
+          value={studentCourseSearch}
+          onChange={(e) => handleStudentCourseSearchChange(e.target.value)}
+          onFocus={() => setStudentCourseSearchFocused(true)}
+          onBlur={() => {
+            window.setTimeout(() => {
+              setStudentCourseSearchFocused(false)
+              setStudentFormTouched((c) => ({ ...c, courseId: true }))
+            }, 120)
+          }}
+          placeholder={studentCourseOptions.length ? 'Search by course ID or name' : 'No courses available'}
+          disabled={studentFormMode === 'view' || !studentCourseOptions.length}
+          autoComplete="off"
+        />
+        {studentCourseSearchResults.length ? (
+          <div
+            role="listbox"
+            style={{
+              position: 'absolute', zIndex: 20, top: 'calc(100% + 6px)', left: 0, right: 0,
+              maxHeight: 220, overflowY: 'auto', background: '#fff', border: '1px solid #dbe5f2',
+              borderRadius: 12, boxShadow: '0 12px 28px rgba(15, 35, 70, 0.14)', padding: 6,
+            }}
+          >
+            {studentCourseSearchResults.map((course) => (
+              <button
+                key={course.id}
+                type="button"
+                role="option"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => handleStudentCourseChange(course.id)}
+                style={{
+                  display: 'flex', flexDirection: 'column', alignItems: 'flex-start', width: '100%',
+                  border: 0, borderRadius: 8, background: 'transparent', padding: '9px 10px',
+                  cursor: 'pointer', textAlign: 'left',
+                }}
+              >
+                <strong>{course.name}</strong>
+                <small>{course.courseCode || course.id}</small>
+              </button>
+            ))}
+          </div>
+        ) : null}
+      </div>
+      {studentSelectedCourseIds.length > 0 && studentForm.courseId ? (
+        <small className="student-course-selection-help">Choose another course from search to add it. Each selected course has its own schedule, batch, mode, dates and amount.</small>
+      ) : null}
+    </Field>
+    )
   }
 
   const handleStudentBatchChange = (batchId) => {
@@ -10239,7 +10299,10 @@ useEffect(() => {
       _recordId: String(studentForm.recordId || '').trim(),
       branchId,
       branchCode,
+      currentStatus: String(studentForm.currentStatus || '').trim(),
+      customCurrentStatus: String(studentForm.customCurrentStatus || '').trim(),
       passedOutYear: studentForm.passedOutYear === 'Custom' ? studentForm.passedOutYearCustom : studentForm.passedOutYear,
+      yearOfPassing: studentForm.passedOutYear === 'Custom' ? studentForm.passedOutYearCustom : studentForm.passedOutYear,
       source: studentForm.source === 'Others' ? studentForm.sourceOther : studentForm.source,
       courseId: selectedCourse?.id || String(studentForm.courseId || '').trim(),
       courseName: selectedCourse?.name || String(studentForm.courseName || '').trim(),
@@ -17839,6 +17902,14 @@ else {
                 designation: val === 'Employee' ? c.designation : '',
                 companyName: val === 'Employee' ? c.companyName : '',
               }));
+              setStudentFormTouched((current) => ({
+                ...current,
+                currentStatus: false,
+                educationLevel: false,
+                educationStatus: false,
+                passedOutYear: false,
+                passedOutYearCustom: false,
+              }));
             }}
             onBlur={() =>
               setStudentFormTouched((c) => ({
@@ -17865,14 +17936,14 @@ else {
         {studentForm.currentStatus && studentForm.currentStatus !== 'School' && (
           <>
             {studentForm.currentStatus === 'College Student' ? <Field label="Education Level" required error={shouldShowStudentError('educationLevel') ? studentFormValidationErrors.educationLevel : ''}>
-              <select value={studentForm.educationLevel} onChange={(e) => updateStudentField('educationLevel', e.target.value)} disabled={studentFormMode === 'view'}>
+              <select value={studentForm.educationLevel} onChange={(e) => updateStudentField('educationLevel', e.target.value)} onBlur={() => setStudentFormTouched((current) => ({ ...current, educationLevel: true }))} disabled={studentFormMode === 'view'}>
                 <option value="">Select Education Level</option>
                 <option value="UG">UG</option>
                 <option value="PG">PG</option>
               </select>
             </Field> : null}
             {studentForm.currentStatus === 'College Student' ? <Field label="Education Status" required error={shouldShowStudentError('educationStatus') ? studentFormValidationErrors.educationStatus : ''}>
-              <select value={studentForm.educationStatus} onChange={(e) => setStudentForm((current) => ({ ...current, educationStatus: e.target.value, passedOutYear: e.target.value === 'Passed Out' ? current.passedOutYear : '' }))} disabled={studentFormMode === 'view'}>
+              <select value={studentForm.educationStatus} onChange={(e) => setStudentForm((current) => ({ ...current, educationStatus: e.target.value, passedOutYear: e.target.value === 'Passed Out' ? current.passedOutYear : '' }))} onBlur={() => setStudentFormTouched((current) => ({ ...current, educationStatus: true }))} disabled={studentFormMode === 'view'}>
                 <option value="">Select Education Status</option>
                 <option value="Currently Pursuing">Currently Pursuing</option>
                 <option value="Passed Out">Passed Out</option>
@@ -18134,84 +18205,9 @@ else {
         </div>
       ) : null}
 
+      {renderStudentCourseSearchField()}
       {studentSelectedCourseIds.length <= 1 ? (
       <div className="course-form-grid student-form-grid-tight">
-
-        <Field
-          label="Select Course"
-          className="student-course-step-course"
-          required
-          error={
-            shouldShowStudentError('courseId')
-              ? studentFormValidationErrors.courseId
-              : ''
-          }
-        >
-          <div style={{ position: 'relative' }}>
-            <input
-              type="search"
-              value={studentCourseSearch}
-              onChange={(e) => handleStudentCourseSearchChange(e.target.value)}
-              onFocus={() => setStudentCourseSearchFocused(true)}
-              onBlur={() => {
-                window.setTimeout(() => {
-                  setStudentCourseSearchFocused(false)
-                  setStudentFormTouched((c) => ({ ...c, courseId: true }))
-                }, 120)
-              }}
-              placeholder={studentCourseOptions.length ? 'Search by course ID or name' : 'No courses available'}
-              disabled={studentFormMode === 'view' || !studentCourseOptions.length}
-              autoComplete="off"
-            />
-            {studentCourseSearchResults.length ? (
-              <div
-                role="listbox"
-                style={{
-                  position: 'absolute',
-                  zIndex: 20,
-                  top: 'calc(100% + 6px)',
-                  left: 0,
-                  right: 0,
-                  maxHeight: 220,
-                  overflowY: 'auto',
-                  background: '#fff',
-                  border: '1px solid #dbe5f2',
-                  borderRadius: 12,
-                  boxShadow: '0 12px 28px rgba(15, 35, 70, 0.14)',
-                  padding: 6,
-                }}
-              >
-                {studentCourseSearchResults.map((course) => (
-                  <button
-                    key={course.id}
-                    type="button"
-                    role="option"
-                    onMouseDown={(e) => e.preventDefault()}
-                    onClick={() => handleStudentCourseChange(course.id)}
-                    style={{
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'flex-start',
-                      width: '100%',
-                      border: 0,
-                      borderRadius: 8,
-                      background: 'transparent',
-                      padding: '9px 10px',
-                      cursor: 'pointer',
-                      textAlign: 'left',
-                    }}
-                  >
-                    <strong>{course.name}</strong>
-                    <small>{course.courseCode || course.id}</small>
-                  </button>
-                ))}
-              </div>
-            ) : null}
-          </div>
-          {studentSelectedCourseIds.length > 0 && studentForm.courseId ? (
-            <small className="student-course-selection-help">Choose another course from search to add it. Each selected course has its own schedule, batch, mode, dates and amount.</small>
-          ) : null}
-        </Field>
 
         <Field
           label="Select Batch"
@@ -18502,7 +18498,8 @@ else {
         </div>
 
       </div>
-      ) : (
+      ) : null}
+      {studentSelectedCourseIds.length >= 2 ? (
         <div className="student-course-cards">
           {(studentArrangementType === 'SEQUENTIAL' && studentFirstCourseId
             ? [studentFirstCourseId, ...studentSelectedCourseIds.filter((id) => String(id) !== String(studentFirstCourseId))]
@@ -18599,7 +18596,7 @@ else {
             </section>
           ) : null}
         </div>
-      )}
+      ) : null}
 
       {studentInstallmentAmounts.length > 0 && (
   <div className="student-payment-installment-section">
