@@ -5620,24 +5620,41 @@ body.super-admin-sidebar-open {
 
 /* Reference-style summary cards: one compact, consistent structure for every metric. */
 .sa-overall-summary-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
-.sa-date-filter { display: grid; gap: 12px; margin: 18px 0 14px; padding: 14px 16px; border: 1px solid #e1eaf4; border-radius: 12px; background: #fbfdff; }
+.sa-date-filter { position: relative; display: grid; gap: 10px; margin: 16px 0 12px; padding: 11px 14px; border: 1px solid #dce9e1; border-radius: 11px; background: #fff; box-shadow: 0 3px 12px rgba(22, 40, 72, .035); }
 .sa-date-filter-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.sa-date-filter-heading > div { display: grid; gap: 3px; }
-.sa-date-filter-heading strong { color: #1c3554; font-size: 13px; }
-.sa-date-filter-heading span { color: #8090a5; font-size: 11px; }
-.sa-date-filter-loading { color: #2775ed !important; font-weight: 650; }
-.sa-date-filter-presets { display: flex; flex-wrap: wrap; gap: 7px; }
-.sa-date-filter-presets button, .sa-date-filter-reset, .sa-date-filter-apply { border: 1px solid #dce6f1; border-radius: 7px; background: #fff; color: #5f7188; cursor: pointer; font-size: 11px; font-weight: 650; padding: 7px 10px; }
-.sa-date-filter-presets button:hover, .sa-date-filter-reset:hover { border-color: #9fc2f2; color: #2775ed; }
-.sa-date-filter-presets button.is-selected { border-color: #2775ed; background: #edf5ff; color: #1763c5; }
-.sa-date-filter-custom { display: flex; flex-wrap: wrap; gap: 10px; }
+.sa-date-filter-heading > div { display: flex; align-items: baseline; gap: 9px; }
+.sa-date-filter-heading strong { color: #1c3554; font-size: 12px; }
+.sa-date-filter-heading span { color: #8090a5; font-size: 10px; }
+.sa-date-filter-loading { color: #15803d !important; font-weight: 650; }
+.sa-date-filter-toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.sa-date-filter-preset-select { position: relative; display: inline-flex; align-items: center; gap: 7px; border: 1px solid #93c5fd; border-radius: 8px; background: #f8fbff; color: #1d4ed8; font-size: 10px; font-weight: 650; padding: 5px 8px; }
+.sa-date-filter-preset-select span { color: #3b82f6; font-size: 9px; font-weight: 700; text-transform: uppercase; }
+.sa-date-filter-preset-select select { appearance: none; min-height: 0; border: 0 !important; outline: 0 !important; box-shadow: none !important; background: transparent; color: #1d4ed8; cursor: pointer; font: inherit; padding: 1px 18px 1px 0; }
+.sa-date-filter-preset-select select:focus, .sa-date-filter-preset-select select:focus-visible { border: 0 !important; outline: 0 !important; box-shadow: none !important; }
+.sa-date-filter-preset-select select option { color: #1d4ed8; background: #fff; }
+.sa-date-filter-preset-select > svg { position: absolute; right: 7px; pointer-events: none; color: #2563eb; }
+.sa-date-filter-preset-select:focus-within { border-color: #2563eb; box-shadow: 0 0 0 2px rgba(37, 99, 235, .12); }
+.sa-date-filter-range-wrap { position: relative; }
+.sa-date-filter-reset, .sa-date-filter-apply, .sa-date-filter-cancel { display: inline-flex; align-items: center; justify-content: center; gap: 5px; border: 1px solid #dce6df; border-radius: 7px; background: #fff; color: #5f7188; cursor: pointer; font-size: 10px; font-weight: 650; padding: 6px 9px; }
+.sa-date-filter-reset:hover, .sa-date-filter-cancel:hover { border-color: #86c39b; color: #15803d; }
+.sa-date-filter-range-field { display: inline-flex; align-items: center; gap: 7px; width: 270px; min-width: 270px; box-sizing: border-box; border: 1px solid #93c5fd; border-radius: 7px; background: #f8fbff; color: #1d4ed8; cursor: pointer; font-size: 10px; font-weight: 650; padding: 6px 9px; }
+.sa-date-filter-range-field svg:first-child { color: #2563eb; }
+.sa-date-filter-range-field span { flex: 1; text-align: left; white-space: nowrap; }
+.sa-date-filter-range-field:hover, .sa-date-filter-range-field[aria-expanded="true"] { border-color: #2563eb; box-shadow: 0 0 0 2px rgba(37, 99, 235, .12); }
+.sa-date-filter-popover { position: absolute; z-index: 30; top: calc(100% + 7px); right: 0; width: min(330px, calc(100vw - 32px)); padding: 13px; border: 1px solid #dce9e1; border-radius: 11px; background: #fff; box-shadow: 0 14px 34px rgba(22, 40, 72, .16); }
+.sa-date-filter-popover-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; color: #1c3554; font-size: 12px; }
+.sa-date-filter-popover-header button { display: grid; place-items: center; border: 0; border-radius: 5px; background: #f2f7f4; color: #667a6d; cursor: pointer; padding: 5px; }
+.sa-date-filter-custom { display: grid; grid-template-columns: 1fr auto 1fr; align-items: end; gap: 7px; }
 .sa-date-filter-custom label { display: grid; gap: 4px; color: #687990; font-size: 10px; font-weight: 650; }
-.sa-date-filter-custom input { min-width: 145px; border: 1px solid #dce6f1; border-radius: 7px; color: #2a3e58; font: inherit; padding: 7px 8px; }
-.sa-date-filter-error { margin: 0; color: #c03945; font-size: 11px; font-weight: 600; }
-.sa-date-filter-actions { display: flex; gap: 8px; }
-.sa-date-filter-apply { border-color: #2775ed; background: #2775ed; color: #fff; }
-.sa-date-filter-apply:hover { background: #1763c5; }
-.sa-date-filter-actions button:disabled { cursor: wait; opacity: .55; }
+.sa-date-filter-custom input { width: 100%; box-sizing: border-box; border: 1px solid #dce6df; border-radius: 7px; color: #2a3e58; font: inherit; padding: 7px 6px; }
+.sa-date-filter-custom input:focus { border-color: #16a34a; outline: 2px solid rgba(22, 163, 74, .12); }
+.sa-date-filter-to { padding-bottom: 8px; color: #97a69d; font-size: 10px; }
+.sa-date-filter-selection { margin-top: 10px; padding: 7px 8px; border-radius: 6px; background: #edf8f0; color: #15803d; font-size: 10px; font-weight: 650; text-align: center; }
+.sa-date-filter-error { margin: 0; color: #c03945; font-size: 10px; font-weight: 600; }
+.sa-date-filter-actions { display: flex; justify-content: flex-end; gap: 7px; margin-top: 12px; }
+.sa-date-filter-apply { border-color: #16a34a; background: #16a34a; color: #fff; }
+.sa-date-filter-apply:hover { border-color: #15803d; background: #15803d; }
+.sa-date-filter-actions button:disabled, .sa-date-filter-reset:disabled { cursor: wait; opacity: .55; }
 .sa-overall-summary-grid .sa-overall-metric { display: flex; flex-direction: column; justify-content: flex-start; gap: 0; min-height: 126px; padding: 12px 14px 10px; border: 1px solid #e4e9f0; border-radius: 12px; background: #fff; box-shadow: 0 4px 14px rgba(22, 40, 72, .045); }
 .sa-overall-summary-grid .sa-overall-metric:hover { border-color: #d6e0ec; box-shadow: 0 7px 20px rgba(22, 40, 72, .075); }
 .sa-overall-summary-grid .sa-overall-metric.is-clickable { cursor: pointer; }
@@ -5670,7 +5687,7 @@ body.super-admin-sidebar-open {
 .sa-overall-summary-grid .sa-overall-metric.red .sa-overall-metric-icon { background: #fff0f1; color: #e23d4b; }
 @media (max-width: 1100px) { .sa-overall-summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 560px) { .sa-overall-summary-grid { grid-template-columns: 1fr; } .sa-overall-summary-grid .sa-overall-metric { min-height: 126px; } }
-@media (max-width: 560px) { .sa-date-filter-heading { align-items: flex-start; flex-direction: column; } .sa-date-filter-presets button { flex: 1 1 calc(50% - 7px); } .sa-date-filter-custom label, .sa-date-filter-custom input { width: 100%; } }
+@media (max-width: 560px) { .sa-date-filter-heading { align-items: flex-start; flex-direction: column; } .sa-date-filter-heading > div { align-items: flex-start; flex-direction: column; gap: 3px; } .sa-date-filter-toolbar { align-items: stretch; flex-direction: column; } .sa-date-filter-preset-select, .sa-date-filter-range-wrap, .sa-date-filter-range-field { width: 100%; } .sa-date-filter-preset-select select { flex: 1; } .sa-date-filter-popover { left: 0; right: auto; } .sa-date-filter-reset { align-self: flex-start; } }
 
 /* Summary card customization */
 .sa-customize-backdrop { position: fixed; z-index: 1200; inset: 0; display: grid; place-items: center; padding: 20px; background: rgba(15, 31, 55, .42); }
