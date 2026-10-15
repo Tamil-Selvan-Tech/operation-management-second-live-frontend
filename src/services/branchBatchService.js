@@ -82,9 +82,11 @@ function buildQueryString(query = {}) {
 }
 
 export async function listBranchBatches(query = {}) {
-  const search = buildQueryString(query)
+  const { impersonateBranchId, ...queryParams } = query || {}
+  const search = buildQueryString(queryParams)
   const response = await request(`/branch-batches${search ? `?${search}` : ''}`, {
     method: 'GET',
+    ...(impersonateBranchId ? { impersonateBranchId } : {}),
   })
 
   const payload = unwrapData(response)

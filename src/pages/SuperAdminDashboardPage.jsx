@@ -52,6 +52,73 @@ import { loadBranchPaymentHistoryEntries } from '../lib/branchPaymentHistoryStor
 import { buildModernPaymentReceiptHtml } from '../components/payments/RecordPayment'
 import '../styles/SuperAdminDashboardPage.css'
 
+function normalizeSuperAdminMatch(value) {
+  return String(value || '').trim().toLowerCase()
+}
+
+function getSuperAdminFacultyBatches(faculty = {}, batchGroups = []) {
+  const facultyIds = [faculty.id, faculty.facultyId].map(normalizeSuperAdminMatch).filter(Boolean)
+  const facultyName = normalizeSuperAdminMatch(faculty.name || faculty.facultyName)
+  return (Array.isArray(batchGroups) ? batchGroups : [])
+    .filter((group) => {
+      const groupIds = [group.facultyId, group.branchFacultyId, group.facultyUserId].map(normalizeSuperAdminMatch).filter(Boolean)
+      const groupName = normalizeSuperAdminMatch(group.facultyName || group.branchFacultyName)
+      return facultyIds.some((id) => groupIds.includes(id)) || Boolean(facultyName && facultyName === groupName)
+    })
+    .flatMap((group) => {
+      const rows = Array.isArray(group.batches) && group.batches.length ? group.batches : [group]
+      return rows.map((batch) => ({
+        group,
+        batch,
+        batchId: batch.batchId || batch.id || group.batchId || group.id || '',
+        batchName: batch.batchName || group.batchName || batch.batchId || group.batchId || 'Unnamed batch',
+        timing: batch.batchTiming || [batch.startTime && `${batch.startTime} ${batch.startPeriod || ''}`, batch.endTime && `${batch.endTime} ${batch.endPeriod || ''}`].filter(Boolean).join(' - ') || '-',
+      }))
+    })
+}
+
+function SuperAdminFacultyDetailsDrawer({ faculty, batchGroups, onClose }) {
+  const [activeTab, setActiveTab] = useState('details')
+  const assignedBatches = useMemo(() => getSuperAdminFacultyBatches(faculty, batchGroups), [batchGroups, faculty])
+
+  return (
+    <div className="super-admin-faculty-drawer-backdrop" role="presentation" onClick={onClose}>
+      <aside className="super-admin-faculty-drawer" role="dialog" aria-modal="true" aria-labelledby="super-admin-faculty-title" onClick={(event) => event.stopPropagation()}>
+        <header className="super-admin-faculty-drawer-header">
+          <div><p className="branch-management-kicker">FACULTY DETAILS</p><h2 id="super-admin-faculty-title">{faculty.name || faculty.facultyName || '-'}</h2><span>{faculty.facultyId || '-'}</span></div>
+          <button type="button" onClick={onClose} aria-label="Close faculty details"><X size={22} /></button>
+        </header>
+        <div className="super-admin-faculty-drawer-tabs" role="tablist" aria-label="Faculty detail tabs">
+          <button type="button" className={activeTab === 'details' ? 'is-active' : ''} onClick={() => setActiveTab('details')}>DETAILS</button>
+          <button type="button" className={activeTab === 'batches' ? 'is-active' : ''} onClick={() => setActiveTab('batches')}>BATCHES &amp; STUDENTS <span>{assignedBatches.length}</span></button>
+        </div>
+        <div className="super-admin-faculty-drawer-body">
+          {activeTab === 'details' ? (
+            <div className="super-admin-faculty-info-table">
+              {[
+                ['Faculty ID', faculty.facultyId],
+                ['Faculty Name', faculty.name || faculty.facultyName],
+                ['Email Address', faculty.email],
+                ['Phone Number', faculty.phone || faculty.mobile],
+                ['Country', faculty.country],
+                ['State', faculty.state],
+                ['City', faculty.city],
+                ['Faculty Weekly Off Days', faculty.weeklyOffDay],
+                ['Address', faculty.address],
+              ].map(([label, value]) => <div className="super-admin-faculty-info-row" key={label}><span>{label}</span><strong>{value || '-'}</strong></div>)}
+            </div>
+          ) : (
+            <section className="super-admin-faculty-batches-panel">
+              <div className="super-admin-faculty-batches-heading"><div><h3>Assigned batches</h3></div><strong>{assignedBatches.length} batch{assignedBatches.length === 1 ? '' : 'es'}</strong></div>
+              {assignedBatches.length ? <div className="super-admin-faculty-batches-table-wrap"><table><thead><tr><th>Course Name</th><th>Batch Name</th><th>Timing</th></tr></thead><tbody>{assignedBatches.map((item) => <tr key={`${item.group.id || item.batchId}-${item.batchId}`}><td>{item.group.courseName || '-'}</td><td><strong>{item.batchName}</strong><small>{item.batchId}</small></td><td>{item.timing}</td></tr>)}</tbody></table></div> : <p className="super-admin-faculty-empty">No batches assigned to this faculty.</p>}
+            </section>
+          )}
+        </div>
+      </aside>
+    </div>
+  )
+}
+
 function AvatarBadge() {
   return (
     <span className="super-admin-avatar" aria-hidden="true">
@@ -512,11 +579,13 @@ export function SuperAdminDashboardPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [allBranchStudents, setAllBranchStudents] = useState([])
   const [allBranchFaculty, setAllBranchFaculty] = useState([])
+  const [allBranchBatches, setAllBranchBatches] = useState([])
   const [allBranchLeaves, setAllBranchLeaves] = useState([])
   const [globalFacultyPage, setGlobalFacultyPage] = useState(1)
   const [globalStudentPage, setGlobalStudentPage] = useState(1)
   const [globalLeavePage, setGlobalLeavePage] = useState(1)
   const [globalFacultyBranchFilter, setGlobalFacultyBranchFilter] = useState('all')
+  const [globalFacultyStatusFilter, setGlobalFacultyStatusFilter] = useState('all')
   const [globalStudentBranchFilter, setGlobalStudentBranchFilter] = useState('all')
   const [globalFacultySearch, setGlobalFacultySearch] = useState('')
   const [globalFacultySort, setGlobalFacultySort] = useState('createdAt')
@@ -559,6 +628,7 @@ export function SuperAdminDashboardPage() {
   const [superAdminStudentCalendarView, setSuperAdminStudentCalendarView] = useState(null)
   const [superAdminAttendanceReportTarget, setSuperAdminAttendanceReportTarget] = useState(null)
   const [isExitDashboardConfirmOpen, setIsExitDashboardConfirmOpen] = useState(false)
+  const [viewTargetFaculty, setViewTargetFaculty] = useState(null)
 
   const [editingBranchId, setEditingBranchId] = useState(null)
   const [deleteTargetBranch, setDeleteTargetBranch] = useState(null)
@@ -752,6 +822,7 @@ export function SuperAdminDashboardPage() {
   useEffect(() => {
     if (!branches.length) {
       setAllBranchFaculty([])
+      setAllBranchBatches([])
       setAllBranchLeaves([])
       setIsGlobalManagementLoading(false)
       return undefined
@@ -779,6 +850,16 @@ export function SuperAdminDashboardPage() {
             return []
           }
         }))
+        const batchResults = await Promise.all(branches.map(async (branch) => {
+          const branchId = branch.id || branch.branchId
+          if (!branchId) return []
+          try {
+            const response = await listBranchBatches({ branchId, impersonateBranchId: branchId, page: 1, limit: 100, sortBy: 'createdAt', sortOrder: 'desc' })
+            return (Array.isArray(response?.data) ? response.data : []).map((item) => ({ ...item, branchRecord: branch }))
+          } catch {
+            return []
+          }
+        }))
 
         if (!cancelled) {
           setAllBranchFaculty(facultyRows.map((item) => ({
@@ -787,11 +868,13 @@ export function SuperAdminDashboardPage() {
               .map((value) => String(value || '').trim().toLowerCase())
               .includes(String(item.branchId || item.branchCode || item.branch?.id || item.branch?.branchId || '').trim().toLowerCase())) || null,
           })))
+          setAllBranchBatches(batchResults.flat())
           setAllBranchLeaves(leaveResults.flat())
         }
       } catch (error) {
         if (!cancelled) {
           setAllBranchFaculty([])
+          setAllBranchBatches([])
           setAllBranchLeaves([])
           setGlobalManagementError(error?.message || 'Unable to load global management data.')
         }
@@ -1157,6 +1240,7 @@ const filteredBranches = useMemo(() => {
 }, [branches, searchTerm, statusFilter])
 
   const globalRowsPerPage = 10
+  const globalFacultyRowsPerPage = 5
   const globalStudentRowsPerPage = 5
   const globalBranchFilterOptions = useMemo(() => (
     [...branches].sort((first, second) => String(first.branchName || first.branchId || '').localeCompare(String(second.branchName || second.branchId || '')))
@@ -1164,6 +1248,7 @@ const filteredBranches = useMemo(() => {
   const filteredGlobalFaculty = useMemo(() => {
     const query = globalFacultySearch.trim().toLowerCase()
     const selectedBranchKey = String(globalFacultyBranchFilter).trim().toLowerCase()
+    const selectedStatus = String(globalFacultyStatusFilter).trim().toLowerCase()
     const filtered = allBranchFaculty.filter((faculty) => {
       const matchesBranch = globalFacultyBranchFilter === 'all' || [
         faculty.branchId,
@@ -1184,7 +1269,8 @@ const filteredBranches = useMemo(() => {
         faculty.branchRecord?.branchName,
         faculty.branchAdminName,
       ].map((value) => String(value || '').trim().toLowerCase()).join(' ')
-      return matchesBranch && (!query || searchableText.includes(query))
+      const matchesStatus = selectedStatus === 'all' || String(faculty.status || '').trim().toLowerCase() === selectedStatus
+      return matchesBranch && matchesStatus && (!query || searchableText.includes(query))
     })
 
     return [...filtered].sort((first, second) => {
@@ -1193,7 +1279,7 @@ const filteredBranches = useMemo(() => {
       if (globalFacultySort === 'status') return String(first.status || '').localeCompare(String(second.status || ''))
       return new Date(second.createdAt || 0).getTime() - new Date(first.createdAt || 0).getTime()
     })
-  }, [allBranchFaculty, globalFacultyBranchFilter, globalFacultySearch, globalFacultySort])
+  }, [allBranchFaculty, globalFacultyBranchFilter, globalFacultySearch, globalFacultySort, globalFacultyStatusFilter])
   const filteredGlobalStudents = useMemo(() => {
     const query = globalStudentSearch.trim().toLowerCase()
     const selectedBranchKey = String(globalStudentBranchFilter).trim().toLowerCase()
@@ -1247,19 +1333,19 @@ const filteredBranches = useMemo(() => {
       return globalLeaveSort === 'oldest' ? firstDate - secondDate : secondDate - firstDate
     })
   }, [allBranchLeaves, globalLeaveSearch, globalLeaveSort, globalLeaveStatusFilter])
-  const globalFacultyTotalPages = Math.max(1, Math.ceil(filteredGlobalFaculty.length / globalRowsPerPage))
+  const globalFacultyTotalPages = Math.max(1, Math.ceil(filteredGlobalFaculty.length / globalFacultyRowsPerPage))
   const globalStudentTotalPages = Math.max(1, Math.ceil(filteredGlobalStudents.length / globalStudentRowsPerPage))
   const globalLeaveTotalPages = Math.max(1, Math.ceil(filteredGlobalLeaves.length / globalRowsPerPage))
   const safeGlobalFacultyPage = Math.min(globalFacultyPage, globalFacultyTotalPages)
   const safeGlobalStudentPage = Math.min(globalStudentPage, globalStudentTotalPages)
   const safeGlobalLeavePage = Math.min(globalLeavePage, globalLeaveTotalPages)
-  const paginatedGlobalFaculty = filteredGlobalFaculty.slice((safeGlobalFacultyPage - 1) * globalRowsPerPage, safeGlobalFacultyPage * globalRowsPerPage)
+  const paginatedGlobalFaculty = filteredGlobalFaculty.slice((safeGlobalFacultyPage - 1) * globalFacultyRowsPerPage, safeGlobalFacultyPage * globalFacultyRowsPerPage)
   const paginatedGlobalStudents = filteredGlobalStudents.slice((safeGlobalStudentPage - 1) * globalStudentRowsPerPage, safeGlobalStudentPage * globalStudentRowsPerPage)
   const paginatedGlobalLeaves = filteredGlobalLeaves.slice((safeGlobalLeavePage - 1) * globalRowsPerPage, safeGlobalLeavePage * globalRowsPerPage)
 
   useEffect(() => {
     setGlobalFacultyPage(1)
-  }, [globalFacultyBranchFilter, globalFacultySearch, globalFacultySort])
+  }, [globalFacultyBranchFilter, globalFacultySearch, globalFacultySort, globalFacultyStatusFilter])
 
   useEffect(() => {
     setGlobalLeavePage(1)
@@ -2825,14 +2911,14 @@ const filteredBranches = useMemo(() => {
               <section className="super-admin-global-panel">
                 <div className="super-admin-global-header">
                   <div><p className="branch-management-kicker">Academic Operations</p><h1>Faculty Management</h1><p>All faculty members across every active branch.</p></div>
-                  <div className="super-admin-global-header-actions"><label className="super-admin-student-search"><input type="search" value={globalFacultySearch} onChange={(event) => setGlobalFacultySearch(event.target.value)} placeholder="Search faculty or ID" aria-label="Search faculty" /></label><SuperAdminOptionSelect value={globalFacultySort} onChange={setGlobalFacultySort} ariaLabel="Sort faculty" options={[{ value: 'createdAt', label: 'Newest' }, { value: 'name', label: 'Name' }, { value: 'branch', label: 'Branch' }, { value: 'status', label: 'Status' }]} width={116} /><div className="super-admin-global-filter-field"><BranchFilterSelect value={globalFacultyBranchFilter} branches={globalBranchFilterOptions} onChange={(nextValue) => setGlobalFacultyBranchFilter(nextValue)} ariaLabel="Filter faculty by branch" /></div><span className="super-admin-global-count">{filteredGlobalFaculty.length} faculty</span></div>
+                  <div className="super-admin-global-header-actions"><label className="super-admin-student-search"><input type="search" value={globalFacultySearch} onChange={(event) => setGlobalFacultySearch(event.target.value)} placeholder="Search faculty or ID" aria-label="Search faculty" /></label><SuperAdminOptionSelect value={globalFacultySort} onChange={setGlobalFacultySort} ariaLabel="Sort faculty" options={[{ value: 'createdAt', label: 'Newest' }, { value: 'name', label: 'Name' }, { value: 'branch', label: 'Branch' }, { value: 'status', label: 'Status' }]} width={116} /><SuperAdminOptionSelect value={globalFacultyStatusFilter} onChange={setGlobalFacultyStatusFilter} ariaLabel="Filter faculty by status" options={[{ value: 'all', label: 'All status' }, { value: 'active', label: 'Active' }, { value: 'inactive', label: 'Inactive' }]} width={120} /><div className="super-admin-global-filter-field"><BranchFilterSelect value={globalFacultyBranchFilter} branches={globalBranchFilterOptions} onChange={(nextValue) => setGlobalFacultyBranchFilter(nextValue)} ariaLabel="Filter faculty by branch" /></div><span className="super-admin-global-count">{filteredGlobalFaculty.length} faculty</span></div>
                 </div>
-                 {isGlobalManagementLoading ? <SuperAdminTableSkeleton columns={7} label="Loading faculty records" /> : globalManagementError ? <div className="super-admin-global-state is-error">{globalManagementError}</div> : (
-                  <><div className="super-admin-global-table-wrap"><table className="super-admin-global-table"><thead><tr><th>S.No</th><th>Faculty</th><th>Faculty ID</th><th>Branch</th><th>Branch Admin</th><th>Courses</th><th>Status</th></tr></thead><tbody>
-                    {paginatedGlobalFaculty.map((faculty, index) => <tr key={faculty.id || `${faculty.branchId}-${faculty.facultyId}`}><td>{(safeGlobalFacultyPage - 1) * globalRowsPerPage + index + 1}</td><td><strong>{faculty.name || '-'}</strong><small>{faculty.email || '-'}</small></td><td>{faculty.facultyId || '-'}</td><td><strong>{faculty.branch?.branchName || faculty.branchName || faculty.branchRecord?.branchName || '-'}</strong><small>{faculty.branch?.branchId || faculty.branchRecord?.branchId || '-'}</small></td><td>{faculty.branch?.branchAdminName || faculty.branchAdminName || faculty.branchRecord?.branchAdminName || '-'}</td><td>{(faculty.courses || []).map((course) => course.name).filter(Boolean).join(', ') || faculty.course?.name || '-'}</td><td><span className={`super-admin-global-status ${String(faculty.status || '').toLowerCase() === 'active' ? 'is-active' : 'is-inactive'}`}>{faculty.status || '-'}</span></td></tr>)}
-                    {!filteredGlobalFaculty.length ? <tr><td colSpan="7" className="super-admin-global-empty">No faculty records found for this branch.</td></tr> : null}
+                 {isGlobalManagementLoading ? <SuperAdminTableSkeleton columns={8} label="Loading faculty records" /> : globalManagementError ? <div className="super-admin-global-state is-error">{globalManagementError}</div> : (
+                  <><div className="super-admin-global-table-wrap"><table className="super-admin-global-table"><thead><tr><th>S.No</th><th>Faculty</th><th>Faculty ID</th><th>Branch</th><th>Branch Admin</th><th>Courses</th><th>Status</th><th>Actions</th></tr></thead><tbody>
+                    {paginatedGlobalFaculty.map((faculty, index) => <tr key={faculty.id || `${faculty.branchId}-${faculty.facultyId}`} className="super-admin-global-table-row-action" role="button" tabIndex={0} onClick={() => setViewTargetFaculty(faculty)} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); setViewTargetFaculty(faculty) } }}><td>{(safeGlobalFacultyPage - 1) * globalFacultyRowsPerPage + index + 1}</td><td><strong>{faculty.name || '-'}</strong><small>{faculty.email || '-'}</small></td><td>{faculty.facultyId || '-'}</td><td><strong>{faculty.branch?.branchName || faculty.branchName || faculty.branchRecord?.branchName || '-'}</strong><small>{faculty.branch?.branchId || faculty.branchRecord?.branchId || '-'}</small></td><td>{faculty.branch?.branchAdminName || faculty.branchAdminName || faculty.branchRecord?.branchAdminName || '-'}</td><td>{(faculty.courses || []).map((course) => course.name).filter(Boolean).join(', ') || faculty.course?.name || '-'}</td><td><span className={`super-admin-global-status ${String(faculty.status || '').toLowerCase() === 'active' ? 'is-active' : 'is-inactive'}`}>{faculty.status || '-'}</span></td><td><button type="button" className="super-admin-faculty-view-button" onClick={(event) => { event.stopPropagation(); setViewTargetFaculty(faculty) }}>View</button></td></tr>)}
+                    {!filteredGlobalFaculty.length ? <tr><td colSpan="8" className="super-admin-global-empty">No faculty records found for this branch.</td></tr> : null}
                   </tbody></table></div>
-                  {filteredGlobalFaculty.length > globalRowsPerPage ? <PaginationBar className="super-admin-pagination" currentPage={safeGlobalFacultyPage} totalPages={globalFacultyTotalPages} onPageChange={setGlobalFacultyPage} label="Faculty pagination" previousLabel="Prev" nextLabel="Next" visiblePageCount={3} /> : null}</>
+                  {filteredGlobalFaculty.length > globalFacultyRowsPerPage ? <PaginationBar className="super-admin-pagination" currentPage={safeGlobalFacultyPage} totalPages={globalFacultyTotalPages} onPageChange={setGlobalFacultyPage} label="Faculty pagination" previousLabel="Prev" nextLabel="Next" visiblePageCount={3} /> : null}</>
                 )}
               </section>
              ) : activeSection === 'students' ? (
@@ -2930,6 +3016,20 @@ const filteredBranches = useMemo(() => {
           </main>
         </div>
       </div>
+
+      {viewTargetFaculty ? (
+        <SuperAdminFacultyDetailsDrawer
+          faculty={viewTargetFaculty}
+          batchGroups={allBranchBatches.filter((batch) => {
+            const facultyBranch = viewTargetFaculty.branchRecord || viewTargetFaculty.branch
+            const batchBranch = batch.branchRecord || batch.branch
+            const facultyBranchKeys = [facultyBranch?.id, facultyBranch?.branchId, facultyBranch?.branchCode, viewTargetFaculty.branchId, viewTargetFaculty.branchCode].map((value) => String(value || '').trim().toLowerCase()).filter(Boolean)
+            const batchBranchKeys = [batchBranch?.id, batchBranch?.branchId, batchBranch?.branchCode, batch.branchId].map((value) => String(value || '').trim().toLowerCase()).filter(Boolean)
+            return facultyBranchKeys.some((key) => batchBranchKeys.includes(key))
+          })}
+          onClose={() => setViewTargetFaculty(null)}
+        />
+      ) : null}
 
       {selectedBranch ? (
         <div className="branch-view-drawer-backdrop" role="presentation">
