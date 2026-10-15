@@ -24,6 +24,12 @@ import { getBranchFacultyAttendanceStatus } from '../services/attendanceService'
 // Prefix constant for Faculty ID
 const FACULTY_ID_PREFIX = 'FC-'
 
+function normalizeFacultyStatus(status, fallback = 'Active') {
+  return String(status || '').trim().toUpperCase() === 'ACTIVE' ? 'Active'
+    : String(status || '').trim().toUpperCase() === 'INACTIVE' ? 'Inactive'
+      : fallback
+}
+
 function getBranchEntityPrefix(branchCode, entityPrefix) {
   const compact = String(branchCode || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '')
   const withoutNumber = compact.replace(/\d{3}$/, '')
@@ -204,7 +210,7 @@ export function BranchFacultyPage({ branchCode = '', branchId = '' }) {
           weeklyOffDay: f.weeklyOffDay || '',
           courses: Array.isArray(f.courses) ? f.courses : [],
           courseName: (Array.isArray(f.courses) && f.courses.length ? f.courses.map((course) => course.name || course.courseName).filter(Boolean).join(', ') : '') || f.branchCourse?.name || f.course?.name || f.courseName || '-',
-          status: f.status,
+          status: normalizeFacultyStatus(f.status),
           batchCount: Number(f._count?.branchBatches || 0),
         }))
         setFacultyList(mapped)
@@ -674,7 +680,7 @@ export function BranchFacultyPage({ branchCode = '', branchId = '' }) {
       address: faculty.address || '',
       courseId: faculty.courseId || '',
       weeklyOffDay: faculty.weeklyOffDay || '',
-      status: faculty.status,
+      status: normalizeFacultyStatus(faculty.status),
     })
     setErrors({})
     setTouched({})
@@ -754,7 +760,7 @@ export function BranchFacultyPage({ branchCode = '', branchId = '' }) {
       address: modalForm.address,
       courseId: modalForm.courseId,
       weeklyOffDay: modalForm.weeklyOffDay || null,
-      status: modalForm.status,
+      status: normalizeFacultyStatus(modalForm.status),
     }
 
     try {
