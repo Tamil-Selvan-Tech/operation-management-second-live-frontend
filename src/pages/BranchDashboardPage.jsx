@@ -278,31 +278,40 @@ function BranchStudentCourseFilter({ value, options, onChange, ariaLabel, width 
 const BRANCH_STUDENTS_PER_PAGE = 5
 const STUDENT_ID_PREFIX = 'STU-'
 
-// Keep the table status in sync with the Academic Test Progress card on the
-// Student 360 page. A zero pending count alone is not enough: the student
-// must have at least one academic test and all of those tests must be done.
 function isAcademicTestProgressComplete(progress = null) {
   if (!progress || typeof progress !== 'object') return false
-
   const totalTests = Number(progress.totalTests)
   const completedTests = Number(progress.completedTests)
   const pendingTests = Number(progress.pendingTests)
-
-  return Number.isFinite(totalTests)
-    && totalTests > 0
-    && Number.isFinite(completedTests)
-    && completedTests >= totalTests
-    && Number.isFinite(pendingTests)
-    && pendingTests === 0
+  return Number.isFinite(totalTests) && totalTests > 0
+    && Number.isFinite(completedTests) && completedTests >= totalTests
+    && Number.isFinite(pendingTests) && pendingTests === 0
 }
 
 function getAcademicProgressIndex(response = null) {
   const payload = response?.data || response || {}
-  const rawEvaluations = Array.isArray(payload.evaluations)
+  const sourceEvaluations = Array.isArray(payload.evaluations)
     ? payload.evaluations
     : Array.isArray(payload.items)
       ? payload.items
       : []
+  const latestEvaluations = new Map()
+  sourceEvaluations.forEach((evaluation, index) => {
+    const type = String(evaluation?.type || evaluation?.testType || evaluation?.evaluationType || '').trim().toUpperCase()
+    const name = String(evaluation?.name || evaluation?.title || evaluation?.testName || '').trim().toUpperCase()
+    const key = `${type}:${name || evaluation?.evaluationId || evaluation?.id || index}`.toLowerCase()
+    const current = latestEvaluations.get(key)
+    if (!current) {
+      latestEvaluations.set(key, evaluation)
+      return
+    }
+    const currentDate = new Date(current?.updatedAt || current?.submittedAt || current?.createdAt || 0).getTime()
+    const nextDate = new Date(evaluation?.updatedAt || evaluation?.submittedAt || evaluation?.createdAt || 0).getTime()
+    if (nextDate >= currentDate || (!Number.isFinite(Number(current?.percentage)) && Number.isFinite(Number(evaluation?.percentage)))) {
+      latestEvaluations.set(key, evaluation)
+    }
+  })
+  const rawEvaluations = [...latestEvaluations.values()]
   const hasCombinedEvaluation = rawEvaluations.some((evaluation) => {
     const value = String(evaluation?.type || evaluation?.testType || evaluation?.evaluationType || '').trim().toUpperCase()
     return value.includes('TEST') && value.includes('PROJECT')
@@ -316,10 +325,19 @@ function getAcademicProgressIndex(response = null) {
     })
     : rawEvaluations
   const allByCourse = {}
+  const getEvaluationCourseKeys = (evaluation = {}) => {
+    const course = evaluation?.course || evaluation?.courseDetails || {}
+    return [
+      evaluation?.courseId,
+      evaluation?.courseName,
+      course?.id,
+      course?.courseId,
+      course?.name,
+      course?.courseName,
+    ].map((value) => String(value || '').trim().toLowerCase()).filter(Boolean)
+  }
   rawEvaluations.forEach((evaluation) => {
-    const courseId = String(evaluation?.courseId || '').trim().toLowerCase()
-    const courseName = String(evaluation?.courseName || '').trim().toLowerCase()
-    const keys = [courseId, courseName].filter(Boolean)
+    const keys = getEvaluationCourseKeys(evaluation)
     keys.forEach((key) => {
       if (!allByCourse[key]) allByCourse[key] = []
       allByCourse[key].push(evaluation)
@@ -328,9 +346,7 @@ function getAcademicProgressIndex(response = null) {
   const byCourse = {}
 
   evaluations.forEach((evaluation) => {
-    const courseId = String(evaluation?.courseId || '').trim().toLowerCase()
-    const courseName = String(evaluation?.courseName || '').trim().toLowerCase()
-    const keys = [courseId, courseName].filter(Boolean)
+    const keys = getEvaluationCourseKeys(evaluation)
     keys.forEach((key) => {
       if (!byCourse[key]) byCourse[key] = []
       byCourse[key].push(evaluation)
@@ -359,45 +375,36 @@ function getAcademicProgressIndex(response = null) {
     }
   }
 
-  return { payload, byCourse, allByCourse, buildProgress }
+  return { payload, evaluations, byCourse, allByCourse, buildProgress }
 }
 
-function getFetchedAcademicProgress(index = null, courseId = '', courseName = '') {
-  if (!index) return null
-  const normalizedCourseId = String(courseId || '').trim().toLowerCase()
-  const normalizedCourseName = String(courseName || '').trim().toLowerCase()
-  const matchedItems = index.byCourse[normalizedCourseId] || index.byCourse[normalizedCourseName] || []
-  // Older report records may omit or use a different course key. When no
-  // course-specific evaluations match, use the student-scoped report rather
-  // than incorrectly treating a completed course as 0/2 pending.
-  const items = matchedItems.length
-    ? matchedItems
-    : [...new Set(Object.values(index.byCourse).flat())]
-  const totals = index.payload?.courseTotals || {}
-  const totalOverride = totals[normalizedCourseId] ?? totals[normalizedCourseName]
-  return index.buildProgress(items, totalOverride)
-}
-
-function getStudentAcademicProgress(student = {}, courseId = '', courseName = '', fetchedByStudent = new Map()) {
-  const studentKey = String(student?.studentId || student?.id || '').trim().toLowerCase()
+function getCourseAcademicProgress(student = {}, courseId = '', courseName = '', fetchedByStudent = new Map()) {
+  const normalizedId = String(courseId || '').trim().toLowerCase()
+  const normalizedName = String(courseName || '').trim().toLowerCase()
   const byCourse = student?.academicTestProgressByCourse || {}
-  const persistedProgress = byCourse[String(courseId || '').trim()]
-    || byCourse[courseId]
-    || student?.academicTestProgress
-  const fetchedIndex = fetchedByStudent.get(studentKey)
-  if (fetchedIndex) {
-    const fetchedProgress = getFetchedAcademicProgress(fetchedIndex, courseId, courseName)
-    if (fetchedProgress?.totalTests > 0) {
-      // Prefer a more complete persisted course result when a legacy report
-      // resolves the total but misses the matching completed evaluations.
-      if (persistedProgress && Number(persistedProgress.completedTests || 0) > Number(fetchedProgress.completedTests || 0)) {
-        return persistedProgress
-      }
-      return fetchedProgress
+  const persisted = Object.entries(byCourse).find(([key]) => {
+    const value = String(key || '').trim().toLowerCase()
+    return (normalizedId && value === normalizedId) || (normalizedName && value === normalizedName)
+  })?.[1]
+
+  const studentKey = String(student?.studentId || student?.id || '').trim().toLowerCase()
+  const index = fetchedByStudent.get(studentKey)
+  if (index) {
+    const items = index.byCourse[normalizedId] || index.byCourse[normalizedName] || []
+    const scopedItems = items.length
+      ? items
+      : Array.isArray(index.evaluations) && index.evaluations.length
+        ? index.evaluations
+        : [...new Set(Object.values(index.byCourse).flat())]
+    if (scopedItems.length) {
+      const configuredTotal = Number(index.payload?.configuredTotalTests)
+      const totalOverride = index.payload?.courseTotals?.[normalizedId]
+        ?? index.payload?.courseTotalsByName?.[normalizedName]
+        ?? (Number.isFinite(configuredTotal) ? configuredTotal : null)
+      return index.buildProgress(scopedItems, totalOverride)
     }
   }
-
-  return persistedProgress || null
+  return persisted || null
 }
 
 function getBranchEntityPrefix(branchCode, entityPrefix) {
@@ -9312,7 +9319,7 @@ useEffect(() => {
           Number.isFinite(savedProgress) ? savedProgress : 0,
           Number.isFinite(workProgress) ? workProgress : 0,
         )
-        return progress >= 100 && isAcademicTestProgressComplete(getStudentAcademicProgress(student, courseId, courseName, branchAcademicProgressByStudent))
+        return progress >= 100 && isAcademicTestProgressComplete(getCourseAcademicProgress(student, courseId, courseName, branchAcademicProgressByStudent))
       })
       if (isCompleted) completedKeys.add(String(student?.studentId || student?.id || '').trim().toLowerCase())
     })
@@ -9532,8 +9539,7 @@ useEffect(() => {
           Number.isFinite(savedProgress) ? savedProgress : 0,
           Number.isFinite(workProgress) ? workProgress : 0,
         )
-        const academicProgress = getStudentAcademicProgress(student, courseId, courseName, branchAcademicProgressByStudent)
-        return progress >= 100 && isAcademicTestProgressComplete(academicProgress)
+        return progress >= 100 && isAcademicTestProgressComplete(getCourseAcademicProgress(student, courseId, courseName, branchAcademicProgressByStudent))
       }).map((entry) => ({
         ...student,
         courseId: entry?.courseId || entry?.id || entry?.course?.id || student?.courseId || '',
@@ -11906,10 +11912,6 @@ else {
               const isCoursePaymentCompleted = item.amount > 0 && (
                 paidPercentage >= 100 || coursePaidAmount >= item.amount
               )
-              const academicProgress = getStudentAcademicProgress(stu, item.courseId, item.courseName, branchAcademicProgressByStudent)
-              const areAcademicTestsCompleted = academicProgress
-                ? isAcademicTestProgressComplete(academicProgress)
-                : false
               // The list API can retain an older IN_PROGRESS value after the
               // faculty progress and payment records are complete. Prefer the
               // effective row values, while still honoring an explicit test
@@ -11918,7 +11920,7 @@ else {
               // status is displayed separately and must not block this label.
               const courseCompletionStatus = isStudentDiscontinued
                 ? 'DISCONTINUED'
-                : progressValue >= 100 && areAcademicTestsCompleted
+                : progressValue >= 100 && isAcademicTestProgressComplete(getCourseAcademicProgress(stu, item.courseId, item.courseName, branchAcademicProgressByStudent))
                   ? 'COMPLETED'
                   : 'IN_PROGRESS'
               const courseStatus = isCoursePaymentCompleted
@@ -12115,10 +12117,10 @@ else {
             )
           }
 
-          const singleCourseAcademicProgress = getStudentAcademicProgress(stu, stu.courseId, stu.courseName || stu.courseInterested, branchAcademicProgressByStudent)
           const singleCourseCompleted = !isStudentDiscontinued
             && studentCourseProgress >= 100
-            && isAcademicTestProgressComplete(singleCourseAcademicProgress)
+            && isAcademicTestProgressComplete(getCourseAcademicProgress(stu, stu.courseId, stu.courseName || stu.courseInterested, branchAcademicProgressByStudent))
+            
           if (isCourseCompletedFilter && !singleCourseCompleted) return null
 
           return (
@@ -12190,9 +12192,8 @@ else {
               </td>
               <td>
                 {(() => {
-                  const academicProgress = getStudentAcademicProgress(stu, stu.courseId, stu.courseName || stu.courseInterested, branchAcademicProgressByStudent)
                   const isCompleted = studentCourseProgress >= 100
-                    && isAcademicTestProgressComplete(academicProgress)
+                    && isAcademicTestProgressComplete(getCourseAcademicProgress(stu, stu.courseId, stu.courseName || stu.courseInterested, branchAcademicProgressByStudent))
                   const completionStatus = isStudentDiscontinued ? 'DISCONTINUED' : isCompleted ? 'COMPLETED' : 'IN_PROGRESS'
                   return (
                     <span className={`branch-student-payment-status ${completionStatus.toLowerCase()}`}>
