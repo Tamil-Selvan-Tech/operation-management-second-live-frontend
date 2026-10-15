@@ -192,6 +192,35 @@ function formatReceiptDate(value) {
   }).format(date)
 }
 
+function getGlobalStudentCourseRows(student = {}) {
+  const enrollments = Array.isArray(student.courseEnrollments)
+    ? student.courseEnrollments.filter(Boolean)
+    : []
+  if (enrollments.length) return enrollments
+  return [{
+    courseId: student.courseId,
+    courseName: student.courseName || student.courseInterested || student.course?.name,
+    batchId: student.batchId,
+    batchName: student.batchName,
+    courseCompletion: student.courseCompletion,
+    courseCompletionStatus: student.courseCompletionStatus,
+  }]
+}
+
+function getGlobalCourseCompletionLabel(course = {}, student = {}) {
+  const completionByCourse = student.courseCompletionByCourse || {}
+  const mappedCourseStatus = course.courseId ? completionByCourse[course.courseId] : ''
+  const status = String(course.courseCompletionStatus || course.courseCompletion || mappedCourseStatus || student.courseCompletionStatus || student.courseCompletion || '').trim().toUpperCase()
+  const courseProgress = Number(course.courseProgress ?? course.courseCompletionPercentage ?? course.progress)
+  // Branch Admin derives completion from the effective course progress when
+  // the stored enrollment status is stale. Keep the Super Admin table aligned.
+  if (status !== 'DISCONTINUED' && Number.isFinite(courseProgress) && courseProgress >= 100) return 'Course Completed'
+  if (status === 'COMPLETED') return 'Course Completed'
+  if (status === 'DISCONTINUED') return 'Discontinued'
+  if (status === 'ACTIVE') return 'Active'
+  return 'In Progress'
+}
+
 async function downloadSuperAdminPaymentReceipt(payment = {}, student = {}) {
   const receiptElement = document.createElement('div')
   const amount = Number(payment.amount ?? payment.paidAmount ?? payment.amountPaid ?? payment.credit ?? 0)
@@ -683,7 +712,11 @@ export function SuperAdminDashboardPage() {
               }),
             ].map((student) => ({
               ...student,
-              branchRecord: branches.find((branch) => String(branch.id || branch.branchId) === String(student.branchId)) || null,
+              branchRecord: branches.find((branch) => {
+                const branchKeys = [branch.id, branch.branchId, branch.branchCode].map((value) => String(value || '').trim().toLowerCase()).filter(Boolean)
+                const studentKeys = [student.branchId, student.branchCode, student.branch?.id, student.branch?.branchId, student.branch?.branchCode].map((value) => String(value || '').trim().toLowerCase()).filter(Boolean)
+                return studentKeys.some((key) => branchKeys.includes(key))
+              }) || null,
             }))
           }),
         )
@@ -1124,6 +1157,7 @@ const filteredBranches = useMemo(() => {
 }, [branches, searchTerm, statusFilter])
 
   const globalRowsPerPage = 10
+  const globalStudentRowsPerPage = 5
   const globalBranchFilterOptions = useMemo(() => (
     [...branches].sort((first, second) => String(first.branchName || first.branchId || '').localeCompare(String(second.branchName || second.branchId || '')))
   ), [branches])
@@ -1173,7 +1207,8 @@ const filteredBranches = useMemo(() => {
       student.branchRecord?.branchId,
       student.branchRecord?.branchCode,
       ].map((value) => String(value || '').trim().toLowerCase()).includes(selectedBranchKey)
-      const searchableText = [student.studentName, student.name, student.studentId, student.studentCode, student.emailAddress, student.email, student.courseName, student.courseInterested, student.batchName]
+      const courseRows = getGlobalStudentCourseRows(student)
+      const searchableText = [student.studentName, student.name, student.studentId, student.studentCode, student.emailAddress, student.email, student.courseName, student.courseInterested, student.batchName, ...courseRows.flatMap((course) => [course.courseName, course.courseInterested, course.batchName, course.batchId])]
         .map((value) => String(value || '').trim().toLowerCase())
         .join(' ')
       return matchesBranch && (!query || searchableText.includes(query))
@@ -1213,13 +1248,13 @@ const filteredBranches = useMemo(() => {
     })
   }, [allBranchLeaves, globalLeaveSearch, globalLeaveSort, globalLeaveStatusFilter])
   const globalFacultyTotalPages = Math.max(1, Math.ceil(filteredGlobalFaculty.length / globalRowsPerPage))
-  const globalStudentTotalPages = Math.max(1, Math.ceil(filteredGlobalStudents.length / globalRowsPerPage))
+  const globalStudentTotalPages = Math.max(1, Math.ceil(filteredGlobalStudents.length / globalStudentRowsPerPage))
   const globalLeaveTotalPages = Math.max(1, Math.ceil(filteredGlobalLeaves.length / globalRowsPerPage))
   const safeGlobalFacultyPage = Math.min(globalFacultyPage, globalFacultyTotalPages)
   const safeGlobalStudentPage = Math.min(globalStudentPage, globalStudentTotalPages)
   const safeGlobalLeavePage = Math.min(globalLeavePage, globalLeaveTotalPages)
   const paginatedGlobalFaculty = filteredGlobalFaculty.slice((safeGlobalFacultyPage - 1) * globalRowsPerPage, safeGlobalFacultyPage * globalRowsPerPage)
-  const paginatedGlobalStudents = filteredGlobalStudents.slice((safeGlobalStudentPage - 1) * globalRowsPerPage, safeGlobalStudentPage * globalRowsPerPage)
+  const paginatedGlobalStudents = filteredGlobalStudents.slice((safeGlobalStudentPage - 1) * globalStudentRowsPerPage, safeGlobalStudentPage * globalStudentRowsPerPage)
   const paginatedGlobalLeaves = filteredGlobalLeaves.slice((safeGlobalLeavePage - 1) * globalRowsPerPage, safeGlobalLeavePage * globalRowsPerPage)
 
   useEffect(() => {
@@ -1414,9 +1449,12 @@ const filteredBranches = useMemo(() => {
     if (!studentId) return
     const studentBranchKey = String(student.branchId || student.branchCode || '').trim().toLowerCase()
     const targetBranch = branch || branches.find((item) => (
-      [item?.id, item?.branchId].some((value) => String(value || '').trim().toLowerCase() === studentBranchKey)
-    ))
-    if (!targetBranch) return
+      [item?.id, item?.branchId, item?.branchCode].some((value) => String(value || '').trim().toLowerCase() === studentBranchKey)
+    )) || {
+      id: student.branchId || '',
+      branchId: student.branchCode || student.branchId || '',
+      branchName: student.branchName || student.branchRecord?.branchName || '',
+    }
     setSuperAdminStudentCalendarView(null)
     setSuperAdminStudentView({ student, branch: targetBranch })
     setSuperAdminStudentCourseData({ courses: [], batches: [], facultyWork: [] })
@@ -2800,11 +2838,11 @@ const filteredBranches = useMemo(() => {
              ) : activeSection === 'students' ? (
                <section className="super-admin-global-panel">
                  <div className="super-admin-global-header"><div><p className="branch-management-kicker">Academic Operations</p><h1>Student Management</h1><p>All students registered across every active branch.</p></div><div className="super-admin-global-header-actions"><label className="super-admin-student-search"><input type="search" value={globalStudentSearch} onChange={(event) => { setGlobalStudentSearch(event.target.value); setGlobalStudentPage(1) }} placeholder="Search student or ID" aria-label="Search students" /></label><SuperAdminOptionSelect value={globalStudentSort} onChange={setGlobalStudentSort} ariaLabel="Sort students" options={[{ value: 'createdAt', label: 'Newest' }, { value: 'name', label: 'Name' }, { value: 'branch', label: 'Branch' }]} width={116} /><div className="super-admin-global-filter-field"><BranchFilterSelect value={globalStudentBranchFilter} branches={globalBranchFilterOptions} onChange={(nextValue) => setGlobalStudentBranchFilter(nextValue)} ariaLabel="Filter students by branch" /></div><span className="super-admin-global-count">{filteredGlobalStudents.length} students</span></div></div>
-                 {isGlobalStudentsLoading ? <SuperAdminStudentTableSkeleton /> : <><div className="super-admin-global-table-wrap"><table className="super-admin-global-table"><thead><tr><th>S.No</th><th>Student</th><th>Student ID</th><th>Branch</th><th>Course</th><th>Batch</th><th>Student Status</th></tr></thead><tbody>
-                   {paginatedGlobalStudents.map((student, index) => <tr key={student.id || `${student.branchId}-${student.studentId}`}><td>{(safeGlobalStudentPage - 1) * globalRowsPerPage + index + 1}</td><td><strong>{student.studentName || student.name || '-'}</strong><small>{student.emailAddress || student.email || '-'}</small></td><td>{student.studentId || student.studentCode || '-'}</td><td><strong>{student.branchRecord?.branchName || student.branchName || '-'}</strong><small>{student.branchRecord?.branchId || student.branchId || '-'}</small></td><td>{student.courseName || student.course?.name || student.courseInterested || '-'}</td><td>{student.batchName || '-'}</td><td><span className={`super-admin-global-status ${String(student.courseCompletion || student.courseCompletionStatus || '').toUpperCase() === 'COMPLETED' ? 'is-completed' : String(student.recordStatus || student.currentStatus || '').toLowerCase() === 'active' ? 'is-active' : 'is-inactive'}`}>{String(student.courseCompletion || student.courseCompletionStatus || '').toUpperCase() === 'COMPLETED' ? 'Completed' : student.recordStatus || student.currentStatus || '-'}</span></td></tr>)}
+                 {isGlobalStudentsLoading ? <SuperAdminStudentTableSkeleton /> : <><div className="super-admin-global-table-wrap"><table className="super-admin-global-table"><thead><tr><th>S.No</th><th>Student</th><th>Branch</th><th>Course</th><th>Batch</th><th>Course Completion</th><th>Student Status</th></tr></thead><tbody>
+                   {paginatedGlobalStudents.map((student, index) => { const courseRows = getGlobalStudentCourseRows(student); return <tr key={student.id || `${student.branchId}-${student.studentId}`} role="button" tabIndex={0} className="super-admin-global-table-row-action" aria-label={`View ${student.studentName || student.name || student.studentId || 'student'} 360 degree profile`} onClick={() => openSuperAdminStudent360({ student, branch: student.branchRecord })} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); openSuperAdminStudent360({ student, branch: student.branchRecord }) } }}><td>{(safeGlobalStudentPage - 1) * globalStudentRowsPerPage + index + 1}</td><td><strong>{student.studentName || student.name || '-'}</strong><small>{student.studentId || student.studentCode || '-'}</small></td><td className="super-admin-student-branch-cell"><strong>{student.branchRecord?.branchName || student.branchName || '-'}</strong><small>{student.branchRecord?.branchId || student.branchId || '-'}</small></td><td><div className="super-admin-student-course-list">{courseRows.map((course, courseIndex) => <span key={`${course.courseId || course.courseName || 'course'}-${courseIndex}`}><strong>{course.courseName || course.course?.name || course.courseInterested || '-'}</strong></span>)}</div></td><td><div className="super-admin-student-course-list">{courseRows.map((course, courseIndex) => <span key={`${course.batchId || course.batchName || 'batch'}-${courseIndex}`}><strong>{course.batchName || course.batchId || '-'}</strong></span>)}</div></td><td><div className="super-admin-student-course-list super-admin-student-course-status-list">{courseRows.map((course, courseIndex) => { const label = getGlobalCourseCompletionLabel(course, student); const statusClass = label === 'Course Completed' ? 'is-completed' : label === 'Discontinued' ? 'is-inactive' : 'is-active'; return <span key={`${course.courseId || course.courseName || 'status'}-${courseIndex}`}><span className={`super-admin-global-status ${statusClass}`}>{label}</span></span> })}</div></td><td><span className={`super-admin-global-status ${String(student.recordStatus || student.currentStatus || '').toLowerCase() === 'active' ? 'is-active' : 'is-inactive'}`}>{student.recordStatus || student.currentStatus || '-'}</span></td></tr> })}
                    {!filteredGlobalStudents.length ? <tr><td colSpan="7" className="super-admin-global-empty">No student records found for this branch.</td></tr> : null}
                  </tbody></table></div>
-                 {filteredGlobalStudents.length > globalRowsPerPage ? <PaginationBar className="super-admin-pagination" currentPage={safeGlobalStudentPage} totalPages={globalStudentTotalPages} onPageChange={setGlobalStudentPage} label="Student pagination" previousLabel="Prev" nextLabel="Next" visiblePageCount={3} /> : null}</>}
+                 {filteredGlobalStudents.length > globalStudentRowsPerPage ? <PaginationBar className="super-admin-pagination" currentPage={safeGlobalStudentPage} totalPages={globalStudentTotalPages} onPageChange={setGlobalStudentPage} label="Student pagination" previousLabel="Prev" nextLabel="Next" visiblePageCount={3} /> : null}</>}
                </section>
             ) : activeSection === 'discontinuations' ? (
               <SuperAdminDiscontinuationPage />

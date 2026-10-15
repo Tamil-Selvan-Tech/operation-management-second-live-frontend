@@ -6077,6 +6077,14 @@ body.super-admin-sidebar-open {
 .super-admin-global-table td strong, .super-admin-global-table td small { display: block; }
 .super-admin-global-table td strong { color: #172b4d; font-weight: 750; }
 .super-admin-global-table td small { margin-top: 3px; color: #8a9bb3; font-size: 11px; }
+.super-admin-student-course-list { display: grid; gap: 7px; min-width: 190px; }
+.super-admin-student-course-list > span { display: block; padding-bottom: 6px; border-bottom: 1px solid #edf2f7; }
+.super-admin-student-course-list > span:last-child { padding-bottom: 0; border-bottom: 0; }
+.super-admin-student-course-list strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.super-admin-student-course-status-list { min-width: 145px; align-items: start; }
+.super-admin-student-course-status-list > span { border-bottom: 0; padding-bottom: 0; }
+.super-admin-student-branch-cell { white-space: nowrap; }
+.super-admin-student-branch-cell strong { display: block; white-space: nowrap; }
 .super-admin-global-status { display: inline-flex; padding: 5px 9px; border-radius: 999px; color: #64748b; background: #f1f5f9; font-size: 11px; font-weight: 800; white-space: nowrap; }
 .super-admin-global-status.is-active { color: #0e8c5a; background: #e9fbf2; }
 .super-admin-global-status.is-completed { color: #166534; background: #dcfce7; }
