@@ -150,7 +150,11 @@ function getAcademicTestsForRow(academicProgressByStudent, studentId, courseId, 
 function buildFields(row) {
   const paidInstallments = Array.isArray(row.paidInstallments) ? row.paidInstallments : []
   return [
-    ['Student ID', row.studentId], ['Student Name', row.studentName], ['Contact Number', row.mobileNumber], ['Email ID', row.emailAddress],
+    ['Student ID', row.studentId], ['Student Name', row.studentName], ['Parent Name', row.parentName], ['Contact Number', row.mobileNumber], ['Parent / Spouse Number', row.parentSpouseNumber], ['Email ID', row.emailAddress], ['LinkedIn URL', row.linkedInUrl],
+    ['Current Status', row.customCurrentStatus || row.currentStatus], ['Purpose', row.customPurpose || row.purpose],
+    ['Qualification', row.qualification], ['Education Level', row.educationLevel], ['Education Status', row.educationStatus], ['Passed Out Year', row.passedOutYear],
+    ...(hasValue(row.designation) ? [['Designation', row.designation]] : []),
+    ...(hasValue(row.companyName) ? [['Company Name', row.companyName]] : []),
     ['Course', row.courseName], ['Database Source', row.source], ['Branch Admin Name', row.branchAdminName],
     ['Course Starting Date', formatDate(row.courseStartDate)], ['Course Ending Date', formatDate(row.courseEndDate)],
     ['Weekday / Weekend', row.scheduleType || row.classSchedule], ['Online / Offline', row.courseMode || row.mode],
@@ -169,7 +173,7 @@ function buildFields(row) {
 
 function getModalSections(fields) {
   const sectionDefinitions = [
-    { title: 'Student Information', match: (label) => ['Student ID', 'Student Name', 'Contact Number', 'Email ID', 'Database Source', 'Branch Admin Name', 'Student Status'].includes(label) },
+    { title: 'Student Information', match: (label) => ['Student ID', 'Student Name', 'Parent Name', 'Contact Number', 'Parent / Spouse Number', 'Email ID', 'LinkedIn URL', 'Current Status', 'Purpose', 'Qualification', 'Education Level', 'Education Status', 'Passed Out Year', 'Designation', 'Company Name', 'Database Source', 'Branch Admin Name', 'Student Status'].includes(label) },
     { title: 'Course & Schedule', match: (label) => ['Course', 'Course Starting Date', 'Course Ending Date', 'Weekday / Weekend', 'Online / Offline', 'Batch Timing', 'Faculty Name', 'Attendance Percentage'].includes(label) },
     { title: 'Fees & Payment', match: (label) => ['Course Fees', 'Registration Fees', 'Payment Plan', 'Paid Amount', 'Pending Amount'].includes(label) || /Installment(?: Payment Mode| Receipt Number)?$/.test(label) },
     { title: 'Academic Performance', match: (label) => label.startsWith('Academic Test') || label.startsWith('Project') },
