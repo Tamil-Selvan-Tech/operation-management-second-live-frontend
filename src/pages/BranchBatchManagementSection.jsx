@@ -192,8 +192,10 @@ function extractAttendanceStatuses(payload = {}, filters = {}) {
   }
 
   rows.forEach((row) => {
+    const nestedStudent = row?.student || row?.learner || row?.user || {}
     const studentId = normalizeMatchKey(
-      row?.studentId || row?.studentCode || row?.id || row?.student?.studentId || row?.student?.studentCode || row?.student?.id,
+      nestedStudent?.studentId || nestedStudent?.studentCode || nestedStudent?.id ||
+      row?.studentId || row?.studentCode || row?.branchStudentId || row?.studentRecordId || row?.id,
     )
     const rowScope = getScope(row)
     const rawStatus = String(row?.attendanceStatus || row?.attendanceStatusLabel || row?.status || '').trim().toUpperCase()
@@ -205,11 +207,16 @@ function extractAttendanceStatuses(payload = {}, filters = {}) {
 
     const records = Array.isArray(row?.records) ? row.records : []
     records.forEach((record) => {
+      const recordStudent = record?.student || record?.learner || record?.user || {}
+      const recordStudentId = normalizeMatchKey(
+        recordStudent?.studentId || recordStudent?.studentCode || recordStudent?.id ||
+        record?.studentId || record?.studentCode || record?.branchStudentId || record?.studentRecordId || studentId,
+      )
       const recordDate = String(record?.attendanceDate || record?.date || '').trim()
       if (expectedDate && recordDate !== expectedDate && responseDate !== expectedDate) return
       if (!matchesScope(getScope(row, record))) return
       const recordStatus = String(record?.attendanceStatus || record?.attendanceStatusLabel || record?.status || '').trim().toUpperCase()
-      if (studentId && ['PRESENT', 'ABSENT'].includes(recordStatus)) statuses[studentId] = recordStatus
+      if (recordStudentId && ['PRESENT', 'ABSENT'].includes(recordStatus)) statuses[recordStudentId] = recordStatus
     })
   })
 
@@ -946,16 +953,31 @@ function getStudentAcademicTestProgress(response = {}, totalConfiguredTests = 0,
   scoped.forEach((item, index) => {
     // A combined test + project report must count as one academic test.
     const key = String(item?.testNumber || item?.evaluationId || item?.id || item?.name || item?.title || item?.testName || index).trim().toUpperCase()
-    unique.set(key, item)
+    unique.set(key, [...(unique.get(key) || []), item])
   })
-  const completed = [...unique.values()].filter((item) => {
-    const status = String(item?.status || item?.reportStatus || '').trim().toUpperCase()
-    return ['SUBMITTED', 'EVALUATED', 'GRADED', 'COMPLETED', 'PROJECT_SUBMITTED', 'PROJECT_GRADED'].includes(status)
-      || Number.isFinite(Number(item?.percentage))
-      || Number.isFinite(Number(item?.overallTestPercentage))
-      || Number.isFinite(Number(item?.overallProjectPercentage))
-      || Number.isFinite(Number(item?.projectPercentage))
-      || Object.keys(item || {}).some((key) => /report|submission|result/i.test(key))
+  const completed = [...unique.values()].filter((items) => {
+    const getNestedResults = (item = {}) => [
+      item,
+      ...(Array.isArray(item?.tests) ? item.tests : []),
+      ...(Array.isArray(item?.projects) ? item.projects : []),
+      ...(Array.isArray(item?.attempts) ? item.attempts : []),
+      item?.final,
+      item?.result,
+    ].filter(Boolean)
+    const getStatus = (item) => String(item?.status || item?.reportStatus || item?.final?.status || item?.test?.status || item?.result?.status || '').trim().toUpperCase().replace(/\s+/g, '_')
+    const nestedResults = items.flatMap(getNestedResults)
+    const hasNotAttended = nestedResults.some((item) => ['NOT_ATTENDED', 'NOT_SUBMITTED', 'ABSENT'].includes(getStatus(item)))
+    if (hasNotAttended) return false
+    return nestedResults.some((item) => {
+      const status = getStatus(item)
+      return ['SUBMITTED', 'EVALUATED', 'GRADED', 'COMPLETED', 'PROJECT_SUBMITTED', 'PROJECT_GRADED'].includes(status)
+        || Number(item?.percentage ?? item?.final?.percentage) > 0
+        || Number(item?.overallTestPercentage) > 0
+        || Number(item?.overallProjectPercentage) > 0
+        || Number(item?.projectPercentage) > 0
+        || Number.isFinite(Number(item?.marksObtained ?? item?.marksAwarded ?? item?.final?.marksObtained ?? item?.final?.marksAwarded))
+        || ['PASS', 'FAIL'].includes(String(item?.result || item?.final?.result || '').trim().toUpperCase())
+    })
   }).length
   // The batch configuration is the source of truth. Reports must never
   // increase the number of academic tests shown for the batch.
@@ -1506,11 +1528,14 @@ export function BranchBatchManagementSection({
           })
       // The server response is authoritative. This also clears stale local
       // browser marks when today's attendance has not actually been saved.
-      setDetailAttendanceStatuses(extractAttendanceStatuses(overview, {
+      setDetailAttendanceStatuses({
+        ...localStatuses,
+        ...extractAttendanceStatuses(overview, {
         date: todayKey,
         courseId: group?.courseId || group?.branchCourseId || detailBatch?.courseId || '',
         batchId: detailBatch?.batchId || detailBatch?.id || '',
-      }))
+        }),
+      })
     } catch {
       // The faculty dashboard also persists today's marks locally. Keep those
       // marks visible when the branch overview endpoint is unavailable.
@@ -2469,7 +2494,19 @@ export function BranchBatchManagementSection({
       facultyTodayWorkEntries,
     )
     const detailAcademicTestCount = getAcademicTestCountForBatch(academicTestRows, detailGroup, detailBatch)
-    const academicTestProgress = getAcademicTestProgressForBatch(academicTestRows, academicTestReports, detailGroup, detailBatch)
+    const progressScopeKey = normalizeMatchKey(detailGroup?.id || detailGroup?.batchId || detailGroup?.batchGroupId || '')
+    const studentAcademicProgressValues = detailStudents.map((student) => {
+      const studentKey = normalizeMatchKey(student?.studentId || student?.id || student?._id || '')
+      return studentAcademicTestProgress[`${progressScopeKey}:${studentKey}`] || { total: detailAcademicTestCount, completed: 0, percentage: 0 }
+    })
+    const batchAcademicCompleted = studentAcademicProgressValues.length
+      ? Math.min(...studentAcademicProgressValues.map((progress) => Math.min(detailAcademicTestCount, Number(progress.completed) || 0)))
+      : getAcademicTestProgressForBatch(academicTestRows, academicTestReports, detailGroup, detailBatch).completed
+    const academicTestProgress = {
+      total: detailAcademicTestCount,
+      completed: batchAcademicCompleted,
+      percentage: detailAcademicTestCount ? Math.round((batchAcademicCompleted / detailAcademicTestCount) * 100) : 0,
+    }
     const detailStatus = normalizeStatus(detailGroup.status || 'Active')
     const detailStatusClass = String(detailStatus).toLowerCase()
 

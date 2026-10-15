@@ -828,9 +828,13 @@ function isAttendanceMarkedStatus(value) {
 function extractStudentAttendanceStatuses(payload = {}) {
   const source = payload?.data ?? payload
   const rows = [
+    ...(Array.isArray(source) ? source : []),
     ...(Array.isArray(source?.students) ? source.students : []),
     ...(Array.isArray(source?.attendance) ? source.attendance : []),
     ...(Array.isArray(source?.attendanceRecords) ? source.attendanceRecords : []),
+    ...(Array.isArray(source?.records) ? source.records : []),
+    ...(Array.isArray(source?.items) ? source.items : []),
+    ...(Array.isArray(source?.results) ? source.results : []),
     ...(Array.isArray(source?.batches) ? source.batches.flatMap((batch) => batch?.students || []) : []),
   ]
   const statuses = {}
@@ -860,7 +864,24 @@ function getCurrentStudentAttendanceStatus(statuses = {}, student = {}) {
 }
 
 function getStudentAttendanceStatus(statuses = {}, student = {}) {
-  return getStudentAttendanceKeys(student).map((key) => statuses[key]).find(Boolean) || ''
+  const savedStatus = getStudentAttendanceKeys(student).map((key) => statuses[key]).find(Boolean) || ''
+  if (isAttendanceMarkedStatus(savedStatus)) return savedStatus
+
+  const directStatus = String(
+    student?.attendanceStatus
+      || student?.attendanceStatusLabel
+      || student?.todayAttendanceStatus
+      || student?.attendance?.status
+      || '',
+  ).trim().toUpperCase()
+  if (isAttendanceMarkedStatus(directStatus)) return directStatus
+
+  const today = getAttendanceDateKey()
+  const todayRecord = (Array.isArray(student?.records) ? student.records : []).find((record) => (
+    String(record?.attendanceDate || record?.date || '').slice(0, 10) === today
+  ))
+  const recordStatus = String(todayRecord?.attendanceStatus || todayRecord?.status || '').trim().toUpperCase()
+  return isAttendanceMarkedStatus(recordStatus) ? recordStatus : ''
 }
 
 function normalizeSubmoduleProgressStatus(value = '') {
