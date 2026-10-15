@@ -2229,6 +2229,10 @@
   font-weight: 900;
 }
 
+.batch-detail-student-progress .academic-test-progress-label {
+  margin-top: 4px;
+}
+
 .batch-detail-student-progress-track {
   height: 8px;
   overflow: hidden;
