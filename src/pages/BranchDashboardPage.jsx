@@ -407,6 +407,11 @@ function getCourseAcademicProgress(student = {}, courseId = '', courseName = '',
   return persisted || null
 }
 
+function isCourseCompletionComplete(student = {}, courseId = '', courseName = '', progress = 0, fetchedByStudent = new Map()) {
+  return Number(progress) >= 100
+    && isAcademicTestProgressComplete(getCourseAcademicProgress(student, courseId, courseName, fetchedByStudent))
+}
+
 function getBranchEntityPrefix(branchCode, entityPrefix) {
   const compact = String(branchCode || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '')
   const branchPrefix = compact.replace(/\d{3}$/, '')
@@ -9319,7 +9324,7 @@ useEffect(() => {
           Number.isFinite(savedProgress) ? savedProgress : 0,
           Number.isFinite(workProgress) ? workProgress : 0,
         )
-        return progress >= 100 && isAcademicTestProgressComplete(getCourseAcademicProgress(student, courseId, courseName, branchAcademicProgressByStudent))
+        return isCourseCompletionComplete(student, courseId, courseName, progress, branchAcademicProgressByStudent)
       })
       if (isCompleted) completedKeys.add(String(student?.studentId || student?.id || '').trim().toLowerCase())
     })
@@ -9539,7 +9544,7 @@ useEffect(() => {
           Number.isFinite(savedProgress) ? savedProgress : 0,
           Number.isFinite(workProgress) ? workProgress : 0,
         )
-        return progress >= 100 && isAcademicTestProgressComplete(getCourseAcademicProgress(student, courseId, courseName, branchAcademicProgressByStudent))
+        return isCourseCompletionComplete(student, courseId, courseName, progress, branchAcademicProgressByStudent)
       }).map((entry) => ({
         ...student,
         courseId: entry?.courseId || entry?.id || entry?.course?.id || student?.courseId || '',
@@ -11920,7 +11925,7 @@ else {
               // status is displayed separately and must not block this label.
               const courseCompletionStatus = isStudentDiscontinued
                 ? 'DISCONTINUED'
-                : progressValue >= 100 && isAcademicTestProgressComplete(getCourseAcademicProgress(stu, item.courseId, item.courseName, branchAcademicProgressByStudent))
+                : isCourseCompletionComplete(stu, item.courseId, item.courseName, progressValue, branchAcademicProgressByStudent)
                   ? 'COMPLETED'
                   : 'IN_PROGRESS'
               const courseStatus = isCoursePaymentCompleted
@@ -12118,8 +12123,7 @@ else {
           }
 
           const singleCourseCompleted = !isStudentDiscontinued
-            && studentCourseProgress >= 100
-            && isAcademicTestProgressComplete(getCourseAcademicProgress(stu, stu.courseId, stu.courseName || stu.courseInterested, branchAcademicProgressByStudent))
+            && isCourseCompletionComplete(stu, stu.courseId, stu.courseName || stu.courseInterested, studentCourseProgress, branchAcademicProgressByStudent)
             
           if (isCourseCompletedFilter && !singleCourseCompleted) return null
 
@@ -12192,8 +12196,7 @@ else {
               </td>
               <td>
                 {(() => {
-                  const isCompleted = studentCourseProgress >= 100
-                    && isAcademicTestProgressComplete(getCourseAcademicProgress(stu, stu.courseId, stu.courseName || stu.courseInterested, branchAcademicProgressByStudent))
+                  const isCompleted = isCourseCompletionComplete(stu, stu.courseId, stu.courseName || stu.courseInterested, studentCourseProgress, branchAcademicProgressByStudent)
                   const completionStatus = isStudentDiscontinued ? 'DISCONTINUED' : isCompleted ? 'COMPLETED' : 'IN_PROGRESS'
                   return (
                     <span className={`branch-student-payment-status ${completionStatus.toLowerCase()}`}>
