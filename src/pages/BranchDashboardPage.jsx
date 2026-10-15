@@ -9407,7 +9407,8 @@ useEffect(() => {
           Number.isFinite(savedProgress) ? savedProgress : 0,
           Number.isFinite(workProgress) ? workProgress : 0,
         )
-        return isCourseCompletionComplete(student, courseId, courseName, progress, branchAcademicProgressByStudent)
+        const persistedCompleted = Boolean(entry?.courseCompletedAt || entry?.completedAt)
+        return persistedCompleted || isCourseCompletionComplete(student, courseId, courseName, progress, branchAcademicProgressByStudent)
       })
       if (isCompleted) completedKeys.add(String(student?.studentId || student?.id || '').trim().toLowerCase())
     })
@@ -9627,7 +9628,8 @@ useEffect(() => {
           Number.isFinite(savedProgress) ? savedProgress : 0,
           Number.isFinite(workProgress) ? workProgress : 0,
         )
-        return isCourseCompletionComplete(student, courseId, courseName, progress, branchAcademicProgressByStudent)
+        const persistedCompleted = Boolean(entry?.courseCompletedAt || entry?.completedAt)
+        return persistedCompleted || isCourseCompletionComplete(student, courseId, courseName, progress, branchAcademicProgressByStudent)
       }).map((entry) => ({
         ...student,
         courseId: entry?.courseId || entry?.id || entry?.course?.id || student?.courseId || '',
