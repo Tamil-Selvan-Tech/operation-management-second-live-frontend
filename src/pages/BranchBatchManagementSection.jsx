@@ -323,6 +323,42 @@ function getStudentBatchCourseProgress(student = {}, batch = {}, course = null, 
   return Number.isFinite(progress) ? Math.min(Math.max(progress, 0), 100) : 0
 }
 
+function isStudentBatchCourseCompleted(student = {}, batch = {}, progress = 0) {
+  const courseId = normalizeMatchKey(batch?.courseId || batch?.branchCourseId)
+  const courseName = normalizeMatchKey(batch?.courseName)
+  const completionByCourse = student?.courseCompletionByCourse
+  const mappedEntry = completionByCourse && typeof completionByCourse === 'object' && !Array.isArray(completionByCourse)
+    ? Object.entries(completionByCourse).find(([key]) => {
+      const normalizedKey = normalizeMatchKey(key)
+      return (courseId && normalizedKey === courseId) || (courseName && normalizedKey === courseName)
+    })?.[1]
+    : null
+  const mappedCompletion = typeof mappedEntry === 'object'
+    ? mappedEntry?.courseCompletion || mappedEntry?.courseCompletionStatus || mappedEntry?.completionStatus || mappedEntry?.status
+    : mappedEntry
+  const enrollment = (student?.courseEnrollments || []).find((item) => {
+    const enrollmentCourseId = normalizeMatchKey(item?.courseId || item?.id)
+    const enrollmentCourseName = normalizeMatchKey(item?.courseName || item?.name)
+    return (courseId && enrollmentCourseId === courseId) || (courseName && enrollmentCourseName === courseName)
+  })
+  const enrollmentCompletion = enrollment?.courseCompletion || enrollment?.courseCompletionStatus || enrollment?.completionStatus || enrollment?.status
+  const progressValues = [
+    progress,
+    enrollment?.courseProgress,
+    enrollment?.courseCompletionPercentage,
+    enrollment?.progress,
+    student?.courseProgress,
+    student?.courseCompletionPercentage,
+    student?.courseProgressPercentage,
+    student?.progress,
+  ].map((value) => Number(String(value ?? '').replace('%', '').trim())).filter(Number.isFinite)
+  return String(mappedCompletion || enrollmentCompletion || student?.courseCompletion || student?.courseCompletionStatus || '').trim().toUpperCase() === 'COMPLETED'
+    || mappedEntry?.isCompleted === true
+    || enrollment?.isCompleted === true
+    || enrollment?.completed === true
+    || progressValues.some((value) => value >= 100)
+}
+
 function toNumber(value = '') {
   const parsed = Number(value)
   return Number.isFinite(parsed) && parsed > 0 ? parsed : 0
@@ -2337,12 +2373,11 @@ export function BranchBatchManagementSection({
                   const attendanceStatus = detailAttendanceStatuses[attendanceKey] || 'UNMARKED'
                   const selectedCourse = branchCourses.find((course) => normalizeMatchKey(course?.id || course?.courseId) === normalizeMatchKey(detailGroup?.courseId || detailGroup?.branchCourseId))
                   const studentCourseProgress = getStudentBatchCourseProgress(student, { ...detailGroup, ...detailBatch }, selectedCourse, facultyTodayWorkEntries)
-                  const selectedCourseCompletion = student?.courseCompletionByCourse?.[
-                    detailGroup?.courseId || detailGroup?.branchCourseId || ''
-                  ]
-                  const isCourseCompleted = String(
-                    selectedCourseCompletion || student?.courseCompletion || student?.courseCompletionStatus || '',
-                  ).toUpperCase() === 'COMPLETED'
+                  const isCourseCompleted = isStudentBatchCourseCompleted(
+                    student,
+                    { ...detailGroup, ...detailBatch },
+                    studentCourseProgress,
+                  )
                   const isStudentDiscontinued = Boolean(
                     student?.isDiscontinued
                     || String(student?.discontinuationStatus || '').trim().toUpperCase() === 'APPROVED'
@@ -2426,13 +2461,18 @@ export function BranchBatchManagementSection({
     const batchAvailability = getBatchAvailability(primaryBatch.courseEndDate || group.courseEndDate)
     const groupKey = String(group.id || group.batchGroupId || group.batchId || primaryBatch.batchId || '')
     const batchCourseId = String(group?.courseId || group?.branchCourseId || '').trim().toLowerCase()
-    const allBatchStudentsCompleted = batchStudents.length > 0 && batchStudents.every((student) => {
-      const courseStatuses = student?.courseCompletionByCourse || {}
-      const courseStatus = Object.entries(courseStatuses).find(([courseId]) => String(courseId).trim().toLowerCase() === batchCourseId)?.[1]
-        || student?.courseCompletion
-        || student?.courseCompletionStatus
-      return String(courseStatus || '').toUpperCase() === 'COMPLETED'
-    })
+    const allBatchStudentsCompleted = batchStudents.length > 0 && batchStudents.every((student) => (
+      isStudentBatchCourseCompleted(
+        student,
+        { ...group, ...primaryBatch },
+        getStudentBatchCourseProgress(
+          student,
+          { ...group, ...primaryBatch },
+          branchCourses.find((course) => normalizeMatchKey(course?.id || course?.courseId) === batchCourseId),
+          facultyTodayWorkEntries,
+        ),
+      )
+    ))
     const statusLabel = allBatchStudentsCompleted
       ? 'Completed'
       : isInactiveBatchGroup(group)
