@@ -20,6 +20,7 @@ import {
   deleteBranchFaculty,
 } from '../services/branchFacultyService'
 import { getBranchFacultyAttendanceStatus } from '../services/attendanceService'
+import { getMatchingStudents } from '../lib/facultyFlow'
 
 // Prefix constant for Faculty ID
 const FACULTY_ID_PREFIX = 'FC-'
@@ -67,7 +68,30 @@ function displayAttendanceStatus(attendance) {
   return attendance?.status || 'NOT_LOGGED_IN'
 }
 
-export function BranchFacultyPage({ branchCode = '', branchId = '' }) {
+function normalizeMatchValue(value) {
+  return String(value || '').trim().toLowerCase()
+}
+
+function facultyOwnsBatch(faculty = {}, group = {}) {
+  const facultyIds = [faculty.id, faculty.dbId, faculty.facultyId].map(normalizeMatchValue).filter(Boolean)
+  const groupIds = [group.facultyId, group.branchFacultyId, group.facultyUserId].map(normalizeMatchValue).filter(Boolean)
+  const facultyNames = [faculty.name].map(normalizeMatchValue).filter(Boolean)
+  const groupNames = [group.facultyName, group.branchFacultyName].map(normalizeMatchValue).filter(Boolean)
+
+  return Boolean(
+    facultyIds.some((id) => groupIds.includes(id))
+      || facultyNames.some((name) => groupNames.includes(name)),
+  )
+}
+
+function formatBatchTiming(batch = {}) {
+  if (batch.batchTiming) return batch.batchTiming
+  const start = [batch.startTime, batch.startPeriod].filter(Boolean).join(' ')
+  const end = [batch.endTime, batch.endPeriod].filter(Boolean).join(' ')
+  return [start, end].filter(Boolean).join(' - ') || '-'
+}
+
+export function BranchFacultyPage({ branchCode = '', branchId = '', branchBatchGroups = [], branchStudents = [] }) {
   const facultyIdPrefix = getBranchEntityPrefix(branchCode, 'FC')
   const [facultyList, setFacultyList] = useState([])
   const [searchQuery, setSearchQuery] = useState('')
@@ -111,6 +135,7 @@ export function BranchFacultyPage({ branchCode = '', branchId = '' }) {
   const [successAlert, setSuccessAlert] = useState(null) // { title, message }
   const [deleteConfirmTarget, setDeleteConfirmTarget] = useState(null) // faculty object
   const [viewFaculty, setViewFaculty] = useState(null) // faculty object for details drawer
+  const [viewFacultyTab, setViewFacultyTab] = useState('details')
   const [viewAttendance, setViewAttendance] = useState(null)
   const [viewAttendanceLoading, setViewAttendanceLoading] = useState(false)
   const [viewAttendanceError, setViewAttendanceError] = useState('')
@@ -374,6 +399,48 @@ export function BranchFacultyPage({ branchCode = '', branchId = '' }) {
     const startIndex = (safeCurrentPage - 1) * rowsPerPage
     return filteredFaculty.slice(startIndex, startIndex + rowsPerPage)
   }, [filteredFaculty, safeCurrentPage])
+
+  const facultyBatchDetails = useMemo(() => {
+    if (!viewFaculty) return []
+
+    return (Array.isArray(branchBatchGroups) ? branchBatchGroups : [])
+      .filter((group) => facultyOwnsBatch(viewFaculty, group))
+      .flatMap((group) => {
+        const groupBatches = Array.isArray(group.batches) && group.batches.length
+          ? group.batches
+          : [group]
+
+        return groupBatches.map((batch) => {
+          const batchId = batch.batchId || batch.id || group.batchId || group.id || ''
+          const batchName = batch.batchName || group.batchName || batchId || 'Unnamed batch'
+          const students = getMatchingStudents(branchStudents, {
+            facultyId: group.facultyId || group.branchFacultyId || viewFaculty.id,
+            facultyName: group.facultyName || viewFaculty.name,
+            courseId: group.courseId || group.branchCourseId || '',
+            courseName: group.courseName || '',
+            batchGroupId: group.id || group.batchGroupId || '',
+            batchId,
+            batchName,
+            batchTiming: formatBatchTiming(batch),
+          })
+
+          return {
+            key: `${group.id || group.batchGroupId || batchId}-${batchId}`,
+            batchId,
+            batchName,
+            courseName: group.courseName || batch.courseName || '-',
+            timing: formatBatchTiming(batch),
+            mode: batch.mode || group.mode || '-',
+            weekType: batch.weekType || group.weekType || '-',
+            startDate: batch.courseStartDate || batch.startDate || group.courseStartDate || group.startDate || '-',
+            endDate: batch.courseEndDate || batch.endDate || group.courseEndDate || group.endDate || '-',
+            totalSeats: Number(batch.totalSeats || group.totalSeats || 0),
+            status: batch.status || group.status || 'Active',
+            students,
+          }
+        })
+      })
+  }, [branchBatchGroups, branchStudents, viewFaculty])
 
   // Individual Field Validators
   // =========================================
@@ -952,7 +1019,7 @@ export function BranchFacultyPage({ branchCode = '', branchId = '' }) {
                 const statusTone = normStatus === 'active' ? 'is-active' : 'is-inactive'
                 const rowNumber = (safeCurrentPage - 1) * rowsPerPage + index + 1
                 return (
-                  <tr key={faculty.id} style={{ cursor: 'pointer' }} onClick={() => setViewFaculty(faculty)}>
+                  <tr key={faculty.id} style={{ cursor: 'pointer' }} onClick={() => { setViewFaculty(faculty); setViewFacultyTab('details') }}>
                     <td>{rowNumber}</td>
                    <td>
                       <div className="branch-course-code-cell">
@@ -1062,6 +1129,7 @@ export function BranchFacultyPage({ branchCode = '', branchId = '' }) {
                                   className="branch-course-actions-menu-item"
                                   onClick={() => {
                                     setViewFaculty(selectedFaculty)
+                                    setViewFacultyTab('details')
                                     setOpenActionId('')
                                     setActionMenuPosition(null)
                                   }}
@@ -1659,9 +1727,31 @@ export function BranchFacultyPage({ branchCode = '', branchId = '' }) {
                 )}
               </section>
 
+              <div className="faculty-drawer-tabs" role="tablist" aria-label="Faculty details sections">
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={viewFacultyTab === 'details'}
+                  className={viewFacultyTab === 'details' ? 'is-active' : ''}
+                  onClick={() => setViewFacultyTab('details')}
+                >
+                  DETAILS
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={viewFacultyTab === 'batches'}
+                  className={viewFacultyTab === 'batches' ? 'is-active' : ''}
+                  onClick={() => setViewFacultyTab('batches')}
+                >
+                  BATCHES &amp; STUDENTS
+                  <span>{facultyBatchDetails.length}</span>
+                </button>
+              </div>
+
               {/* Details Table */}
               <div className="branch-course-view-body">
-                <div className="branch-course-view-scroll">
+                <div className="branch-course-view-scroll" hidden={viewFacultyTab !== 'details'}>
                   <div className="branch-course-view-table" role="table" aria-label="Faculty information details">
                     <div className="branch-course-view-table-header" role="row">
                       <div className="branch-course-view-table-head" role="columnheader">DETAILS</div>
@@ -1770,6 +1860,78 @@ export function BranchFacultyPage({ branchCode = '', branchId = '' }) {
                     </div>
                   </div>
                 </div>
+
+                <section className="faculty-assigned-batches" aria-labelledby="faculty-assigned-batches-title" hidden={viewFacultyTab !== 'batches'}>
+                  <div className="faculty-assigned-batches-heading">
+                    <div>
+                      <p className="section-kicker">BATCHES &amp; STUDENTS</p>
+                      <h3 id="faculty-assigned-batches-title">Assigned batches</h3>
+                    </div>
+                    <strong>{facultyBatchDetails.length} batch{facultyBatchDetails.length === 1 ? '' : 'es'}</strong>
+                  </div>
+
+                  {facultyBatchDetails.length ? (
+                    <div className="faculty-batches-table-wrap">
+                      <table className="faculty-batches-table">
+                        <thead>
+                          <tr>
+                            <th>Course Name</th>
+                            <th>Batch Name</th>
+                            <th>Timing</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {facultyBatchDetails.map((batch) => (
+                            <tr key={batch.key}>
+                              <td>{batch.courseName}</td>
+                              <td><strong>{batch.batchName}</strong><small>{batch.batchId}</small></td>
+                              <td>{batch.timing}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <p className="faculty-assigned-empty">No batches assigned to this faculty.</p>
+                  )}
+
+                  {false && facultyBatchDetails.map((batch) => (
+                    <article className="faculty-assigned-batch-card" key={batch.key}>
+                      <div className="faculty-assigned-batch-header">
+                        <div>
+                          <strong>{batch.batchName}</strong>
+                          <span>{batch.batchId}</span>
+                        </div>
+                        <span className={`faculty-assigned-batch-status ${String(batch.status).toLowerCase()}`}>{batch.status}</span>
+                      </div>
+                      <div className="faculty-assigned-batch-meta">
+                        <span><b>Course:</b> {batch.courseName}</span>
+                        <span><b>Timing:</b> {batch.timing}</span>
+                        <span><b>Mode:</b> {batch.mode}</span>
+                        <span><b>Week:</b> {batch.weekType}</span>
+                        <span><b>Start:</b> {batch.startDate}</span>
+                        <span><b>End:</b> {batch.endDate}</span>
+                        <span><b>Seats:</b> {batch.students.length}{batch.totalSeats ? ` / ${batch.totalSeats}` : ''}</span>
+                      </div>
+                      {batch.students.length ? (
+                        <div className="faculty-assigned-student-list">
+                          {batch.students.map((student, index) => (
+                            <div className="faculty-assigned-student-row" key={`${batch.key}-${student.studentId || student.id || index}`}>
+                              <span>{String(index + 1).padStart(2, '0')}</span>
+                              <div>
+                                <strong>{student.studentName || student.name || 'Unnamed student'}</strong>
+                                <small>{student.studentId || student.id || 'Student ID unavailable'}</small>
+                              </div>
+                              <em>{[student.phone || student.mobileNumber, student.email, student.courseName || student.courseInterested].filter(Boolean).join(' · ') || '-'}</em>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="faculty-assigned-empty">No students assigned to this batch yet.</p>
+                      )}
+                    </article>
+                  ))}
+                </section>
 
               </div>
             </aside>

@@ -14386,6 +14386,8 @@ else {
                 <BranchFacultyPage
                   branchCode={branchProfile?.branchId || branchProfile?.branchCode || branchData?.branchId || branchData?.branchCode || ''}
                   branchId={branchProfile?.id || branchProfile?.branchId || branchData?.id || branchData?.branchId || ''}
+                  branchBatchGroups={branchBatchGroups}
+                  branchStudents={branchStudents}
                 />
               ) : null}
             </div>
