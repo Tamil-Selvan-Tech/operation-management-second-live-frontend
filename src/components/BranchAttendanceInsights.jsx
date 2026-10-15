@@ -52,18 +52,19 @@ export function BranchAttendanceInsights({ data }) {
     { key: 'long-absent', label: 'Long Absent', color: '#ef646b', students: info.longAbsent },
     { key: 'yesterday-absent', label: 'Yesterday Absent', color: '#8b70f5', students: info.yesterdayAbsent },
   ]
+  const totalSegments = segments.reduce((sum, segment) => sum + segment.students.length, 0)
+  let cursor = 0
+  const donutStops = segments.map((segment) => {
+    const start = totalSegments ? (cursor / totalSegments) * 100 : 0
+    cursor += segment.students.length
+    const end = totalSegments ? (cursor / totalSegments) * 100 : 0
+    return `${segment.color} ${start}% ${end}%`
+  })
   return <aside className="attendance-insights" aria-label="Today's attendance and absence details">
     <h3>Today's Attendance</h3>
     <div className="attendance-donut-layout">
-      <div className="attendance-bar-chart" role="img" aria-label={`Attendance: ${info.present.length} present, ${info.absent.length} absent, ${info.unmarked.length} not marked, ${info.longAbsent.length} long absent, ${info.yesterdayAbsent.length} yesterday absent`}>
-        {segments.map((segment) => (
-          <div className="attendance-bar-column" key={segment.key}>
-            <b className="attendance-bar-value">{segment.students.length}</b>
-            <div className="attendance-bar-track"><span title={`${segment.label}: ${segment.students.length} (${attendancePercentage({ present: segment.students.length, marked: info.total })})`} style={{ height: `${info.total ? (segment.students.length / info.total) * 100 : 0}%`, background: segment.color }} /></div>
-            <small>{segment.label === 'Not marked' ? 'Not Marked' : segment.label}</small>
-          </div>
-        ))}
-      </div>
+      <div className="attendance-insights-donut-chart" role="img" aria-label={`Attendance: ${info.present.length} present, ${info.absent.length} absent, ${info.unmarked.length} not marked, ${info.longAbsent.length} long absent, ${info.yesterdayAbsent.length} yesterday absent`} style={{ background: totalSegments ? `conic-gradient(${donutStops.join(', ')})` : '#e5e7eb' }}><div><strong>{info.total}</strong><span>Students</span></div></div>
+      <div className="attendance-donut-legend">{segments.map((segment) => <div key={segment.key}><span><i style={{ background: segment.color }} />{segment.label === 'Not marked' ? 'Not Marked' : segment.label}</span><small>{segment.students.length}</small></div>)}</div>
     </div>
   </aside>
 }

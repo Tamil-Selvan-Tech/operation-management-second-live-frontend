@@ -150,6 +150,20 @@ import {
 import '../styles/SuperAdminDashboardPage.css'
 import '../styles/BranchDashboardPage.css'
 
+function FeeStatusDonut({ values = [] }) {
+  const segments = values.map(([label, value, tone]) => ({ label, value: Math.max(Number(value) || 0, 0), tone }))
+  const total = segments.reduce((sum, item) => sum + item.value, 0)
+  let cursor = 0
+  const stops = segments.map((item) => {
+    const start = total ? (cursor / total) * 100 : 0
+    cursor += item.value
+    const end = total ? (cursor / total) * 100 : 0
+    const color = item.tone === 'is-collected' ? '#16a34a' : item.tone === 'is-pending' ? '#f59e0b' : item.tone === 'is-overdue' ? '#ef4444' : '#2563eb'
+    return `${color} ${start}% ${end}%`
+  })
+  return <div className="dashboard-fee-donut-layout"><div className="dashboard-fee-donut" style={{ background: total ? `conic-gradient(${stops.join(', ')})` : '#e5e7eb' }}><div className="dashboard-fee-donut-center"><strong>{formatBranchRupees(segments.find((item) => item.tone === 'is-target')?.value || total)}</strong><span>Target</span></div></div><div className="dashboard-fee-donut-legend">{segments.map((item) => <div className="dashboard-fee-donut-legend-row" key={item.label}><span><i className={item.tone} />{item.label}</span><b>{formatBranchRupees(item.value)}</b></div>)}</div></div>
+}
+
 function BranchCourseFilterSelect({ value, options, onChange, ariaLabel, width = 150 }) {
   const [isOpen, setIsOpen] = useState(false)
   const containerRef = useRef(null)
@@ -11305,7 +11319,7 @@ useEffect(() => {
 
                   <div className="branch-dashboard-analytics-grid">
                     <section className="branch-dashboard-analytics-card dashboard-collection-trend-card">
-                      <div className="branch-dashboard-analytics-heading"><div><span>Collection Trend</span><h2>Payment collections</h2></div><div className="dashboard-trend-switcher">{['daily', 'weekly', 'monthly'].map((mode) => <button key={mode} type="button" className={dashboardTrendMode === mode ? 'is-active' : ''} onClick={() => setDashboardTrendMode(mode)}>{mode}</button>)}</div></div>
+                      <div className="branch-dashboard-analytics-heading"><div><span>Collection Trend</span><h2>Payment collections</h2></div><select className="dashboard-trend-select" value={dashboardTrendMode} onChange={(event) => setDashboardTrendMode(event.target.value)} aria-label="Collection trend period"><option value="daily">Daily</option><option value="weekly">Weekly</option><option value="monthly">Monthly</option></select></div>
                       <div className="dashboard-trend-chart-shell">
                         <div className="dashboard-trend-y-axis" aria-hidden="true"><span>{formatBranchRupees(dashboardData.trendMax)}</span><span>₹0</span></div>
                         <div className="dashboard-trend-chart" aria-label={`${dashboardTrendMode} collection trend chart`}>
@@ -11315,20 +11329,12 @@ useEffect(() => {
                     </section>
                     <section className="branch-dashboard-analytics-card dashboard-fee-status-card">
                       <div className="branch-dashboard-analytics-heading"><div><span>Fee Status</span><h2>Collection breakdown</h2></div></div>
-                      <div className="dashboard-bar-chart" aria-label="Fee status collection breakdown bar chart">
-                        {[
-                          ['Collected', dashboardData.statusValues[0], 'is-collected'],
-                          ['Outstanding', dashboardData.statusValues[1], 'is-pending'],
-                          ['Overdue', dashboardData.statusValues[2], 'is-overdue'],
-                          ['Target', dashboardData.totalFee, 'is-target'],
-                        ].map(([label, value, tone]) => (
-                          <div className="dashboard-bar-column" key={label}>
-                            <b className="dashboard-bar-value">{formatBranchRupees(value)}</b>
-                            <div className="dashboard-bar-track"><span className={tone} style={{ height: `${dashboardData.totalFee ? Math.min(100, (value / dashboardData.totalFee) * 100) : 0}%` }} /></div>
-                            <span className="dashboard-bar-label"><i className={tone} />{label}</span>
-                          </div>
-                        ))}
-                      </div>
+                      <FeeStatusDonut values={[
+                        ['Collected', dashboardData.statusValues[0], 'is-collected'],
+                        ['Outstanding', dashboardData.statusValues[1], 'is-pending'],
+                        ['Overdue', dashboardData.statusValues[2], 'is-overdue'],
+                        ['Target', dashboardData.totalFee, 'is-target'],
+                      ]} />
                     </section>
                   </div>
 

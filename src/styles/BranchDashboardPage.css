@@ -250,6 +250,8 @@
 .branch-dashboard-analytics-heading span { color: #64748b; font-size: .76rem; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; }
 .branch-dashboard-analytics-heading h2 { margin: 3px 0 0; color: #0f172a; font-size: 1.08rem; }
 .dashboard-trend-switcher { display: flex; gap: 4px; }
+.dashboard-trend-select { min-width: 102px; min-height: 34px; padding: 0 25px 0 10px; border: 1px solid #dbe5f1; border-radius: 7px; color: #2563eb; background: #fff; font-size: .72rem; font-weight: 800; cursor: pointer; outline: none; }
+.dashboard-trend-select:focus { border-color: #dbe5f1; box-shadow: none; }
 .dashboard-trend-switcher button { border: 0; border-radius: 7px; padding: 6px 8px; color: #64748b; background: #f8fafc; font-size: .72rem; font-weight: 800; text-transform: capitalize; cursor: pointer; }
 .dashboard-trend-switcher button.is-active { color: #fff; background: #2563eb; }
 
@@ -13311,6 +13313,23 @@ body.branch-notification-menu-open .main-area {
 }
 
 /* Give the fee status panel room for its two-column legend at tablet-width dashboards. */
+.dashboard-fee-donut-layout { display: flex; align-items: center; justify-content: center; gap: 28px; min-height: 190px; padding: 12px 8px 8px; }
+.dashboard-fee-donut { display: grid; width: 150px; height: 150px; flex: 0 0 150px; place-items: center; border-radius: 50%; }
+.dashboard-fee-donut::before { content: ''; position: absolute; width: 94px; height: 94px; border-radius: 50%; background: #fff; }
+.dashboard-fee-donut { position: relative; }
+.dashboard-fee-donut-center { position: relative; z-index: 1; display: grid; gap: 3px; text-align: center; }
+.dashboard-fee-donut-center strong { color: #12233f; font-size: 15px; }
+.dashboard-fee-donut-center span { color: #71829a; font-size: 11px; }
+.dashboard-fee-donut-legend { display: grid; min-width: 170px; gap: 11px; }
+.dashboard-fee-donut-legend-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; color: #60718a; font-size: 12px; }
+.dashboard-fee-donut-legend-row span { display: inline-flex; align-items: center; gap: 7px; }
+.dashboard-fee-donut-legend-row b { color: #173253; font-size: 12px; }
+.dashboard-fee-donut-legend-row i { width: 8px; height: 8px; display: inline-block; border-radius: 50%; }
+.dashboard-fee-donut-legend-row i.is-collected { background: #16a34a; }
+.dashboard-fee-donut-legend-row i.is-pending { background: #f59e0b; }
+.dashboard-fee-donut-legend-row i.is-overdue { background: #ef4444; }
+.dashboard-fee-donut-legend-row i.is-target { background: #2563eb; }
+@media (max-width: 620px) { .dashboard-fee-donut-layout { gap: 14px; } .dashboard-fee-donut { width: 125px; height: 125px; flex-basis: 125px; } .dashboard-fee-donut::before { width: 78px; height: 78px; } .dashboard-fee-donut-legend { min-width: 145px; } }
 @media (min-width: 1000px) and (max-width: 1200px) {
   .super-admin-page .branch-dashboard-analytics-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));

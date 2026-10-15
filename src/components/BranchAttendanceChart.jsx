@@ -37,13 +37,11 @@ export function BranchAttendanceChart({ data }) {
           <p>Based on {data.students.length} students x {mode === 'daily' ? '1 day' : mode === 'weekly' ? '7 days per week' : 'all days in each month'}</p>
         </div>
         <div className="attendance-chart-actions">
-          <div className="attendance-mode-tabs" role="group" aria-label="Attendance chart period">
-            {['daily', 'weekly', 'monthly'].map((item) => (
-              <button key={item} type="button" aria-pressed={mode === item} className={mode === item ? 'is-active' : ''} onClick={() => setMode(item)}>
-                {item.charAt(0).toUpperCase() + item.slice(1)}
-              </button>
-            ))}
-          </div>
+          <select className="attendance-mode-select" value={mode} onChange={(event) => setMode(event.target.value)} aria-label="Attendance chart period">
+            <option value="daily">Daily</option>
+            <option value="weekly">Weekly</option>
+            <option value="monthly">Monthly</option>
+          </select>
           <div className="attendance-chart-legend">
             <span><i />Present</span>
             <span><i />Absent</span>
