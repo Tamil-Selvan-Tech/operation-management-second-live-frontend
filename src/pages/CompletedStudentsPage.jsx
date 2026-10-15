@@ -147,6 +147,14 @@ function getAcademicTestsForRow(academicProgressByStudent, studentId, courseId, 
   })
 }
 
+function dedupeStudentCourseRows(rows = []) {
+  return [...new Map(rows.map((row) => {
+    const studentKey = String(row?.studentId || row?.recordId || row?.studentName || '').toLowerCase().replace(/[^a-z0-9]/g, '')
+    const courseKey = String(row?.courseName || row?.courseId || '').toLowerCase().replace(/[^a-z0-9]/g, '')
+    return [`${studentKey}::${courseKey}`, row]
+  })).values()]
+}
+
 function buildFields(row) {
   const paidInstallments = Array.isArray(row.paidInstallments) ? row.paidInstallments : []
   return [
@@ -307,16 +315,17 @@ export function CompletedStudentsPage({ academicProgressByStudent = new Map(), b
             lifecycleStatus: 'COMPLETED',
           }
         }).filter((row) => !appliedSearch || [row.studentName, row.studentId, row.courseName, row.emailAddress].some((value) => String(value || '').toLowerCase().includes(appliedSearch.toLowerCase())))
-        localRows.sort((left, right) => {
+        const uniqueLocalRows = dedupeStudentCourseRows(localRows)
+        uniqueLocalRows.sort((left, right) => {
           const leftValue = String(left[sortBy] || left.studentName || '')
           const rightValue = String(right[sortBy] || right.studentName || '')
           const comparison = leftValue.localeCompare(rightValue, undefined, { numeric: true, sensitivity: 'base' })
           return sortOrder === 'desc' ? -comparison : comparison
         })
         const start = (requestedPage - 1) * PAGE_SIZE
-        const data = localRows.slice(start, start + PAGE_SIZE)
-        setState({ data, meta: { page: requestedPage, total: localRows.length, totalPages: Math.max(1, Math.ceil(localRows.length / PAGE_SIZE)) }, loading: false, error: '' })
-        setCounts((current) => ({ ...current, COMPLETED: localRows.length }))
+        const data = uniqueLocalRows.slice(start, start + PAGE_SIZE)
+        setState({ data, meta: { page: requestedPage, total: uniqueLocalRows.length, totalPages: Math.max(1, Math.ceil(uniqueLocalRows.length / PAGE_SIZE)) }, loading: false, error: '' })
+        setCounts((current) => ({ ...current, COMPLETED: uniqueLocalRows.length }))
         return
       }
       const result = await listCompletedStudentCourses({ lifecycle, search: appliedSearch, sortBy, sortOrder, page: requestedPage, limit: PAGE_SIZE })
@@ -371,7 +380,7 @@ export function CompletedStudentsPage({ academicProgressByStudent = new Map(), b
             lifecycleStatus: 'COMPLETED',
           }))
         : []
-      const data = [...syncedApiRows, ...supplementalRows]
+      const data = dedupeStudentCourseRows([...syncedApiRows, ...supplementalRows])
       setState({ ...result, data, loading: false, error: '' })
       setCounts((current) => ({ ...current, [lifecycle]: lifecycle === 'COMPLETED' ? data.length : (result.meta?.total ?? result.data.length) }))
     } catch (error) {
@@ -394,13 +403,14 @@ export function CompletedStudentsPage({ academicProgressByStudent = new Map(), b
           }
         })
         : []
+      const uniqueFallbackData = dedupeStudentCourseRows(fallbackData)
       setState({
-        data: fallbackData,
-        meta: { page: 1, total: fallbackData.length, totalPages: 1 },
+        data: uniqueFallbackData,
+        meta: { page: 1, total: uniqueFallbackData.length, totalPages: 1 },
         loading: false,
-        error: fallbackData.length ? '' : (error?.message || 'Unable to load student records.'),
+        error: uniqueFallbackData.length ? '' : (error?.message || 'Unable to load student records.'),
       })
-      setCounts((current) => ({ ...current, [lifecycle]: fallbackData.length }))
+      setCounts((current) => ({ ...current, [lifecycle]: uniqueFallbackData.length }))
     }
   }, [academicProgressByStudent, appliedSearch, branchAdminName, completedStudents, completedStudentsLoading, courseCatalog, page, paymentHistoryRecords, sortBy, sortOrder, students, tab])
 
@@ -415,6 +425,7 @@ export function CompletedStudentsPage({ academicProgressByStudent = new Map(), b
   }
 
   const totalPages = Math.max(1, Number(state.meta?.totalPages || Math.ceil(Number(state.meta?.total || 0) / PAGE_SIZE) || 1))
+  const displayRows = dedupeStudentCourseRows(state.data)
 
   return (
     <section className="completed-students-page">
@@ -435,7 +446,7 @@ export function CompletedStudentsPage({ academicProgressByStudent = new Map(), b
 
       {state.error ? <div className="completed-students-error" role="alert">{state.error}</div> : null}
       <div className="completed-students-table-wrap"><table><thead><tr><th>Student</th><th>Course</th><th>Dates</th><th>Batch / Faculty</th><th>Attendance</th><th>Total Fees</th><th>Paid</th><th>Pending</th><th>Status</th><th>Details</th></tr></thead><tbody>
-        {state.loading ? <tr><td colSpan="10" className="completed-students-state">Loading records…</td></tr> : state.data.length ? state.data.map((row) => <tr key={row.recordId || `${row.studentId}-${row.courseId}`} onClick={() => setSelected(row)} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); setSelected(row) } }} role="button" tabIndex={0}><td><strong>{valueOf(row.studentName)}</strong><small>{valueOf(row.studentId)}</small></td><td>{valueOf(row.courseName)}</td><td>{formatDate(row.courseStartDate)}<small>to {formatDate(row.courseEndDate)}</small></td><td>{valueOf(row.batchName)}<small>{valueOf(row.facultyName)}</small></td><td>{attendanceLabel(row)}</td><td>{formatMoney(row.totalFees)}</td><td>{formatMoney(row.paidAmount)}</td><td>{formatMoney(row.pendingAmount)}</td><td><StatusPill value={row.lifecycleStatus || tab} /></td><td><button type="button" className="completed-students-view" onClick={(event) => { event.stopPropagation(); setSelected(row) }}><Eye size={16} /> View</button></td></tr>) : <tr><td colSpan="10" className="completed-students-state"><CheckCircle2 size={22} /><strong>No {tab === 'COMPLETED' ? 'completed' : 'discontinued'} course records found.</strong><span>Records will appear here when the persisted course status changes.</span></td></tr>}
+        {state.loading ? <tr><td colSpan="10" className="completed-students-state">Loading records…</td></tr> : displayRows.length ? displayRows.map((row) => <tr key={`${row.studentId || row.recordId}-${row.courseName || row.courseId}`} onClick={() => setSelected(row)} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); setSelected(row) } }} role="button" tabIndex={0}><td><strong>{valueOf(row.studentName)}</strong><small>{valueOf(row.studentId)}</small></td><td>{valueOf(row.courseName)}</td><td>{formatDate(row.courseStartDate)}<small>to {formatDate(row.courseEndDate)}</small></td><td>{valueOf(row.batchName)}<small>{valueOf(row.facultyName)}</small></td><td>{attendanceLabel(row)}</td><td>{formatMoney(row.totalFees)}</td><td>{formatMoney(row.paidAmount)}</td><td>{formatMoney(row.pendingAmount)}</td><td><StatusPill value={row.lifecycleStatus || tab} /></td><td><button type="button" className="completed-students-view" onClick={(event) => { event.stopPropagation(); setSelected(row) }}><Eye size={16} /> View</button></td></tr>) : <tr><td colSpan="10" className="completed-students-state"><CheckCircle2 size={22} /><strong>No {tab === 'COMPLETED' ? 'completed' : 'discontinued'} course records found.</strong><span>Records will appear here when the persisted course status changes.</span></td></tr>}
       </tbody></table></div>
 
       <footer className="completed-students-pagination"><span>{state.meta?.total ? `Showing page ${state.meta.page} of ${totalPages}` : 'No records'}</span><div><button type="button" onClick={() => setPage((current) => Math.max(1, current - 1))} disabled={page <= 1 || state.loading}><ChevronLeft size={17} /></button><button type="button" onClick={() => setPage((current) => Math.min(totalPages, current + 1))} disabled={page >= totalPages || state.loading}><ChevronRight size={17} /></button></div></footer>
