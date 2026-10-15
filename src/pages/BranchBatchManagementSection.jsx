@@ -32,6 +32,7 @@ import { getMatchingStudents } from '../lib/facultyFlow'
 import { buildFacultyTodayWorkProgressSummary } from '../lib/facultyProgress'
 import { getStudentCalendarAttendance } from '../lib/studentAttendanceCalendar'
 import { getBranchAttendanceOverview, getCurrentFacultyAttendanceOverview } from '../services/attendanceService'
+import { listAcademicTests, listBranchAcademicTestReports } from '../services/academicTestService'
 import { calculateBatchCourseEndDate, getBatchAvailability } from '../lib/batchAllocation'
 import '../styles/BranchBatchManagementSection.css'
 import '../styles/SuperAdminDashboardPage.css'
@@ -854,6 +855,70 @@ function getBatchDisplayKey(group = {}) {
   return normalizeMatchKey(primaryBatch.batchId || group?.batchId || group?.batchGroupId || group?.id || '')
 }
 
+function getAcademicTestCountForBatch(rows = [], group = {}, batch = {}) {
+  const courseId = normalizeMatchKey(group?.courseId || group?.branchCourseId)
+  const courseName = normalizeMatchKey(group?.courseName)
+  const batchIds = new Set([
+    group?.batchGroupId,
+    group?.id,
+    group?.batchId,
+    batch?.batchId,
+    batch?.id,
+  ].map(normalizeMatchKey).filter(Boolean))
+  const batchName = normalizeMatchKey(batch?.batchName || group?.batchName)
+  return (Array.isArray(rows) ? rows : []).filter((row) => {
+    const rowCourse = row?.course || {}
+    const rowCourseId = normalizeMatchKey(rowCourse?.id || rowCourse?.courseId || row?.courseId)
+    const rowCourseName = normalizeMatchKey(rowCourse?.name || rowCourse?.courseName || row?.courseName)
+    const courseMatches = (courseId && rowCourseId === courseId) || (!courseId && courseName && rowCourseName === courseName)
+    if (!courseMatches) return false
+    const assignedBatches = Array.isArray(row?.batches) && row.batches.length
+      ? row.batches
+      : [row?.batch || row]
+    return assignedBatches.some((assignedBatch) => {
+      const assignedId = normalizeMatchKey(assignedBatch?.id || assignedBatch?.batchId)
+      const assignedName = normalizeMatchKey(assignedBatch?.batchName)
+      return (assignedId && batchIds.has(assignedId)) || (batchName && assignedName === batchName)
+    })
+  }).reduce((total, row) => {
+    const itemCount = Array.isArray(row?.items) ? row.items.length : Number(row?.academicTestCount ?? row?.testCount ?? row?.totalTests ?? 0)
+    return total + (Number.isFinite(itemCount) && itemCount > 0 ? itemCount : 0)
+  }, 0)
+}
+
+function getAcademicTestProgressForBatch(rows = [], reports = [], group = {}, batch = {}) {
+  const total = getAcademicTestCountForBatch(rows, group, batch)
+  const batchIds = new Set([
+    group?.batchGroupId,
+    group?.id,
+    group?.batchId,
+    batch?.batchId,
+    batch?.id,
+  ].map(normalizeMatchKey).filter(Boolean))
+  const courseId = normalizeMatchKey(group?.courseId || group?.branchCourseId)
+  const courseName = normalizeMatchKey(group?.courseName)
+  const completedTestIds = new Set()
+  ;(Array.isArray(reports) ? reports : []).forEach((report) => {
+    const reportBatch = report?.batch || {}
+    const reportBatchId = normalizeMatchKey(reportBatch?.id || reportBatch?.batchId || report?.batchId)
+    const reportBatchName = normalizeMatchKey(reportBatch?.batchName || reportBatch?.batchName || report?.batchName)
+    const reportCourse = report?.course || reportBatch || {}
+    const reportCourseId = normalizeMatchKey(reportCourse?.id || reportCourse?.courseId || report?.courseId || reportBatch?.courseId)
+    const reportCourseName = normalizeMatchKey(reportCourse?.name || reportCourse?.courseName || report?.courseName || reportBatch?.courseName)
+    const matchesBatch = (reportBatchId && batchIds.has(reportBatchId)) || (reportBatchName && reportBatchName === normalizeMatchKey(batch?.batchName || group?.batchName))
+    const matchesCourse = (courseId && reportCourseId === courseId) || (courseName && reportCourseName === courseName)
+    if (!matchesBatch || !matchesCourse) return
+    const ids = Array.isArray(report?.academicTestIds)
+      ? report.academicTestIds
+      : Array.isArray(report?.tests)
+        ? report.tests.map((test) => test?.id || test?.testId || test?.testNumber)
+        : report?.id ? [report.id] : []
+    ids.forEach((id) => { if (id !== undefined && id !== null && String(id).trim()) completedTestIds.add(String(id)) })
+  })
+  const completed = Math.min(total, completedTestIds.size)
+  return { total, completed, percentage: total ? Math.round((completed / total) * 100) : 0 }
+}
+
 function buildSingleBatchDisplayGroup(group = {}) {
   const primaryBatch = getPrimaryBatchForGroup(group)
   const batchId = primaryBatch.batchId || normalizeText(group?.batchId || group?.batchGroupId || group?.id || '')
@@ -914,7 +979,31 @@ export function BranchBatchManagementSection({
   const [actionMenuPosition, setActionMenuPosition] = useState(null)
   const [saveSuccessPopup, setSaveSuccessPopup] = useState(null)
   const [attendanceReportBatch, setAttendanceReportBatch] = useState(null)
+  const [academicTestRows, setAcademicTestRows] = useState([])
+  const [academicTestReports, setAcademicTestReports] = useState([])
   const actionMenuCloseTimerRef = useRef(null)
+
+  useEffect(() => {
+    let active = true
+    setAcademicTestRows([])
+    setAcademicTestReports([])
+    Promise.all([listAcademicTests(), listBranchAcademicTestReports()])
+      .then(([rows, reports]) => {
+        const items = Array.isArray(rows) ? rows : Array.isArray(rows?.data) ? rows.data : []
+        const reportItems = Array.isArray(reports) ? reports : Array.isArray(reports?.data) ? reports.data : []
+        if (active) {
+          setAcademicTestRows(items)
+          setAcademicTestReports(reportItems)
+        }
+      })
+      .catch(() => {
+        if (active) {
+          setAcademicTestRows([])
+          setAcademicTestReports([])
+        }
+      })
+    return () => { active = false }
+  }, [branchId, detailGroup?.id, detailGroup?.batchId, detailGroup?.batchGroupId])
 
   const refreshBatchGroups = useCallback(async () => {
     setIsLoading(true)
@@ -2301,6 +2390,8 @@ export function BranchBatchManagementSection({
       branchCourses.find((course) => normalizeMatchKey(course?.id || course?.courseId) === normalizeMatchKey(detailGroup?.courseId || detailGroup?.branchCourseId)),
       facultyTodayWorkEntries,
     )
+    const detailAcademicTestCount = getAcademicTestCountForBatch(academicTestRows, detailGroup, detailBatch)
+    const academicTestProgress = getAcademicTestProgressForBatch(academicTestRows, academicTestReports, detailGroup, detailBatch)
     const detailStatus = normalizeStatus(detailGroup.status || 'Active')
     const detailStatusClass = String(detailStatus).toLowerCase()
 
@@ -2356,6 +2447,11 @@ export function BranchBatchManagementSection({
                 <span>Course: <strong>{detailGroup.courseName || '-'}</strong></span>
                 <span>Faculty: <strong>{detailGroup.facultyName || '-'}</strong></span>
                 <span>Course Progress: <strong>{detailCourseProgress}%</strong></span>
+                <span>Academic Tests: <strong>{detailAcademicTestCount}</strong></span>
+              </div>
+              <div className="batch-detail-academic-progress" aria-label={`Academic test progress: ${academicTestProgress.completed} of ${academicTestProgress.total} completed`}>
+                <div className="batch-detail-academic-progress-label"><span>Academic Test Progress</span><strong>{academicTestProgress.completed}/{academicTestProgress.total} ({academicTestProgress.percentage}%)</strong></div>
+                <div className="batch-detail-academic-progress-track" aria-hidden="true"><span style={{ width: `${academicTestProgress.percentage}%` }} /></div>
               </div>
 
             </div>

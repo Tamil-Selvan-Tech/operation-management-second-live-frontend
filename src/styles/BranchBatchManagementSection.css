@@ -1020,6 +1020,43 @@
   font-weight: 800;
 }
 
+.batch-detail-academic-progress {
+  max-width: 430px;
+  margin-top: 13px;
+}
+
+.batch-detail-academic-progress-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: #64748b;
+  font-size: 0.78rem;
+  font-weight: 750;
+}
+
+.batch-detail-academic-progress-label strong {
+  color: #2563eb;
+  font-weight: 850;
+}
+
+.batch-detail-academic-progress-track {
+  height: 7px;
+  margin-top: 7px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #dbeafe;
+}
+
+.batch-detail-academic-progress-track span {
+  display: block;
+  width: 0;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #60a5fa, #2563eb);
+  transition: width 0.2s ease;
+}
+
 .batch-detail-download-attendance {
   display: inline-flex;
   align-items: center;
