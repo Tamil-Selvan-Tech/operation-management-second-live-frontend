@@ -45,6 +45,7 @@ import { Student360Page } from './Student360Page'
 import StudentCalendarPage from './StudentCalendarPage'
 import { request, setImpersonateBranchId } from '../services/apiClient'
 import { SuperAdminOverallDashboard } from '../components/SuperAdminOverallDashboard'
+import { SuperAdminMetricDetailPage } from '../components/SuperAdminMetricDetailPage'
 import { SuperAdminSidebarNav } from '../components/SuperAdminSidebarNav'
 import { SuperAdminDiscontinuationPage } from './SuperAdminDiscontinuationPage'
 import { loadBranchStudents } from '../lib/branchStudentStore'
@@ -562,7 +563,7 @@ function validateBranchForm(form, existingBranches = [], ignoreBranchId = null) 
 function getInitialSuperAdminSection(search = '') {
   const params = new URLSearchParams(search)
   const section = params.get('section')
-  return ['branches', 'branch-admin', 'faculty', 'students', 'leave-management', 'faculty-leave', 'discontinuations'].includes(section) ? section : 'dashboard'
+  return ['branches', 'branch-admin', 'faculty', 'students', 'leave-management', 'faculty-leave', 'discontinuations', 'metric-branches', 'metric-students', 'metric-admissions', 'metric-total-payment', 'metric-month-payment', 'metric-outstanding', 'metric-month-due', 'metric-today-due', 'metric-overdue', 'metric-due-students', 'metric-today-collection'].includes(section) ? section : 'dashboard'
 }
 
 export function SuperAdminDashboardPage() {
@@ -2511,7 +2512,17 @@ const filteredBranches = useMemo(() => {
           </header>
 
           <main className="super-admin-content">
-            {activeSection === 'branches' ? (
+            {activeSection.startsWith('metric-') ? (
+              <SuperAdminMetricDetailPage
+                metric={activeSection.replace('metric-', '')}
+                students={allBranchStudents}
+                branches={branches}
+                startDate={new URLSearchParams(location.search).get('startDate') || ''}
+                endDate={new URLSearchParams(location.search).get('endDate') || ''}
+                isLoading={isGlobalStudentsLoading || isGlobalManagementLoading}
+                onBack={() => navigate('/dashboard/super-admin')}
+              />
+            ) : activeSection === 'branches' ? (
               <section className="branch-management-panel">
                 <div className="branch-management-header">
                   <div className="branch-management-title-block">

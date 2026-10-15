@@ -271,14 +271,29 @@ export function SuperAdminOverallDashboard({ branches, userKey = 'super-admin', 
   const todayDueComparison = getDayComparison(overview?.todayDue, overview?.yesterdayDue)
   const todayCollectionComparison = getDayComparison(overview?.todayCollection, overview?.yesterdayCollection)
   const scopeLabel = selectedBranch ? `${selectedBranch.branchName} Branch` : ''
-  const activeDateLabel = appliedDateRange ? formatSuperAdminDateRange(appliedDateRange) : 'Default dashboard view'
   const metricPeriodLabel = appliedDateRange ? 'Selected period' : 'This month'
   const metricLinks = {
     'Total branches': '/dashboard/super-admin?section=branches',
     'Total students': '/dashboard/super-admin?section=students',
+    'Selected period admissions': '/dashboard/super-admin?section=metric-admissions',
+    'This month admissions': '/dashboard/super-admin?section=metric-admissions',
+    'Total payment collected': '/dashboard/super-admin?section=metric-total-payment',
+    'Selected period payment': '/dashboard/super-admin?section=metric-month-payment',
+    'This month payment': '/dashboard/super-admin?section=metric-month-payment',
+    'Total outstanding': '/dashboard/super-admin?section=metric-outstanding',
+    'Selected period due': '/dashboard/super-admin?section=metric-month-due',
+    'This month due': '/dashboard/super-admin?section=metric-month-due',
+    'Due at period end': '/dashboard/super-admin?section=metric-today-due',
+    "Today's due": '/dashboard/super-admin?section=metric-today-due',
+    'Overdue amount': '/dashboard/super-admin?section=metric-overdue',
+    'Period collection': '/dashboard/super-admin?section=metric-today-collection',
+    "Today's collection": '/dashboard/super-admin?section=metric-today-collection',
   }
   const metric = (label, value, icon, tone, currency = true, variant = '', comparison = null) => {
-    const href = metricLinks[label]
+    const baseHref = metricLinks[label]
+    const href = baseHref && appliedDateRange
+      ? `${baseHref}&startDate=${encodeURIComponent(appliedDateRange.startDate || '')}&endDate=${encodeURIComponent(appliedDateRange.endDate || '')}`
+      : baseHref
     return <MetricCard label={selectedBranch && label === 'Total branches' ? 'Selected branch' : label} value={isLoading ? emptyValue : selectedBranch && label === 'Total branches' ? `${selectedBranch.branchName}` : currency ? formatOverviewCurrency(value) : (value ?? 0)} icon={icon} tone={tone} variant={variant} comparison={comparison} scopeLabel={scopeLabel} isLoading={isLoading} href={href} onClick={href ? () => navigate(href) : null} />
   }
   const metricDefinitions = {
@@ -367,44 +382,11 @@ export function SuperAdminOverallDashboard({ branches, userKey = 'super-admin', 
     })
   }
   const clearBranch = () => { setBranchQuery(''); setIsBranchSearchOpen(false); navigate(location.pathname) }
-  const resetDateFilter = () => {
-    setDatePreset('thisMonth')
-    setCustomStartDate('')
-    setCustomEndDate('')
-    setDateFilterError('')
-    setAppliedDateRange(null)
-    setIsDatePopoverOpen(false)
-  }
-  const selectDatePreset = (preset) => {
-    setDatePreset(preset)
-    setDateFilterError('')
-    if (preset !== 'custom') setAppliedDateRange(getSuperAdminDateRange(preset, customStartDate, customEndDate))
-    setIsDatePopoverOpen(false)
-  }
-  const openDatePopover = () => {
-    setDatePreset('custom')
-    setDateFilterError('')
-    setDraftStartDate(customStartDate || appliedDateRange?.startDate || '')
-    setDraftEndDate(customEndDate || appliedDateRange?.endDate || '')
-    setIsDatePopoverOpen(true)
-  }
-  const applyCustomDateFilter = () => {
-    const nextRange = getSuperAdminDateRange('custom', draftStartDate, draftEndDate)
-    if (!nextRange) {
-      setDateFilterError('Please select a valid date range. The end date must not be earlier than the start date.')
-      return
-    }
-    setCustomStartDate(draftStartDate)
-    setCustomEndDate(draftEndDate)
-    setDateFilterError('')
-    setAppliedDateRange(nextRange)
-    setIsDatePopoverOpen(false)
-  }
-  const cancelDatePopover = () => {
-    setDatePreset(appliedDateRange?.preset || 'thisMonth')
-    setDateFilterError('')
-    setIsDatePopoverOpen(false)
-  }
+  const resetDateFilter = () => { setDatePreset('thisMonth'); setCustomStartDate(''); setCustomEndDate(''); setDateFilterError(''); setAppliedDateRange(null); setIsDatePopoverOpen(false) }
+  const selectDatePreset = (preset) => { setDatePreset(preset); setDateFilterError(''); if (preset !== 'custom') setAppliedDateRange(getSuperAdminDateRange(preset, customStartDate, customEndDate)); setIsDatePopoverOpen(false) }
+  const openDatePopover = () => { setDatePreset('custom'); setDateFilterError(''); setDraftStartDate(customStartDate || appliedDateRange?.startDate || ''); setDraftEndDate(customEndDate || appliedDateRange?.endDate || ''); setIsDatePopoverOpen(true) }
+  const applyCustomDateFilter = () => { const nextRange = getSuperAdminDateRange('custom', draftStartDate, draftEndDate); if (!nextRange) { setDateFilterError('Please select a valid date range. The end date must not be earlier than the start date.'); return } setCustomStartDate(draftStartDate); setCustomEndDate(draftEndDate); setDateFilterError(''); setAppliedDateRange(nextRange); setIsDatePopoverOpen(false) }
+  const cancelDatePopover = () => { setDatePreset(appliedDateRange?.preset || 'thisMonth'); setDateFilterError(''); setIsDatePopoverOpen(false) }
   const branchPerformanceRows = useMemo(() => {
     const rows = branchPerformance
     return [...rows].sort((left, right) => {
@@ -414,25 +396,12 @@ export function SuperAdminOverallDashboard({ branches, userKey = 'super-admin', 
     })
   }, [branchPerformance, branchPerformanceSort])
 
+  const activeDateLabel = appliedDateRange ? formatSuperAdminDateRange(appliedDateRange) : 'Default dashboard view'
   return <div className="sa-overall-dashboard">
     <div className="sa-overall-intro"><div><p className="sa-overall-kicker"><LayoutDashboard size={15} /> {selectedBranch ? 'Branch view' : 'Consolidated view'}</p><h1>Overall Dashboard</h1><p>{selectedBranch ? `Showing complete performance data for ${selectedBranch.branchName} Branch.` : 'Combined performance across every active branch.'}</p></div><div className="sa-overall-actions"><div className="sa-branch-search-wrap"><label className="sa-branch-search"><span className="sa-branch-search-icon" aria-hidden="true"><Search size={16} /></span><input value={selectedBranch ? `${selectedBranch.branchName} Branch • ${selectedBranch.branchId}` : branchQuery} onChange={(event) => { setBranchQuery(event.target.value); setIsBranchSearchOpen(true) }} onFocus={() => setIsBranchSearchOpen(true)} placeholder="Search branch by ID or branch name..." aria-label="Search branch by ID or branch name" />{selectedBranch ? <button type="button" onClick={clearBranch} aria-label="Clear selected branch"><X size={16} /></button> : null}</label>{isBranchSearchOpen && !selectedBranch && branchQuery.trim() ? <div className="sa-branch-search-results">{matchingBranches.length ? matchingBranches.map((branch) => <button type="button" key={branch.id || branch.branchId} onMouseDown={() => selectBranch(branch)}><strong>{branch.branchName} Branch</strong><span>{branch.branchId} · {branch.branchCity || branch.branchDistrict || 'Location unavailable'} · Active</span></button>) : <p>No matching branch found.</p>}</div> : null}</div><span className="sa-overall-scope"><Building2 size={15} /> {selectedBranch ? `${selectedBranch.branchName} Branch` : 'All active branches'}</span><button type="button" className="sa-overall-customize" onClick={() => { setMetricLayout(savedMetricLayoutRef.current); setIsCustomizeOpen(true) }}><LayoutGrid size={17} /> Customize Dashboard</button><button type="button" className="sa-overall-refresh" onClick={() => void load()} disabled={isLoading}><RefreshCcw size={15} className={isLoading ? 'is-spinning' : ''} /> Refresh</button></div></div>
     <section className="sa-date-filter" aria-label="Dashboard date range filter">
       <div className="sa-date-filter-heading"><div><strong>Date range</strong><span>Applied: {activeDateLabel}</span></div>{isLoading ? <span className="sa-date-filter-loading">Updating dashboard…</span> : null}</div>
-      <div className="sa-date-filter-toolbar">
-        <label className="sa-date-filter-preset-select"><span>Preset</span><select value={datePreset} onChange={(event) => event.target.value === 'custom' ? openDatePopover() : selectDatePreset(event.target.value)} aria-label="Date range preset">{SUPER_ADMIN_DATE_PRESETS.map((preset) => <option key={preset.value} value={preset.value}>{preset.label}</option>)}</select><ChevronDown size={14} aria-hidden="true" /></label>
-        <div className="sa-date-filter-range-wrap">
-          <button type="button" className={`sa-date-filter-range-field ${datePreset === 'custom' ? 'is-custom' : ''}`} onClick={openDatePopover} aria-expanded={isDatePopoverOpen} aria-haspopup="dialog"><CalendarDays size={16} /><span>{appliedDateRange ? formatSuperAdminDateRange(appliedDateRange) : 'Select date range'}</span><ChevronDown size={15} /></button>
-          {isDatePopoverOpen ? <div className="sa-date-filter-popover" role="dialog" aria-label="Choose custom date range">
-            <div className="sa-date-filter-popover-header"><strong>Custom date range</strong><button type="button" onClick={cancelDatePopover} aria-label="Close date range picker"><X size={15} /></button></div>
-            <div className="sa-date-filter-custom"><label>From date<input type="date" value={draftStartDate} onChange={(event) => { setDraftStartDate(event.target.value); setDateFilterError('') }} /></label><span className="sa-date-filter-to">to</span><label>To date<input type="date" min={draftStartDate || undefined} value={draftEndDate} onChange={(event) => { setDraftEndDate(event.target.value); setDateFilterError('') }} /></label></div>
-            <div className="sa-date-filter-selection">{draftStartDate && draftEndDate ? `${formatSuperAdminDateRange({ startDate: draftStartDate, endDate: draftEndDate })}` : 'Choose a start and end date'}</div>
-            {dateFilterError ? <p className="sa-date-filter-error" role="alert">{dateFilterError}</p> : null}
-            <div className="sa-date-filter-actions"><button type="button" className="sa-date-filter-cancel" onClick={cancelDatePopover}>Cancel</button><button type="button" className="sa-date-filter-apply" onClick={applyCustomDateFilter} disabled={isLoading}>Apply</button></div>
-          </div> : null}
-        </div>
-        <button type="button" className="sa-date-filter-reset" onClick={resetDateFilter} disabled={isLoading && !appliedDateRange}>Reset</button>
-      </div>
-      {dateFilterError && !isDatePopoverOpen ? <p className="sa-date-filter-error" role="alert">{dateFilterError}</p> : null}
+      <div className="sa-date-filter-toolbar"><label className="sa-date-filter-preset-select"><span>Preset</span><select value={datePreset} onChange={(event) => event.target.value === 'custom' ? openDatePopover() : selectDatePreset(event.target.value)} aria-label="Date range preset">{SUPER_ADMIN_DATE_PRESETS.map((preset) => <option key={preset.value} value={preset.value}>{preset.label}</option>)}</select><ChevronDown size={14} aria-hidden="true" /></label><div className="sa-date-filter-range-wrap"><button type="button" className={`sa-date-filter-range-field ${datePreset === 'custom' ? 'is-custom' : ''}`} onClick={openDatePopover} aria-expanded={isDatePopoverOpen} aria-haspopup="dialog"><CalendarDays size={16} /><span>{appliedDateRange ? formatSuperAdminDateRange(appliedDateRange) : 'Select date range'}</span><ChevronDown size={15} /></button>{isDatePopoverOpen ? <div className="sa-date-filter-popover" role="dialog" aria-label="Choose custom date range"><div className="sa-date-filter-popover-header"><strong>Custom date range</strong><button type="button" onClick={cancelDatePopover} aria-label="Close date range picker"><X size={15} /></button></div><div className="sa-date-filter-custom"><label>From date<input type="date" value={draftStartDate} onChange={(event) => { setDraftStartDate(event.target.value); setDateFilterError('') }} /></label><span className="sa-date-filter-to">to</span><label>To date<input type="date" min={draftStartDate || undefined} value={draftEndDate} onChange={(event) => { setDraftEndDate(event.target.value); setDateFilterError('') }} /></label></div><div className="sa-date-filter-selection">{draftStartDate && draftEndDate ? formatSuperAdminDateRange({ startDate: draftStartDate, endDate: draftEndDate }) : 'Choose a start and end date'}</div>{dateFilterError ? <p className="sa-date-filter-error" role="alert">{dateFilterError}</p> : null}<div className="sa-date-filter-actions"><button type="button" className="sa-date-filter-cancel" onClick={cancelDatePopover}>Cancel</button><button type="button" className="sa-date-filter-apply" onClick={applyCustomDateFilter} disabled={isLoading}>Apply</button></div></div> : null}</div><button type="button" className="sa-date-filter-reset" onClick={resetDateFilter} disabled={isLoading && !appliedDateRange}>Reset</button></div>{dateFilterError && !isDatePopoverOpen ? <p className="sa-date-filter-error" role="alert">{dateFilterError}</p> : null}
     </section>
     {error ? <div className="sa-overall-alert"><AlertCircle size={18} /> <span>{error}</span><button type="button" onClick={() => void load()}>Try again</button></div> : null}
     <div className="sa-overall-metrics sa-overall-summary-grid" aria-label="Overall dashboard summary">
@@ -453,7 +422,7 @@ export function SuperAdminOverallDashboard({ branches, userKey = 'super-admin', 
           <div className="sa-admission-current-summary"><span>This Month</span><strong>{isLoading ? '—' : overview?.admissionsByMonth?.at(-1)?.value || 0}</strong><b>Admissions</b>{admissionsComparison ? <div><em className={admissionsComparison.direction}>{admissionsComparison.value}</em><small>{admissionsComparison.label}</small></div> : <small>All active branches</small>}</div>
         </div>
       </section>
-      <section className="sa-overall-panel sa-overall-payments"><div className="sa-overall-panel-heading"><div><h2>Payment overview</h2><p>Expected vs actual collection · {scopeLabel}</p></div><div className="sa-payment-heading-actions"><div className="sa-overall-tabs" role="tablist">{['daily', 'weekly', 'monthly'].map((item) => <button key={item} type="button" className={period === item ? 'is-active' : ''} onClick={() => setPeriod(item)} role="tab" aria-selected={period === item}>{item[0].toUpperCase() + item.slice(1)}</button>)}</div><span className="sa-overall-panel-icon"><IndianRupee size={18} /></span></div></div><div className="sa-payment-legend"><span><i className="is-expected" />Expected</span><span><i className="is-actual" />Actual</span></div>{isLoading ? <div className="sa-overall-skeleton sa-overall-chart-skeleton" /> : <BarChart title={`${period} payment overview`} data={chartData} formatter={formatOverviewCurrency} emptyMessage="No payment data available for this period." />}</section>
+      <section className="sa-overall-panel sa-overall-payments"><div className="sa-overall-panel-heading"><div><h2>Payment overview</h2><p>Expected vs actual collection · {scopeLabel}</p></div><div className="sa-payment-heading-actions"><select className="sa-payment-period-select" value={period} onChange={(event) => setPeriod(event.target.value)} aria-label="Payment overview period"><option value="daily">Daily</option><option value="weekly">Weekly</option><option value="monthly">Monthly</option></select><span className="sa-overall-panel-icon"><IndianRupee size={18} /></span></div></div><div className="sa-payment-legend"><span><i className="is-expected" />Expected</span><span><i className="is-actual" />Actual</span></div>{isLoading ? <div className="sa-overall-skeleton sa-overall-chart-skeleton" /> : <BarChart title={`${period} payment overview`} data={chartData} formatter={formatOverviewCurrency} emptyMessage="No payment data available for this period." />}</section>
     </div>
     <TrendingCourses courses={overview?.trendingCourses || []} month={overview?.trendingMonth} isLoading={isLoading} />
     <section className="sa-branch-performance" aria-labelledby="branch-performance-title">
