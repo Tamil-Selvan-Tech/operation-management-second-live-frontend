@@ -4212,6 +4212,21 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
           : Number(item.financialSnapshot?.finalOutstandingAmount ?? item.financialSnapshot?.outstandingAmount ?? 0)
         return sum + outstanding
       }, 0),
+      reductionDetails: rows.map((item) => {
+        const studentName = item.student?.studentName || item.student?.name || item.student?.studentId || item.branchStudentId || 'Student'
+        const student = item.student || {}
+        const installments = Array.isArray(student.installments) ? student.installments : []
+        const totalFee = installments.length
+          ? installments.reduce((value, installment) => value + Number(installment?.amount || 0), 0)
+          : Number(student.courseAmount || item.financialSnapshot?.finalCourseFee || 0)
+        const paidAmount = installments.length
+          ? installments.reduce((value, installment) => value + Number(installment?.amountPaid || 0), 0)
+          : Number(item.financialSnapshot?.totalPaid || 0)
+        const outstanding = totalFee > 0
+          ? Math.max(totalFee - paidAmount, 0)
+          : Number(item.financialSnapshot?.finalOutstandingAmount ?? item.financialSnapshot?.outstandingAmount ?? 0)
+        return `Student name: ${studentName}\nAmount: ${formatBranchRupees(outstanding)} not included in Outstanding`
+      }).join('\n'),
     }
   }, [approvedDiscontinuationRequests])
 
@@ -11247,7 +11262,7 @@ useEffect(() => {
                           <strong>{value}</strong>
                           <div className={`branch-dashboard-stat-card-footer${label === 'Outstanding' && discontinuedFinancialSummary.totalNotCollectible > 0 ? ' has-reduction' : ''}`}>
                             {label === 'Outstanding' && discontinuedFinancialSummary.totalNotCollectible > 0 ? <>
-                              <small className="branch-dashboard-stat-card-reduction" aria-label={`Student discontinuation reduced amount ${formatBranchRupees(discontinuedFinancialSummary.totalNotCollectible)}`}><ArrowDownRight size={15} strokeWidth={2.5} />{formatBranchRupees(discontinuedFinancialSummary.totalNotCollectible)}</small>
+                              <small className="branch-dashboard-stat-card-reduction" tabIndex="0" data-tooltip={discontinuedFinancialSummary.reductionDetails} aria-label={discontinuedFinancialSummary.reductionDetails}><ArrowDownRight size={15} strokeWidth={2.5} />{formatBranchRupees(discontinuedFinancialSummary.totalNotCollectible)}</small>
                             </> : <small aria-label={note}>{note}</small>}
                           </div>
                         </div>

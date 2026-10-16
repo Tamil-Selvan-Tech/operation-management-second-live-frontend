@@ -12,7 +12,7 @@ const emptyValue = '—'
 const DASHBOARD_LAYOUT_STORAGE_KEY = 'cispro:super-admin-dashboard-layout'
 const DEFAULT_METRIC_ORDER = ['totalBranches', 'totalStudents', 'thisMonthAdmissions', 'totalPayment', 'thisMonthPayment', 'totalOutstanding', 'thisMonthDue', 'todayDue', 'overdueAmount', 'dueStudents', 'todayCollection']
 
-function MetricCard({ label, value, icon: Icon, tone = '', variant = '', comparison = null, scopeLabel, isLoading = false, onClick = null, href = '' }) {
+function MetricCard({ label, value, icon: Icon, tone = '', variant = '', comparison = null, scopeLabel, tooltip = '', tooltipLabel = '', isLoading = false, onClick = null }) {
   const isClickable = typeof onClick === 'function'
   const handleKeyDown = (event) => {
     if (!isClickable || (event.key !== 'Enter' && event.key !== ' ')) return
@@ -24,7 +24,7 @@ function MetricCard({ label, value, icon: Icon, tone = '', variant = '', compari
     <div className="sa-overall-metric-top"><span className="sa-overall-metric-icon"><Icon size={18} strokeWidth={2.1} /></span><span className="sa-overall-metric-label">{label}</span>{isClickable ? <span className="sa-overall-metric-link-icon" aria-hidden="true"><ArrowUpRight size={18} strokeWidth={2.3} /></span> : null}</div>
     <strong className="sa-overall-metric-value">{isLoading ? <span className="sa-metric-skeleton-value" /> : value}</strong>
     <div className="sa-overall-metric-divider" />
-    <div className="sa-overall-metric-bottom">{isLoading ? <span className="sa-metric-skeleton-meta" /> : comparison ? <><span className={`sa-overall-change ${comparison.direction}`}>{comparison.value}</span><small>{comparison.label}</small></> : <small>{scopeLabel}</small>}</div>
+    <div className="sa-overall-metric-bottom">{isLoading ? <span className="sa-metric-skeleton-meta" /> : comparison ? <><span className={`sa-overall-change ${comparison.direction}`}>{comparison.value}</span><small>{comparison.label}</small></> : <small className={tooltip ? 'sa-overall-discontinued-note' : ''} tabIndex={tooltip ? 0 : undefined} data-tooltip={tooltip || undefined}>{tooltip ? tooltipLabel : scopeLabel}</small>}</div>
   </article>
 }
 
@@ -293,7 +293,11 @@ export function SuperAdminOverallDashboard({ branches, userKey = 'super-admin', 
     const href = baseHref && appliedDateRange
       ? `${baseHref}&startDate=${encodeURIComponent(appliedDateRange.startDate || '')}&endDate=${encodeURIComponent(appliedDateRange.endDate || '')}`
       : baseHref
-    return <MetricCard label={selectedBranch && label === 'Total branches' ? 'Selected branch' : label} value={isLoading ? emptyValue : selectedBranch && label === 'Total branches' ? `${selectedBranch.branchName}` : currency ? formatOverviewCurrency(value) : (value ?? 0)} icon={icon} tone={tone} variant={variant} comparison={comparison} scopeLabel={scopeLabel} isLoading={isLoading} href={href} onClick={href ? () => navigate(href) : null} />
+    const discontinuedTooltip = label === 'Total outstanding'
+      ? (overview?.discontinuedOutstandingDetails || []).map((item) => `Student name: ${item.studentName}\nBranch name: ${item.branchName}\nAmount: ${formatOverviewCurrency(item.amount)} not included in Outstanding`).join('\n\n')
+      : ''
+    const discontinuedAmount = (overview?.discontinuedOutstandingDetails || []).reduce((sum, item) => sum + Number(item.amount || 0), 0)
+    return <MetricCard label={selectedBranch && label === 'Total branches' ? 'Selected branch' : label} value={isLoading ? emptyValue : selectedBranch && label === 'Total branches' ? `${selectedBranch.branchName}` : currency ? formatOverviewCurrency(value) : (value ?? 0)} icon={icon} tone={tone} variant={variant} comparison={comparison} scopeLabel={scopeLabel} tooltip={discontinuedTooltip} tooltipLabel={`↓ ${formatOverviewCurrency(discontinuedAmount)}`} isLoading={isLoading} href={href} onClick={href ? () => navigate(href) : null} />
   }
   const metricDefinitions = {
     totalBranches: { label: 'Total branches', description: 'Total number of active branches on the dashboard', icon: Building2, tone: 'blue', node: metric('Total branches', overview?.totalBranches, Building2, 'blue', false) },

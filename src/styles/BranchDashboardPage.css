@@ -4137,7 +4137,7 @@ body.branch-notification-menu-open .main-area {
   text-overflow: ellipsis;
 }
 
-.branch-dashboard-page .branch-dashboard-finance-stats .branch-dashboard-stat-card-footer small.branch-dashboard-stat-card-reduction {
+.branch-dashboard-app-shell .branch-dashboard-finance-stats .branch-dashboard-stat-card-footer small.branch-dashboard-stat-card-reduction {
   display: inline-flex !important;
   align-items: center;
   gap: 5px;
@@ -4154,23 +4154,23 @@ body.branch-notification-menu-open .main-area {
   overflow-wrap: normal;
 }
 
-.branch-dashboard-page .branch-dashboard-finance-stats .branch-dashboard-stat-card-footer small.branch-dashboard-stat-card-reduction svg {
+.branch-dashboard-app-shell .branch-dashboard-finance-stats .branch-dashboard-stat-card-footer small.branch-dashboard-stat-card-reduction svg {
   display: block;
   flex: 0 0 15px;
   width: 15px;
   height: 15px;
 }
 
-.branch-dashboard-page .branch-dashboard-finance-stats .branch-dashboard-stat-card-footer.has-reduction {
+.branch-dashboard-app-shell .branch-dashboard-finance-stats .branch-dashboard-stat-card-footer.has-reduction {
   align-items: center;
 }
 
-.branch-dashboard-page .branch-dashboard-finance-stats .branch-dashboard-stat-card-footer small.branch-dashboard-stat-card-reduction {
+.branch-dashboard-app-shell .branch-dashboard-finance-stats .branch-dashboard-stat-card-footer small.branch-dashboard-stat-card-reduction {
   position: relative;
-  cursor: help;
+  cursor: default;
 }
 
-.branch-dashboard-page .branch-dashboard-finance-stats .branch-dashboard-stat-card-footer small.branch-dashboard-stat-card-reduction::after {
+.branch-dashboard-app-shell .branch-dashboard-finance-stats .branch-dashboard-stat-card-footer small.branch-dashboard-stat-card-reduction::after {
   content: '';
   display: none;
   position: absolute;
@@ -4190,18 +4190,29 @@ body.branch-notification-menu-open .main-area {
   line-height: 1.2;
   letter-spacing: normal;
   text-transform: none !important;
-  white-space: normal;
+  white-space: pre-line;
   pointer-events: none;
 }
 
-.branch-dashboard-page .branch-dashboard-finance-stats .branch-dashboard-stat-card:has(.branch-dashboard-stat-card-reduction:hover) {
+.branch-dashboard-app-shell .branch-dashboard-finance-stats .branch-dashboard-stat-card:has(.branch-dashboard-stat-card-reduction:hover) {
   position: relative;
   z-index: 10;
+  overflow: visible;
 }
 
-.branch-dashboard-page .branch-dashboard-finance-stats .branch-dashboard-stat-card-footer small.branch-dashboard-stat-card-reduction:hover::after,
-.branch-dashboard-page .branch-dashboard-finance-stats .branch-dashboard-stat-card-footer small.branch-dashboard-stat-card-reduction:focus::after {
-  content: 'Student discontinuation reduced amount';
+.branch-dashboard-app-shell .branch-dashboard-finance-stats .branch-dashboard-stat-card:has(.branch-dashboard-stat-card-reduction:focus) {
+  position: relative;
+  z-index: 10;
+  overflow: visible;
+}
+
+.branch-dashboard-app-shell .branch-dashboard-finance-stats .branch-dashboard-stat-card {
+  overflow: visible;
+}
+
+.branch-dashboard-app-shell .branch-dashboard-finance-stats .branch-dashboard-stat-card-footer small.branch-dashboard-stat-card-reduction:hover::after,
+.branch-dashboard-app-shell .branch-dashboard-finance-stats .branch-dashboard-stat-card-footer small.branch-dashboard-stat-card-reduction:focus::after {
+  content: attr(data-tooltip);
   display: block;
 }
 
