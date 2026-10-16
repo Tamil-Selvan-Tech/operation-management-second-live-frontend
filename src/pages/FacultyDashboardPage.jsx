@@ -2409,6 +2409,7 @@ export function FacultyDashboardPage() {
   const [studentsViewMode, setStudentsViewMode] = useState('active')
   const [studentRecordsSearch, setStudentRecordsSearch] = useState('')
   const [studentRecordsPage, setStudentRecordsPage] = useState(1)
+  const [academicTestModalStudent, setAcademicTestModalStudent] = useState(null)
   const [courseEditRequests, setCourseEditRequests] = useState([])
   const [isCourseRequestModalOpen, setIsCourseRequestModalOpen] = useState(false)
   const [isCourseEditModalOpen, setIsCourseEditModalOpen] = useState(false)
@@ -3104,9 +3105,12 @@ export function FacultyDashboardPage() {
           : []
       if (!enrollments.length) return [record]
 
-      return [
-        record,
-        ...enrollments.map((enrollment) => ({
+      // A multi-course student must contribute one lifecycle row per
+      // enrollment. The top-level student record represents the primary
+      // course and can contain stale course/batch progress, so retaining it
+      // alongside the enrollment rows makes the table report the wrong
+      // course completion status.
+      return enrollments.map((enrollment) => ({
           ...record,
           ...enrollment,
           id: record.id,
@@ -3124,8 +3128,7 @@ export function FacultyDashboardPage() {
           courseEnrollments: record.courseEnrollments,
           installmentSchedule: record.installmentSchedule,
           paymentPlan: record.paymentPlan,
-        })),
-      ]
+        }))
     }
 
     const freshRecords = Array.isArray(students) ? students : []
@@ -4190,6 +4193,28 @@ export function FacultyDashboardPage() {
       student?.facultyName,
     ].some((value) => String(value || '').toLowerCase().includes(query)))
   }, [facultyLifecycleVisibleStudents, studentRecordsSearch])
+
+  const academicColumnDefinitions = useMemo(() => {
+    const columns = new Map()
+    facultyLifecycleVisibleStudents.forEach((student) => {
+      const progress = student?._facultyLifecycleMetrics?.academicTestProgress || student?.academicTestProgress
+      ;(progress?.academicResults || []).forEach((result) => {
+        const testNumber = Number(result.testNumber)
+        if (!Number.isFinite(testNumber)) return
+        if (result.testType === 'TEST' || result.testType === 'TEST_AND_PROJECT') {
+          columns.set(`test-${testNumber}`, { key: `test-${testNumber}`, label: `Test ${testNumber}`, type: 'test', testNumber })
+        }
+        if (result.testType === 'PROJECT' || result.testType === 'TEST_AND_PROJECT') {
+          columns.set(`project-${testNumber}`, { key: `project-${testNumber}`, label: `Test ${testNumber} (Project)`, type: 'project', testNumber })
+        }
+      })
+    })
+    return [
+      ...Array.from(columns.values()).sort((left, right) => left.testNumber - right.testNumber || (left.type === 'test' ? -1 : 1)),
+      { key: 'overall-test', label: 'Overall Test %', type: 'overall-test' },
+      { key: 'overall-project', label: 'Overall Project %', type: 'overall-project' },
+    ]
+  }, [facultyLifecycleVisibleStudents])
 
   const studentRecordsPerPage = 5
   const studentRecordsTotalPages = Math.max(1, Math.ceil(filteredStudentRecords.length / studentRecordsPerPage))
@@ -6770,16 +6795,14 @@ const nextName = trimmedValue
                           <table className="branch-dashboard-table faculty-student-records-table">
                             <thead>
                               <tr>
-                                <th>Student ID</th>
                                 <th>Student Name</th>
                                 <th>Course</th>
                                 <th className="faculty-student-batch-column">Batch</th>
                                 {studentsViewMode === 'active' ? <th>Faculty</th> : null}
                                 <th className="faculty-student-progress-column">Course Progress</th>
-                                <th className="faculty-student-progress-column faculty-student-progress-column--paid">Paid Progress</th>
-                                <th className="faculty-student-academic-column"><span className="faculty-student-academic-heading">Academic Tests</span></th>
                                 <th>Course Status</th>
                                 <th className="faculty-student-completion-date-column">Completion Date</th>
+                                <th className="faculty-student-action-column">Action</th>
                               </tr>
                             </thead>
                             <tbody>
@@ -6819,6 +6842,56 @@ const nextName = trimmedValue
                                     ? `Academic ${academicCompletedRequirements}/${academicTotalRequirements}`
                                     : academicTestsLabel
                                   const hasAcademicSummary = academicTotalRequirements > 0
+                                  const academicMarksTotal = Number(academicProgress?.marksTotal ?? 0)
+                                  const academicMarksObtained = Number(academicProgress?.marksObtained ?? 0)
+                                  const academicMarksPercentage = academicProgress?.marksPercentage == null
+                                    ? null
+                                    : Number(academicProgress.marksPercentage)
+                                  const academicResultLabels = Array.isArray(academicProgress?.academicResults)
+                                    ? academicProgress.academicResults.map((result) => {
+                                      const typeLabel = result.testType === 'TEST_AND_PROJECT'
+                                        ? 'Test + Project'
+                                        : result.testType === 'PROJECT' ? 'Project' : 'Test'
+                                      const hasMarks = Number(result.totalMarks || 0) > 0 && (
+                                        result.testType === 'PROJECT'
+                                          ? result.projectMarks != null
+                                          : result.testType === 'TEST_AND_PROJECT'
+                                            ? result.testMarks != null && result.projectMarks != null
+                                            : result.testMarks != null
+                                      )
+                                      if (result.testType === 'TEST_AND_PROJECT' && !hasMarks) {
+                                        const testLabel = result.testMarks != null
+                                          ? `${result.testMarks}/${result.testTotalMarks}`
+                                          : 'Pending'
+                                        const projectLabel = result.projectMarks != null
+                                          ? `${result.projectMarks}/${result.projectTotalMarks} · ${result.projectTotalMarks > 0 ? Number(((result.projectMarks / result.projectTotalMarks) * 100).toFixed(2)) : 0}%`
+                                          : 'Pending'
+                                        return `Test ${result.testNumber} (${typeLabel}): Test ${testLabel}, Project ${projectLabel}`
+                                      }
+                                      return `Test ${result.testNumber} (${typeLabel}): ${hasMarks ? `${result.obtainedMarks}/${result.totalMarks} · ${result.percentage ?? 0}%` : 'Pending'}`
+                                    })
+                                    : []
+                                  const academicMarksLabel = academicResultLabels.length
+                                    ? academicResultLabels
+                                    : academicMarksTotal > 0
+                                      ? [`Marks ${academicMarksObtained}/${academicMarksTotal} · ${academicMarksPercentage ?? 0}%`]
+                                      : []
+                                  const academicResults = Array.isArray(academicProgress?.academicResults) ? academicProgress.academicResults : []
+                                  const academicResultFor = (column) => academicResults.find((result) => Number(result.testNumber) === Number(column.testNumber))
+                                  const academicTestResults = academicResults.filter((result) => result.testMarks != null && Number(result.testTotalMarks) > 0)
+                                  const academicProjectResults = academicResults.filter((result) => result.projectMarks != null && Number(result.projectTotalMarks) > 0)
+                                  const overallTestTotal = academicTestResults.reduce((sum, result) => sum + Number(result.testTotalMarks || 0), 0)
+                                  const overallTestObtained = academicTestResults.reduce((sum, result) => sum + Number(result.testMarks || 0), 0)
+                                  const overallProjectTotal = academicProjectResults.reduce((sum, result) => sum + Number(result.projectTotalMarks || 0), 0)
+                                  const overallProjectObtained = academicProjectResults.reduce((sum, result) => sum + Number(result.projectMarks || 0), 0)
+                                  const academicCell = (result, type) => {
+                                    if (!result) return <span className="faculty-academic-empty">-</span>
+                                    const marks = type === 'project' ? result.projectMarks : result.testMarks
+                                    const total = type === 'project' ? result.projectTotalMarks : result.testTotalMarks
+                                    const percentage = marks != null && Number(total) > 0 ? Number(((Number(marks) / Number(total)) * 100).toFixed(2)) : null
+                                    const status = type === 'project' ? result.projectResult : result.testResult
+                                    return <span className="faculty-academic-result-cell"><strong>{marks != null && Number(total) > 0 ? `${marks}/${total}` : 'Pending'}</strong>{percentage != null ? <small>{percentage}%</small> : null}{status ? <em className={String(status).toLowerCase()}>{status}</em> : null}</span>
+                                  }
                                   const completionDate = student.courseCompletedAt ||
                                     lifecycleMetrics.enrollment?.courseCompletedAt ||
                                     student.courseCompletionDate ||
@@ -6827,8 +6900,10 @@ const nextName = trimmedValue
                                     null
                                   return (
                                 <tr key={[student.id || student.studentId, student.courseId || student.courseName, student.batchId || student.batchName].filter(Boolean).join('-')}>
-                                  <td><strong>{student.studentId || student.id || '-'}</strong></td>
-                                  <td>{student.studentName || '-'}</td>
+                                  <td>
+                                    <strong>{student.studentName || '-'}</strong>
+                                    <small className="faculty-student-id-under-name">{student.studentId || student.id || '-'}</small>
+                                  </td>
                                   <td>{student.courseName || student.course?.name || '-'}</td>
                                   <td className="faculty-student-batch-column">{student.batchName || student.batch || '-'}</td>
                                   {studentsViewMode === 'active' ? <td>{student.facultyName || '-'}</td> : null}
@@ -6840,21 +6915,13 @@ const nextName = trimmedValue
                                       </div>
                                     </div>
                                   </td>
-                                  <td className="faculty-student-progress-column faculty-student-progress-column--paid">
-                                    <div className="faculty-student-progress-meter faculty-student-progress-meter--paid">
-                                      <div className="faculty-student-progress-meter__header"><span>{lifecycleMetrics.paidProgress}%</span></div>
-                                      <div className="faculty-student-progress-meter__track" aria-label={`Paid progress ${lifecycleMetrics.paidProgress}%`}>
-                                        <span style={{ width: `${lifecycleMetrics.paidProgress}%` }} />
-                                      </div>
-                                    </div>
-                                  </td>
-                                  <td className="faculty-student-academic-column">
-                                    <span className={courseStatus === 'COMPLETED' ? 'faculty-student-academic-complete' : ''}>
-                                      {hasAcademicSummary ? <><span>{academicSummaryCount}</span><strong>{academicOverallPercentage}%</strong></> : academicTestsLabel}
-                                    </span>
-                                  </td>
                                   <td><span className={`faculty-student-course-status ${courseStatus.toLowerCase()}`}>{courseStatus === 'DISCONTINUED' ? 'Discontinued' : getCourseStatusLabel(courseStatus)}</span></td>
                                   <td className="faculty-student-completion-date-column">{completionDate ? formatStudentDate(completionDate) : '-'}</td>
+                                  <td className="faculty-student-action-column">
+                                    <button type="button" className="faculty-student-view-action" onClick={() => setAcademicTestModalStudent(student)}>
+                                      View
+                                    </button>
+                                  </td>
                                 </tr>
                                   )
                                 })()
@@ -8955,6 +9022,49 @@ const nextName = trimmedValue
           </div>
         </div>
       ) : null}
+
+      {academicTestModalStudent ? (() => {
+        const progress = academicTestModalStudent?._facultyLifecycleMetrics?.academicTestProgress || academicTestModalStudent?.academicTestProgress || {}
+        const results = Array.isArray(progress.academicResults) ? progress.academicResults : []
+        const resultFor = (column) => results.find((result) => Number(result.testNumber) === Number(column.testNumber))
+        const testResults = results.filter((result) => result.testMarks != null && Number(result.testTotalMarks) > 0)
+        const projectResults = results.filter((result) => result.projectMarks != null && Number(result.projectTotalMarks) > 0)
+        const testTotal = testResults.reduce((sum, result) => sum + Number(result.testTotalMarks || 0), 0)
+        const testObtained = testResults.reduce((sum, result) => sum + Number(result.testMarks || 0), 0)
+        const projectTotal = projectResults.reduce((sum, result) => sum + Number(result.projectTotalMarks || 0), 0)
+        const projectObtained = projectResults.reduce((sum, result) => sum + Number(result.projectMarks || 0), 0)
+        const renderResult = (result, type) => {
+          if (!result) return <span className="faculty-academic-empty">-</span>
+          const marks = type === 'project' ? result.projectMarks : result.testMarks
+          const total = type === 'project' ? result.projectTotalMarks : result.testTotalMarks
+          const percentage = marks != null && Number(total) > 0 ? Number(((Number(marks) / Number(total)) * 100).toFixed(2)) : null
+          const status = type === 'project' ? result.projectResult : result.testResult
+          return <span className="faculty-academic-result-cell"><strong>{marks != null && Number(total) > 0 ? `${marks}/${total}` : 'Pending'}</strong>{percentage != null ? <small>{percentage}%</small> : null}{status ? <em className={String(status).toLowerCase()}>{status}</em> : null}</span>
+        }
+        return (
+          <div className="faculty-academic-modal-backdrop" role="presentation" onClick={() => setAcademicTestModalStudent(null)}>
+            <div className="faculty-academic-modal" role="dialog" aria-modal="true" aria-labelledby="faculty-academic-modal-title" onClick={(event) => event.stopPropagation()}>
+              <button type="button" className="faculty-academic-modal-close" aria-label="Close academic test details" onClick={() => setAcademicTestModalStudent(null)}>×</button>
+              <h2 id="faculty-academic-modal-title">Academic Test Details</h2>
+              <p className="faculty-academic-modal-student"><strong>{academicTestModalStudent.studentName}</strong> <span>{academicTestModalStudent.studentId}</span></p>
+              <div className="faculty-academic-modal-table-wrap">
+                <table className="faculty-academic-modal-table">
+                  <thead><tr>{academicColumnDefinitions.map((column) => <th key={column.key}>{column.label}</th>)}</tr></thead>
+                  <tbody><tr>{academicColumnDefinitions.map((column) => (
+                    <td key={column.key}>
+                      {column.type === 'overall-test'
+                        ? <span className="faculty-academic-result-cell"><strong>{testTotal > 0 ? `${Number(((testObtained / testTotal) * 100).toFixed(2))}%` : '-'}</strong></span>
+                        : column.type === 'overall-project'
+                          ? <span className="faculty-academic-result-cell"><strong>{projectTotal > 0 ? `${Number(((projectObtained / projectTotal) * 100).toFixed(2))}%` : '-'}</strong></span>
+                          : renderResult(resultFor(column), column.type)}
+                    </td>
+                  ))}</tr></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )
+      })() : null}
 
       {isLogoutConfirmOpen ? (
         <div className="branch-modal-backdrop" role="presentation">

@@ -294,9 +294,9 @@ const STUDENT_ID_PREFIX = 'STU-'
 
 function isAcademicTestProgressComplete(progress = null) {
   if (!progress || typeof progress !== 'object') return false
-  const totalTests = Number(progress.totalTests)
-  const completedTests = Number(progress.completedTests)
-  const pendingTests = Number(progress.pendingTests)
+  const totalTests = Number(progress.totalEvaluations ?? progress.totalTests)
+  const completedTests = Number(progress.completedEvaluations ?? progress.completedTests)
+  const pendingTests = Number(progress.pendingEvaluations ?? progress.pendingTests)
   return Number.isFinite(totalTests) && totalTests > 0
     && Number.isFinite(completedTests) && completedTests >= totalTests
     && Number.isFinite(pendingTests) && pendingTests === 0
@@ -403,6 +403,7 @@ function getCourseAcademicProgress(student = {}, courseId = '', courseName = '',
 
   const studentKey = String(student?.studentId || student?.id || '').trim().toLowerCase()
   const index = fetchedByStudent.get(studentKey)
+  let fetchedProgress = null
   if (index) {
     const items = index.byCourse[normalizedId] || index.byCourse[normalizedName] || []
     const scopedItems = items.length
@@ -415,15 +416,31 @@ function getCourseAcademicProgress(student = {}, courseId = '', courseName = '',
       const totalOverride = index.payload?.courseTotals?.[normalizedId]
         ?? index.payload?.courseTotalsByName?.[normalizedName]
         ?? (Number.isFinite(configuredTotal) ? configuredTotal : null)
-      return index.buildProgress(scopedItems, totalOverride)
+      fetchedProgress = index.buildProgress(scopedItems, totalOverride)
     }
   }
-  return persisted || null
+
+  // The report-share endpoint can briefly lag behind the live student
+  // enrollment snapshot (especially after a project is graded). Prefer the
+  // course-scoped progress snapshot when it already confirms completion, so
+  // a completed course is not shown as In Progress because of an older share.
+  if (persisted && isAcademicTestProgressComplete(persisted) && !isAcademicTestProgressComplete(fetchedProgress)) {
+    return persisted
+  }
+  return fetchedProgress || persisted || null
 }
 
-function isCourseCompletionComplete(student = {}, courseId = '', courseName = '', progress = 0, fetchedByStudent = new Map()) {
+function isCourseCompletionComplete(student = {}, courseId = '', courseName = '', progress = 0, fetchedByStudent = new Map(), course = null) {
+  const configuredTotal = Number(course?.academicTestCount)
+  const academicProgress = getCourseAcademicProgress(student, courseId, courseName, fetchedByStudent)
+  const reportedTotal = Number(academicProgress?.totalEvaluations ?? academicProgress?.totalTests)
+  const reportedCompleted = Number(academicProgress?.completedEvaluations ?? academicProgress?.completedTests)
+  const hasConfiguredAcademicCount = Number.isFinite(configuredTotal) && configuredTotal > 0
+  const hasEnoughAcademicEvaluations = !hasConfiguredAcademicCount
+    || (Number.isFinite(reportedTotal) && reportedTotal >= configuredTotal && Number.isFinite(reportedCompleted) && reportedCompleted >= configuredTotal)
   return Number(progress) >= 100
-    && isAcademicTestProgressComplete(getCourseAcademicProgress(student, courseId, courseName, fetchedByStudent))
+    && hasEnoughAcademicEvaluations
+    && isAcademicTestProgressComplete(academicProgress)
 }
 
 function getBranchEntityPrefix(branchCode, entityPrefix) {
@@ -9445,7 +9462,7 @@ useEffect(() => {
           Number.isFinite(savedProgress) ? savedProgress : 0,
           Number.isFinite(workProgress) ? workProgress : 0,
         )
-        return isCourseCompletionComplete(student, courseId, courseName, progress, branchAcademicProgressByStudent)
+        return isCourseCompletionComplete(student, courseId, courseName, progress, branchAcademicProgressByStudent, catalogCourse)
       })
       if (isCompleted) completedKeys.add(String(student?.studentId || student?.id || '').trim().toLowerCase())
     })
@@ -9665,7 +9682,7 @@ useEffect(() => {
           Number.isFinite(savedProgress) ? savedProgress : 0,
           Number.isFinite(workProgress) ? workProgress : 0,
         )
-        return isCourseCompletionComplete(student, courseId, courseName, progress, branchAcademicProgressByStudent)
+        return isCourseCompletionComplete(student, courseId, courseName, progress, branchAcademicProgressByStudent, catalogCourse)
       }).map((entry) => ({
         ...student,
         courseId: entry?.courseId || entry?.id || entry?.course?.id || student?.courseId || '',
@@ -12041,7 +12058,7 @@ else {
               // status is displayed separately and must not block this label.
               const courseCompletionStatus = isStudentDiscontinued
                 ? 'DISCONTINUED'
-                : isCourseCompletionComplete(stu, item.courseId, item.courseName, progressValue, branchAcademicProgressByStudent)
+                : isCourseCompletionComplete(stu, item.courseId, item.courseName, progressValue, branchAcademicProgressByStudent, item.catalogCourse)
                   ? 'COMPLETED'
                   : 'IN_PROGRESS'
               const courseStatus = isCoursePaymentCompleted
@@ -12239,7 +12256,7 @@ else {
           }
 
           const singleCourseCompleted = !isStudentDiscontinued
-            && isCourseCompletionComplete(stu, stu.courseId, stu.courseName || stu.courseInterested, studentCourseProgress, branchAcademicProgressByStudent)
+            && isCourseCompletionComplete(stu, stu.courseId, stu.courseName || stu.courseInterested, studentCourseProgress, branchAcademicProgressByStudent, effectiveCourse)
             
           if (isCourseCompletedFilter && !singleCourseCompleted) return null
 
@@ -12311,7 +12328,7 @@ else {
               </td>
               <td>
                 {(() => {
-                  const isCompleted = isCourseCompletionComplete(stu, stu.courseId, stu.courseName || stu.courseInterested, studentCourseProgress, branchAcademicProgressByStudent)
+                  const isCompleted = isCourseCompletionComplete(stu, stu.courseId, stu.courseName || stu.courseInterested, studentCourseProgress, branchAcademicProgressByStudent, effectiveCourse)
                   const completionStatus = isStudentDiscontinued ? 'DISCONTINUED' : isCompleted ? 'COMPLETED' : 'IN_PROGRESS'
                   return (
                     <span className={`branch-student-payment-status ${completionStatus.toLowerCase()}`}>
