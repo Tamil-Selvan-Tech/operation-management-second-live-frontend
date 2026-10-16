@@ -30,6 +30,49 @@ function hasValue(value) {
   return value !== null && value !== undefined && value !== '' && String(value).trim().toUpperCase() !== 'N/A'
 }
 
+function firstAvailable(...values) {
+  return values.find((value) => hasValue(value))
+}
+
+function mergeStudentDetails(row = {}, student = {}, enrollment = {}) {
+  const merged = { ...student, ...row }
+  const fallbackFields = {
+    studentId: firstAvailable(row.studentId, student.studentId, student.id),
+    studentName: firstAvailable(row.studentName, student.studentName, student.name),
+    parentName: firstAvailable(row.parentName, student.parentName),
+    mobileNumber: firstAvailable(row.mobileNumber, row.contactNumber, student.mobileNumber, student.contactNumber, student.phoneNumber),
+    parentSpouseNumber: firstAvailable(row.parentSpouseNumber, student.parentSpouseNumber),
+    emailAddress: firstAvailable(row.emailAddress, row.email, student.emailAddress, student.email),
+    linkedInUrl: firstAvailable(row.linkedInUrl, row.linkedinUrl, student.linkedInUrl, student.linkedinUrl),
+    currentStatus: firstAvailable(row.currentStatus, student.currentStatus),
+    purpose: firstAvailable(row.purpose, student.purpose),
+    qualification: firstAvailable(row.qualification, student.qualification),
+    educationLevel: firstAvailable(row.educationLevel, student.educationLevel),
+    educationStatus: firstAvailable(row.educationStatus, student.educationStatus),
+    passedOutYear: firstAvailable(row.passedOutYear, student.passedOutYear),
+    designation: firstAvailable(row.designation, student.designation),
+    companyName: firstAvailable(row.companyName, student.companyName),
+    source: firstAvailable(row.source, student.source, student.databaseSource),
+    branchAdminName: firstAvailable(row.branchAdminName, student.branchAdminName),
+    courseName: firstAvailable(row.courseName, enrollment.courseName, enrollment.name, enrollment.course?.name, student.courseName, student.courseInterested),
+    courseStartDate: firstAvailable(row.courseStartDate, enrollment.courseStartDate, enrollment.startDate, student.courseStartDate, student.startDate),
+    courseEndDate: firstAvailable(row.courseEndDate, enrollment.courseEndDate, enrollment.endDate, student.courseEndDate, student.endDate),
+    batchName: firstAvailable(row.batchName, enrollment.batchName, enrollment.batch, student.batchName, student.batch?.name),
+    facultyName: firstAvailable(row.facultyName, enrollment.facultyName, student.facultyName, student.faculty?.name),
+    batchTiming: firstAvailable(row.batchTiming, enrollment.batchTiming, student.batchTiming),
+    scheduleType: firstAvailable(row.scheduleType, enrollment.scheduleType, student.scheduleType, student.classSchedule),
+    classSchedule: firstAvailable(row.classSchedule, enrollment.classSchedule, student.classSchedule),
+    courseMode: firstAvailable(row.courseMode, enrollment.courseMode, student.courseMode, student.mode),
+    mode: firstAvailable(row.mode, enrollment.mode, student.mode),
+    registrationFees: firstAvailable(row.registrationFees, enrollment.registrationFees, student.registrationFees),
+    paymentPlanLabel: firstAvailable(row.paymentPlanLabel, row.paymentPlan, enrollment.paymentPlan, student.paymentPlan),
+  }
+  Object.entries(fallbackFields).forEach(([key, value]) => {
+    if (hasValue(value)) merged[key] = value
+  })
+  return merged
+}
+
 function installmentNumberOf(payment = {}) {
   const explicitNumber = Number(payment?.installmentNumber || payment?.number || payment?.paymentInstallmentNumber)
   if (Number.isFinite(explicitNumber) && explicitNumber > 0) return explicitNumber
@@ -331,17 +374,25 @@ export function CompletedStudentsPage({ academicProgressByStudent = new Map(), b
       const result = await listCompletedStudentCourses({ lifecycle, search: appliedSearch, sortBy, sortOrder, page: requestedPage, limit: PAGE_SIZE })
       const normalizedCompleted = Array.isArray(completedStudents) ? completedStudents : []
       const sourceStudents = [
-        ...normalizedCompleted,
         ...(Array.isArray(students) ? students : []),
+        ...normalizedCompleted,
       ].filter((student, index, list) => list.findIndex((item) => String(item.studentId || item.id || '').trim().toLowerCase() === String(student.studentId || student.id || '').trim().toLowerCase()) === index)
       const hasCompletionSync = normalizedCompleted.length > 0
       const apiRows = lifecycle === 'COMPLETED' && hasCompletionSync
         ? result.data.filter((row) => normalizedCompleted.some((student) => String(student.studentId || student.id || '').trim().toLowerCase() === String(row.studentId || '').trim().toLowerCase()))
         : result.data
       const syncedApiRows = apiRows.map((row) => {
-        const student = sourceStudents.find((item) => String(item.studentId || item.id || '').trim().toLowerCase() === String(row.studentId || '').trim().toLowerCase())
+        const rowStudentKey = row.studentId || row.id || row.recordId
+        const student = sourceStudents.find((item) => String(item.studentId || item.id || item.recordId || '').trim().toLowerCase() === String(rowStudentKey || '').trim().toLowerCase())
         if (!student && lifecycle !== 'COMPLETED') return row
-        const financials = currentStudentFinancials(student || {})
+        const courseId = row.courseId || row.course?.id || ''
+        const courseName = row.courseName || row.course?.name || ''
+        const selectedEnrollment = (Array.isArray(student?.courseEnrollments) ? student.courseEnrollments : []).find((entry) => (
+          (courseId && String(entry?.courseId || entry?.id || entry?.course?.id || '').trim().toLowerCase() === String(courseId).trim().toLowerCase())
+          || (courseName && String(entry?.courseName || entry?.name || entry?.course?.name || '').trim().toLowerCase() === String(courseName).trim().toLowerCase())
+        )) || {}
+        const mergedRow = mergeStudentDetails(row, student || {}, selectedEnrollment)
+        const financials = currentStudentFinancials(mergedRow, courseId, courseName)
         const resolvedTotalFees = hasValue(row.totalFees) ? Number(row.totalFees) : Number(financials.totalFees || 0)
         const resolvedPaidAmount = hasValue(row.paidAmount)
           ? row.paidAmount
@@ -352,7 +403,7 @@ export function CompletedStudentsPage({ academicProgressByStudent = new Map(), b
           ? row.pendingAmount
           : Math.max(resolvedTotalFees - Number(resolvedPaidAmount || 0), 0)
         return {
-          ...row,
+          ...mergedRow,
           totalFees: resolvedTotalFees || financials.totalFees,
           paidAmount: resolvedPaidAmount,
           pendingAmount: resolvedPendingAmount,
