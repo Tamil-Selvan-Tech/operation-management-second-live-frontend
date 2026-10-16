@@ -40,12 +40,13 @@
 .branch-discontinuation-table-card { min-height: 220px; overflow: hidden; border: 1px solid #dce6f2; border-radius: 16px; background: #fff; box-shadow: 0 8px 24px rgba(34, 76, 132, .05); }
 .branch-discontinuation-table-wrap { overflow-x: auto; }
 .branch-discontinuation-table { width: 100%; min-width: 920px; border-collapse: collapse; table-layout: fixed; }
-.branch-discontinuation-table th:nth-child(1), .branch-discontinuation-table td:nth-child(1) { width: 13%; }
-.branch-discontinuation-table th:nth-child(2), .branch-discontinuation-table td:nth-child(2) { width: 17%; }
-.branch-discontinuation-table th:nth-child(3), .branch-discontinuation-table td:nth-child(3) { width: 12%; }
-.branch-discontinuation-table th:nth-child(4), .branch-discontinuation-table td:nth-child(4) { width: 30%; }
-.branch-discontinuation-table th:nth-child(5), .branch-discontinuation-table td:nth-child(5) { width: 14%; }
-.branch-discontinuation-table th:nth-child(6), .branch-discontinuation-table td:nth-child(6) { width: 14%; }
+.branch-discontinuation-table th:nth-child(1), .branch-discontinuation-table td:nth-child(1) { width: 12%; }
+.branch-discontinuation-table th:nth-child(2), .branch-discontinuation-table td:nth-child(2) { width: 15%; }
+.branch-discontinuation-table th:nth-child(3), .branch-discontinuation-table td:nth-child(3) { width: 11%; }
+.branch-discontinuation-table th:nth-child(4), .branch-discontinuation-table td:nth-child(4) { width: 25%; }
+.branch-discontinuation-table th:nth-child(5), .branch-discontinuation-table td:nth-child(5) { width: 12%; }
+.branch-discontinuation-table th:nth-child(6), .branch-discontinuation-table td:nth-child(6) { width: 11%; }
+.branch-discontinuation-table th:nth-child(7), .branch-discontinuation-table td:nth-child(7) { width: 14%; }
 .branch-discontinuation-table th { padding: 14px 16px; background: #f6f9fd; color: #657995; font-size: .72rem; font-weight: 800; letter-spacing: .04em; text-align: left; text-transform: uppercase; white-space: nowrap; }
 .branch-discontinuation-table tbody tr { transition: background .2s ease; }
 .branch-discontinuation-table tbody tr:hover, .branch-discontinuation-table tbody tr:focus-visible { background: #f9fbff; outline: 0; }

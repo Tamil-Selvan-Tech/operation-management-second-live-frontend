@@ -385,7 +385,7 @@ export function BranchDiscontinuationManagementPage() {
                       <td className="branch-discontinuation-request-cell"><strong>{displayRequestReason(item.reason)}</strong><small>{item.details || 'No additional details provided.'}</small></td>
                       <td>{formatRequestDate(requestDateValue(item))}</td>
                       <td><span className={`branch-discontinuation-status ${isWaitingForMotivationOutcome ? 'is-success is-mail-status' : statusClass(item.status)}`}>{isWaitingForMotivationOutcome ? motivationMailStatus(item) : statusLabel(item.status)}</span></td>
-                      <td>{isActionable && isMotivationReady ? <button type="button" className="branch-discontinuation-action" onClick={(event) => { event.stopPropagation(); openOutcome(item) }}><PhoneCall size={15} /> Contact Outcome</button> : <button type="button" className="branch-discontinuation-view" onClick={(event) => { event.stopPropagation(); openOutcome(item, true) }}>View details</button>}</td>
+                      <td>{isActionable && isMotivationReady ? <button type="button" className="branch-discontinuation-action" onClick={(event) => { event.stopPropagation(); openOutcome(item) }}><PhoneCall size={15} /> Outcome</button> : <button type="button" className="branch-discontinuation-view" onClick={(event) => { event.stopPropagation(); openOutcome(item, true) }}>View details</button>}</td>
                     </tr>
                   )
                 })}
