@@ -573,6 +573,109 @@ body.faculty-notification-menu-open .super-admin-content {
     padding: 16px 18px;
   }
 }
+
+.faculty-academic-modal-loading {
+  margin: 12px 0;
+  color: #64748b;
+  font-size: 0.9rem;
+}
+
+.faculty-academic-extra-reports {
+  display: grid;
+  gap: 16px;
+  margin-top: 18px;
+}
+
+.faculty-academic-extra-report {
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 14px;
+  background: #fff;
+}
+
+.faculty-academic-extra-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.faculty-academic-extra-heading h3 {
+  margin: 0;
+  color: #1e293b;
+  font-size: 0.98rem;
+}
+
+.faculty-academic-extra-heading span,
+.faculty-academic-extra-empty {
+  color: #64748b;
+  font-size: 0.82rem;
+}
+
+.faculty-academic-extra-table-wrap {
+  overflow-x: auto;
+}
+
+.faculty-academic-extra-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 420px;
+}
+
+.faculty-academic-extra-table th,
+.faculty-academic-extra-table td {
+  padding: 9px 10px;
+  border-bottom: 1px solid #eef2f7;
+  text-align: left;
+  color: #334155;
+  font-size: 0.82rem;
+  white-space: nowrap;
+}
+
+.faculty-academic-extra-table th {
+  color: #64748b;
+  font-weight: 700;
+}
+
+.faculty-academic-extra-table th small {
+  display: block;
+  margin-top: 3px;
+  font-weight: 500;
+  color: #94a3b8;
+}
+
+.faculty-academic-assessment-group + .faculty-academic-assessment-group {
+  margin-top: 14px;
+}
+
+.faculty-academic-assessment-group > strong {
+  display: block;
+  margin-bottom: 7px;
+  color: #475569;
+  font-size: 0.86rem;
+}
+
+.faculty-academic-evaluation-list {
+  display: grid;
+  gap: 8px;
+}
+
+.faculty-academic-evaluation-list > div {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 14px;
+  align-items: center;
+  padding: 9px 10px;
+  border-bottom: 1px solid #eef2f7;
+  font-size: 0.82rem;
+}
+
+.faculty-academic-evaluation-list span,
+.faculty-academic-evaluation-list em {
+  color: #475569;
+  font-style: normal;
+}
 .faculty-dashboard-assigned-batch { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; }
 .faculty-dashboard-assigned-batch > div { display: grid; gap: 5px; min-width: 0; }
 .faculty-dashboard-assigned-batch dl { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 12px 18px; margin: 0; }

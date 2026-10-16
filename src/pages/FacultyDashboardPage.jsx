@@ -56,7 +56,8 @@ import { getFacultyDashboardOverview, getFacultyMyBatchesSummary } from '../serv
 import { PaginationBar } from '../components/PaginationBar'
 import { listCourses } from '../services/courseService'
 import { getCurrentFacultyProfile } from '../services/facultyService'
-import { getAcademicBatchReport } from '../services/academicTestService'
+import { getAcademicBatchReport, getBranchStudentAcademicReports } from '../services/academicTestService'
+import { getBranchStudentSyllabusReports, getFacultyAssessmentStudentReport, listFacultyAssessmentReports } from '../services/examService'
 import { getMyWeekOffRequests } from '../services/facultyWeekOffService'
 import { dateForDay, dateKey, getEffectiveWeeklyOffForDate } from '../lib/facultyWeekOff'
 import { clearBranchCourseListCache, listBranchCourses } from '../services/branchCourseService'
@@ -2410,6 +2411,8 @@ export function FacultyDashboardPage() {
   const [studentRecordsSearch, setStudentRecordsSearch] = useState('')
   const [studentRecordsPage, setStudentRecordsPage] = useState(1)
   const [academicTestModalStudent, setAcademicTestModalStudent] = useState(null)
+  const [studentPerformanceDetails, setStudentPerformanceDetails] = useState(null)
+  const [studentPerformanceLoading, setStudentPerformanceLoading] = useState(false)
   const [courseEditRequests, setCourseEditRequests] = useState([])
   const [isCourseRequestModalOpen, setIsCourseRequestModalOpen] = useState(false)
   const [isCourseEditModalOpen, setIsCourseEditModalOpen] = useState(false)
@@ -2971,6 +2974,63 @@ export function FacultyDashboardPage() {
       branchCode: String(summaryFaculty.branchCode || profile.branchCode || branch.branchId || facultyDetails?.branchCode || facultyDetails?.branch?.branchId || '').trim(),
     }
   }, [dashboardSummary, facultyDetails, facultyProfile, user?.id])
+
+  useEffect(() => {
+    if (!academicTestModalStudent) {
+      return undefined
+    }
+
+    let active = true
+    const studentId = String(academicTestModalStudent.studentId || academicTestModalStudent.id || '').trim()
+    const courseId = String(academicTestModalStudent.courseId || academicTestModalStudent._facultyCourse?.id || '').trim()
+    const courseName = String(academicTestModalStudent.courseName || academicTestModalStudent.course?.name || '').trim()
+    const batchId = String(academicTestModalStudent.batchId || academicTestModalStudent.batchEntryId || '').trim()
+    const batchName = String(academicTestModalStudent.batchName || academicTestModalStudent.batch || '').trim()
+    const matches = (value, expected) => !expected || String(value || '').trim().toLowerCase() === expected.toLowerCase()
+    const unwrap = (response) => response?.data || response || {}
+    const studentKeys = new Set([academicTestModalStudent.studentId, academicTestModalStudent.id]
+      .map((value) => String(value || '').trim().toLowerCase()).filter(Boolean))
+
+    setStudentPerformanceLoading(true)
+    setStudentPerformanceDetails({ syllabus: null, academic: null, assessments: [], error: '' })
+    Promise.allSettled([
+      studentId ? getBranchStudentSyllabusReports(studentId, currentFacultyIdentity.branchId) : Promise.resolve(null),
+      studentId ? getBranchStudentAcademicReports(studentId, currentFacultyIdentity.branchId) : Promise.resolve(null),
+      listFacultyAssessmentReports(),
+    ]).then(async ([syllabusResult, academicResult, assessmentSummaryResult]) => {
+      const syllabus = syllabusResult.status === 'fulfilled' ? unwrap(syllabusResult.value) : null
+      const academic = academicResult.status === 'fulfilled' ? unwrap(academicResult.value) : null
+      const summaries = assessmentSummaryResult.status === 'fulfilled' && Array.isArray(unwrap(assessmentSummaryResult.value))
+        ? unwrap(assessmentSummaryResult.value)
+        : []
+      const scopedSummaries = summaries.filter((row) => {
+        const rowCourse = row?.course || {}
+        const rowBatch = row?.batch || {}
+        const courseMatches = (courseId && [rowCourse.id, rowCourse.courseId].some((value) => matches(value, courseId))) ||
+          (courseName && [rowCourse.name, rowCourse.courseName].some((value) => matches(value, courseName)))
+        const batchMatches = (batchId && [rowBatch.id, rowBatch.batchId].some((value) => matches(value, batchId))) ||
+          (batchName && [rowBatch.name, rowBatch.batchName].some((value) => matches(value, batchName)))
+        return courseMatches && batchMatches
+      })
+      const assessmentReports = (await Promise.all(scopedSummaries.map(async (row) => {
+        try {
+          const report = unwrap(await getFacultyAssessmentStudentReport(row.course.id, row.batch.id, row.module.id))
+          const student = (report.students || []).find((entry) => studentKeys.has(String(entry?.studentId || entry?.student?.studentId || '').trim().toLowerCase()))
+          if (!student) return null
+          return { ...row, report, student }
+        } catch {
+          return null
+        }
+      }))).filter(Boolean)
+      if (active) setStudentPerformanceDetails({ syllabus, academic, assessments: assessmentReports, error: '' })
+    }).catch(() => {
+      if (active) setStudentPerformanceDetails({ syllabus: null, academic: null, assessments: [], error: 'Unable to load the additional report details.' })
+    }).finally(() => {
+      if (active) setStudentPerformanceLoading(false)
+    })
+
+    return () => { active = false }
+  }, [academicTestModalStudent, currentFacultyIdentity.branchId])
 
   const facultyWeekOffStatus = useMemo(() => {
     const today = dateKey(new Date())
@@ -9047,6 +9107,7 @@ const nextName = trimmedValue
               <button type="button" className="faculty-academic-modal-close" aria-label="Close academic test details" onClick={() => setAcademicTestModalStudent(null)}>×</button>
               <h2 id="faculty-academic-modal-title">Academic Test Details</h2>
               <p className="faculty-academic-modal-student"><strong>{academicTestModalStudent.studentName}</strong> <span>{academicTestModalStudent.studentId}</span></p>
+              {studentPerformanceLoading ? <p className="faculty-academic-modal-loading">Loading syllabus tests and assessments...</p> : null}
               <div className="faculty-academic-modal-table-wrap">
                 <table className="faculty-academic-modal-table">
                   <thead><tr>{academicColumnDefinitions.map((column) => <th key={column.key}>{column.label}</th>)}</tr></thead>
@@ -9061,6 +9122,26 @@ const nextName = trimmedValue
                   ))}</tr></tbody>
                 </table>
               </div>
+              {!studentPerformanceLoading && studentPerformanceDetails ? (
+                <div className="faculty-academic-extra-reports">
+                  <section className="faculty-academic-extra-report">
+                    <div className="faculty-academic-extra-heading"><h3>Syllabus Test Details</h3><span>{studentPerformanceDetails.syllabus?.skills?.length || 0} modules</span></div>
+                    {studentPerformanceDetails.syllabus?.skills?.length ? (
+                      <div className="faculty-academic-extra-table-wrap"><table className="faculty-academic-extra-table"><thead><tr><th>Module</th><th>Tests</th><th>Marks / Percentage</th></tr></thead><tbody>{studentPerformanceDetails.syllabus.skills.map((skill) => <tr key={skill.moduleId || skill.moduleName}><td>{skill.moduleName || '-'}</td><td>{skill.testCount ?? 0}</td><td>{skill.overallPercentage == null ? '-' : `${skill.overallPercentage}%`}</td></tr>)}</tbody></table></div>
+                    ) : <p className="faculty-academic-extra-empty">No syllabus test report available.</p>}
+                  </section>
+                  <section className="faculty-academic-extra-report">
+                    <div className="faculty-academic-extra-heading"><h3>Assessment Details</h3><span>{studentPerformanceDetails.assessments.length} modules</span></div>
+                    {studentPerformanceDetails.assessments.length ? studentPerformanceDetails.assessments.map((item) => (
+                      <div className="faculty-academic-assessment-group" key={`${item.course?.id || ''}-${item.batch?.id || ''}-${item.module?.id || ''}`}>
+                        <strong>{item.module?.name || item.module?.title || 'Assessment'}</strong>
+                        <div className="faculty-academic-extra-table-wrap"><table className="faculty-academic-extra-table"><thead><tr>{item.report.assessments.map((assessment) => <th key={assessment.id}>{assessment.assessmentName}<small>{assessment.totalMarks} marks</small></th>)}<th>Overall</th></tr></thead><tbody><tr>{item.report.assessments.map((assessment) => { const result = item.student.assessments?.[assessment.id]; const evaluated = result?.status === 'EVALUATED' && result.marksObtained != null; return <td key={assessment.id}>{evaluated ? `${result.marksObtained}/${result.totalMarks} (${Number(result.percentage || 0).toFixed(2)}%)` : result?.status === 'SUBMITTED' ? 'Submitted · Pending' : result?.status === 'NOT_APPLICABLE' ? '-' : 'Not Submitted'}</td> })}<td>{item.student.overall?.totalMarks ? `${item.student.overall.marksObtained}/${item.student.overall.totalMarks} (${Number(item.student.overall.percentage || 0).toFixed(2)}%)` : 'Not Evaluated'}</td></tr></tbody></table></div>
+                      </div>
+                    )) : <p className="faculty-academic-extra-empty">No assessment report available.</p>}
+                  </section>
+                  {studentPerformanceDetails.academic?.evaluations?.length ? <section className="faculty-academic-extra-report"><div className="faculty-academic-extra-heading"><h3>Academic Evaluation Details</h3><span>{studentPerformanceDetails.academic.evaluations.length} evaluations</span></div><div className="faculty-academic-evaluation-list">{studentPerformanceDetails.academic.evaluations.map((evaluation, index) => <div key={evaluation.evaluationId || evaluation.id || `${evaluation.name}-${index}`}><strong>{evaluation.name || evaluation.title || 'Evaluation'}</strong><span>{evaluation.marksObtained != null && evaluation.totalMarks != null ? `${evaluation.marksObtained}/${evaluation.totalMarks}` : 'Not Evaluated'}</span><em>{evaluation.percentage == null ? '-' : `${evaluation.percentage}%`}</em></div>)}</div></section> : null}
+                </div>
+              ) : null}
             </div>
           </div>
         )
