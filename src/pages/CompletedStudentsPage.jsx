@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
-import { CheckCircle2, ChevronLeft, ChevronRight, Eye, RefreshCcw, Search, X } from 'lucide-react'
+import { CheckCircle2, ChevronLeft, ChevronRight, Download, Eye, RefreshCcw, Search, X } from 'lucide-react'
 import { listCompletedStudentCourses } from '../services/completedStudentService'
+import { BranchMonthlyReportModal } from '../components/BranchMonthlyReportModal'
 import '../styles/CompletedStudentsPage.css'
 
 const PAGE_SIZE = 5
@@ -198,6 +199,7 @@ function StatusPill({ value }) {
 }
 
 export function CompletedStudentsPage({ academicProgressByStudent = new Map(), branchAdminName = '', completedStudents = [], completedStudentsLoading = false, courseCatalog = [], paymentHistoryRecords = [], students = [] } = {}) {
+  const [isReportOpen, setIsReportOpen] = useState(false)
   const [tab, setTab] = useState('COMPLETED')
   const [search, setSearch] = useState('')
   const [appliedSearch, setAppliedSearch] = useState('')
@@ -434,7 +436,7 @@ export function CompletedStudentsPage({ academicProgressByStudent = new Map(), b
     <section className="completed-students-page">
       <header className="completed-students-header">
         <div><p className="completed-students-kicker">ACADEMIC OPERATION</p><h1>Completed Students</h1><p>Review course records that are completed or discontinued from the persisted branch data.</p></div>
-        <button type="button" className="completed-students-refresh" onClick={() => void load()} disabled={state.loading}><RefreshCcw size={17} className={state.loading ? 'is-spinning' : ''} /> Refresh</button>
+        <div className="completed-students-header-actions"><button type="button" className="completed-students-report" onClick={() => setIsReportOpen(true)}><Download size={17} /> Student Status Report</button><button type="button" className="completed-students-refresh" onClick={() => void load()} disabled={state.loading}><RefreshCcw size={17} className={state.loading ? 'is-spinning' : ''} /> Refresh</button></div>
       </header>
 
       <div className="completed-students-tabs" role="tablist" aria-label="Student course lifecycle">
@@ -456,6 +458,7 @@ export function CompletedStudentsPage({ academicProgressByStudent = new Map(), b
 
       {selected ? <div className="completed-students-modal-backdrop" role="presentation"><section className="completed-students-modal completed-students-view-modal" role="dialog" aria-modal="true" aria-labelledby="completed-student-details-title"><header className="completed-students-modal-header"><div className="completed-students-profile"><div className="completed-students-avatar">{String(selected.studentName || '?').trim().charAt(0).toUpperCase()}</div><div><p className="completed-students-kicker">COURSE RECORD</p><h2 id="completed-student-details-title">{valueOf(selected.studentName)}</h2><span>{valueOf(selected.studentId)}{selected.courseName ? ` · ${selected.courseName}` : ''}</span></div></div><button type="button" className="completed-students-modal-close" onClick={() => setSelected(null)} aria-label="Close"><X size={18} /></button></header><div className="completed-students-view-summary"><div><span>Current Status</span><strong>{valueOf(selectedValue('Current Status') || selected.currentStatus || selected.studentStatus)}</strong></div><div><span>Purpose</span><strong>{valueOf(selectedValue('Purpose'))}</strong></div><div><span>Student Status</span><strong className="completed-students-summary-status">{valueOf(selectedValue('Student Status') || selected.lifecycleStatus)}</strong></div></div><div className="completed-students-modal-body"><section className="completed-students-modal-section completed-students-view-card completed-students-view-card--full"><h3>Student Information</h3><dl>{selectedSection('Student Information')?.fields.map(([label, value]) => <div className="completed-students-modal-field" key={label}><dt>{label}</dt><dd>{valueOf(value)}</dd></div>)}</dl></section><div className="completed-students-view-grid"><section className="completed-students-modal-section completed-students-view-card"><h3>Course &amp; Schedule</h3><dl>{selectedSection('Course & Schedule')?.fields.map(([label, value]) => <div className="completed-students-modal-field" key={label}><dt>{label}</dt><dd>{valueOf(value)}</dd></div>)}</dl></section><section className="completed-students-modal-section completed-students-view-card"><h3>Fees &amp; Payment</h3><dl>{selectedSection('Fees & Payment')?.fields.map(([label, value]) => <div className="completed-students-modal-field" key={label}><dt>{label}</dt><dd>{valueOf(value)}</dd></div>)}</dl></section></div>{selectedSection('Academic Performance')?.fields.length ? <section className="completed-students-modal-section completed-students-view-card completed-students-view-card--full"><h3>Academic Performance</h3><dl>{selectedSection('Academic Performance').fields.map(([label, value]) => <div className="completed-students-modal-field" key={label}><dt>{label}</dt><dd>{valueOf(value)}</dd></div>)}</dl></section> : null}</div></section></div> : null}
 
+      <BranchMonthlyReportModal isOpen={isReportOpen} onClose={() => setIsReportOpen(false)} />
     </section>
   )
 }
