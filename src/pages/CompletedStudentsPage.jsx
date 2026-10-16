@@ -384,7 +384,7 @@ export function CompletedStudentsPage({ academicProgressByStudent = new Map(), b
       const syncedApiRows = apiRows.map((row) => {
         const rowStudentKey = row.studentId || row.id || row.recordId
         const student = sourceStudents.find((item) => String(item.studentId || item.id || item.recordId || '').trim().toLowerCase() === String(rowStudentKey || '').trim().toLowerCase())
-        if (!student && lifecycle !== 'COMPLETED') return row
+        if (!student && lifecycle !== 'COMPLETED') return { ...row, pendingAmount: 0 }
         const courseId = row.courseId || row.course?.id || ''
         const courseName = row.courseName || row.course?.name || ''
         const selectedEnrollment = (Array.isArray(student?.courseEnrollments) ? student.courseEnrollments : []).find((entry) => (
@@ -406,7 +406,7 @@ export function CompletedStudentsPage({ academicProgressByStudent = new Map(), b
           ...mergedRow,
           totalFees: resolvedTotalFees || financials.totalFees,
           paidAmount: resolvedPaidAmount,
-          pendingAmount: resolvedPendingAmount,
+          pendingAmount: lifecycle === 'DISCONTINUED' ? 0 : resolvedPendingAmount,
           attendancePercentage: hasValue(row.attendancePercentage)
             ? row.attendancePercentage
             : student?.attendancePercentage ?? student?.attendancePercent ?? 100,
