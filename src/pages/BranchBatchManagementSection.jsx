@@ -966,10 +966,11 @@ function getStudentAcademicTestProgress(response = {}, totalConfiguredTests = 0,
     ].filter(Boolean)
     const getStatus = (item) => String(item?.status || item?.reportStatus || item?.final?.status || item?.test?.status || item?.result?.status || '').trim().toUpperCase().replace(/\s+/g, '_')
     const nestedResults = items.flatMap(getNestedResults)
-    const hasNotAttended = nestedResults.some((item) => ['NOT_ATTENDED', 'NOT_SUBMITTED', 'ABSENT'].includes(getStatus(item)))
-    if (hasNotAttended) return false
     return nestedResults.some((item) => {
       const status = getStatus(item)
+      // A retest can follow an original Not Attended attempt. Ignore the
+      // incomplete attempt when a later valid result/mark is present.
+      if (['NOT_ATTENDED', 'NOT_SUBMITTED', 'ABSENT'].includes(status)) return false
       return ['SUBMITTED', 'EVALUATED', 'GRADED', 'COMPLETED', 'PROJECT_SUBMITTED', 'PROJECT_GRADED'].includes(status)
         || Number(item?.percentage ?? item?.final?.percentage) > 0
         || Number(item?.overallTestPercentage) > 0
