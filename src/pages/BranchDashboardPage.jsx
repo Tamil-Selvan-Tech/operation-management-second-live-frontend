@@ -4358,6 +4358,7 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
   const [studentPage, setStudentPage] = useState(1)
   const [isStudentFormOpen, setIsStudentFormOpen] = useState(false)
   const [studentFormMode, setStudentFormMode] = useState('add') // 'add' | 'view' | 'edit'
+  const studentFormModalRef = useRef(null)
   const initialStudentEditOpenedRef = useRef('')
   const [studentFormStep, setStudentFormStep] = useState(1)
   const [studentForm, setStudentForm] = useState(() => createInitialStudentForm(''))
@@ -8352,6 +8353,16 @@ const studentCourseOptions = useMemo(() => {
     }
   }, [isStudentFormOpen, isStudentSaving])
 
+  // Keep the complete student form visible when switching steps or showing the
+  // saving/error state instead of preserving a partially scrolled position.
+  useEffect(() => {
+    if (!isStudentFormOpen) return undefined
+    const frame = window.requestAnimationFrame(() => {
+      studentFormModalRef.current?.scrollTo({ top: 0, behavior: 'auto' })
+    })
+    return () => window.cancelAnimationFrame(frame)
+  }, [isStudentFormOpen, studentFormStep, isStudentSaving, studentFormError])
+
   // Keep today's date available when opening a new student form.
   useEffect(() => {
     if (
@@ -12139,7 +12150,7 @@ else {
                         </td>
                         <td><span className="branch-student-due-date">{isStudentDiscontinued ? '-' : formatDueDate(courseRow.nextCourseDueDate)}</span></td>
                         <td>{isStudentDiscontinued
-                          ? <span className="branch-student-payment-status discontinued">Discontinued</span>
+                          ? <span className="branch-no-installment">-</span>
                           : courseRow.isPendingSequentialCourse
                           ? <span className="faculty-today-work-empty-label">-</span>
                           : <span className={`branch-student-payment-status ${courseRow.courseStatus.toLowerCase()}`}>{courseRow.courseStatus}</span>}</td>
@@ -12156,7 +12167,7 @@ else {
                           ) : <span className="branch-no-installment">-</span>}
                         </td>
                         <td rowSpan={displayCourseRows.length}><span className="branch-student-due-date">{isStudentDiscontinued ? '-' : formatDueDate(combinedNextDueDate)}</span></td>
-                        <td rowSpan={displayCourseRows.length}><span className={`branch-student-payment-status ${isStudentDiscontinued ? 'discontinued' : combinedPaymentStatus.toLowerCase()}`}>{isStudentDiscontinued ? 'Discontinued' : combinedPaymentStatus}</span></td>
+                        <td rowSpan={displayCourseRows.length}><span className={isStudentDiscontinued ? 'branch-no-installment' : `branch-student-payment-status ${combinedPaymentStatus.toLowerCase()}`}>{isStudentDiscontinued ? '-' : combinedPaymentStatus}</span></td>
                       </>
                     ) : null}
                     {isSequentialArrangement && courseRow.isPendingSequentialCourse ? (
@@ -12236,7 +12247,6 @@ else {
                 <strong>{stu.studentId || '-'}</strong>
                 <div className="branch-student-name-with-status">
                   <span>{stu.studentName || '-'}</span>
-                  {stu.isDiscontinued ? <span className="branch-student-discontinued-badge">Discontinued</span> : null}
                 </div>
               </td>
               <td>
@@ -12296,7 +12306,9 @@ else {
                 })()}
               </td>
               <td>
-                {nextInstallment ? (
+                {isStudentDiscontinued ? (
+                  <span className="branch-no-installment">-</span>
+                ) : nextInstallment ? (
                   <div className="branch-next-installment">
                     <strong>{formatFee(nextInstallmentAmount)}</strong>
                     <span>
@@ -12309,16 +12321,14 @@ else {
               </td>
               <td>
                 <span className="branch-student-due-date">
-                  {formatDueDate(nextDueDate)}
+                  {isStudentDiscontinued ? '-' : formatDueDate(nextDueDate)}
                 </span>
               </td>
               <td>
-                <span
-                  className={`branch-student-payment-status ${paymentStatus
-                    .toLowerCase()
-                    .replace(/\s+/g, '-')}`}
-                >
-                  {paymentStatus}
+                <span className={isStudentDiscontinued ? 'branch-no-installment' : `branch-student-payment-status ${paymentStatus
+                  .toLowerCase()
+                  .replace(/\s+/g, '-')}`}>
+                  {isStudentDiscontinued ? '-' : paymentStatus}
                 </span>
               </td>
 
@@ -12420,6 +12430,7 @@ else {
                       <button
                         type="button"
                         role="menuitem"
+                        disabled={isStudentDiscontinued}
                         onClick={() => {
                           setStudentActionMenuId('')
                           setStudentActionMenuPosition({ top: 0, left: 0 })
@@ -12433,6 +12444,7 @@ else {
                       <button
                         type="button"
                         role="menuitem"
+                        disabled={isStudentDiscontinued}
                         onClick={() => {
                           setStudentActionMenuId('')
                           setStudentActionMenuPosition({ top: 0, left: 0 })
@@ -17348,6 +17360,7 @@ else {
         {isStudentFormOpen ? (
           <div className="course-modal-backdrop" role="presentation">
             <form
+              ref={studentFormModalRef}
               className="course-modal panel-card"
               role="dialog"
               aria-modal="true"
