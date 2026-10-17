@@ -297,9 +297,17 @@ function isAcademicTestProgressComplete(progress = null) {
   const totalTests = Number(progress.totalEvaluations ?? progress.totalTests)
   const completedTests = Number(progress.completedEvaluations ?? progress.completedTests)
   const pendingTests = Number(progress.pendingEvaluations ?? progress.pendingTests)
+  const totalProjects = Number(progress.totalProjects)
+  const completedProjects = Number(progress.completedProjects)
+  const pendingProjects = Number(progress.pendingProjects)
+  const projectsComplete = totalProjects > 0
+    ? Number.isFinite(completedProjects) && completedProjects >= totalProjects
+      && Number.isFinite(pendingProjects) && pendingProjects === 0
+    : true
   return Number.isFinite(totalTests) && totalTests > 0
     && Number.isFinite(completedTests) && completedTests >= totalTests
     && Number.isFinite(pendingTests) && pendingTests === 0
+    && projectsComplete
 }
 
 function getAcademicProgressIndex(response = null) {
@@ -431,6 +439,12 @@ function getCourseAcademicProgress(student = {}, courseId = '', courseName = '',
 }
 
 function isCourseCompletionComplete(student = {}, courseId = '', courseName = '', progress = 0, fetchedByStudent = new Map(), course = null) {
+  // The branch-student API calculates completion from the current enrollment,
+  // academic tests, and projects. Never let an older report-share snapshot
+  // mark a course completed when the live enrollment explicitly says it is
+  // still in progress.
+  const liveCompletionStatus = String(student?.courseCompletionStatus || student?.courseCompletion || '').trim().toUpperCase()
+  if (liveCompletionStatus === 'IN_PROGRESS') return false
   const configuredTotal = Number(course?.academicTestCount)
   const academicProgress = getCourseAcademicProgress(student, courseId, courseName, fetchedByStudent)
   const reportedTotal = Number(academicProgress?.totalEvaluations ?? academicProgress?.totalTests)

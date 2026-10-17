@@ -91,6 +91,7 @@ export default function BranchExamResultsPage({ branchId = '' }) {
   }, [branchId])
   const sharePageSize = 5
   const filteredShares = useMemo(() => shares
+    .filter((share) => String(share.reportType || share.type || '').toUpperCase() !== 'ACADEMIC_TEST')
     .filter((share) => {
       const query = appliedSearch.trim().toLowerCase()
       if (!query) return true
