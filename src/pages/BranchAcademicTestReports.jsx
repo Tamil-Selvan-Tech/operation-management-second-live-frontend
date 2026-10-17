@@ -42,10 +42,27 @@ function TestCell({ test }) {
   return <div className="academic-report-test-cell"><div className="academic-report-final"><strong>{isScored(final.status) ? `${final.marksObtained}/${final.totalMarks}` : final.status === 'NOT_ATTENDED' ? 'Not Attended' : '-'}</strong>{final.percentage != null && <small className="academic-report-cell-percent">{final.percentage}%</small>}<em className={resultClass(final.result)}>{display(final.result)}</em></div>{test.attempts?.length > 1 && <><button type="button" className="academic-report-history-toggle" onClick={() => setOpen((value) => !value)}>{open ? 'Hide history' : `${test.attempts.length} attempts`}<ChevronDown size={14} className={open ? 'is-open' : ''} /></button>{open && <div className="academic-report-history">{test.attempts.map((attempt) => <div className="academic-report-attempt" key={attempt.scheduleId}><span>{attempt.attemptType === 'RETEST' ? `Retest ${attempt.attemptNumber || ''}` : 'Original'}</span><strong>{isScored(attempt.status) ? `${attempt.marksObtained}/${attempt.totalMarks}` : 'Not Attended'}</strong><em className={resultClass(attempt.result)}>{display(attempt.result, '')}</em></div>)}</div>}</>}</div>
 }
 
-function HistorySubmission({ submission, index }) {
+function LegacyHistorySubmission({ submission, index }) {
   const data = submission?.reportData || {}
   const test = data.tests?.[0] || {}
   return <article className="academic-report-history-card"><div className="academic-report-history-card-heading"><strong>Submission {index + 1}</strong><span>{submission.submittedAt ? new Date(submission.submittedAt).toLocaleString() : '-'}</span><small>{submission.faculty?.fullName || 'Faculty'}{submission.faculty?.email ? ` · ${submission.faculty.email}` : ''}</small></div><div className="academic-report-table-wrap"><table className="academic-report-table academic-report-student-table"><thead><tr><th>Student</th><th>Student ID</th><th>Test {test.testNumber || data.academicTest?.sequence || '-'}</th><th>Percentage</th></tr></thead><tbody>{data.students?.length ? data.students.map((row) => { const result = row.tests?.[0]?.final || {}; const scored = ['SUBMITTED', 'EVALUATED'].includes(String(result.status || '').toUpperCase()); return <tr key={`${submission.id}-${row.student?.id}`}><td><strong>{row.student?.studentName || '-'}</strong><small>{row.student?.emailAddress || '-'}</small></td><td>{row.student?.studentId || '-'}</td><td>{scored ? `${result.marksObtained}/${result.totalMarks}` : result.status === 'NOT_ATTENDED' ? 'Not Attended' : '-'}</td><td>{result.percentage == null ? '-' : `${result.percentage}%`}</td></tr> }) : <tr><td colSpan="4">No student snapshot found.</td></tr>}</tbody></table></div></article>
+}
+
+function HistorySubmission({ submission, index }) {
+  const data = submission?.reportData || {}
+  const test = data.tests?.[0] || {}
+  const projectItems = data.projectItems || []
+  return <article className="academic-report-history-card">
+    <div className="academic-report-history-card-heading"><strong>Submission {index + 1}</strong><span>{submission.submittedAt ? new Date(submission.submittedAt).toLocaleString() : '-'}</span><small>{submission.faculty?.fullName || 'Faculty'}</small></div>
+    <div className="academic-report-table-wrap"><table className="academic-report-table academic-report-student-table"><thead><tr><th>Student</th><th>Student ID</th><th>Test {test.testNumber || data.academicTest?.sequence || '-'} Marks</th><th>Result</th><th>Percentage</th>{projectItems.map((item) => <th key={`project-header-${item.testNumber}`}>Test {item.testNumber} Project</th>)}<th>Overall Test %</th>{projectItems.length > 0 && <th>Overall Project %</th>}</tr></thead><tbody>
+      {data.students?.length ? data.students.map((row) => {
+        const result = row.tests?.[0]?.final || {}
+        const scored = ['SUBMITTED', 'EVALUATED'].includes(String(result.status || '').toUpperCase())
+        const overallPercentage = row.overallTestPercentage ?? row.overallPercentage
+        return <tr key={`${submission.id}-${row.student?.id}`}><td><strong>{row.student?.studentName || '-'}</strong><small>{row.student?.emailAddress || '-'}</small></td><td>{row.student?.studentId || '-'}</td><td>{scored ? `${result.marksObtained}/${result.totalMarks}` : result.status === 'NOT_ATTENDED' ? 'Not Attended' : '-'}</td><td><strong className={resultClass(result.result)}>{display(result.result, result.status === 'NOT_ATTENDED' ? 'Not Attended' : '-')}</strong></td><td>{result.percentage == null ? '-' : `${result.percentage}%`}</td>{projectItems.map((item) => { const project = (row.projects || []).find((entry) => Number(entry.testNumber) === Number(item.testNumber)); return <td key={`${submission.id}-${row.student?.id}-project-${item.testNumber}`}>{project?.marksAwarded == null ? '-' : `${project.marksAwarded}/${project.totalMarks}`} {project?.result && <strong className={resultClass(project.result)}>{project.result}</strong>}</td> })}<td className="academic-report-percent">{overallPercentage == null ? '-' : `${overallPercentage}%`}</td>{projectItems.length > 0 && <td className="academic-report-percent">{row.overallProjectPercentage == null ? '-' : `${row.overallProjectPercentage}%`}</td>}</tr>
+      }) : <tr><td colSpan={6 + projectItems.length + (projectItems.length > 0 ? 1 : 0)}>No student snapshot found.</td></tr>}
+    </tbody></table></div>
+  </article>
 }
 
 export default function BranchAcademicTestReports() {
@@ -56,6 +73,7 @@ export default function BranchAcademicTestReports() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [studentSearch, setStudentSearch] = useState('')
+  const [showHistoryList, setShowHistoryList] = useState(false)
 
   useEffect(() => { Promise.all([listBranchAcademicTestReports(), listAcademicTests()]).then(([reportRows, testRows]) => { setReports(Array.isArray(reportRows) ? reportRows : []); setAcademicTestRows(Array.isArray(testRows) ? testRows : []) }).catch((err) => setError(err.message || 'Unable to load reports.')).finally(() => setLoading(false)) }, [])
 
@@ -85,6 +103,13 @@ export default function BranchAcademicTestReports() {
   const hasProject = Boolean(report?.hasProject)
   const studentQuery = studentSearch.trim().toLowerCase()
   const visibleStudents = (report?.students || []).filter((row) => !studentQuery || [row.student?.studentName, row.student?.studentId].some((field) => String(field || '').toLowerCase().includes(studentQuery)))
+  const activeReports = reports.filter((item) => String(item.status || 'ACTIVE').toUpperCase() !== 'COMPLETED')
+  const historyReports = reports.filter((item) => String(item.status || '').toUpperCase() === 'COMPLETED')
+  const renderReportList = () => {
+    const rows = showHistoryList ? historyReports : activeReports
+    return <><div className="academic-report-section-heading"><div><h2>{showHistoryList ? 'Report History' : 'Active Reports'}</h2><p>{showHistoryList ? 'Completed batch cycles and their submitted test history.' : 'Reports currently active for the batch cycle.'}</p></div><div className="academic-report-section-actions"><span>{rows.length} reports</span><button type="button" className="academic-report-back" onClick={() => setShowHistoryList((value) => !value)}>{showHistoryList ? 'Active Reports' : 'View History'}</button></div></div><section className="academic-report-card"><div className="academic-report-table-wrap"><table className="academic-report-table"><thead><tr><th>Batch Name</th><th>Batch ID</th><th>Status</th><th>Course</th><th>Test</th><th>Latest Submitted</th><th>Faculty</th><th>Action</th></tr></thead><tbody>{rows.length ? rows.map((item) => <tr key={item.id}><td>{item.batch?.batchName || '-'}</td><td>{item.batch?.batchId || '-'}</td><td><strong>{item.status || (showHistoryList ? 'COMPLETED' : 'ACTIVE')}</strong></td><td>{item.course?.name || item.batch?.courseName || '-'}</td><td>Test {item.testNumber || '-'}</td><td>{item.latestSubmittedAt ? new Date(item.latestSubmittedAt).toLocaleString() : '-'}</td><td>{item.faculty?.fullName || '-'}</td><td><button type="button" className="academic-report-primary" onClick={() => openHistory(item.historyId || item.id)}>{showHistoryList ? 'View History' : 'View Students'}</button></td></tr>) : <tr><td colSpan="8">{showHistoryList ? 'No completed report history found.' : 'No active Academic Test reports found.'}</td></tr>}</tbody></table></div></section></>
+  }
+  if (!report && !history && !loading) return <section className="academic-report-page is-embedded branch-academic-report"><div className="academic-report-heading"><div><p className="academic-report-kicker">BRANCH ADMIN WORKSPACE</p><h1>Academic Test Report</h1><p>Reports sent by faculty for completed Academic Tests.</p></div></div>{error && <div className="academic-report-error">{error}</div>}{renderReportList()}</section>
 
   if (loading && !report) return <section className="academic-report-page is-embedded branch-academic-report"><div className="academic-report-heading"><div><p className="academic-report-kicker">BRANCH ADMIN WORKSPACE</p><h1>Academic Test Report</h1><p>Reports sent by faculty for completed Academic Tests.</p></div></div><section className="academic-report-card academic-report-loading-card"><div className="academic-report-card-title"><h2>Received Reports</h2><span className="academic-report-skeleton-short" /></div><div className="academic-report-table-wrap"><table className="academic-report-table"><thead><tr><th>Batch</th><th>Batch ID</th><th>Course</th><th>Faculty</th><th>Tests</th><th>Test Progress</th><th>Sent At</th><th>Action</th></tr></thead><tbody><AcademicReportSkeletonRows columns={8} /></tbody></table></div></section></section>
 

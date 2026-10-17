@@ -44,3 +44,6 @@
 .academic-report-send-actions .academic-report-primary { border-color: #2463e8; background: #2463e8; color: #fff; }
 .academic-report-sent-status{margin:0 0 12px auto;width:max-content;max-width:100%;padding:8px 12px;border:1px solid #a7f3d0;border-radius:999px;background:#ecfdf5;color:#047857;font-size:13px;font-weight:700}
 .academic-report-history-card{padding:18px 24px;border-bottom:1px solid #e2ebf6}.academic-report-history-card:last-child{border-bottom:0}.academic-report-history-card-heading{display:flex;align-items:center;gap:14px;margin-bottom:12px;color:#355782}.academic-report-history-card-heading strong{color:#173568}.academic-report-history-card-heading span{color:#6680a5;font-size:13px}.academic-report-history-card-heading small{margin-left:auto;color:#6680a5}
+.academic-report-table-toolbar{display:flex;justify-content:flex-end;padding:12px 24px 0}
+.academic-report-section-heading{display:flex;justify-content:space-between;align-items:flex-end;gap:24px;margin:0 0 14px;padding:0 24px}.academic-report-section-heading h2{margin:0;color:#173568;font-size:21px;font-weight:600}.academic-report-section-heading p{margin:7px 0 0;color:#6680a5}.academic-report-section-heading>span{color:#6680a5;font-weight:700}
+.academic-report-section-actions{display:flex;align-items:center;gap:14px}.academic-report-section-actions>span{color:#6680a5;font-weight:700}
