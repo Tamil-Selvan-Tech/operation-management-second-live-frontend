@@ -7,6 +7,8 @@
 .completed-students-refresh, .completed-students-search-button, .completed-students-view { display: inline-flex; align-items: center; justify-content: center; gap: 7px; border: 1px solid #bfdbfe; border-radius: 9px; background: #fff; color: #1d4ed8; font: inherit; font-weight: 750; cursor: pointer; }
 .completed-students-refresh { min-height: 38px; padding: 0 13px; }
 .completed-students-report { min-height: 38px; padding: 0 14px; display: inline-flex; align-items: center; gap: 7px; border: 1px solid #0f9d91; border-radius: 9px; background: #0f9d91; color: #fff; font: inherit; font-weight: 750; cursor: pointer; box-shadow: 0 5px 14px rgba(15,157,145,.16); }
+.completed-students-upload { min-height: 38px; padding: 0 14px; display: inline-flex; align-items: center; gap: 7px; border: 1px solid #2563eb; border-radius: 9px; background: #fff; color: #1d4ed8; font: inherit; font-weight: 750; cursor: pointer; }
+.completed-students-upload:hover { background: #eff6ff; }
 .completed-students-report:hover { background: #0b8278; }
 .completed-students-refresh:disabled, .completed-students-pagination button:disabled { cursor: not-allowed; opacity: .55; }
 .completed-students-tabs { display: flex; gap: 8px; border-bottom: 1px solid #dbeafe; }
@@ -30,6 +32,28 @@
 .completed-students-table-wrap tbody > tr:has(td.completed-students-state:not(:has(svg))) td.completed-students-state::after { content: ''; position: absolute; inset: 0; background: linear-gradient(90deg, transparent 20%, rgba(219, 234, 254, .85) 50%, transparent 80%); background-size: 200% 100%; animation: completed-students-skeleton 1.25s ease-in-out infinite; }
 .completed-students-state svg, .completed-students-state strong, .completed-students-state span { display: block; margin: 0 auto 7px; }
 .completed-students-view { min-height: 30px; padding: 0 9px; font-size: .72rem; }
+.completed-students-actions { display: flex; align-items: center; gap: 7px; }
+.completed-students-action-menu { position: relative; display: inline-flex; }
+.completed-students-action-trigger { display: grid; place-items: center; width: 34px; height: 32px; border: 1px solid #cbd5e1; border-radius: 8px; background: #fff; color: #334155; cursor: pointer; }
+.completed-students-action-trigger:hover, .completed-students-action-trigger[aria-expanded="true"] { border-color: #93c5fd; background: #eff6ff; color: #1d4ed8; }
+.completed-students-action-dropdown { position: absolute; z-index: 20; top: calc(100% + 6px); right: 0; display: grid; min-width: 142px; padding: 5px; border: 1px solid #dbeafe; border-radius: 10px; background: #fff; box-shadow: 0 12px 28px rgba(15, 23, 42, .16); }
+.completed-students-action-dropdown button { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 34px; padding: 0 9px; border: 0; border-radius: 7px; background: transparent; color: #334155; font: inherit; font-size: .75rem; font-weight: 750; text-align: left; cursor: pointer; }
+.completed-students-action-dropdown button:hover { background: #eff6ff; color: #1d4ed8; }
+.completed-students-action-dropdown button.is-danger { color: #b91c1c; }
+.completed-students-action-dropdown button.is-danger:hover { background: #fff1f2; color: #b91c1c; }
+.completed-students-delete { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 30px; padding: 0 9px; border: 1px solid #fecaca; border-radius: 9px; background: #fff; color: #b91c1c; font: inherit; font-size: .72rem; font-weight: 750; cursor: pointer; }
+.completed-students-delete:hover { background: #fff1f2; border-color: #fca5a5; }
+.completed-students-delete-icon { display: grid; place-items: center; width: 42px; height: 42px; border-radius: 12px; background: #fff1f2; color: #dc2626; }
+.completed-students-delete-modal { width: min(560px, 100%); }
+.completed-students-delete-body { display: grid; gap: 12px; padding: 24px 30px; color: #475569; font-size: .88rem; line-height: 1.6; }
+.completed-students-delete-body p { margin: 0; }
+.completed-students-delete-body strong { color: #b91c1c; }
+.completed-students-delete-actions { display: flex; justify-content: flex-end; gap: 10px; padding: 16px 30px 22px; border-top: 1px solid #e2e8f0; }
+.completed-students-delete-cancel, .completed-students-delete-confirm { min-height: 38px; padding: 0 15px; border-radius: 9px; font: inherit; font-size: .78rem; font-weight: 800; cursor: pointer; }
+.completed-students-delete-cancel { border: 1px solid #cbd5e1; background: #fff; color: #334155; }
+.completed-students-delete-confirm { border: 1px solid #dc2626; background: #dc2626; color: #fff; }
+.completed-students-delete-confirm:hover { background: #b91c1c; }
+.completed-students-delete-cancel:disabled, .completed-students-delete-confirm:disabled { cursor: not-allowed; opacity: .6; }
 .completed-students-status { display: inline-flex; padding: 5px 8px; border-radius: 999px; background: #eff6ff; color: #1d4ed8; font-size: .68rem; font-weight: 850; }
 .completed-students-status--discontinued { background: #fff7ed; color: #c2410c; }
 .completed-students-pagination { display: flex; align-items: center; justify-content: space-between; color: #64748b; font-size: .78rem; }
@@ -46,6 +70,7 @@
 .completed-students-modal-field dt { color: #64748b; font-size: .76rem; font-weight: 650; }.completed-students-modal-field dd { margin: 0; color: #172554; font-size: .82rem; font-weight: 750; overflow-wrap: anywhere; }
 .is-spinning { animation: completed-students-spin .8s linear infinite; } @keyframes completed-students-spin { to { transform: rotate(360deg); } }
 @media (max-width: 700px) { .completed-students-header { flex-direction: column; }.completed-students-modal-header { padding: 22px 20px 18px; }.completed-students-modal-body { grid-template-columns: 1fr; padding: 2px 20px 22px; }.completed-students-modal-field { grid-template-columns: 1fr; gap: 4px; padding: 12px 0; } }
+@media (max-width: 560px) { .completed-students-delete-body { padding: 22px 20px; }.completed-students-delete-actions { padding-inline: 20px; }.completed-students-delete-actions button { flex: 1; } }
 
 /* Compact Student 360-style view for completed student records. */
 .completed-students-view-modal { width: min(1080px, 100%); max-height: min(820px, calc(100vh - 28px)); border-radius: 14px; background: #f8fbff; }
@@ -74,3 +99,13 @@
 .completed-students-view-card--full:last-child h3 { background: linear-gradient(90deg, #f5f3ff, #fff); color: #6d28d9; }
 @media (max-width: 760px) { .completed-students-view-summary, .completed-students-view-grid { grid-template-columns: 1fr; }.completed-students-view-card--full dl, .completed-students-view-card dl { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 460px) { .completed-students-view-card--full dl, .completed-students-view-card dl { grid-template-columns: 1fr; }.completed-students-view-summary { margin-inline: 10px; }.completed-students-view-modal .completed-students-modal-body { padding-inline: 10px; } }
+
+/* Keep destructive confirmation focused and compact instead of using the full details modal size. */
+.completed-students-delete-modal { width: min(520px, calc(100vw - 32px)); max-height: min(430px, calc(100vh - 32px)); border-radius: 14px; }
+.completed-students-delete-modal .completed-students-modal-header { gap: 14px; padding: 18px 20px 15px; }
+.completed-students-delete-modal .completed-students-modal-header h2 { margin-bottom: 4px; font-size: 1.25rem; }
+.completed-students-delete-modal .completed-students-modal-header > div > span { font-size: .72rem; }
+.completed-students-delete-modal .completed-students-delete-icon { width: 36px; height: 36px; border-radius: 10px; }
+.completed-students-delete-body { gap: 8px; padding: 18px 20px; font-size: .78rem; line-height: 1.45; }
+.completed-students-delete-actions { gap: 8px; padding: 13px 20px 17px; }
+.completed-students-delete-cancel, .completed-students-delete-confirm { min-height: 34px; padding: 0 12px; font-size: .72rem; }
