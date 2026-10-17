@@ -44,3 +44,6 @@
 .academic-project-preview-actions > button:nth-last-child(2){height:40px;min-height:40px;width:max-content;align-self:flex-start}
 .academic-preparation-question:not(.is-assessment) > .academic-preparation-field.compact:last-of-type{display:none}
 .academic-preparation-project-grid ~ .academic-preparation-field:nth-of-type(2){display:none}
+.academic-preparation-page .academic-evaluation-view-result {
+  display: none !important;
+}

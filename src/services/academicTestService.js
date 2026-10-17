@@ -60,6 +60,9 @@ export const getBranchStudentAcademicReports = (studentId, branchId = '') => {
 export const getAcademicTestPreparation = (academicTestItemId, branchBatchId) =>
   request(`/academic-test-preparation/items/${encodeURIComponent(academicTestItemId)}?branchBatchId=${encodeURIComponent(branchBatchId)}`).then(unwrap)
 
+export const startAcademicTestCycle = (academicTestItemId, branchBatchId) =>
+  request('/academic-test-preparation/cycles', { method: 'POST', body: JSON.stringify({ academicTestItemId, branchBatchId }) }).then(unwrap)
+
 export const saveQuestionPaper = (payload) =>
   request('/academic-test-preparation/question-papers', { method: 'POST', body: JSON.stringify(payload) }).then(unwrap)
 

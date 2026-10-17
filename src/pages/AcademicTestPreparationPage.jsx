@@ -194,7 +194,7 @@ function StudentResultModal({ entry, schedule, onClose }) {
 }
 
 function ScheduleRowActionMenu({ createLabel, onView, onEdit, onEditSchedule, onCancel }) {
-  return <div className="academic-evaluation-actions academic-schedule-actions"><button type="button" className="academic-evaluation-create" onClick={onEdit}>{createLabel}</button>{onView && <button type="button" className="academic-evaluation-result" onClick={onView}>View Result</button>}</div>
+  return <div className="academic-evaluation-actions academic-schedule-actions"><button type="button" className="academic-evaluation-create" onClick={onEdit}>{createLabel}</button>{onView && <button type="button" className="academic-evaluation-result academic-evaluation-view-result" onClick={onView}>View Result</button>}</div>
 }
 
 function RetestStudentActions({ result, onSchedule }) {
@@ -277,6 +277,11 @@ export default function AcademicTestPreparationPage({ facultyCourseProgressByBat
   }, [itemId, batchId, searchParams.toString()])
   useEffect(() => {
     let active = true
+    if (data?.cycle) {
+      const cycleValue = Number(data.courseProgress)
+      setCourseProgress(Number.isFinite(cycleValue) ? Math.round(Math.max(0, Math.min(100, cycleValue))) : 0)
+      return () => { active = false }
+    }
     const selectedBatchIds = [batchId, data?.batch?.id, data?.batch?.batchId].map((value) => String(value || '').trim().toLowerCase()).filter(Boolean)
     const progressContextKey = [itemId, ...selectedBatchIds].join('|')
     if (courseProgressContextRef.current !== progressContextKey) {
@@ -304,7 +309,7 @@ export default function AcademicTestPreparationPage({ facultyCourseProgressByBat
       setCourseProgress(Number.isFinite(progressValue) ? Math.round(Math.max(0, Math.min(100, progressValue))) : 0)
     })
     return () => { active = false }
-  }, [batchId, data?.batch?.id, data?.batch?.batchId, facultyCourseProgressByBatch])
+  }, [batchId, data?.batch?.id, data?.batch?.batchId, data?.cycle?.id, data?.progress, facultyCourseProgressByBatch])
   useEffect(() => { setEvaluationPage(1) }, [itemId, batchId])
   useEffect(() => { setShowRequiredErrors(false) }, [activeQuestionIndex])
   const totalMarks = useMemo(() => questions.reduce((sum, question) => { const marks = Number(question.marks || (question.questionType === 'MCQ' ? marksPerQuestion : 0)); return sum + (Number.isFinite(marks) ? marks : 0) }, 0), [questions, marksPerQuestion])

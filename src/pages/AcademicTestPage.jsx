@@ -120,7 +120,7 @@ export default function AcademicTestPage({ mode = 'branch', autoOpenCreate = fal
     const loadInitialRows = async () => {
       setLoading(true)
       try {
-        const [testRows, summary] = await Promise.all([listAcademicTests(), isFaculty ? getFacultyDashboardOverview() : Promise.resolve(null)])
+        const [testRows, summary, academicOptions] = await Promise.all([listAcademicTests(), isFaculty ? getFacultyDashboardOverview() : Promise.resolve(null), isFaculty ? getAcademicTestCreateOptions() : Promise.resolve(null)])
         if (!active) return
         const nextRows = isFaculty ? testRows.map((row) => ({ ...row, course: row.course ? { ...row.course, name: `${row.course.name || '-'}\n${row.course.courseCode || ''}` } : row.course })) : testRows
         setRows(nextRows)
@@ -143,6 +143,13 @@ export default function AcademicTestPage({ mode = 'branch', autoOpenCreate = fal
             ].forEach((batchKey) => {
               const normalizedBatchKey = String(batchKey || '').trim().toLowerCase()
               if (normalizedBatchKey) nextProgress.set(normalizedBatchKey, normalizedProgress)
+            })
+          })
+          ;(academicOptions?.courses || []).flatMap((course) => course.batches || []).forEach((entry) => {
+            if (!entry?.hasCompletedStudents) return
+            ;[entry?.id, entry?.batchId, entry?.batchName].forEach((batchKey) => {
+              const normalizedBatchKey = String(batchKey || '').trim().toLowerCase()
+              if (normalizedBatchKey) nextProgress.set(normalizedBatchKey, 0)
             })
           })
           setBatchProgressById(nextProgress)
