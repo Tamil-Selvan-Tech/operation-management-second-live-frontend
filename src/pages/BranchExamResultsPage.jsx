@@ -117,9 +117,9 @@ export default function BranchExamResultsPage({ branchId = '' }) {
             </div>
             <div className="exam-table-wrap">
               <table>
-                <thead><tr><th>Batch</th><th>Course</th><th>Module</th><th>Sent By</th><th>Sent At</th><th>Action</th></tr></thead>
+                <thead><tr><th>Batch</th><th>Cycle</th><th>Course</th><th>Module</th><th>Sent By</th><th>Sent At</th><th>Action</th></tr></thead>
                 <tbody>
-                  {loading ? Array.from({ length: 5 }, (_, index) => <tr key={`report-loading-${index}`} className="branch-report-skeleton-row" aria-hidden="true">{Array.from({ length: 6 }, (_, cellIndex) => <td key={cellIndex}><span /></td>)}</tr>) : filteredShares.length ? visibleShares.map((share) => <tr key={share.id}><td>{share.batch?.batchName || '-'}</td><td>{share.course?.name || '-'}</td><td>{share.moduleNames?.join(', ') || '-'}</td><td>{share.faculty?.fullName || '-'}</td><td>{share.sentAt ? new Date(share.sentAt).toLocaleString() : '-'}</td><td><button type="button" className="exam-link" onClick={() => setSelected(share)}>View Students</button></td></tr>) : <tr><td colSpan="6" className="exam-empty">{appliedSearch || reportTypeFilter !== 'all' ? 'No reports match the selected search or filters.' : 'No reports shared yet.'}</td></tr>}
+                  {loading ? Array.from({ length: 5 }, (_, index) => <tr key={`report-loading-${index}`} className="branch-report-skeleton-row" aria-hidden="true">{Array.from({ length: 7 }, (_, cellIndex) => <td key={cellIndex}><span /></td>)}</tr>) : filteredShares.length ? visibleShares.map((share) => <tr key={share.id}><td>{share.batch?.batchName || '-'}</td><td>{share.cycle?.cycleName || `Cycle ${share.cycle?.cycleNumber || '-'}`}<small>{share.cycle?.status || ''}</small></td><td>{share.course?.name || '-'}</td><td>{share.moduleNames?.join(', ') || '-'}</td><td>{share.faculty?.fullName || '-'}</td><td>{share.sentAt ? new Date(share.sentAt).toLocaleString() : '-'}</td><td><button type="button" className="exam-link" onClick={() => setSelected(share)}>View Students</button></td></tr>) : <tr><td colSpan="7" className="exam-empty">{appliedSearch || reportTypeFilter !== 'all' ? 'No reports match the selected search or filters.' : 'No reports shared yet.'}</td></tr>}
                 </tbody>
               </table>
             </div>

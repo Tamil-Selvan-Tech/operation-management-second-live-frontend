@@ -33,6 +33,7 @@ export const getMyAcademicReport = (courseId = '') => request(`/academic-tests/r
 export const listFacultyAcademicReportTests = (batchId) => request(`/academic-tests/reports/faculty/batches/${encodeURIComponent(batchId)}/completed-tests`).then(unwrap)
 export const sendAcademicTestReport = (payload) => request('/academic-tests/reports/send', { method: 'POST', body: JSON.stringify(payload) }).then(unwrap)
 export const listBranchAcademicTestReports = () => request('/academic-tests/reports/branch-admin').then(unwrap)
+export const getBranchAcademicTestReportHistory = (historyId) => request(`/academic-tests/reports/branch-admin/history/${encodeURIComponent(historyId)}`).then(unwrap)
 export const getBranchAcademicTestReport = (reportId) => request(`/academic-tests/reports/branch-admin/${encodeURIComponent(reportId)}/students`).then(unwrap)
 export const getBranchStudentAcademicReports = (studentId, branchId = '') => {
   const normalizedStudentId = String(studentId || '').trim()

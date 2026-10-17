@@ -5,8 +5,8 @@ import { getFacultyExamReports, listFacultyAssessments, listFacultyExamBatches, 
 import '../styles/FacultyExamReports.css'
 import FacultyAssessmentReportsPage from './FacultyAssessmentReportsPage'
 
-function ReportsTabs({ active, navigate, onSend }) {
-  return <><div className="faculty-reports-tabs"><button type="button" className={active === 'tests' ? 'is-active' : ''} onClick={() => navigate('/dashboard/faculty/exams/reports')}>Test Reports</button><button type="button" className={active === 'assessments' ? 'is-active' : ''} onClick={() => navigate('/dashboard/faculty/exams/reports?tab=assessments')}>Assessment Reports</button><button type="button" className="exam-primary faculty-report-send-button" onClick={onSend}><Send size={15} /> Send Report</button></div><div className="exam-cycle-notice"><strong>Current syllabus-test cycle</strong><span>After a report is sent, completed students move to the archived cycle. New students and new tests appear in the next cycle.</span></div></>
+export function ReportsTabs({ active, navigate, onSend, showSend = true }) {
+  return <><div className="faculty-reports-tabs"><button type="button" className={active === 'tests' ? 'is-active' : ''} onClick={() => navigate('/dashboard/faculty/exams/reports')}>Test Reports</button><button type="button" className={active === 'assessments' ? 'is-active' : ''} onClick={() => navigate('/dashboard/faculty/exams/reports?tab=assessments')}>Assessment Reports</button>{showSend && <button type="button" className="exam-primary faculty-report-send-button" onClick={onSend}><Send size={15} /> Send Report</button>}</div><div className="exam-cycle-notice"><strong>Current syllabus-test cycle</strong><span>After a report is sent, completed students move to the archived cycle. New students and new tests appear in the next cycle.</span></div></>
 }
 
 function SendReportModal({ courses, modules, batches, courseId, facultyTests = [], facultyAssessments = [], onCourseChange, onClose, onSent }) {

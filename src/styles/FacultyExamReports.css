@@ -68,6 +68,7 @@
 .branch-report-search input{min-height:40px;padding:9px 10px;border:1px solid #cbd5e1;border-radius:8px;background:#fff;color:#0f172a;font:inherit;font-weight:400;outline:none}
 .branch-report-search input:focus{border-color:#2563eb;box-shadow:0 0 0 3px #2563eb1f}
 .branch-inline-student-table{min-width:1180px!important}
+.branch-inline-student-table th:nth-child(3),.branch-inline-student-table td:nth-child(3){display:none}
 .branch-inline-student-table th,.branch-inline-student-table td{vertical-align:top;white-space:normal!important;padding:10px 8px!important}
 .branch-inline-student-table td small{display:block;margin-top:4px;color:#64748b;font-weight:500}
 .branch-report-cell{display:grid;gap:4px;min-width:145px;line-height:1.35;color:#536b87}

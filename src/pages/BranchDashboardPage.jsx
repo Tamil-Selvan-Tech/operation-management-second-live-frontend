@@ -770,7 +770,9 @@ function getBatchSeatSummary(batch = {}, students = [], excludedStudentKeys = []
   })
 
   const totalSeats = Math.max(Number(batch?.totalSeats || 0) || 0, 0)
-  const usedSeats = uniqueStudents.size
+  const usedSeats = Object.prototype.hasOwnProperty.call(batch, 'activeStudentCount')
+    ? Math.max(Number(batch.activeStudentCount || 0), 0)
+    : uniqueStudents.size
   const availableSeats = Math.max(totalSeats - usedSeats, 0)
 
   return {

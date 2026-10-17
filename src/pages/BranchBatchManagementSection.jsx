@@ -260,7 +260,9 @@ function getBatchSeatSummary(batch = {}, students = []) {
   })
 
   const totalSeats = Math.max(Number(batch?.totalSeats || 0) || 0, 0)
-  const usedSeats = uniqueStudents.size
+  const usedSeats = Object.prototype.hasOwnProperty.call(batch, 'activeStudentCount')
+    ? Math.max(Number(batch.activeStudentCount || 0), 0)
+    : uniqueStudents.size
   const remainingSeats = Math.max(totalSeats - usedSeats, 0)
 
   return {
@@ -2031,6 +2033,7 @@ export function BranchBatchManagementSection({
 
   const getComputedBatchStatus = (group = {}) => {
     const primaryBatch = getPrimaryBatchForGroup(group)
+    if (String(primaryBatch?.completionStatus || '').toUpperCase() === 'COMPLETED' || String(primaryBatch?.currentCycleStatus || '').toUpperCase() === 'COMPLETED') return 'completed'
     const students = getMatchingStudents(branchStudents, {
       facultyId: group?.facultyId || group?.branchFacultyId || '',
       facultyName: group?.facultyName || '',
