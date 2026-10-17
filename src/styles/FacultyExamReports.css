@@ -174,3 +174,4 @@
     width: 100% !important;
   }
 }
+.exam-cycle-notice{display:flex;align-items:center;gap:10px;margin:12px 0 18px;padding:11px 14px;border:1px solid #bfdbfe;border-radius:10px;background:#eff6ff;color:#1e40af;font-size:13px}.exam-cycle-notice strong{font-weight:700}.exam-cycle-notice span{color:#475569}
