@@ -21,10 +21,17 @@ const formatCompletedTestLabel = (test = {}) => {
 function Attempt({ attempt }) { const scored = ['SUBMITTED', 'EVALUATED'].includes(String(attempt.status || '').toUpperCase()); return <div className="academic-report-attempt"><span>{attempt.attemptType === 'RETEST' ? `Retest ${attempt.attemptNumber || ''}` : 'Original'}</span><strong>{scored ? `${attempt.marksObtained}/${attempt.totalMarks}` : attempt.status === 'NOT_ATTENDED' ? 'Not Attended' : 'Not Submitted'}</strong>{attempt.percentage !== null && <small>{attempt.percentage}%</small>}<em className={resultClass(attempt.result)}>{value(attempt.result, '')}</em></div> }
 function TestCell({ test }) { const [open, setOpen] = useState(false); const final = test.final || {}; const scored = ['SUBMITTED', 'EVALUATED'].includes(String(final.status || '').toUpperCase()); return <div className="academic-report-test-cell"><div className="academic-report-final"><strong>{scored ? `${final.marksObtained}/${final.totalMarks}` : final.status === 'NOT_ATTENDED' ? 'Not Attended' : '-'}</strong>{final.percentage !== null && final.percentage !== undefined && <small className="academic-report-cell-percent">{final.percentage}%</small>}<em className={resultClass(final.result)}>{value(final.result)}</em></div>{test.attempts?.length > 1 && <><button type="button" className="academic-report-history-toggle" onClick={() => setOpen(!open)}>{open ? 'Hide history' : `${test.attempts.length} attempts`}<ChevronDown size={14} className={open ? 'is-open' : ''} /></button>{open && <div className="academic-report-history">{test.attempts.map((attempt) => <Attempt key={attempt.scheduleId} attempt={attempt} />)}</div>}</>}</div> }
 
-export default function AcademicTestReportPage({ embedded = false }) {
+export default function AcademicTestReportPage({ embedded = false, selectedBatchId = '' }) {
   const [batches, setBatches] = useState([]); const [batchSearch, setBatchSearch] = useState(''); const [batchPage, setBatchPage] = useState(1); const [report, setReport] = useState(null); const [loading, setLoading] = useState(true); const [error, setError] = useState(''); const [success, setSuccess] = useState(''); const [sendOpen, setSendOpen] = useState(false); const [sendBatchId, setSendBatchId] = useState(''); const [sendTests, setSendTests] = useState([]); const [selectedSendTests, setSelectedSendTests] = useState([]); const [sendLoading, setSendLoading] = useState(false); const [sendMessage, setSendMessage] = useState('')
+  const fixedBatchId = String(selectedBatchId || '').trim()
   const loadBatches = async () => { try { setLoading(true); setBatches(await listAcademicReportBatches()) } catch (err) { setError(err.message || 'Unable to load report batches.') } finally { setLoading(false) } }
-  useEffect(() => { loadBatches() }, [])
+  useEffect(() => {
+    if (!fixedBatchId) { loadBatches(); return undefined }
+    let active = true
+    setLoading(true)
+    getAcademicBatchReport(fixedBatchId).then((result) => { if (active) setReport(result) }).catch((err) => { if (active) setError(err.message || 'Unable to load student report.') }).finally(() => { if (active) setLoading(false) })
+    return () => { active = false }
+  }, [fixedBatchId])
   const openBatch = async (batchId) => { try { setError(''); setLoading(true); setReport(await getAcademicBatchReport(batchId)) } catch (err) { setError(err.message || 'Unable to load student report.') } finally { setLoading(false) } }
   const openSend = async () => { setSendOpen(true); setSendMessage(''); setSendBatchId(''); setSendTests([]); setSelectedSendTests([]); try { await loadBatches() } catch {} }
   const selectSendBatch = async (batchId) => { setSendBatchId(batchId); setSelectedSendTests([]); if (!batchId) return setSendTests([]); try { setSendLoading(true); setSendTests(await listFacultyAcademicReportTests(batchId)) } catch (err) { setSendMessage(err.message || 'Unable to load completed tests.') } finally { setSendLoading(false) } }
