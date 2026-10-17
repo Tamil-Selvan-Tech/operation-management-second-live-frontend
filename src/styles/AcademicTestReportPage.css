@@ -42,3 +42,4 @@
 .academic-report-send-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 22px; }
 .academic-report-send-actions button { min-height: 42px; padding: 0 16px; border: 1px solid #cbdced; border-radius: 8px; background: #fff; color: #24476f; font: inherit; cursor: pointer; }
 .academic-report-send-actions .academic-report-primary { border-color: #2463e8; background: #2463e8; color: #fff; }
+.academic-report-sent-status{margin:0 0 12px auto;width:max-content;max-width:100%;padding:8px 12px;border:1px solid #a7f3d0;border-radius:999px;background:#ecfdf5;color:#047857;font-size:13px;font-weight:700}
