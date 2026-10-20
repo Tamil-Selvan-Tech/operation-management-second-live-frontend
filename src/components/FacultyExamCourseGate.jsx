@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { ArrowLeft, ChevronRight } from 'lucide-react'
 import { useSearchParams } from 'react-router-dom'
 import { listFacultyExamBatches, listFacultyExamCourses } from '../services/examService'
+import { listAcademicReportBatches } from '../services/academicTestService'
 import '../styles/FacultyExamCourseGate.css'
 
 /**
@@ -9,6 +10,7 @@ import '../styles/FacultyExamCourseGate.css'
  * and only then the page-specific exam workspace.
  */
 export default function FacultyExamCourseGate({ title = 'Exams and Result', children }) {
+  const isAcademicReport = title === 'Academic Test Report'
   const [courses, setCourses] = useState([])
   const [courseBatchCounts, setCourseBatchCounts] = useState({})
   const [selectedCourse, setSelectedCourse] = useState(null)
@@ -22,7 +24,10 @@ export default function FacultyExamCourseGate({ title = 'Exams and Result', chil
   const getCourseBatches = (courseId) => {
     const key = String(courseId || '').trim()
     if (!batchRequestsRef.current.has(key)) {
-      const request = listFacultyExamBatches(courseId).then((items) => Array.isArray(items) ? items : []).catch((e) => {
+      const request = (isAcademicReport
+        ? listAcademicReportBatches().then((items) => items.filter((item) => String(item.course?.id || item.branchCourseId || item.courseId) === key))
+        : listFacultyExamBatches(courseId)
+      ).then((items) => Array.isArray(items) ? items : []).catch((e) => {
         batchRequestsRef.current.delete(key)
         throw e
       })

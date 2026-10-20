@@ -1401,7 +1401,8 @@ function getCourseSubmoduleName(submodule = {}, index = 0) {
   ).trim()
 }
 
-function getFacultyBatchProgressStudents(batch = {}, course = {}, students = [], backfillRecords = []) {
+function getFacultyBatchProgressStudents(batch = {}, course = {}, students = [], backfillRecords = [], options = {}) {
+  const includeCompleted = options?.includeCompleted === true
   const batchId = String(batch?.batchId || batch?.id || '').trim().toLowerCase()
   const batchName = normalizeCourseKey(batch?.batchName || batch?.code || '')
   const courseId = String(course?.id || course?.courseId || '').trim().toLowerCase()
@@ -1411,8 +1412,8 @@ function getFacultyBatchProgressStudents(batch = {}, course = {}, students = [],
     // Lifecycle rows already include the authoritative batch-report result.
     // Do not re-check them with the older student snapshot, otherwise a
     // completed student can be added back to the active batch list.
-    if (student?._facultyLifecycle === 'COMPLETED') return false
-    if (!student?._facultyLifecycle && isFacultyStudentCourseComplete(student, course, batch)) return false
+    if (!includeCompleted && student?._facultyLifecycle === 'COMPLETED') return false
+    if (!includeCompleted && !student?._facultyLifecycle && isFacultyStudentCourseComplete(student, course, batch)) return false
     const enrollment = getCourseEnrollmentForStudent(student, course, batch)
     const context = resolveFacultyBatchContextForStudent(student, backfillRecords)
     // Direct assignment fields on the student are authoritative. Profile
@@ -3827,14 +3828,23 @@ export function FacultyDashboardPage() {
         if (!report) return
         const reportStudentProgress = (Array.isArray(report.students) ? report.students : []).map((row) => {
           const tests = Array.isArray(row?.tests) ? row.tests : []
-          const projectCompleted = row?.project?.marksAwarded != null
+          const projects = Array.isArray(row?.projects)
+            ? row.projects
+            : (row?.project ? [row.project] : [])
           const completedTests = tests.filter((test) => {
             const status = String(test?.final?.status || '').toUpperCase()
+            const projectCompleted = projects.some((project) => (
+              Number(project?.testNumber) === Number(test?.testNumber) &&
+              project?.marksAwarded != null
+            ))
             return ['SUBMITTED', 'EVALUATED'].includes(status) && (test?.testType !== 'TEST_AND_PROJECT' || projectCompleted)
           }).length
-          const standaloneProject = projectCompleted && !tests.some((test) => test?.testType === 'TEST_AND_PROJECT')
+          const standaloneProjectCount = projects.filter((project) => (
+            project?.marksAwarded != null &&
+            !tests.some((test) => Number(test?.testNumber) === Number(project?.testNumber) && test?.testType === 'TEST_AND_PROJECT')
+          )).length
           return {
-            completed: completedTests + (standaloneProject ? 1 : 0),
+            completed: completedTests + standaloneProjectCount,
             studentKeys: [row?.student?.studentId, row?.student?.id, row?.student?.emailAddress, row?.studentId, row?.id, row?.emailAddress]
               .map((value) => normalizeWorkStudentId(value || ''))
               .filter(Boolean),
@@ -4099,8 +4109,9 @@ export function FacultyDashboardPage() {
         selectedStudentsCourse,
         facultyScopedStudents,
         facultyBackfillRecords,
+        { includeCompleted: true },
       )
-      const progressTotals = batchStudents.reduce((totals, student) => {
+      const progressValues = batchStudents.map((student) => {
         // Resolve work against the current batch row, not only the global
         // student map. This keeps progress visible when old student records
         // do not contain a batch ID.
@@ -4118,23 +4129,27 @@ export function FacultyDashboardPage() {
         // Today Work API is the source of truth for faculty progress. A stale
         // value on the student record must not appear as completed work when
         // no matching database entry exists for this batch and course.
-        if (!workEntry) return totals
-
-        const progressSummary = buildFacultyTodayWorkProgressSummary(
-          facultyTodayWorkEntries,
-          selectedStudentsCourse,
-          progressStudent,
+        const progressSummary = workEntry
+          ? buildFacultyTodayWorkProgressSummary(
+              facultyTodayWorkEntries,
+              selectedStudentsCourse,
+              progressStudent,
+            )
+          : null
+        const storedProgress = Number(
+          getCourseEnrollmentForStudent(progressStudent, selectedStudentsCourse, batch)?.courseProgress ??
+          progressStudent?.courseProgress,
         )
-        if (!progressSummary) return totals
-
-        progressSummary.moduleSummaries.forEach((moduleSummary) => {
-          totals.completed += Number(moduleSummary?.completedCount || 0)
-          totals.total += Number(moduleSummary?.totalSubmodules || 0)
-        })
-        return totals
-      }, { completed: 0, total: 0 })
-      const batchProgress = progressTotals.total > 0
-        ? Math.min(100, Math.max(0, (progressTotals.completed / progressTotals.total) * 100))
+        if (progressSummary?.courseProgress != null) {
+          return Math.max(
+            Math.min(100, Math.max(0, Number(progressSummary.courseProgress))),
+            Number.isFinite(storedProgress) ? Math.min(100, Math.max(0, storedProgress)) : 0,
+          )
+        }
+        return Number.isFinite(storedProgress) ? Math.min(100, Math.max(0, storedProgress)) : null
+      }).filter((value) => Number.isFinite(value))
+      const batchProgress = progressValues.length
+        ? Math.min(100, Math.max(0, progressValues.reduce((total, value) => total + value, 0) / progressValues.length))
         : 0
 
       progressByBatch.set(getFacultyFlowBatchKey(batch), Math.round(batchProgress))
@@ -4178,6 +4193,16 @@ export function FacultyDashboardPage() {
       }
     })
     selectedCourseBatchProgress.forEach((value, key) => progressByBatch.set(key, value))
+    // A fully completed academic batch starts its next preparation cycle at
+    // zero. Keep the historical marks/reports intact; only the next-cycle
+    // preparation progress is reset.
+    progressByBatch.forEach((value, key) => {
+      const academicProgress = facultyAcademicBatchProgress.get(key) ||
+        facultyAcademicBatchProgress.get(normalizeWorkStudentId(key))
+      if (Number(academicProgress?.total || 0) > 0 && Number(academicProgress?.completed || 0) >= Number(academicProgress.total)) {
+        progressByBatch.set(key, 0)
+      }
+    })
     return progressByBatch
   }, [assignedCourses, facultyAcademicBatchProgress, facultyBackfillRecords, facultyBatchRows, facultyScopedStudents, facultyTodayWorkEntries, selectedCourseBatchProgress])
 
@@ -9085,7 +9110,29 @@ const nextName = trimmedValue
 
       {academicTestModalStudent ? (() => {
         const progress = academicTestModalStudent?._facultyLifecycleMetrics?.academicTestProgress || academicTestModalStudent?.academicTestProgress || {}
-        const results = Array.isArray(progress.academicResults) ? progress.academicResults : []
+        // Course-completed students are reset into a fresh active cycle after
+        // the final report is sent. The lifecycle row then contains Pending
+        // values, so prefer the immutable academic report history loaded for
+        // this modal when it is available.
+        const historicalItems = Array.isArray(studentPerformanceDetails?.academic?.items) ? studentPerformanceDetails.academic.items : []
+        const historicalResults = historicalItems.map((item) => {
+          const match = String(item.testName || '').match(/(\d+)/)
+          const testNumber = match ? Number(match[1]) : null
+          const isProject = String(item.testType || '').toUpperCase() === 'PROJECT' || /project/i.test(String(item.testName || ''))
+          return {
+            testNumber,
+            testType: isProject ? 'PROJECT' : 'TEST',
+            testMarks: !isProject ? item.marksObtained : null,
+            testTotalMarks: !isProject ? item.totalMarks : null,
+            testResult: !isProject ? item.result : null,
+            projectMarks: isProject ? item.marksObtained : item.projectMarks,
+            projectTotalMarks: isProject ? item.totalMarks : item.projectTotalMarks,
+            projectResult: isProject ? item.result : item.projectResult,
+          }
+        }).filter((item) => Number.isFinite(item.testNumber))
+        const results = historicalResults.length || !Array.isArray(progress.academicResults)
+          ? historicalResults
+          : progress.academicResults
         const resultFor = (column) => results.find((result) => Number(result.testNumber) === Number(column.testNumber))
         const testResults = results.filter((result) => result.testMarks != null && Number(result.testTotalMarks) > 0)
         const projectResults = results.filter((result) => result.projectMarks != null && Number(result.projectTotalMarks) > 0)
@@ -9127,7 +9174,7 @@ const nextName = trimmedValue
                   <section className="faculty-academic-extra-report">
                     <div className="faculty-academic-extra-heading"><h3>Syllabus Test Details</h3><span>{studentPerformanceDetails.syllabus?.skills?.length || 0} modules</span></div>
                     {studentPerformanceDetails.syllabus?.skills?.length ? (
-                      <div className="faculty-academic-extra-table-wrap"><table className="faculty-academic-extra-table"><thead><tr><th>Module</th><th>Tests</th><th>Marks / Percentage</th></tr></thead><tbody>{studentPerformanceDetails.syllabus.skills.map((skill) => <tr key={skill.moduleId || skill.moduleName}><td>{skill.moduleName || '-'}</td><td>{skill.testCount ?? 0}</td><td>{skill.overallPercentage == null ? '-' : `${skill.overallPercentage}%`}</td></tr>)}</tbody></table></div>
+                      <div className="faculty-academic-extra-table-wrap"><table className="faculty-academic-extra-table"><thead><tr><th>Module</th><th>Tests</th><th>Marks / Percentage</th></tr></thead><tbody>{studentPerformanceDetails.syllabus.skills.map((skill) => <tr key={skill.moduleId || skill.moduleName}><td>{skill.moduleName || '-'}</td><td>{skill.testCount ?? 0}</td><td>{Array.isArray(skill.tests) && skill.tests.length ? <div className="faculty-academic-syllabus-test-marks">{skill.tests.map((test, index) => <span key={`${test.testName || 'test'}-${index}`}><strong>{test.testName || `Test ${index + 1}`}</strong> {test.marksObtained}/{test.totalMarks} ({test.percentage ?? 0}%)</span>)}<small>Overall: {skill.obtained}/{skill.maximum} ({skill.overallPercentage ?? 0}%)</small></div> : (skill.maximum > 0 ? `${skill.obtained}/${skill.maximum} (${skill.overallPercentage ?? 0}%)` : (skill.overallPercentage == null ? '-' : `${skill.overallPercentage}%`))}</td></tr>)}</tbody></table></div>
                     ) : <p className="faculty-academic-extra-empty">No syllabus test report available.</p>}
                   </section>
                   <section className="faculty-academic-extra-report">
@@ -9135,11 +9182,10 @@ const nextName = trimmedValue
                     {studentPerformanceDetails.assessments.length ? studentPerformanceDetails.assessments.map((item) => (
                       <div className="faculty-academic-assessment-group" key={`${item.course?.id || ''}-${item.batch?.id || ''}-${item.module?.id || ''}`}>
                         <strong>{item.module?.name || item.module?.title || 'Assessment'}</strong>
-                        <div className="faculty-academic-extra-table-wrap"><table className="faculty-academic-extra-table"><thead><tr>{item.report.assessments.map((assessment) => <th key={assessment.id}>{assessment.assessmentName}<small>{assessment.totalMarks} marks</small></th>)}<th>Overall</th></tr></thead><tbody><tr>{item.report.assessments.map((assessment) => { const result = item.student.assessments?.[assessment.id]; const evaluated = result?.status === 'EVALUATED' && result.marksObtained != null; return <td key={assessment.id}>{evaluated ? `${result.marksObtained}/${result.totalMarks} (${Number(result.percentage || 0).toFixed(2)}%)` : result?.status === 'SUBMITTED' ? 'Submitted · Pending' : result?.status === 'NOT_APPLICABLE' ? '-' : 'Not Submitted'}</td> })}<td>{item.student.overall?.totalMarks ? `${item.student.overall.marksObtained}/${item.student.overall.totalMarks} (${Number(item.student.overall.percentage || 0).toFixed(2)}%)` : 'Not Evaluated'}</td></tr></tbody></table></div>
+                      <div className="faculty-academic-extra-table-wrap"><table className="faculty-academic-extra-table"><thead><tr>{item.report.assessments.filter((assessment) => !assessment.isReassessment || item.student.assessments?.[assessment.originalAssessmentId]?.status !== 'EVALUATED').map((assessment) => <th key={assessment.id}>{assessment.assessmentName}<small>{assessment.totalMarks} marks</small></th>)}<th>Overall</th></tr></thead><tbody><tr>{item.report.assessments.filter((assessment) => !assessment.isReassessment || item.student.assessments?.[assessment.originalAssessmentId]?.status !== 'EVALUATED').map((assessment) => { const result = item.student.assessments?.[assessment.id]; const evaluated = result?.status === 'EVALUATED' && result.marksObtained != null; return <td key={assessment.id}>{evaluated ? `${result.marksObtained}/${result.totalMarks} (${Number(result.percentage || 0).toFixed(2)}%)` : result?.status === 'SUBMITTED' ? 'Submitted · Pending' : result?.status === 'NOT_APPLICABLE' ? 'Not Attempted' : 'Not Submitted'}</td> })}<td>{item.student.overall?.totalMarks ? `${item.student.overall.marksObtained}/${item.student.overall.totalMarks} (${Number(item.student.overall.percentage || 0).toFixed(2)}%)` : 'Not Evaluated'}</td></tr></tbody></table></div>
                       </div>
                     )) : <p className="faculty-academic-extra-empty">No assessment report available.</p>}
                   </section>
-                  {studentPerformanceDetails.academic?.evaluations?.length ? <section className="faculty-academic-extra-report"><div className="faculty-academic-extra-heading"><h3>Academic Evaluation Details</h3><span>{studentPerformanceDetails.academic.evaluations.length} evaluations</span></div><div className="faculty-academic-evaluation-list">{studentPerformanceDetails.academic.evaluations.map((evaluation, index) => <div key={evaluation.evaluationId || evaluation.id || `${evaluation.name}-${index}`}><strong>{evaluation.name || evaluation.title || 'Evaluation'}</strong><span>{evaluation.marksObtained != null && evaluation.totalMarks != null ? `${evaluation.marksObtained}/${evaluation.totalMarks}` : 'Not Evaluated'}</span><em>{evaluation.percentage == null ? '-' : `${evaluation.percentage}%`}</em></div>)}</div></section> : null}
                 </div>
               ) : null}
             </div>

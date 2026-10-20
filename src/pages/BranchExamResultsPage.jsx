@@ -86,6 +86,7 @@ export default function BranchExamResultsPage({ branchId = '' }) {
   const [search, setSearch] = useState('')
   const [appliedSearch, setAppliedSearch] = useState('')
   const [reportTypeFilter, setReportTypeFilter] = useState('all')
+  const [showHistory, setShowHistory] = useState(false)
   useEffect(() => {
     listBranchReportShares(branchId).then(setShares).catch((e) => setError(e.message)).finally(() => setLoading(false))
   }, [branchId])
@@ -101,14 +102,19 @@ export default function BranchExamResultsPage({ branchId = '' }) {
     .sort((left, right) => {
       return String(right.sentAt || '').localeCompare(String(left.sentAt || ''))
     }), [appliedSearch, reportTypeFilter, shares])
-  const shareTotalPages = Math.max(1, Math.ceil(filteredShares.length / sharePageSize))
-  const visibleShares = filteredShares.slice((sharePage - 1) * sharePageSize, sharePage * sharePageSize)
+  const visibleShares = useMemo(() => filteredShares.filter((share) => {
+    const isActive = String(share.status || 'SENT').toUpperCase() === 'SENT'
+      && String(share.cycle?.status || '').toUpperCase() === 'ACTIVE'
+    return showHistory ? !isActive : isActive
+  }), [filteredShares, showHistory])
+  const shareTotalPages = Math.max(1, Math.ceil(visibleShares.length / sharePageSize))
+  const pagedShares = visibleShares.slice((sharePage - 1) * sharePageSize, sharePage * sharePageSize)
   return (
     <section className="exam-reports-page branch-exam-results-page">
       <div className="exam-reports-header"><div><p className="exam-kicker">BRANCH ADMIN WORKSPACE</p><h1>Exams &amp; Results</h1><p>Faculty-shared test and assessment reports for your branch.</p></div></div>
       {error && <div className="exam-error">{error}</div>}
       <div className="exam-card exam-reports-table-card">
-        <div className="exam-card-heading"><h2>{selected ? 'Student Reports' : 'Shared Reports'}</h2></div>
+        <div className="exam-card-heading"><h2>{selected ? 'Student Reports' : showHistory ? 'Report History' : 'Active Reports'}</h2>{!selected ? <div className="exam-card-heading-actions"><span>{visibleShares.length} reports</span><button type="button" className="exam-link" onClick={() => { setShowHistory((current) => !current); setSharePage(1) }}>{showHistory ? 'Active Reports' : 'View History'}</button></div> : null}</div>
         {selected ? <StudentReportsView share={selected} branchId={branchId} onBack={() => setSelected(null)} /> : (
           <>
             <div className="branch-report-toolbar">
@@ -120,11 +126,11 @@ export default function BranchExamResultsPage({ branchId = '' }) {
               <table>
                 <thead><tr><th>Batch</th><th>Cycle</th><th>Course</th><th>Module</th><th>Sent By</th><th>Sent At</th><th>Action</th></tr></thead>
                 <tbody>
-                  {loading ? Array.from({ length: 5 }, (_, index) => <tr key={`report-loading-${index}`} className="branch-report-skeleton-row" aria-hidden="true">{Array.from({ length: 7 }, (_, cellIndex) => <td key={cellIndex}><span /></td>)}</tr>) : filteredShares.length ? visibleShares.map((share) => <tr key={share.id}><td>{share.batch?.batchName || '-'}</td><td>{share.cycle?.cycleName || `Cycle ${share.cycle?.cycleNumber || '-'}`}<small>{share.cycle?.status || ''}</small></td><td>{share.course?.name || '-'}</td><td>{share.moduleNames?.join(', ') || '-'}</td><td>{share.faculty?.fullName || '-'}</td><td>{share.sentAt ? new Date(share.sentAt).toLocaleString() : '-'}</td><td><button type="button" className="exam-link" onClick={() => setSelected(share)}>View Students</button></td></tr>) : <tr><td colSpan="7" className="exam-empty">{appliedSearch || reportTypeFilter !== 'all' ? 'No reports match the selected search or filters.' : 'No reports shared yet.'}</td></tr>}
+                  {loading ? Array.from({ length: 5 }, (_, index) => <tr key={`report-loading-${index}`} className="branch-report-skeleton-row" aria-hidden="true">{Array.from({ length: 7 }, (_, cellIndex) => <td key={cellIndex}><span /></td>)}</tr>) : visibleShares.length ? pagedShares.map((share) => <tr key={share.id}><td>{share.batch?.batchName || '-'}</td><td>{share.cycle?.cycleName || `Cycle ${share.cycle?.cycleNumber || '-'}`}<small>{share.cycle?.status || ''}</small></td><td>{share.course?.name || '-'}</td><td>{share.moduleNames?.join(', ') || '-'}</td><td>{share.faculty?.fullName || '-'}</td><td>{share.sentAt ? new Date(share.sentAt).toLocaleString() : '-'}</td><td><button type="button" className="exam-link" onClick={() => setSelected(share)}>View Students</button></td></tr>) : <tr><td colSpan="7" className="exam-empty">{showHistory ? 'No syllabus report history found.' : appliedSearch || reportTypeFilter !== 'all' ? 'No reports match the selected search or filters.' : 'No active syllabus reports shared yet.'}</td></tr>}
                 </tbody>
               </table>
             </div>
-            {filteredShares.length > sharePageSize && <div className="branch-student-pagination"><span>Page {sharePage} of {shareTotalPages}</span><div><button type="button" disabled={sharePage === 1} onClick={() => setSharePage((page) => page - 1)}>Previous</button><button type="button" disabled={sharePage === shareTotalPages} onClick={() => setSharePage((page) => page + 1)}>Next</button></div></div>}
+            {visibleShares.length > sharePageSize && <div className="branch-student-pagination"><span>Page {sharePage} of {shareTotalPages}</span><div><button type="button" disabled={sharePage === 1} onClick={() => setSharePage((page) => page - 1)}>Previous</button><button type="button" disabled={sharePage === shareTotalPages} onClick={() => setSharePage((page) => page + 1)}>Next</button></div></div>}
           </>
         )}
       </div>

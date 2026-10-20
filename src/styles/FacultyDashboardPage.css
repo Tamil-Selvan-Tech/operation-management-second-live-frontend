@@ -645,6 +645,24 @@ body.faculty-notification-menu-open .super-admin-content {
   color: #94a3b8;
 }
 
+.faculty-academic-assessment-group .faculty-academic-extra-table {
+  table-layout: fixed;
+  min-width: 640px;
+}
+
+.faculty-academic-assessment-group .faculty-academic-extra-table th,
+.faculty-academic-assessment-group .faculty-academic-extra-table td {
+  min-width: 170px;
+  white-space: normal;
+  line-height: 1.4;
+  vertical-align: top;
+}
+
+.faculty-academic-assessment-group .faculty-academic-extra-table th:last-child,
+.faculty-academic-assessment-group .faculty-academic-extra-table td:last-child {
+  min-width: 150px;
+}
+
 .faculty-academic-assessment-group + .faculty-academic-assessment-group {
   margin-top: 14px;
 }
@@ -3134,6 +3152,8 @@ body.faculty-notification-menu-open .super-admin-content {
 .faculty-academic-modal {
   position: relative;
   width: min(920px, 100%);
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
   border: 1px solid #dbeafe;
   border-radius: 18px;
   padding: 28px;
@@ -3197,6 +3217,22 @@ body.faculty-notification-menu-open .super-admin-content {
   background: #f8fafc;
   font-size: 0.76rem;
   font-weight: 800;
+}
+
+.faculty-academic-syllabus-test-marks {
+  display: grid;
+  gap: 4px;
+  text-align: left;
+}
+
+.faculty-academic-syllabus-test-marks span,
+.faculty-academic-syllabus-test-marks small {
+  display: block;
+}
+
+.faculty-academic-syllabus-test-marks small {
+  color: #475569;
+  font-weight: 700;
 }
 
 .faculty-student-records-table th:nth-last-child(2),

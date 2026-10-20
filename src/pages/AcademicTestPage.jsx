@@ -76,7 +76,7 @@ function CoursePicker({ courses, value, onChange, loading = false }) { const sel
 
 function FacultyScheduledTestTable() { const [tests, setTests] = useState([]); const [result, setResult] = useState(null); const [error, setError] = useState(''); useEffect(() => { listFacultyScheduledAcademicTests().then(setTests).catch((e) => setError(e.message || 'Unable to load scheduled tests.')) }, []); const openResult = async (id) => { try { setResult(await getFacultyAcademicTestResults(id)) } catch (e) { setError(e.message || 'Unable to load result.') } }; return <><div className="academic-test-card academic-test-scheduled-card"><div className="academic-test-scheduled-heading"><h2>Created Tests</h2><span>{tests.length} scheduled</span></div>{error && <div className="academic-test-error">{error}</div>}<div className="academic-test-table-wrap"><table><thead><tr><th>Test</th><th>Course</th><th>Batch</th><th>Date</th><th>Time</th><th>Status</th><th>Question Paper</th><th>View Result</th></tr></thead><tbody>{tests.length ? tests.map((test) => <tr key={test.id}><td>Test {test.testNumber}</td><td>{test.course?.name || '-'}</td><td>{test.batch?.batchName || '-'}</td><td>{test.testDate}</td><td>{test.startTime} - {test.endTime}</td><td>{test.status}</td><td>{test.totalQuestions ? `${test.totalQuestions} Questions / ${test.totalMarks} Marks` : 'Prepared'}</td><td><button type="button" className="academic-test-view-button" onClick={() => openResult(test.id)}>View Result</button></td></tr>) : <tr><td colSpan="8" className="academic-test-empty">No tests created yet.</td></tr>}</tbody></table></div></div>{result && <div className="academic-test-modal-backdrop"><div className="academic-test-modal academic-test-result-modal"><div className="academic-test-modal-heading"><div><p className="academic-test-kicker">ACADEMIC TEST RESULT</p><h2>{result.test?.testName} - {result.test?.batch?.batchName || 'Batch'}</h2></div><button type="button" onClick={() => setResult(null)}><X size={18} /></button></div><div className="academic-test-table-wrap"><table><thead><tr><th>Student</th><th>Student ID</th><th>Total Q</th><th>Attempted</th><th>Correct</th><th>Wrong</th><th>Unmarked</th><th>Marks</th><th>Percentage</th><th>Status</th></tr></thead><tbody>{result.students.map((entry) => <tr key={entry.student.id}><td>{entry.student.studentName}</td><td>{entry.student.studentId}</td><td>{entry.totalQuestions || result.test.totalQuestions}</td><td>{entry.attemptedCount}</td><td>{entry.correctCount}</td><td>{entry.wrongCount}</td><td>{entry.unmarkedCount}</td><td>{entry.obtainedMarks == null ? '-' : `${entry.obtainedMarks} / ${entry.totalMarks}`}</td><td>{entry.percentage == null ? '-' : `${Number(entry.percentage).toFixed(2)}%`}</td><td>{entry.status === 'NOT_SUBMITTED' ? 'Not Submitted' : entry.status}</td></tr>)}</tbody></table></div></div></div>}</> }
 
-export default function AcademicTestPage({ mode = 'branch', autoOpenCreate = false, onCreateClose, facultyCourseId = '', facultyBatchId = '', facultyCourseProgressByBatch = null, facultyBatchStudentCounts = null, facultyWeekOffBlocked = false, onWeekOffBlocked }) {
+export default function AcademicTestPage({ mode = 'branch', autoOpenCreate = false, onCreateClose, facultyCourseId = '', facultyBatchId = '', facultyCourseProgressByBatch: incomingFacultyCourseProgressByBatch = null, facultyBatchStudentCounts = null, facultyWeekOffBlocked = false, onWeekOffBlocked }) {
   const navigate = useNavigate(); const [searchParams] = useSearchParams(); const createAutoOpenHandled = useRef(false); const isFaculty = mode === 'faculty'; const [courses, setCourses] = useState([]); const [coursesLoading, setCoursesLoading] = useState(false); const [coursesLoaded, setCoursesLoaded] = useState(false); const [batches, setBatches] = useState([]); const [rows, setRows] = useState([]); const [batchProgressById, setBatchProgressById] = useState(() => new Map()); const [reportedBatchById, setReportedBatchById] = useState(() => new Map()); const [selectedCourseId, setSelectedCourseId] = useState(''); const [selectedBatchIds, setSelectedBatchIds] = useState([]); const [items, setItems] = useState([]); const [editing, setEditing] = useState(null); const [viewing, setViewing] = useState(null); const [deleting, setDeleting] = useState(null); const [open, setOpen] = useState(false); const [loading, setLoading] = useState(true); const [saving, setSaving] = useState(false); const [error, setError] = useState(''); const [createOptions, setCreateOptions] = useState(null); const [createBatchId, setCreateBatchId] = useState(''); const [createForm, setCreateForm] = useState({ testDate: '', startTime: '10:00', endTime: '11:00', projectStartDate: '', projectEndDate: '' }); const [createError, setCreateError] = useState(''); const [createAttempted, setCreateAttempted] = useState(false); const [createSaving, setCreateSaving] = useState(false)
   const createModalOpened = useRef(false)
   const [calendarHolidayDates, setCalendarHolidayDates] = useState(() => new Set())
@@ -97,6 +97,25 @@ export default function AcademicTestPage({ mode = 'branch', autoOpenCreate = fal
   const [sortValue, setSortValue] = useState('createdAt:desc')
   const [page, setPage] = useState(1)
   const [branchView, setBranchView] = useState(searchParams.get('view') === 'reports' ? 'reports' : 'tests')
+  const facultyCourseProgressByBatch = useMemo(() => {
+    const progress = incomingFacultyCourseProgressByBatch instanceof Map
+      ? new Map(incomingFacultyCourseProgressByBatch)
+      : incomingFacultyCourseProgressByBatch && typeof incomingFacultyCourseProgressByBatch === 'object'
+        ? new Map(Object.entries(incomingFacultyCourseProgressByBatch))
+        : new Map()
+    rows.forEach((row) => {
+      ;(row.batches || []).forEach((batch) => {
+        const keys = [batch?.id, batch?.batchId, batch?.batchName]
+        const completedBatch = batch?.hasCompletedStudents === true || Number(batch?.studentCount) === 0 || keys.some((key) => batchProgressById.get(String(key || '').trim().toLowerCase()) === 0)
+        if (!completedBatch) return
+        keys.forEach((key) => {
+          const normalizedKey = String(key || '').trim().toLowerCase()
+          if (normalizedKey) progress.set(normalizedKey, 0)
+        })
+      })
+    })
+    return progress
+  }, [batchProgressById, incomingFacultyCourseProgressByBatch, rows])
   useEffect(() => { if (!isFaculty) setBranchView(searchParams.get('view') === 'reports' ? 'reports' : 'tests') }, [isFaculty, searchParams])
   const loadRows = () => listAcademicTests().then(setRows).catch((e) => setError(e.message || 'Unable to load Academic Tests.'))
   const loadCourses = useCallback(async () => {

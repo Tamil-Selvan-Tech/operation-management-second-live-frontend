@@ -2,7 +2,7 @@ import { createPortal } from 'react-dom'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { ArrowLeft, Ban, CalendarClock, Download, Eye, MoreVertical, Plus, Save, Trash2, X } from 'lucide-react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import { cancelFacultyScheduledAcademicTest, downloadQuestionPaperPdf, evaluateFacultyAssessment, getAcademicTestPreparation, getFacultyAcademicTestResults, getFacultyAssessment, getFacultyProjectFile, getFacultyProjectPreview, gradeFacultyProject, listFacultyScheduledAcademicTests, saveAcademicTestProject, saveQuestionPaper, scheduleFacultyAcademicTestRetest, updateAcademicTestProject, updateFacultyScheduledAcademicTest, updateQuestionPaper } from '../services/academicTestService'
+import { cancelFacultyScheduledAcademicTest, downloadQuestionPaperPdf, evaluateFacultyAssessment, getAcademicTestPreparation, getFacultyAcademicTestResults, getFacultyAssessment, getFacultyProjectFile, getFacultyProjectPreview, gradeFacultyProject, listFacultyScheduledAcademicTests, saveAcademicTestProject, saveQuestionPaper, scheduleFacultyAcademicTestRetest, startAcademicTestCycle, updateAcademicTestProject, updateFacultyScheduledAcademicTest, updateQuestionPaper } from '../services/academicTestService'
 import { getFacultyMyBatchesSummary } from '../services/dashboardService'
 import '../styles/AcademicTestPreparationPage.css'
 import '../styles/AcademicTestSchedule.css'
@@ -254,6 +254,7 @@ export default function AcademicTestPreparationPage({ facultyCourseProgressByBat
   const [assessmentSaving, setAssessmentSaving] = useState(false)
   const [courseProgress, setCourseProgress] = useState(null)
   const courseProgressContextRef = useRef('')
+  const cycleResetRef = useRef('')
 
   const blockFacultyWeekOffAction = () => {
     if (!facultyWeekOffBlocked) return false
@@ -264,8 +265,34 @@ export default function AcademicTestPreparationPage({ facultyCourseProgressByBat
   const load = async () => {
     setLoading(true); setError('')
     try {
-      const next = await getAcademicTestPreparation(itemId, batchId)
-      setData(next); const loadedQuestions = normalizeEditorQuestions(next.paper?.questions || [], next.paper?.marksPerQuestion || 1); setQuestions(loadedQuestions); setPaperQuestionType(loadedQuestions.length && loadedQuestions.every((question) => question.questionType === 'ASSESSMENT') ? 'ASSESSMENT' : 'MCQ'); setActiveQuestionIndex(0); setMarksPerQuestion(next.paper?.marksPerQuestion || 1); setPassMark(next.paper?.passMark || 0); setProject(next.project || { projectTitle: '', projectDescription: '', projectRequirements: '', projectMarks: 0 })
+      let next = await getAcademicTestPreparation(itemId, batchId)
+      // Once the final academic cycle is complete, close it and open a fresh
+      // cycle before showing the preparation screen. Historical papers,
+      // schedules and reports remain linked to the completed cycle; the new
+      // cycle starts with Test 1 and zero preparation progress.
+      const cycleResetKey = `${itemId}:${batchId}`
+      const hasExistingCycleContent = (next.tests || []).some((test) => Boolean(
+        test?.schedule?.id ||
+        test?.paper?.id ||
+        test?.project?.id,
+      ))
+      const looksLikeCompletedCycle = Number(next.courseProgress) === 0 && hasExistingCycleContent
+      if ((next.batchComplete || looksLikeCompletedCycle) && cycleResetRef.current !== cycleResetKey) {
+        cycleResetRef.current = cycleResetKey
+        await startAcademicTestCycle(itemId, batchId)
+        next = await getAcademicTestPreparation(itemId, batchId)
+      }
+      const siblingTests = await Promise.all((next.tests || []).map(async (test) => {
+        if (test.academicTestItemId === next.academicTestItemId) return test
+        try {
+          const sibling = await getAcademicTestPreparation(test.academicTestItemId, batchId)
+          return { ...test, ...sibling, academicTestItemId: test.academicTestItemId, sequence: test.sequence, testType: test.testType }
+        } catch {
+          return test
+        }
+      }))
+      const preparedData = { ...next, tests: siblingTests }
+      setData(preparedData); const loadedQuestions = normalizeEditorQuestions(next.paper?.questions || [], next.paper?.marksPerQuestion || 1); setQuestions(loadedQuestions); setPaperQuestionType(loadedQuestions.length && loadedQuestions.every((question) => question.questionType === 'ASSESSMENT') ? 'ASSESSMENT' : 'MCQ'); setActiveQuestionIndex(0); setMarksPerQuestion(next.paper?.marksPerQuestion || 1); setPassMark(next.paper?.passMark || 0); setProject(next.project || { projectTitle: '', projectDescription: '', projectRequirements: '', projectMarks: 0 })
     } catch (e) { setError(e.message || 'Unable to load preparation details.') } finally { setLoading(false) }
   }
   // Loading this route synchronizes the editor with the selected test item/batch.
@@ -329,11 +356,10 @@ export default function AcademicTestPreparationPage({ facultyCourseProgressByBat
     if (data?.batchComplete && Number(courseProgress ?? data?.courseProgress ?? 0) >= 100) return null
     if (test?.schedule?.id) return test.schedule
     if (String(test?.academicTestItemId || '') === String(itemId) && data?.schedule?.id) return data.schedule
-    return scheduledTests.find((schedule) => {
-    const scheduleBatchIds = [schedule.batch?.id, schedule.branchBatchId, schedule.batch?.batchId].map((value) => String(value || '').trim()).filter(Boolean)
-    const selectedBatchIds = [batchId, data?.batch?.id, data?.batch?.batchId].map((value) => String(value || '').trim()).filter(Boolean)
-    return String(schedule.academicTestItemId) === String(test.academicTestItemId) && scheduleBatchIds.some((value) => selectedBatchIds.includes(value)) && schedule.status !== 'CANCELLED'
-    })
+    // Do not fall back to the global scheduled-test list here. That list also
+    // contains completed schedules from previous cycles, which would expose
+    // an old View Result button in a fresh cycle.
+    return null
   }
   const openResult = async (schedule) => { setResultLoading(true); setResultActionOpen(false); setError(''); try { const next = await getFacultyAcademicTestResults(schedule.id); const normalizedTest = { ...next.test, rawStartTime: next.test?.startTime, rawEndTime: next.test?.endTime, startTime: scheduleTimeLabel(next.test?.startTime), endTime: scheduleTimeLabel(next.test?.endTime) }; setResult({ ...next, test: normalizedTest, scheduleMeta: schedule }) } catch (e) { setError(academicRetestError(e, 'Unable to load student results.')) } finally { setResultLoading(false) } }
   const viewProjectFile = async (scheduleId, studentId) => { const file = await getFacultyProjectFile(scheduleId, studentId); if (file.contentType.includes('wordprocessingml.document')) { try { file.previewHtml = await getFacultyProjectPreview(scheduleId, studentId) } catch { file.previewHtml = '' } } return file }
