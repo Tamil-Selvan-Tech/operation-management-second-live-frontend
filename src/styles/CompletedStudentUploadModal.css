@@ -33,6 +33,15 @@
 .completed-upload-full-table th.completed-upload-sticky-column, .completed-upload-full-table td.completed-upload-sticky-column { left: 0 !important; width: 48px; min-width: 48px; }.completed-upload-full-table th.completed-upload-action-column, .completed-upload-full-table td.completed-upload-action-column { left: 48px !important; }
 .completed-upload-full-table { border-collapse: separate !important; border-spacing: 0; }.completed-upload-full-table th.completed-upload-sticky-column, .completed-upload-full-table td.completed-upload-sticky-column { position: sticky !important; left: 0 !important; z-index: 8 !important; background: #fff; }.completed-upload-full-table th.completed-upload-action-column, .completed-upload-full-table td.completed-upload-action-column { position: sticky !important; left: 48px !important; right: auto !important; z-index: 9 !important; background: #fff; }.completed-upload-full-table th.completed-upload-sticky-column, .completed-upload-full-table th.completed-upload-action-column { background: #24527a; color: #fff; }
 .completed-upload-action-column { display: none !important; }.completed-upload-action-rail { position: absolute; top: 0; right: 0; z-index: 20; width: 112px; height: 100%; overflow: hidden; background: #fff; border-left: 1px solid #bfdbfe; box-shadow: -8px 0 16px rgb(15 23 42 / 12%); }.completed-upload-action-rail-header { height: 37px; padding: 10px 8px; background: #24527a; color: #fff; font-size: .68rem; font-weight: 800; }.completed-upload-action-rail-row { display: flex; align-items: center; justify-content: center; height: 52px; padding: 6px; border-bottom: 1px solid #e2e8f0; background: #fff; }.completed-upload-action-rail .completed-upload-row-action { min-width: 86px; justify-content: center; }
+.completed-upload-table-shell .completed-upload-full-table thead { display: table-header-group !important; }
+.completed-upload-table-shell .completed-upload-full-table thead tr { display: table-row !important; height: 48px !important; }
+.completed-upload-table-shell .completed-upload-full-table thead th { display: table-cell !important; position: sticky !important; top: 0 !important; z-index: 11 !important; height: 48px !important; min-height: 48px !important; padding: 11px 12px !important; overflow: visible !important; background: #24527a !important; color: #fff !important; visibility: visible !important; opacity: 1 !important; font-size: .68rem !important; font-weight: 800 !important; line-height: 1.25 !important; vertical-align: middle !important; text-align: left; }
+.completed-upload-table-shell .completed-upload-full-table thead th.completed-upload-sticky-column { left: 0 !important; z-index: 14 !important; }
+.completed-upload-table-shell .completed-upload-full-table thead th.completed-upload-action-column { right: 0 !important; left: auto !important; z-index: 15 !important; }
+.completed-upload-table-shell .completed-upload-full-table tbody td { background: #fff; color: #334155; }
+.completed-upload-table-shell .completed-upload-table-wrap { overflow-x: auto !important; overflow-y: auto !important; }
+.completed-upload-table-shell .completed-upload-full-table thead { position: sticky !important; top: 0 !important; z-index: 20 !important; }
+.completed-upload-table-shell .completed-upload-full-table thead th { position: relative !important; top: auto !important; }
 .completed-upload-table-wrap { position: relative; padding-right: 112px; }
 .completed-upload-table-shell { position: relative; width: 100%; }
 .completed-upload-table-shell { overflow: hidden; border: 1px solid #dbeafe; border-radius: 11px; background: #fff; }.completed-upload-table-shell .completed-upload-table-wrap { border: 0; border-radius: 0; }.completed-upload-action-rail { top: 0; right: 0; bottom: 0; height: auto; border-top: 0; border-right: 0; border-bottom: 0; border-radius: 0; }
@@ -631,4 +640,268 @@
 @media (max-width: 600px) {
   .completed-upload-title { align-items: center; }
   .completed-upload-icon { flex-basis: 42px; }
+}
+
+/* Keep the Excel preview readable when the sheet has many columns or rows. */
+.completed-upload-table-shell,
+.completed-upload-table-shell.is-compact {
+  height: min(56vh, 560px) !important;
+  min-height: 310px;
+  max-height: 560px !important;
+  overflow: hidden;
+}
+
+.completed-upload-table-shell .completed-upload-table-wrap,
+.completed-upload-table-shell.is-compact .completed-upload-table-wrap {
+  height: 100% !important;
+  max-height: none !important;
+  overflow-x: auto !important;
+  overflow-y: scroll !important;
+  scrollbar-gutter: stable;
+}
+
+.completed-upload-table-shell .completed-upload-full-table {
+  width: 100% !important;
+  min-width: max(100%, 2200px) !important;
+  border-collapse: separate !important;
+  border-spacing: 0;
+  table-layout: auto;
+}
+
+.completed-upload-table-shell .completed-upload-full-table thead {
+  position: static !important;
+}
+
+.completed-upload-table-shell .completed-upload-full-table thead th {
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 12 !important;
+  display: table-cell !important;
+  height: 48px !important;
+  min-height: 48px !important;
+  padding: 11px 12px !important;
+  overflow: visible !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  background: #24527a !important;
+  color: #fff !important;
+  font-size: .68rem !important;
+  font-weight: 800 !important;
+  line-height: 1.25 !important;
+  white-space: nowrap !important;
+  overflow-wrap: normal;
+  vertical-align: middle;
+}
+
+.completed-upload-table-shell .completed-upload-full-table tbody td {
+  background: #fff;
+  color: #334155;
+  white-space: nowrap;
+  overflow-wrap: normal;
+}
+
+.completed-upload-table-shell .completed-upload-full-table td.completed-upload-validation-cell {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  min-width: 280px;
+  max-width: 420px;
+}
+
+.completed-upload-inline-input.is-focused-error {
+  border-color: #dc2626 !important;
+  background: #fff1f2 !important;
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, .16) !important;
+  outline: none !important;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.completed-upload-inline-input.is-invalid-field {
+  border-color: #dc2626 !important;
+  background: #ffe4e6 !important;
+  outline: none !important;
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, .16) !important;
+}
+
+.completed-upload-page .completed-upload-preview-actions {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  padding: 0;
+  margin-top: 22px;
+}
+
+.completed-upload-page .completed-upload-dropzone {
+  min-height: 118px;
+  padding: 16px 24px;
+  gap: 6px;
+}
+
+.completed-upload-page .completed-upload-summary > div {
+  position: relative;
+  padding-left: 42px;
+}
+
+.completed-upload-page .completed-upload-summary > div::before {
+  position: absolute;
+  top: 17px;
+  left: 14px;
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  background: #dbeafe;
+  color: #2563eb;
+  content: '▦';
+  font-size: 15px;
+  font-weight: 900;
+}
+
+.completed-upload-page .completed-upload-summary > div.is-valid::before {
+  background: #dcfce7;
+  color: #16a34a;
+  content: '✓';
+}
+
+.completed-upload-page .completed-upload-summary > div.is-invalid::before {
+  background: #fee2e2;
+  color: #dc2626;
+  content: '!';
+}
+
+.completed-upload-inline-input.is-focused-error:focus,
+.completed-upload-inline-input.is-focused-error:focus-visible {
+  outline: none !important;
+  border-color: #dc2626 !important;
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, .16) !important;
+}
+
+body[data-completed-upload-invalid-fields~="studentId"] [data-edit-field="studentId"],
+body[data-completed-upload-invalid-fields~="studentName"] [data-edit-field="studentName"],
+body[data-completed-upload-invalid-fields~="contactNumber"] [data-edit-field="contactNumber"],
+body[data-completed-upload-invalid-fields~="emailId"] [data-edit-field="emailId"],
+body[data-completed-upload-invalid-fields~="parentGuardian"] [data-edit-field="parentGuardian"],
+body[data-completed-upload-invalid-fields~="qualification"] [data-edit-field="qualification"],
+body[data-completed-upload-invalid-fields~="course"] [data-edit-field="course"],
+body[data-completed-upload-invalid-fields~="attendance"] [data-edit-field="attendance"],
+body[data-completed-upload-invalid-fields~="academicProject"] [data-edit-field="academicProject"],
+body[data-completed-upload-invalid-fields~="assessment01"] [data-edit-field="assessment01"],
+body[data-completed-upload-invalid-fields~="assessment02"] [data-edit-field="assessment02"],
+body[data-completed-upload-invalid-fields~="assessment03"] [data-edit-field="assessment03"],
+body[data-completed-upload-invalid-fields~="studentStatus"] [data-edit-field="studentStatus"] {
+  border-color: #dc2626 !important;
+  background: #ffe4e6 !important;
+  outline: none !important;
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, .16) !important;
+}
+
+.completed-upload-table-shell .completed-upload-full-table tbody tr:has(.completed-upload-inline-input.is-focused-error) td {
+  background: #fff1f2;
+  border-bottom-color: #fecdd3;
+}
+
+.completed-upload-table-shell .completed-upload-full-table tbody tr:has(.completed-upload-inline-input.is-focused-error) td.completed-upload-action-column {
+  background: #ffe4e6;
+}
+
+.completed-upload-table-shell .completed-upload-full-table tbody tr:has(.completed-upload-inline-input.is-focused-error) .completed-upload-inline-input.is-focused-error {
+  border-color: #dc2626 !important;
+  background: #ffe4e6 !important;
+}
+
+.completed-upload-table-shell .completed-upload-table-wrap:has(tbody:empty)::after {
+  content: 'No records found';
+  position: absolute;
+  inset: 48px 0 0;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  color: #64748b;
+  background: #fff;
+  font-size: .85rem;
+  font-weight: 800;
+  pointer-events: none;
+}
+
+/* The upload workspace is rendered inside the dashboard content area. */
+.branch-dashboard-content:has(.completed-upload-page-shell) {
+  display: block;
+  min-width: 0;
+  padding-top: 0;
+}
+
+.completed-upload-page-shell {
+  min-height: calc(100vh - 118px);
+  margin-top: 20px;
+}
+
+.completed-upload-page .completed-upload-header {
+  position: relative;
+  top: auto;
+}
+
+.completed-upload-confirm-backdrop {
+  z-index: 1600;
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+}
+
+.branch-dashboard-app-shell:has(.completed-upload-confirm-backdrop) .super-admin-sidebar,
+.branch-dashboard-app-shell:has(.completed-upload-confirm-backdrop) .super-admin-topbar {
+  filter: blur(6px);
+  pointer-events: none;
+  user-select: none;
+}
+
+.completed-upload-page {
+  min-height: calc(100vh - 118px);
+}
+
+.completed-upload-page .completed-upload-body {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: none;
+  min-width: 0;
+  padding-top: 0;
+  padding-right: clamp(18px, 3vw, 42px);
+  padding-left: clamp(18px, 3vw, 42px);
+}
+
+.completed-upload-page .completed-upload-summary,
+.completed-upload-page .completed-upload-preview-heading,
+.completed-upload-page .completed-upload-filter-bar,
+.completed-upload-page .completed-upload-table-shell,
+.completed-upload-page .completed-upload-preview-actions {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.completed-upload-page .completed-upload-summary {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.completed-upload-page .completed-upload-summary:has(.is-duplicate),
+.completed-upload-page .completed-upload-summary:has(.is-warning) {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.completed-upload-page .completed-upload-summary:has(.is-duplicate):has(.is-warning) {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+}
+
+.completed-upload-page .completed-upload-summary .completed-upload-error-download {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.completed-upload-page .completed-upload-preview-heading {
+  align-items: center;
+}
+
+@media (max-width: 760px) {
+  .completed-upload-page .completed-upload-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }

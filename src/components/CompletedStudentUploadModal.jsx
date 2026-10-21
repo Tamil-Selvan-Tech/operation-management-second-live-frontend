@@ -6,10 +6,10 @@ import '../styles/CompletedStudentUploadModal.css'
 function errorMessage(error) { return error?.body?.message || error?.body?.error || error?.message || 'Something went wrong. Please try again.' }
 const PAGE_SIZE = 10
 const COLUMN_LABELS = {
-  studentId: 'Student ID', studentName: 'Student Name', contactNumber: 'Contact Number', emailId: 'Email ID', parentGuardian: 'Parent / Guardian', qualification: 'Qualification', educationLevel: 'Education Level', educationStatus: 'Education Status', passedOutYear: 'Passed Out Year', currentStatus: 'Current Status', designation: 'Designation', companyName: 'Company Name', purpose: 'Purpose', linkedInUrl: 'LinkedIn URL', course: 'Course', databaseSource: 'Database Source', branchAdminName: 'Branch Admin Name', courseStartingDate: 'Course Starting Date', courseEndingDate: 'Course Ending Date', scheduleMode: 'Weekday / Weekend / Online / Offline', batchTiming: 'Batch Timing', facultyName: 'Faculty Name', attendance: 'Attendance', courseFees: 'Course Fees', registrationFees: 'Registration Fees', totalFees: 'Total Fees', studentStatus: 'Student Status', remarks: 'Remarks', academicProject: 'Academic Project', placement: 'Placement', certificationStatus: 'Certification Status', certificateIssuedDate: 'Certificate Issued Date',
+  studentId: 'Student ID', studentName: 'Student Name', contactNumber: 'Contact Number', emailId: 'Email ID', parentGuardian: 'Parent / Guardian', qualification: 'Qualification', educationLevel: 'Education Level', educationStatus: 'Education Status', passedOutYear: 'Passed Out Year', currentStatus: 'Current Status', designation: 'Designation', companyName: 'Company Name', purpose: 'Purpose', linkedInUrl: 'LinkedIn URL', course: 'Course', databaseSource: 'Database Source', branchAdminName: 'Branch Admin Name', courseStartingDate: 'Course Starting Date', courseEndingDate: 'Course Ending Date', scheduleMode: 'Weekday / Weekend / Online / Offline', batchTiming: 'Batch Timing', facultyName: 'Faculty Name', attendance: 'Attendance', courseFees: 'Course Fees', registrationFees: 'Registration Fees', totalFees: 'Total Fees', studentStatus: 'Student Status', remarks: 'Remarks', academicProject: 'Academic Project Percentage', placement: 'Placement', certificationStatus: 'Certification Status', certificateIssuedDate: 'Certificate Issued Date',
 }
 const COLUMN_ORDER = ['studentId', 'studentName', 'contactNumber', 'emailId', 'parentGuardian', 'qualification', 'educationLevel', 'educationStatus', 'passedOutYear', 'currentStatus', 'designation', 'companyName', 'purpose', 'linkedInUrl', 'course', 'databaseSource', 'branchAdminName', 'courseStartingDate', 'courseEndingDate', 'scheduleMode', 'batchTiming', 'facultyName', 'attendance', 'courseFees', 'registrationFees', 'totalFees', 'studentStatus', 'remarks', 'academicProject', 'placement', 'certificationStatus', 'certificateIssuedDate', 'assessment01', 'assessment02', 'assessment03']
-function columnLabel(field) { const match = field.match(/^assessment(\d+)$/); if (match) return `Assessment-${String(Number(match[1])).padStart(2, '0')}`; const installment = field.match(/^installment(\d+)(.+)$/); if (installment) return `Installment ${installment[1]} - ${installment[2].replace(/([a-z])([A-Z])/g, '$1 $2')}`; return COLUMN_LABELS[field] || field }
+function columnLabel(field) { const match = field.match(/^assessment(\d+)$/); if (match) return `Assessment-${String(Number(match[1])).padStart(2, '0')} Percentage`; const installment = field.match(/^installment(\d+)(.+)$/); if (installment) return `Installment ${installment[1]} - ${installment[2].replace(/([a-z])([A-Z])/g, '$1 $2')}`; return COLUMN_LABELS[field] || field }
 function isDuplicateRow(row) { return row.errors?.some((error) => /duplicate/i.test(error)) }
 function isWarningRow(row) { return row.warnings?.length > 0 || row.errors?.some((error) => /^warning/i.test(error)) }
 function displayCellValue(value) { return value === null || value === undefined || value === '' ? '-' : String(value) }
@@ -25,6 +25,34 @@ function invalidFieldFromMessage(message = '') {
 function firstInvalidField(row) { return (row.errors || []).map(invalidFieldFromMessage).find(Boolean) || 'studentId' }
 function isMissingContactError(error = '') { return /^(Contact Number|Email ID) is missing\./i.test(error) }
 function hasOnlyMissingContactErrors(row) { return Boolean(row.errors?.length) && row.errors.every(isMissingContactError) }
+function markEditingInvalidFields(row) {
+  if (typeof document === 'undefined') return
+  const fields = [...new Set([
+    ...(row.errors || []).map(invalidFieldFromMessage).filter(Boolean),
+    ...(row.errors || []).some((error) => /Student Status/i.test(error)) ? ['studentStatus'] : [],
+  ])]
+  document.body.dataset.completedUploadInvalidFields = fields.join(' ')
+  window.requestAnimationFrame(() => {
+    document.querySelectorAll('.completed-upload-inline-input.is-invalid-field').forEach((input) => input.classList.remove('is-invalid-field'))
+    fields.forEach((field) => document.querySelector(`[data-edit-field="${field}"]`)?.classList.add('is-invalid-field'))
+  })
+}
+function normalizeCompletedStudentImportPreview(preview) {
+  if (!preview?.rows) return preview
+  const rows = preview.rows.map((row) => {
+    const data = { ...row.data }
+    ;['attendance', 'academicProject', 'assessment01', 'assessment02', 'assessment03'].forEach((field) => {
+      if (typeof data[field] === 'string' && /^\s*\d+(?:\.\d+)?\s*%\s*$/.test(data[field])) data[field] = data[field].replace('%', '').trim()
+    })
+    const rawStatus = String(data.studentStatus || '').trim().replace(/\s+/g, ' ').toLowerCase()
+    const acceptedStatus = ['completed', 'completed student', 'completed students', 'discontinued', 'discontinued student', 'discontinued students'].includes(rawStatus)
+    if (!acceptedStatus) return { ...row, data }
+    const canonicalStatus = rawStatus.startsWith('discontinued') ? 'Discontinued Student' : 'Completed Student'
+    const errors = (row.errors || []).filter((error) => !/^Student Status must be Completed Student(?: or Discontinued Student)?\.?$/i.test(String(error).trim()))
+    return { ...row, data: { ...data, studentStatus: canonicalStatus }, errors, valid: errors.length === 0 }
+  })
+  return { ...preview, rows, totalRows: preview.totalRows ?? rows.length, validRows: rows.filter((row) => row.valid).length, invalidRows: rows.filter((row) => !row.valid).length, warningRows: rows.filter((row) => row.warnings?.length).length }
+}
 
 export function CompletedStudentUploadModal({ isOpen, onClose, onImported }) {
   const inputRef = useRef(null)
@@ -78,14 +106,6 @@ export function CompletedStudentUploadModal({ isOpen, onClose, onImported }) {
     return () => window.cancelAnimationFrame(frame)
   }, [editingRow?.rowNumber, editingRow?.focusField])
 
-  useEffect(() => {
-    if (!showPreview) return undefined
-    const frame = window.requestAnimationFrame(() => {
-      previewTableRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-    })
-    return () => window.cancelAnimationFrame(frame)
-  }, [showPreview])
-
   if (!isOpen) return null
 
   const selectFile = async (nextFile) => {
@@ -94,7 +114,7 @@ export function CompletedStudentUploadModal({ isOpen, onClose, onImported }) {
     if (!/\.xlsx$/i.test(nextFile.name)) { setError('Only .xlsx files are supported.'); return }
     if (nextFile.size > 8 * 1024 * 1024) { setError('File size must be 8 MB or less.'); return }
     setFile(nextFile); setBusy(true)
-    try { const response = await previewCompletedStudentImport(nextFile); setPreview(response?.data || response) } catch (requestError) { setError(errorMessage(requestError)) } finally { setBusy(false) }
+    try { const response = await previewCompletedStudentImport(nextFile); setPreview(normalizeCompletedStudentImportPreview(response?.data || response)) } catch (requestError) { setError(errorMessage(requestError)) } finally { setBusy(false) }
   }
 
   const importRows = async () => {
@@ -172,9 +192,13 @@ export function CompletedStudentUploadModal({ isOpen, onClose, onImported }) {
 
   const toggleContactReviewRow = (rowNumber) => setContactReview((current) => current.map((item) => item.row.rowNumber === rowNumber ? { ...item, selected: !item.selected } : item))
 
-  const updateEditedRow = (field, value) => setEditingRow((current) => ({ ...current, data: { ...current.data, [field]: value } }))
+  const updateEditedRow = (field, value) => {
+    const nextValue = field === 'contactNumber' ? String(value).replace(/\D/g, '').slice(0, 10) : value
+    setEditingRow((current) => ({ ...current, data: { ...current.data, [field]: nextValue } }))
+  }
   const beginEditing = (row) => {
     setShowPreview(true)
+    markEditingInvalidFields(row)
     setEditingRow({ ...row, focusField: firstInvalidField(row), data: { ...row.data } })
   }
   const saveEditedRow = async () => {
@@ -183,7 +207,7 @@ export function CompletedStudentUploadModal({ isOpen, onClose, onImported }) {
     try {
       const nextRows = preview.rows.map((row) => row.rowNumber === editingRow.rowNumber ? editingRow : row)
       const response = await revalidateCompletedStudentImport(nextRows)
-      setPreview(response?.data || response); setEditingRow(null); setTablePage(1); setShowPreview(true)
+      setPreview(normalizeCompletedStudentImportPreview(response?.data || response)); setEditingRow(null); setTablePage(1); setShowPreview(true)
     } catch (requestError) { setError(errorMessage(requestError)) } finally { setBusy(false) }
   }
 
