@@ -1,11 +1,20 @@
 import { useEffect, useRef, useState } from 'react'
-import { ChevronDown, ChevronUp, Download, FileSpreadsheet, Loader2, X } from 'lucide-react'
+import { Check, ChevronDown, ChevronUp, Download, FileSpreadsheet, Loader2, X } from 'lucide-react'
 import { downloadBranchMonthlyStudentReport } from '../services/reportService'
 import '../styles/BranchMonthlyReportModal.css'
 
 const pad = (value) => String(value).padStart(2, '0')
 const today = new Date()
 const todayValue = today.toISOString().slice(0, 10)
+const REPORT_FIELD_GROUPS = [
+  { label: 'Student details', fields: [['studentId', 'Student ID'], ['studentName', 'Student Name'], ['contactNumber', 'Contact Number'], ['emailId', 'Email ID'], ['parentGuardian', 'Parent / Guardian'], ['qualification', 'Qualification'], ['educationLevel', 'Education Level'], ['educationStatus', 'Education Status'], ['passedOutYear', 'Passed Out Year'], ['currentStatus', 'Current Status'], ['studentStatus', 'Student Status']] },
+  { label: 'Course & schedule', fields: [['course', 'Course'], ['databaseSource', 'Database Source'], ['branchAdminName', 'Branch Admin Name'], ['courseStartingDate', 'Course Starting Date'], ['courseEndingDate', 'Course Ending Date'], ['scheduleMode', 'Schedule Mode'], ['batchTiming', 'Batch Timing'], ['facultyName', 'Faculty Name'], ['attendance', 'Attendance']] },
+  { label: 'Fees & payment', fields: [['courseFees', 'Course Fees'], ['registrationFees', 'Registration Fees'], ['totalFees', 'Total Fees'], ['paidAmount', 'Paid Amount'], ['pendingAmount', 'Pending Amount']] },
+  { label: 'Academic & outcome', fields: [['remarks', 'Remarks'], ['academicProject', 'Academic Project'], ['assessment01', 'Assessment-01'], ['assessment02', 'Assessment-02'], ['assessment03', 'Assessment-03'], ['placement', 'Placement'], ['certificationStatus', 'Certification Status'], ['certificateIssuedDate', 'Certificate Issued Date']] },
+  { label: 'Installments', fields: [1, 2, 3].flatMap((number) => [['installment' + number + '.paidAmount', `Installment ${number} - Paid Amount`], ['installment' + number + '.pendingAmount', `Installment ${number} - Pending Amount`], ['installment' + number + '.paymentDate', `Installment ${number} - Payment Date`], ['installment' + number + '.mode', `Installment ${number} - Mode of Collection`], ['installment' + number + '.receiptNumber', `Installment ${number} - Receipt Number`]]) },
+]
+const REPORT_FIELDS = REPORT_FIELD_GROUPS.flatMap((group) => group.fields)
+const DEFAULT_REPORT_FIELDS = REPORT_FIELDS.map(([key]) => key)
 
 function ReportFilterSelect({ label, value, onChange, options }) {
   const [isOpen, setIsOpen] = useState(false)
@@ -45,13 +54,17 @@ export function BranchMonthlyReportModal({ isOpen, onClose }) {
   const [toDate, setToDate] = useState(todayValue)
   const [error, setError] = useState('')
   const [isDownloading, setIsDownloading] = useState(false)
+  const [selectedFields, setSelectedFields] = useState(DEFAULT_REPORT_FIELDS)
+  const [columnsOpen, setColumnsOpen] = useState(true)
+  const selectedFieldSet = new Set(selectedFields)
   if (!isOpen) return null
   const submit = async (event) => {
     event.preventDefault(); setError('')
     if (['week', 'range'].includes(mode) && (!fromDate || !toDate || fromDate > toDate)) return setError('Please select a valid date range.')
     setIsDownloading(true)
     try {
-      const query = mode === 'month' ? { mode, month, year, status } : mode === 'year' ? { mode, year, status } : mode === 'all' ? { mode, status } : { mode, fromDate, toDate, status }
+      if (!selectedFields.length) return setError('Select at least one report field before downloading.')
+      const query = mode === 'month' ? { mode, month, year, status, columns: JSON.stringify(selectedFields) } : mode === 'year' ? { mode, year, status, columns: JSON.stringify(selectedFields) } : mode === 'all' ? { mode, status, columns: JSON.stringify(selectedFields) } : { mode, fromDate, toDate, status, columns: JSON.stringify(selectedFields) }
       const statusName = status === 'all' ? 'All_Students' : status === 'completed' ? 'Completed_Students' : 'Discontinued_Students'
       const periodName = mode === 'month' ? 'Monthly_' + year + '-' + pad(month) : mode === 'year' ? 'Yearly_' + year : mode === 'all' ? 'All_Records' : mode === 'week' ? 'Weekly_' + fromDate : 'Custom_' + fromDate + '_to_' + toDate
       await downloadBranchMonthlyStudentReport(query, statusName + '_' + periodName + '.xlsx')
@@ -63,6 +76,7 @@ export function BranchMonthlyReportModal({ isOpen, onClose }) {
       <header className="branch-monthly-report-header"><div className="branch-monthly-report-title"><span><FileSpreadsheet size={20} /></span><div><p>BRANCH ADMIN REPORT</p><h2 id="branch-monthly-report-title">Student Status Report</h2><small>Export complete or discontinued student data with all course and academic details.</small></div></div><button type="button" className="branch-monthly-report-close" onClick={onClose} disabled={isDownloading} aria-label="Close"><X size={20} /></button></header>
       <form onSubmit={submit} className="branch-monthly-report-form">
         <div className="branch-monthly-report-section"><div className="branch-monthly-report-select-row"><ReportFilterSelect label="Period type" value={mode} onChange={setMode} options={[{ value: 'month', label: 'Month' }, { value: 'week', label: 'Week' }, { value: 'year', label: 'Year' }, { value: 'range', label: 'Custom Range' }, { value: 'all', label: 'All Records' }]} /><ReportFilterSelect label="Student status" value={status} onChange={setStatus} options={[{ value: 'completed', label: 'Completed Students' }, { value: 'discontinued', label: 'Discontinued Students' }, { value: 'all', label: 'All Students' }]} /></div>{mode === 'month' ? <div className="branch-monthly-report-fields"><label>Month<select value={month} onChange={(event) => setMonth(event.target.value)}>{Array.from({ length: 12 }, (_, index) => <option key={index + 1} value={index + 1}>{new Date(2000, index, 1).toLocaleString('en', { month: 'long' })}</option>)}</select></label><label>Year<input type="number" min="2000" max="2100" value={year} onChange={(event) => setYear(event.target.value)} /></label></div> : mode === 'year' ? <div className="branch-monthly-report-fields"><label>Year<input type="number" min="2000" max="2100" value={year} onChange={(event) => setYear(event.target.value)} /></label></div> : mode === 'all' ? <p className="branch-monthly-report-hint">No date filter. This includes completed and discontinued course records.</p> : <div className="branch-monthly-report-fields"><label>{mode === 'week' ? 'Week Start' : 'From Date'}<input type="date" value={fromDate} onChange={(event) => setFromDate(event.target.value)} /></label><label>{mode === 'week' ? 'Week End' : 'To Date'}<input type="date" value={toDate} onChange={(event) => setToDate(event.target.value)} /></label></div>}</div>
+        <div className="branch-monthly-report-section branch-monthly-report-columns-section"><div className="branch-monthly-report-section-heading"><div><span>03</span><div><h3>Report columns</h3><p>Choose the fields you want in the downloaded Excel file.</p></div></div><button type="button" className="branch-monthly-report-columns-toggle" onClick={() => setColumnsOpen((open) => !open)}>{columnsOpen ? 'Hide fields' : 'Show fields'}{columnsOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}</button></div>{columnsOpen ? <><div className="branch-monthly-report-column-toolbar"><span><strong>{selectedFields.length}</strong> of {REPORT_FIELDS.length} fields selected</span><div><button type="button" onClick={() => setSelectedFields(DEFAULT_REPORT_FIELDS)}>Select all</button><button type="button" onClick={() => setSelectedFields([])}>Clear all</button></div></div><div className="branch-monthly-report-column-groups">{REPORT_FIELD_GROUPS.map((group) => <div className="branch-monthly-report-column-group" key={group.label}><h4>{group.label}</h4><div className="branch-monthly-report-column-grid">{group.fields.map(([key, label]) => <label className={`branch-monthly-report-column${selectedFieldSet.has(key) ? ' is-selected' : ''}`} key={key}><input type="checkbox" checked={selectedFieldSet.has(key)} onChange={() => setSelectedFields((current) => current.includes(key) ? current.filter((item) => item !== key) : [...current, key])} /><span className="branch-monthly-report-check">{selectedFieldSet.has(key) ? <Check size={12} /> : null}</span><span>{label}</span></label>)}</div></div>)}</div></> : null}</div>
         {error ? <div className="branch-monthly-report-error" role="alert">{error}</div> : null}
         <footer className="branch-monthly-report-footer"><span>Excel format: xlsx · Missing values use -</span><div><button type="button" className="branch-monthly-report-cancel" onClick={onClose} disabled={isDownloading}>Cancel</button><button type="submit" className="branch-monthly-report-download" disabled={isDownloading}>{isDownloading ? <><Loader2 className="is-spinning" size={17} /> Generating...</> : <><Download size={17} /> Download Excel</>}</button></div></footer>
       </form>
