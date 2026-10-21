@@ -8,6 +8,22 @@
 @media(max-width:430px){.branch-monthly-report-title h2{font-size:18px}.branch-monthly-report-title small{font-size:11px}.branch-monthly-report-fields,.branch-monthly-report-column-grid{grid-template-columns:1fr}.branch-monthly-report-section-heading{display:block}.branch-monthly-report-section-heading>svg{display:none}.branch-monthly-report-column-actions{margin-top:12px}}
 @media(prefers-reduced-motion:reduce){.branch-monthly-report-modal,.is-spinning{animation:none}}
 
+.branch-monthly-report-columns-section { margin-top: 14px; }
+.branch-monthly-report-columns-toggle { display: inline-flex; align-items: center; gap: 5px; padding: 7px 10px; border: 1px solid #cbd8e7; border-radius: 8px; color: #2964be; background: #fff; font: inherit; font-size: 11px; font-weight: 750; cursor: pointer; }
+.branch-monthly-report-columns-toggle:hover { border-color: #7aa9eb; background: #eff6ff; }
+.branch-monthly-report-column-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 16px; padding: 10px 12px; border: 1px solid #e2e8f0; border-radius: 10px; background: #f8fbff; color: #64748b; font-size: 11px; }
+.branch-monthly-report-column-toolbar strong { color: #1d4ed8; font-size: 13px; }
+.branch-monthly-report-column-toolbar > div { display: flex; gap: 7px; }
+.branch-monthly-report-column-toolbar button { padding: 6px 9px; border: 1px solid #cbd8e7; border-radius: 7px; color: #245db5; background: #fff; font: inherit; font-size: 10px; font-weight: 800; cursor: pointer; }
+.branch-monthly-report-column-toolbar button:hover { border-color: #7aa9eb; background: #eff6ff; }
+.branch-monthly-report-column-groups { display: grid; gap: 14px; margin-top: 14px; }
+.branch-monthly-report-column-group h4 { margin: 0 0 7px; color: #53677f; font-size: 11px; font-weight: 850; letter-spacing: .03em; text-transform: uppercase; }
+.branch-monthly-report-column-group .branch-monthly-report-column-grid { margin-top: 0; }
+.branch-monthly-report-column { transition: border-color 160ms ease, background-color 160ms ease, box-shadow 160ms ease, transform 160ms ease; }
+.branch-monthly-report-column:hover { transform: translateY(-1px); box-shadow: 0 4px 10px rgba(15,23,42,.06); }
+.branch-monthly-report-column.is-selected { box-shadow: inset 3px 0 0 #3477dc; }
+@media(max-width:700px){.branch-monthly-report-column-toolbar{align-items:stretch;flex-direction:column}.branch-monthly-report-column-toolbar>div{display:grid;grid-template-columns:1fr 1fr}.branch-monthly-report-column-toolbar button{min-height:32px}.branch-monthly-report-columns-toggle{margin-top:8px}}
+
 /* Keep period and status choices readable as segmented option controls. */
 .branch-monthly-report-period-tabs{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:5px;padding:5px;border:1px solid #e6edf5;border-radius:13px;background:#f4f7fb;box-shadow:inset 0 1px 2px rgba(15,23,42,.03)}
 .branch-monthly-report-period-tabs button{min-height:38px;padding:8px 10px;border:1px solid transparent;border-radius:9px;color:#687991;background:transparent;font:inherit;font-size:12px;font-weight:800;line-height:1.2;cursor:pointer;transition:color 160ms ease,background-color 160ms ease,border-color 160ms ease,box-shadow 160ms ease,transform 160ms ease}
