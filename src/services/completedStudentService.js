@@ -20,3 +20,10 @@ export async function listCompletedStudentCourses(query = {}) {
     meta: response?.meta || payload.meta || null,
   }
 }
+
+export async function deleteCompletedStudent(studentId) {
+  const normalizedId = String(studentId || '').trim()
+  if (!normalizedId) throw new Error('Student identifier is required for delete')
+  const response = await request(`/branch-students/${encodeURIComponent(normalizedId)}`, { method: 'DELETE' })
+  return unwrap(response)
+}
