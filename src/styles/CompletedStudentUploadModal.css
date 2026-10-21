@@ -905,3 +905,192 @@ body[data-completed-upload-invalid-fields~="studentStatus"] [data-edit-field="st
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
+
+/* Keep the result columns visible while the uploaded data columns scroll horizontally. */
+.completed-upload-table-shell .completed-upload-full-table th:nth-last-child(3),
+.completed-upload-table-shell .completed-upload-full-table td:nth-last-child(3) {
+  position: sticky !important;
+  display: table-cell !important;
+  left: auto !important;
+  right: auto !important;
+  min-width: 92px !important;
+  width: 92px !important;
+  z-index: 13 !important;
+  background: #fff !important;
+  box-shadow: -8px 0 14px rgba(15, 23, 42, .06);
+  transform: translateX(calc(var(--completed-upload-sticky-shift, 0px) + var(--completed-upload-scroll-left, 0px)));
+  will-change: transform;
+}
+
+.completed-upload-table-shell .completed-upload-full-table th:nth-last-child(2),
+.completed-upload-table-shell .completed-upload-full-table td:nth-last-child(2) {
+  position: sticky !important;
+  display: table-cell !important;
+  left: auto !important;
+  right: auto !important;
+  min-width: 300px !important;
+  width: 300px !important;
+  max-width: 420px !important;
+  z-index: 14 !important;
+  white-space: normal !important;
+  overflow-wrap: anywhere;
+  background: #fff !important;
+  transform: translateX(calc(var(--completed-upload-sticky-shift, 0px) + var(--completed-upload-scroll-left, 0px)));
+  will-change: transform;
+}
+
+.completed-upload-table-shell .completed-upload-full-table th.completed-upload-action-column,
+.completed-upload-table-shell .completed-upload-full-table td.completed-upload-action-column {
+  position: sticky !important;
+  display: table-cell !important;
+  left: auto !important;
+  right: auto !important;
+  min-width: 104px !important;
+  width: 104px !important;
+  z-index: 15 !important;
+  background: #fff !important;
+  box-shadow: -8px 0 14px rgba(15, 23, 42, .1);
+  transform: translateX(calc(var(--completed-upload-sticky-shift, 0px) + var(--completed-upload-scroll-left, 0px)));
+  will-change: transform;
+}
+
+.completed-upload-table-shell .completed-upload-full-table thead th:nth-last-child(3),
+.completed-upload-table-shell .completed-upload-full-table thead th:nth-last-child(2),
+.completed-upload-table-shell .completed-upload-full-table thead th.completed-upload-action-column {
+  top: 0 !important;
+  color: #fff !important;
+  background: #24577f !important;
+}
+
+.completed-upload-table-shell .completed-upload-full-table tbody tr:has(.completed-upload-inline-input) td:nth-last-child(3),
+.completed-upload-table-shell .completed-upload-full-table tbody tr:has(.completed-upload-inline-input) td:nth-last-child(2),
+.completed-upload-table-shell .completed-upload-full-table tbody tr:has(.completed-upload-inline-input) td.completed-upload-action-column {
+  background: #fff1f2 !important;
+}
+
+/* Keep the horizontal freeze smooth; only the header needs sticky positioning. */
+.completed-upload-table-shell .completed-upload-full-table tbody td:nth-last-child(3),
+.completed-upload-table-shell .completed-upload-full-table tbody td:nth-last-child(2),
+.completed-upload-table-shell .completed-upload-full-table tbody td.completed-upload-action-column {
+  position: relative !important;
+  top: auto !important;
+  right: auto !important;
+  left: auto !important;
+  transform: translate3d(calc(var(--completed-upload-sticky-shift, 0px) + var(--completed-upload-scroll-left, 0px)), 0, 0);
+  backface-visibility: hidden;
+}
+
+.completed-upload-table-shell .completed-upload-full-table thead th:nth-last-child(3),
+.completed-upload-table-shell .completed-upload-full-table thead th:nth-last-child(2),
+.completed-upload-table-shell .completed-upload-full-table thead th.completed-upload-action-column {
+  position: sticky !important;
+  top: 0 !important;
+  right: auto !important;
+  left: auto !important;
+  transform: translate3d(calc(var(--completed-upload-sticky-shift, 0px) + var(--completed-upload-scroll-left, 0px)), 0, 0);
+  backface-visibility: hidden;
+}
+
+/* Render the three result columns in a stable overlay instead of moving table cells. */
+.completed-upload-fixed-result-rail {
+  position: absolute;
+  inset: 0 0 0 auto;
+  z-index: 30;
+  width: 496px;
+  overflow: hidden;
+  pointer-events: none;
+  background: #fff;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.completed-upload-fixed-result-rail table {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.completed-upload-fixed-result-rail thead {
+  position: relative;
+  z-index: 2;
+}
+
+.completed-upload-fixed-result-rail tbody {
+  position: relative;
+  z-index: 1;
+}
+
+.completed-upload-fixed-result-rail th,
+.completed-upload-fixed-result-rail td {
+  box-sizing: border-box;
+  padding: 10px 11px;
+  border-bottom: 1px solid #e2e8f0;
+  text-align: left;
+  vertical-align: top;
+  font-size: .72rem;
+  border-radius: 0 !important;
+}
+
+.completed-upload-fixed-result-rail th {
+  height: 48px;
+  background: #24577f;
+  color: #fff;
+  font-size: .68rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.completed-upload-fixed-result-rail th:nth-child(1),
+.completed-upload-fixed-result-rail td:nth-child(1) {
+  width: 92px;
+}
+
+.completed-upload-fixed-result-rail th:nth-child(2),
+.completed-upload-fixed-result-rail td:nth-child(2) {
+  width: 300px;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.completed-upload-fixed-result-rail th:nth-child(3),
+.completed-upload-fixed-result-rail td:nth-child(3) {
+  width: 104px;
+  text-align: center;
+}
+
+.completed-upload-fixed-result-rail tbody {
+  display: table-row-group;
+  pointer-events: auto;
+  will-change: transform;
+}
+
+.completed-upload-fixed-result-rail td {
+  height: 48px;
+  background: #fff;
+  color: #334155;
+}
+
+.completed-upload-fixed-result-rail .completed-upload-row-action {
+  width: 94px;
+}
+
+.completed-upload-table-shell .completed-upload-full-table tbody td:nth-last-child(3),
+.completed-upload-table-shell .completed-upload-full-table tbody td:nth-last-child(2),
+.completed-upload-table-shell .completed-upload-full-table tbody td.completed-upload-action-column {
+  transform: none !important;
+  opacity: 0;
+  pointer-events: none;
+}
+
+@media (max-width: 760px) {
+  .completed-upload-fixed-result-rail {
+    width: 420px;
+  }
+
+  .completed-upload-fixed-result-rail th:nth-child(2),
+  .completed-upload-fixed-result-rail td:nth-child(2) {
+    width: 250px;
+  }
+}
