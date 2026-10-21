@@ -424,13 +424,27 @@ function getCourseAcademicProgress(student = {}, courseId = '', courseName = '',
 function isCourseCompletionComplete(student = {}, courseId = '', courseName = '', progress = 0, fetchedByStudent = new Map()) {
   const normalizedCourseId = String(courseId || '').trim().toLowerCase()
   const normalizedCourseName = String(courseName || '').trim().toLowerCase()
-  const completedEnrollment = (Array.isArray(student?.courseEnrollments) ? student.courseEnrollments : []).find((entry) => {
+  const matchingEnrollments = (Array.isArray(student?.courseEnrollments) ? student.courseEnrollments : []).filter((entry) => {
     const entryCourseId = String(entry?.courseId || entry?.id || entry?.course?.id || '').trim().toLowerCase()
     const entryCourseName = String(entry?.courseName || entry?.name || entry?.course?.name || '').trim().toLowerCase()
     return (normalizedCourseId && entryCourseId === normalizedCourseId)
       || (normalizedCourseName && entryCourseName === normalizedCourseName)
   })
-  if (completedEnrollment?.courseCompletedAt || (normalizedCourseId && String(student?.courseId || '').trim().toLowerCase() === normalizedCourseId && student?.courseCompletedAt)) return true
+  const activeEnrollment = matchingEnrollments.find((entry) => {
+    const status = String(entry?.status || entry?.recordStatus || '').trim().toUpperCase()
+    const enrollmentProgress = Number(entry?.courseProgress ?? entry?.courseCompletionPercentage ?? entry?.progress)
+    return status === 'ACTIVE'
+      || (!entry?.courseCompletedAt && !entry?.completedAt && Number.isFinite(enrollmentProgress) && enrollmentProgress < 100)
+  })
+  if (activeEnrollment) {
+    const activeProgress = Number(activeEnrollment.courseProgress ?? activeEnrollment.courseCompletionPercentage ?? activeEnrollment.progress)
+    if (Number.isFinite(activeProgress) && activeProgress < 100) return false
+    if (activeEnrollment.courseCompletedAt || activeEnrollment.completedAt) return true
+  } else {
+    const completedEnrollment = matchingEnrollments[0]
+    if (completedEnrollment?.courseCompletedAt || completedEnrollment?.completedAt
+      || (normalizedCourseId && String(student?.courseId || '').trim().toLowerCase() === normalizedCourseId && student?.courseCompletedAt)) return true
+  }
   return Number(progress) >= 100
     && isAcademicTestProgressComplete(getCourseAcademicProgress(student, courseId, courseName, fetchedByStudent))
 }
@@ -9455,8 +9469,7 @@ useEffect(() => {
           Number.isFinite(savedProgress) ? savedProgress : 0,
           Number.isFinite(workProgress) ? workProgress : 0,
         )
-        const persistedCompleted = Boolean(entry?.courseCompletedAt || entry?.completedAt)
-        return persistedCompleted || isCourseCompletionComplete(student, courseId, courseName, progress, branchAcademicProgressByStudent)
+        return isCourseCompletionComplete(student, courseId, courseName, progress, branchAcademicProgressByStudent)
       })
       if (isCompleted) completedKeys.add(String(student?.studentId || student?.id || '').trim().toLowerCase())
     })
@@ -9676,8 +9689,7 @@ useEffect(() => {
           Number.isFinite(savedProgress) ? savedProgress : 0,
           Number.isFinite(workProgress) ? workProgress : 0,
         )
-        const persistedCompleted = Boolean(entry?.courseCompletedAt || entry?.completedAt)
-        return persistedCompleted || isCourseCompletionComplete(student, courseId, courseName, progress, branchAcademicProgressByStudent)
+        return isCourseCompletionComplete(student, courseId, courseName, progress, branchAcademicProgressByStudent)
       }).map((entry) => ({
         ...student,
         courseId: entry?.courseId || entry?.id || entry?.course?.id || student?.courseId || '',
@@ -11827,11 +11839,34 @@ else {
             stu?.progress ??
             NaN,
           )
+          const activeCourseEnrollment = (Array.isArray(stu?.courseEnrollments) ? stu.courseEnrollments : [])
+            .find((entry) => {
+              const entryCourseId = String(entry?.courseId || entry?.id || entry?.course?.id || '').trim().toLowerCase()
+              const entryCourseName = String(entry?.courseName || entry?.name || entry?.course?.name || '').trim().toLowerCase()
+              const currentCourseId = String(stu?.courseId || resolvedCourse?.id || '').trim().toLowerCase()
+              const currentCourseName = String(stu?.courseName || stu?.courseInterested || resolvedCourse?.name || '').trim().toLowerCase()
+              const entryProgress = Number(entry?.courseProgress ?? entry?.courseCompletionPercentage ?? entry?.progress)
+              return (
+                String(entry?.status || entry?.recordStatus || '').trim().toUpperCase() === 'ACTIVE'
+                || (!entry?.courseCompletedAt && !entry?.completedAt && Number.isFinite(entryProgress) && entryProgress < 100)
+              )
+                && ((currentCourseId && entryCourseId === currentCourseId)
+                  || (currentCourseName && entryCourseName === currentCourseName))
+            })
+          const activeEnrollmentProgress = Number(
+            activeCourseEnrollment?.courseProgress ??
+            activeCourseEnrollment?.courseCompletionPercentage ??
+            activeCourseEnrollment?.progress ??
+            NaN,
+          )
           const fallbackCourseProgress = studentKeys
             .map((key) => branchStudentCourseProgressByKey.get(key))
             .find((value) => Number.isFinite(value))
-          const studentProgressValues = [storedCourseProgress, directCourseProgress, fallbackCourseProgress]
-            .filter(Number.isFinite)
+          const studentProgressValues = (
+            Number.isFinite(activeEnrollmentProgress)
+              ? [activeEnrollmentProgress]
+              : [storedCourseProgress, directCourseProgress, fallbackCourseProgress]
+          ).filter(Number.isFinite)
           const studentCourseProgress = studentProgressValues.length
             ? Math.min(100, Math.max(0, ...studentProgressValues))
             : (effectiveCourse ? 0 : null)
