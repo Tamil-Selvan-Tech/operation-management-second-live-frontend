@@ -1765,6 +1765,48 @@ function getDashboardDateValue(value) {
   return getLocalDateValue(date)
 }
 
+function isCompletedCourseForAdmissionsCount(student = {}) {
+  const lifecycleValues = [
+    student.status,
+    student.currentStatus,
+    student.studentStatus,
+    student.lifecycleStatus,
+    student.studentLifecycleStatus,
+    student.recordStatus,
+  ].map((value) => String(value || '').trim().toLowerCase().replace(/[\s_-]+/g, ''))
+  if (lifecycleValues.some((value) => value === 'completed' || value === 'completedstudent')) return true
+  if (student.courseCompletedAt || student.completedAt) return true
+
+  const progressValues = [student.courseProgress, student.courseCompletionPercentage, student.progress]
+  if (progressValues.some((value) => Number.isFinite(Number(value)) && Number(value) >= 100)) return true
+
+  const enrollments = Array.isArray(student.courseEnrollments) ? student.courseEnrollments : []
+  return enrollments.some((entry) => {
+    const status = String(entry?.status || entry?.recordStatus || entry?.studentStatus || '').trim().toLowerCase().replace(/[\s_-]+/g, '')
+    return status === 'completed' || Boolean(entry?.courseCompletedAt || entry?.completedAt)
+  })
+}
+
+function isUploadedCompletedStudentReportRecord(student = {}) {
+  const explicitMarker = [
+    student.isCompletedStudentImport,
+    student.completedStudentImport,
+    student.isHistoricalStudent,
+    student.historicalImport,
+  ].some((value) => value === true)
+  const sourceMarker = [
+    student.source,
+    student.sourceType,
+    student.recordType,
+    student.importSource,
+    student.lifecycleSource,
+  ].some((value) => String(value || '').trim().toUpperCase().replace(/[\s-]+/g, '_').includes('COMPLETED_STUDENT'))
+  // A normal student can have a completed course/enrollment and still be a
+  // valid admission for the month in which they joined. Do not classify that
+  // student as a historical report row based only on enrollment status.
+  return explicitMarker || sourceMarker
+}
+
 function isSuccessfulDashboardPayment(payment = {}) {
   const status = String(
     payment.status ?? payment.paymentStatus ?? payment.paymentState ?? payment.transactionStatus ?? '',
@@ -8818,12 +8860,22 @@ const studentCourseOptions = useMemo(() => {
       const status = String(student.status || '').trim().toLowerCase()
       const studentKeys = [student.id, student._id, student.recordId, student.studentId, student.studentCode].map((value) => String(value || '').trim()).filter(Boolean)
       const isDiscontinuedStudent = studentKeys.some((key) => discontinuedFinancialSummary.studentIds.has(key))
-      const isCountableStudent = !['inactive', 'deleted', 'rejected', 'withdrawn'].includes(status) && !isDiscontinuedStudent
+      const isCompletedCourse = isCompletedCourseForAdmissionsCount(student)
+      // A completed course may be returned by the backend with an `inactive`
+      // student status. It is still an admission and must remain in the
+      // admission month count. Only terminal removal/rejection states are
+      // excluded here.
+      const isCountableStudent = (isCompletedCourse || !['deleted', 'rejected', 'withdrawn'].includes(status)) && !isDiscontinuedStudent
       return matchesFilterValue(courseValues, dashboardCourseFilter, selectedCourseOption?.label) &&
         matchesFilterValue(batchValues, dashboardBatchFilter, selectedBatchOption?.label) &&
         isCountableStudent
     }
-    const matchesStudentFilters = (student) => matchesBaseStudentFilters(student) && inSelectedDateRange(student.admissionDate || student.createdAt)
+    const studentAdmissionDate = (student) => (
+      isUploadedCompletedStudentReportRecord(student)
+        ? (student.updatedAt || student.createdAt || student.admissionDate || student.courseStartDate)
+        : (student.admissionDate || student.courseStartDate || student.createdAt)
+    )
+    const matchesStudentFilters = (student) => matchesBaseStudentFilters(student) && inSelectedDateRange(studentAdmissionDate(student))
 
     const students = branchStudents.filter(matchesStudentFilters)
     const studentIds = new Set(students.flatMap((student) => [student.id, student.studentId].map((id) => String(id || '').trim()).filter(Boolean)))
@@ -8866,8 +8918,15 @@ const studentCourseOptions = useMemo(() => {
     const dueSoon = dueThisWeek.filter((item) => getDashboardDateValue(item.dueDate) > todayValue)
     const overdue = dueItems.filter((item) => getDashboardDateValue(item.dueDate) < todayValue)
     const currentMonthStudents = branchStudents.filter((student) => {
+      // Students imported through the Completed Students report belong to the
+      // completed-history screen and must not affect the admissions KPI.
+      if (isUploadedCompletedStudentReportRecord(student)) return false
       if (!matchesBaseStudentFilters(student)) return false
-      const addedDate = getDashboardDateValue(student.admissionDate || student.createdAt)
+      const addedDate = getDashboardDateValue(
+        isUploadedCompletedStudentReportRecord(student)
+          ? (student.updatedAt || student.createdAt || student.admissionDate || student.courseStartDate)
+          : (student.admissionDate || student.courseStartDate || student.createdAt),
+      )
       return addedDate.slice(0, 7) === todayValue.slice(0, 7)
     }).length
     const totalFee = rows.reduce((sum, row) => sum + row.totalFee, 0)

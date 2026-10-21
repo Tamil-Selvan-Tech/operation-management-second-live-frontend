@@ -7,6 +7,7 @@ import { request } from '../services/apiClient'
 import { TrendingCourses } from './TrendingCourses'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { formatSuperAdminDateRange, getSuperAdminDateRange, SUPER_ADMIN_DATE_PRESETS } from '../lib/superAdminDateRange'
+import { isCompletedStudentReportRecord } from '../lib/studentRecordClassification'
 
 const emptyValue = '—'
 const DASHBOARD_LAYOUT_STORAGE_KEY = 'cispro:super-admin-dashboard-layout'
@@ -89,6 +90,7 @@ export function SuperAdminOverallDashboard({ branches, userKey = 'super-admin', 
   const [branchQuery, setBranchQuery] = useState('')
   const [isBranchSearchOpen, setIsBranchSearchOpen] = useState(false)
   const [allStudents, setAllStudents] = useState([])
+  const [allStudentsLoaded, setAllStudentsLoaded] = useState(false)
   const [overview, setOverview] = useState(null)
   const [branchPerformance, setBranchPerformance] = useState([])
   const [branchPerformanceHasData, setBranchPerformanceHasData] = useState(true)
@@ -184,21 +186,21 @@ export function SuperAdminOverallDashboard({ branches, userKey = 'super-admin', 
   useEffect(() => {
     if (!Array.isArray(branches) || !branches.length) {
       setAllStudents([])
+      setAllStudentsLoaded(true)
       return undefined
     }
 
     let cancelled = false
+    setAllStudentsLoaded(false)
     const loadStudents = async () => {
-      const results = await Promise.all(branches.map(async (branch) => {
-        const branchId = branch?.id || branch?.branchId
-        if (!branchId) return []
-
-        try {
-          const response = await request(`/branch-students?page=1&limit=100&sortBy=createdAt&sortOrder=desc&branchId=${encodeURIComponent(branchId)}`, {
-            impersonateBranchId: branchId,
-          })
+      try {
+        const rows = []
+        let page = 1
+        let totalPages = 1
+        do {
+          const response = await request(`/branch-students?page=${page}&limit=100&summary=1&sortBy=createdAt&sortOrder=desc`)
           const payload = response?.data ?? response
-          const rows = Array.isArray(payload)
+          const pageRows = Array.isArray(payload)
             ? payload
             : Array.isArray(payload?.data)
               ? payload.data
@@ -207,17 +209,31 @@ export function SuperAdminOverallDashboard({ branches, userKey = 'super-admin', 
                 : Array.isArray(payload?.records)
                   ? payload.records
                   : []
-          return rows.map((student) => ({
-            ...student,
-            branchId: student.branchId || student.branchCode || branchId,
-            branchRecord: branch,
-          }))
-        } catch {
-          return []
-        }
-      }))
+          rows.push(...pageRows)
+          const meta = response?.meta || payload?.meta || payload?.pagination || payload?.pageInfo
+          totalPages = Math.min(Number(meta?.totalPages || 1), 100)
+          page += 1
+        } while (page <= totalPages)
 
-      if (!cancelled) setAllStudents(results.flat())
+        const normalizedRows = rows.map((student) => {
+          const branchRecord = branches.find((branch) => {
+            const branchKeys = [branch.id, branch.branchId, branch.branchCode].map((value) => String(value || '').trim().toLowerCase()).filter(Boolean)
+            const studentKeys = [student.branchId, student.branchCode, student.branch?.id, student.branch?.branchId, student.branch?.branchCode].map((value) => String(value || '').trim().toLowerCase()).filter(Boolean)
+            return studentKeys.some((key) => branchKeys.includes(key))
+          }) || null
+          return { ...student, branchId: student.branchId || student.branchCode || branchRecord?.id || branchRecord?.branchId || '', branchRecord }
+        })
+
+        if (!cancelled) {
+          setAllStudents(normalizedRows)
+          setAllStudentsLoaded(true)
+        }
+      } catch {
+        if (!cancelled) {
+          setAllStudents([])
+          setAllStudentsLoaded(false)
+        }
+      }
     }
 
     void loadStudents()
@@ -225,6 +241,30 @@ export function SuperAdminOverallDashboard({ branches, userKey = 'super-admin', 
       cancelled = true
     }
   }, [branches])
+
+  const correctedThisMonthAdmissions = useMemo(() => {
+    if (!allStudentsLoaded) return null
+    const now = new Date()
+    const toDateKey = (value) => {
+      const text = String(value || '').trim()
+      if (!text) return ''
+      const date = new Date(text.length <= 10 ? `${text.slice(0, 10)}T00:00:00` : text)
+      return Number.isNaN(date.getTime()) ? '' : `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+    }
+    const today = toDateKey(now)
+    const startDate = appliedDateRange?.startDate || `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`
+    const endDate = appliedDateRange?.endDate || today
+    return allStudents.filter((student) => {
+      if (isCompletedStudentReportRecord(student)) return false
+      const admissionDate = toDateKey(student.admissionDate || student.createdAt)
+      return admissionDate && admissionDate >= startDate && admissionDate <= endDate
+    }).length
+  }, [allStudents, allStudentsLoaded, appliedDateRange])
+
+  const displayOverview = useMemo(() => {
+    if (!overview || correctedThisMonthAdmissions === null) return overview
+    return { ...overview, thisMonthAdmissions: correctedThisMonthAdmissions }
+  }, [correctedThisMonthAdmissions, overview])
 
   useEffect(() => {
     const handlePaymentHistoryChange = () => { void load() }
@@ -252,7 +292,7 @@ export function SuperAdminOverallDashboard({ branches, userKey = 'super-admin', 
     }
   }
 
-  const admissionsComparison = getMonthComparison(overview?.admissionsByMonth)
+  const admissionsComparison = getMonthComparison(displayOverview?.admissionsByMonth)
   const paymentComparison = getMonthComparison((overview?.monthlyPaymentData || []).map((item) => ({ ...item, value: item.actual ?? item.value })))
   const getDayComparison = (current, previous) => {
     if (isLoading || previous === undefined || previous === null) return null
@@ -302,7 +342,7 @@ export function SuperAdminOverallDashboard({ branches, userKey = 'super-admin', 
   const metricDefinitions = {
     totalBranches: { label: 'Total branches', description: 'Total number of active branches on the dashboard', icon: Building2, tone: 'blue', node: metric('Total branches', overview?.totalBranches, Building2, 'blue', false) },
     totalStudents: { label: 'Total students', description: 'Total number of registered students on the dashboard', icon: Users, tone: 'purple', node: metric('Total students', overview?.totalStudents, Users, 'purple', false) },
-    thisMonthAdmissions: { label: `${metricPeriodLabel} admissions`, description: 'Admissions recorded in the selected period', icon: CalendarDays, tone: 'orange', node: metric(`${metricPeriodLabel} admissions`, overview?.thisMonthAdmissions, CalendarDays, 'orange', false, '', admissionsComparison) },
+    thisMonthAdmissions: { label: `${metricPeriodLabel} admissions`, description: 'Admissions recorded in the selected period', icon: CalendarDays, tone: 'orange', node: metric(`${metricPeriodLabel} admissions`, displayOverview?.thisMonthAdmissions, CalendarDays, 'orange', false, '', admissionsComparison) },
     totalPayment: { label: 'Total payment collected', description: 'Total amount collected across branches', icon: Wallet, tone: 'blue', node: metric('Total payment collected', overview?.totalPayment, Wallet, 'blue') },
     thisMonthPayment: { label: `${metricPeriodLabel} payment`, description: 'Total payment received in the selected period', icon: IndianRupee, tone: 'green', node: metric(`${metricPeriodLabel} payment`, overview?.thisMonthPayment, IndianRupee, 'green', true, '', paymentComparison) },
     totalOutstanding: { label: 'Total outstanding', description: 'Total pending amount from students', icon: Clock3, tone: 'orange', node: metric('Total outstanding', overview?.totalOutstanding, Clock3, 'orange') },
