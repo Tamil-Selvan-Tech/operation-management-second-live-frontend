@@ -1,0 +1,777 @@
+.course-import-toolbar-button { display:inline-flex;align-items:center;gap:7px;white-space:nowrap }
+.course-import-toolbar-error { color:#b42318;font-size:.8rem;max-width:280px }
+.course-import-backdrop { position:fixed;inset:0;z-index:15000;background:rgba(15,34,65,.52);backdrop-filter:blur(3px);display:flex;align-items:center;justify-content:center;padding:24px }
+.course-import-dialog { width:min(1100px,100%);max-height:92dvh;display:flex;flex-direction:column;background:#fff;border:1px solid #dce6f2;border-radius:20px;box-shadow:0 24px 80px rgba(16,42,86,.24);outline:none;color:#263e63 }
+.course-import-header { display:flex;justify-content:space-between;align-items:center;padding:22px 26px;border-bottom:1px solid #e5edf6 }
+.course-import-heading { display:flex;gap:13px;align-items:center }
+.course-import-icon { display:grid;place-items:center;width:48px;height:48px;color:#2864df;background:#edf4ff;border-radius:13px;flex-shrink:0 }
+.course-import-heading p { margin:0 0 4px;font-size:.68rem;letter-spacing:.12em;color:#647c9d;font-weight:800 }
+.course-import-heading h2 { margin:0;font-size:1.3rem;color:#102a56 }
+.course-import-close { border:0;background:#f1f5fb;border-radius:9px;padding:7px;display:grid;place-items:center;color:#526b8d;cursor:pointer }
+.course-import-body { overflow:auto;padding:20px 26px;overscroll-behavior:contain }
+.course-import-description { margin:0 0 20px;color:#637895;font-size:.9rem;line-height:1.6 }
+.course-import-steps { display:flex;gap:12px;list-style:none;padding:0;margin:0 0 24px }
+.course-import-steps li { flex:1;display:flex;align-items:center;gap:8px;color:#8291a8;font-size:.8rem;font-weight:700;border-bottom:2px solid #e7edf6;padding-bottom:13px }
+.course-import-steps li span { display:grid;place-items:center;width:26px;height:26px;background:#f0f4fa;border-radius:50%;flex-shrink:0 }
+.course-import-steps li.is-active { color:#2864df;border-color:#2864df }
+.course-import-steps li.is-active span { background:#eaf2ff }
+.course-import-instructions { border:1px solid #dbe7f5;border-radius:12px;padding:15px 18px;background:#f7faff;font-size:.84rem;margin-bottom:16px }
+.course-import-instructions p { color:#637895;line-height:1.65;margin:7px 0 }
+.course-import-instructions .button { display:inline-flex;align-items:center;gap:7px;margin-top:4px }
+.course-import-file { display:flex;position:relative;align-items:center;flex-direction:column;gap:9px;padding:25px 16px;border:2px dashed #bfd1eb;border-radius:13px;color:#2864df;background:#fbfdff;cursor:pointer;text-align:center;overflow-wrap:anywhere }
+.course-import-file:focus-within { outline:3px solid #b1ceff;outline-offset:3px }
+.course-import-file.is-loading { cursor:progress;border-color:#8cb8f4;background:#f5f9ff }
+.course-import-file.is-loading:has(input:disabled) { opacity:1 }
+.course-import-file-progress { display:grid;justify-items:center;gap:9px;width:min(100%,360px);color:#2864df }
+.course-import-file-progress > strong { color:#28558f;font-size:.9rem }
+.course-import-file-progress > span { color:#7488a2;font-size:.78rem;overflow-wrap:anywhere }
+.course-import-file span { color:#7488a2;font-size:.8rem }
+.course-import-file input { position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer }
+.course-import-stats { display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:20px 0 }
+.course-import-stats > div { border:1px solid #e0e8f3;border-radius:11px;padding:14px;background:#f8faff;display:grid;justify-items:center;align-content:center;gap:4px;text-align:center }
+.course-import-stats strong { color:#17345f;font-size:1.35rem }
+.course-import-stats span { text-transform:capitalize;color:#6b7d99;font-size:.77rem }
+.course-import-stats .has-errors { background:#fff4f2;border-color:#f3c7c1 }
+.course-import-stats .has-errors strong { color:#b42318 }
+.course-import-alert { padding:13px 15px;border-radius:10px;font-size:.85rem;line-height:1.6;margin:12px 0;display:flex;gap:10px;align-items:flex-start }
+.course-import-alert p { margin:4px 0 0 }
+.course-import-alert.is-error { background:#fff3f1;color:#a62a20;border:1px solid #f1cec8 }
+.course-import-alert.is-success { background:#edf9f3;color:#16734d;border:1px solid #c4e9d6 }
+.course-import-loading { display:flex;gap:8px;align-items:center;padding:12px 0;color:#2864df;font-size:.85rem }
+.course-import-spinner { animation:course-import-spin 1s linear infinite }
+@keyframes course-import-spin { to { transform:rotate(360deg) } }
+.course-import-section-title { display:flex;gap:12px;justify-content:space-between;align-items:center;margin:20px 0 10px }
+.course-import-section-title h3 { margin:0;font-size:1rem;color:#17345f }
+.course-import-section-title > span { font-size:.76rem;color:#7488a2 }
+.course-import-section-title button { display:flex;gap:7px;align-items:center }
+.course-import-table-wrap { overflow-x:auto;border:1px solid #e0e8f3;border-radius:11px }
+.course-import-table-wrap table { width:100%;border-collapse:collapse;font-size:.82rem;text-align:left;min-width:560px }
+.course-import-table-wrap th { background:#f3f7fd;padding:12px 14px;color:#637895;font-size:.72rem;text-transform:uppercase;letter-spacing:.03em }
+.course-import-table-wrap td { padding:12px 14px;border-top:1px solid #edf2f8;vertical-align:top;overflow-wrap:anywhere }
+.course-import-pagination { display:flex;align-items:center;justify-content:flex-end;gap:10px;margin:12px 0;font-size:.78rem;color:#637895 }
+.course-import-pagination button { border:1px solid #d5e0ef;background:white;color:#2b558e;border-radius:7px;padding:7px 10px;cursor:pointer }
+.course-import-course { border:1px solid #dce6f2;border-radius:11px;margin-bottom:10px;overflow:hidden }
+.course-import-course summary { display:flex;justify-content:space-between;gap:12px;padding:15px 17px;cursor:pointer;background:#f8faff }
+.course-import-course summary strong { display:block;color:#17345f;font-size:.9rem }
+.course-import-course summary small { display:block;margin-top:6px;font-size:.74rem;color:#7488a2;overflow-wrap:anywhere }
+.course-import-preview-fee { white-space:nowrap;font-size:.88rem;font-weight:700 }
+.course-import-course-content { padding:16px 18px;border-top:1px solid #e2eaf5 }
+.course-import-code { font-size:.78rem;color:#2864df;overflow-wrap:anywhere }
+.course-import-fields { display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin:5px 0 22px }
+.course-import-fields dt { color:#7488a2;font-size:.73rem }
+.course-import-fields dd { margin:5px 0 0;font-size:.84rem;font-weight:600;overflow-wrap:anywhere }
+.course-import-course-content h4 { font-size:.83rem;color:#17345f;margin:20px 0 10px }
+.course-import-module { border:1px solid #e4ebf5;padding:11px 13px;border-radius:8px;margin-bottom:8px;font-size:.82rem }
+.course-import-module > strong { display:flex;justify-content:space-between;gap:12px;color:#2b558e }
+.course-import-module ul { list-style:none;padding:0;margin:9px 0 0 }
+.course-import-module li { display:flex;justify-content:space-between;gap:15px;padding:7px 0;border-top:1px solid #eff3f9;color:#637895 }
+.course-import-plan { padding:11px 13px;background:#f6f9fd;border-radius:8px;margin-bottom:8px;font-size:.82rem }
+.course-import-plan strong,.course-import-plan > span { display:block }
+.course-import-plan > span { margin-top:5px;color:#7488a2;font-size:.75rem }
+.course-import-plan p { margin:8px 0 0;color:#2b558e }
+.course-import-footer { display:flex;align-items:center;justify-content:space-between;gap:15px;padding:17px 26px;border-top:1px solid #e5edf6;background:#fbfdff;border-radius:0 0 20px 20px }
+.course-import-footer > span { font-size:.75rem;color:#7488a2;max-width:350px;line-height:1.6 }
+.course-import-footer > div { display:flex;gap:9px;flex-wrap:wrap;justify-content:flex-end }
+.course-import-dialog button:disabled,.course-import-file:has(input:disabled) { opacity:.55;cursor:not-allowed }
+.course-import-dialog button:focus-visible,.course-import-course summary:focus-visible { outline:3px solid #b1ceff;outline-offset:2px }
+@media(max-width:640px) {
+ .course-import-backdrop { padding:8px }
+ .course-import-dialog { max-height:97dvh;border-radius:14px }
+ .course-import-header,.course-import-body { padding:16px }
+ .course-import-heading h2 { font-size:1.05rem }
+ .course-import-steps { gap:7px }
+ .course-import-steps li { flex-direction:column;align-items:flex-start;font-size:.7rem }
+ .course-import-stats { grid-template-columns:repeat(2,minmax(0,1fr));gap:7px }
+ .course-import-stats > div { padding:10px }
+ .course-import-fields { grid-template-columns:repeat(2,minmax(0,1fr)) }
+ .course-import-section-title { align-items:flex-start;flex-direction:column }
+ .course-import-footer { padding:14px 16px;flex-direction:column;align-items:stretch }
+ .course-import-footer > span { max-width:none }
+ .course-import-footer > div { justify-content:flex-end }
+ .course-import-course summary { padding:13px;flex-direction:column }
+}
+@media(prefers-reduced-motion:reduce) { .course-import-spinner { animation:none } }
+
+.course-import-file.has-file { padding:16px;flex-direction:row;flex-wrap:wrap;justify-content:center }
+@media(max-width:640px) { .course-import-footer > div { display:grid;grid-template-columns:repeat(2,minmax(0,1fr)) } .course-import-footer > div > button:last-child { grid-column:1/-1 } }
+
+.branch-course-view-submodel .branch-course-view-submodel-percentage { margin-left:auto;color:#2864df;font-size:.75rem;letter-spacing:0;padding:4px 8px;border-radius:7px;background:#edf4ff;white-space:nowrap }
+
+.course-import-alert.is-pending { background:#fff8e8;color:#835500;border:1px solid #f2dfaa }
+.course-import-edit-wrap { margin:10px 0 6px }
+.course-import-edit-table { min-width:1420px !important; table-layout:fixed }
+.course-import-edit-table th:first-child { width:74px;position:sticky;left:0;z-index:2;background:#f3f7fd }
+.course-import-edit-table th:not(:first-child) { min-width:142px;max-width:190px;white-space:normal }
+.course-import-edit-table td { min-width:142px;max-width:190px;padding:8px;vertical-align:top }
+.course-import-edit-table td input,.course-import-edit-table td select { display:block;width:100%;min-width:120px;border:1px solid #cfdaea;border-radius:7px;padding:8px 9px;background:#fff;color:#243c60;font:inherit;font-size:.78rem }
+.course-import-edit-table td input:focus,.course-import-edit-table td select:focus { outline:3px solid #b8d0ff;border-color:#3974dd }
+.course-import-edit-table td.has-cell-error { background:#fff3f1;box-shadow:inset 0 0 0 1px #e7a69d }
+.course-import-edit-table td.has-cell-error input,.course-import-edit-table td.has-cell-error select { border-color:#c83e32;background:#fffafa }
+.course-import-cell-error { display:block;margin-top:6px;color:#ad2b21;font-size:.7rem;line-height:1.4;min-width:140px }
+.course-import-mobile-label { display:none }
+
+@media(max-width:640px) {
+ .course-import-edit-wrap { overflow:visible;border:0 }
+ .course-import-edit-table { min-width:0 !important;display:block }
+ .course-import-edit-table thead { display:none }
+ .course-import-edit-table tbody,.course-import-edit-table tr { display:grid;width:100%;gap:0 }
+ .course-import-edit-table tr { margin:0 0 12px;border:1px solid #dce6f2;border-radius:10px;overflow:hidden;background:#fff }
+ .course-import-edit-table th:first-child { display:block;position:static;width:auto;text-align:left;padding:10px 12px;background:#f3f7fd }
+ .course-import-edit-table td { display:grid;grid-template-columns:minmax(105px,36%) minmax(0,1fr);gap:8px;align-items:start;min-width:0;max-width:none;padding:9px 10px;border-top:1px solid #edf2f8 }
+ .course-import-edit-table td input,.course-import-edit-table td select { min-width:0 }
+ .course-import-mobile-label { display:block;color:#637895;font-size:.72rem;font-weight:700;line-height:1.4 }
+ .course-import-cell-error { grid-column:2;min-width:0 }
+}
+
+/* Workbook sheet navigation and compact spreadsheet review */
+.course-import-dialog { width:min(1240px,100%) }
+.course-import-sheet-review { scroll-margin-top:12px;margin:22px 0 16px;border:1px solid #dce6f2;border-radius:13px;background:#fff;overflow:hidden }
+.course-import-sheet-review > .course-import-section-title { margin:0;padding:17px 18px 13px;align-items:flex-end }
+.course-import-sheet-review .course-import-section-title > div { display:grid;gap:4px }
+.course-import-sheet-tabs { display:flex;gap:6px;overflow-x:auto;padding:0 14px;border-bottom:1px solid #dce6f2;background:#f7f9fd;scrollbar-width:thin }
+.course-import-sheet-tab { position:relative;display:flex;align-items:center;gap:8px;flex:0 0 auto;border:0;border-bottom:3px solid transparent;background:transparent;color:#627792;padding:12px 11px 10px;font:inherit;font-size:.78rem;font-weight:700;cursor:pointer;white-space:nowrap }
+.course-import-sheet-tab:hover { color:#1d5db5;background:#edf4ff }
+.course-import-sheet-tab.is-active { border-bottom-color:#2864df;color:#173f82;background:#fff }
+.course-import-sheet-count { display:grid;place-items:center;min-width:22px;height:21px;padding:0 5px;border-radius:10px;background:#eaf0f8;color:#5e7392;font-size:.68rem }
+.course-import-sheet-tab.is-active .course-import-sheet-count { background:#e8f0ff;color:#245fbd }
+.course-import-sheet-errors { color:#b42318;font-size:.65rem;font-weight:700 }
+.course-import-sheet-panel { min-height:160px }
+.course-import-sheet-panel .course-import-table-wrap { border:0;border-radius:0 }
+.course-import-sheet-panel .course-import-edit-table { min-width:640px !important }
+.course-import-sheet-panel .sheet-courses .course-import-edit-table { min-width:1360px !important }
+.course-import-sheet-panel .sheet-course-submodules .course-import-edit-table { min-width:900px !important }
+.course-import-sheet-panel .sheet-payment-plans .course-import-edit-table { min-width:540px !important }
+.course-import-sheet-panel .course-import-edit-table thead { position:sticky;top:0;z-index:3 }
+.course-import-sheet-panel .course-import-edit-table th:first-child { z-index:4 }
+.course-import-sheet-panel .course-import-edit-table td { height:72px }
+.course-import-sheet-panel .course-import-edit-table td input,.course-import-sheet-panel .course-import-edit-table td select { min-height:40px;border-color:#d5dfed;border-radius:8px;background:#fff;transition:border-color .15s,box-shadow .15s }
+.course-import-sheet-panel .course-import-edit-table td input:focus,.course-import-sheet-panel .course-import-edit-table td select:focus { border-color:#4d83de;box-shadow:0 0 0 3px rgba(58,112,210,.13);outline:0 }
+.course-import-empty-sheet { display:grid;gap:5px;min-height:145px;place-content:center;text-align:center;color:#607590 }
+.course-import-empty-sheet strong { color:#23436f;font-size:.9rem }
+.course-import-empty-sheet span { font-size:.78rem }
+
+.course-import-pagination { padding:0 12px }
+.course-import-alert.is-pending { border-radius:0;margin:0;padding:10px 16px;background:#fff8e8;color:#835500;border:0;border-bottom:1px solid #f1e1b7 }
+@media(max-width:640px) {
+ .course-import-dialog { width:100% }
+ .course-import-sheet-review { margin-top:16px }
+ .course-import-sheet-review > .course-import-section-title { align-items:flex-start }
+ .course-import-sheet-tabs { gap:2px;padding:0 8px }
+ .course-import-sheet-tab { padding:10px 8px;font-size:.72rem }
+ .course-import-sheet-panel .course-import-edit-wrap { overflow:visible }
+ .course-import-sheet-panel .course-import-edit-table,.course-import-sheet-panel .sheet-courses .course-import-edit-table,.course-import-sheet-panel .sheet-course-submodules .course-import-edit-table,.course-import-sheet-panel .sheet-payment-plans .course-import-edit-table { min-width:0 !important;display:block }
+ .course-import-sheet-panel .course-import-edit-table thead { display:none }
+ .course-import-sheet-panel .course-import-edit-table tbody,.course-import-sheet-panel .course-import-edit-table tr { display:grid;width:100%;gap:0 }
+ .course-import-sheet-panel .course-import-edit-table tr { margin:0 0 10px;border:1px solid #dce6f2;border-radius:10px;overflow:hidden;background:#fff }
+ .course-import-sheet-panel .course-import-edit-table th:first-child { position:static;width:auto;text-align:left;padding:10px 12px;background:#f3f7fd }
+ .course-import-sheet-panel .course-import-edit-table td { display:grid;grid-template-columns:minmax(112px,38%) minmax(0,1fr);gap:9px;align-items:start;min-width:0;max-width:none;height:auto;padding:9px 10px }
+ .course-import-sheet-panel .course-import-edit-table td input,.course-import-sheet-panel .course-import-edit-table td select { min-width:0 }
+ .course-import-sheet-panel .course-import-cell-error { grid-column:2 }
+}
+
+.course-import-sheet-tab:focus-visible { outline:3px solid #9fc0ff;outline-offset:-3px;border-radius:7px }
+.course-import-error-details { margin:14px 0;border:1px solid #edd0cc;border-radius:10px;background:#fffafa;overflow:hidden }
+.course-import-error-details > summary { display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 15px;color:#9f2f25;font-size:.84rem;cursor:pointer;list-style:none }
+.course-import-error-details > summary::-webkit-details-marker { display:none }
+.course-import-error-details > summary::after { content:'+';font-size:1.1rem;font-weight:700 }
+.course-import-error-details[open] > summary::after { content:'-'}
+.course-import-error-details > summary span { margin-left:auto;color:#a64c44;font-size:.75rem }
+.course-import-error-body { padding:0 14px 12px }
+.course-import-error-body .course-import-section-title { margin:8px 0 }
+.course-import-error-body .course-import-section-title h3 { display:none }
+@media(max-width:640px) { .course-import-error-details > summary { align-items:flex-start } .course-import-error-details > summary span { text-align:right } }
+
+.course-import-sheet-validation { display:flex;align-items:flex-start;gap:9px;padding:10px 14px;background:#fff3f1;border-bottom:1px solid #f1cec8;color:#a62a20;font-size:.78rem;line-height:1.5 }
+.course-import-sheet-validation strong { flex:0 0 auto }
+.course-import-empty-sheet .course-import-sheet-validation { margin-bottom:10px;border:1px solid #f1cec8;border-radius:8px;text-align:left }
+
+.course-import-plan-help { margin:10px 14px 0;padding:10px 13px;border:1px solid #cfe0f7;border-radius:8px;background:#f4f8ff;color:#315986;font-size:.77rem;line-height:1.5 }
+.course-import-plan-help.is-warning { border-color:#f1cec8;background:#fff3f1;color:#a62a20 }
+
+
+
+/* Compact spreadsheet review grid */
+.course-import-grid-toolbar { display:grid;grid-template-columns:minmax(0,1fr) minmax(220px,290px) 170px;gap:12px;align-items:center;padding:12px 14px;border-bottom:1px solid #e6edf6;background:#fff }
+.course-import-grid-counts { display:flex;align-items:center;gap:8px;flex-wrap:wrap;color:#607590;font-size:.74rem }
+.course-import-grid-counts > span { padding:5px 9px;border:1px solid #e0e8f3;border-radius:999px;background:#fff;font-weight:650;white-space:nowrap }
+.course-import-grid-counts > .is-valid { color:#14734c;border-color:#cbe9d7;background:#effaf3 }
+.course-import-grid-counts > .is-invalid,.course-import-grid-counts > .is-duplicate { color:#ad2b21;border-color:#f0d0cb;background:#fff4f2 }
+.course-import-grid-search,.course-import-grid-filter { display:flex;align-items:center;gap:8px;min-width:0;height:38px;padding:0 10px;border:1px solid #d7e1ef;border-radius:8px;background:#fff;color:#7285a0 }
+.course-import-grid-search:focus-within,.course-import-grid-filter:focus-within { border-color:#6b98e7;box-shadow:0 0 0 3px rgba(58,112,210,.12) }
+.course-import-grid-search input,.course-import-grid-filter select { width:100%;min-width:0;border:0;outline:0;background:transparent;color:#243c60;font:inherit;font-size:.78rem }
+.course-import-grid-search input::placeholder { color:#91a1b8 }
+.course-import-grid-filter > span { flex:0 0 auto;font-size:.73rem;font-weight:700 }
+.course-import-sheet-panel .course-import-edit-wrap { max-height:min(48vh,520px);margin:0;border:1px solid #dbe4f0;border-radius:0;overflow:auto;overscroll-behavior:contain }
+.course-import-sheet-panel .course-import-edit-table { min-width:760px !important;border-collapse:separate;border-spacing:0;table-layout:fixed }
+.course-import-sheet-panel .sheet-courses .course-import-edit-table { min-width:1510px !important }
+.course-import-sheet-panel .sheet-course-modules .course-import-edit-table { min-width:650px !important }
+.course-import-sheet-panel .sheet-course-submodules .course-import-edit-table { min-width:980px !important }
+.course-import-sheet-panel .sheet-payment-plans .course-import-edit-table { min-width:680px !important }
+.course-import-sheet-panel .course-import-edit-table thead { position:sticky;top:0;z-index:5 }
+.course-import-sheet-panel .course-import-edit-table th { padding:11px 12px;background:#f0f4fc;color:#536b8c;font-size:.69rem;letter-spacing:.035em;line-height:1.35 }
+.course-import-sheet-panel .course-import-edit-table th:first-child { width:76px;left:0;z-index:7 }
+.course-import-sheet-panel .course-import-edit-table th:nth-child(2) { position:sticky;left:76px;z-index:6;width:148px;min-width:148px;background:#f0f4fc }
+.course-import-sheet-panel .course-import-edit-table th:not(:first-child):not(:nth-child(2)) { min-width:138px;max-width:210px }
+.course-import-sheet-panel .course-import-edit-table tbody tr { background:#fff;transition:background-color .12s ease }
+.course-import-sheet-panel .course-import-edit-table tbody tr:nth-child(even) { background:#fbfcff }
+.course-import-sheet-panel .course-import-edit-table tbody tr:hover { background:#f5f9ff }
+.course-import-sheet-panel .course-import-edit-table tbody th:first-child { z-index:3;padding:12px;color:#5c7291;background:#f7f9fd;font-size:.76rem }
+.course-import-sheet-panel .course-import-edit-table td { min-width:138px;max-width:210px;height:auto;padding:9px 10px;border-top:1px solid #edf1f7;vertical-align:middle }
+.course-import-sheet-panel .course-import-edit-table td.course-import-row-state { position:sticky;left:76px;z-index:2;min-width:148px;width:148px;background:#fff }
+.course-import-sheet-panel .course-import-edit-table tbody tr:nth-child(even) td.course-import-row-state { background:#fbfcff }
+.course-import-sheet-panel .course-import-edit-table tbody tr:hover td.course-import-row-state { background:#f5f9ff }
+.course-import-row-state { white-space:normal }
+.course-import-row-state small { display:block;margin-top:5px;color:#8796ab;font-size:.65rem;line-height:1.35 }
+.course-import-row-badge { display:inline-flex;align-items:center;min-height:22px;padding:3px 8px;border-radius:999px;font-size:.65rem;font-weight:750;line-height:1.1;white-space:nowrap }
+.course-import-row-badge.is-valid { background:#eaf7ef;color:#18734d }
+.course-import-row-badge.is-invalid { background:#fff4df;color:#94620a }
+.course-import-row-badge.is-duplicate { background:#fff0ee;color:#b42318 }
+.course-import-sheet-panel .course-import-edit-table td input,.course-import-sheet-panel .course-import-edit-table td select { min-height:38px;padding:7px 9px;border-color:#d8e1ed;border-radius:7px;font-size:.76rem }
+.course-import-sheet-panel .course-import-edit-table td.has-cell-error { background:#fff2f0 }
+.course-import-sheet-panel .course-import-edit-table td.has-cell-error input,.course-import-sheet-panel .course-import-edit-table td.has-cell-error select { border-color:#d45c50;background:#fffafa }
+
+@media(max-width:820px) { .course-import-grid-toolbar { grid-template-columns:1fr minmax(190px,260px) } .course-import-grid-counts { grid-column:1/-1 } }
+@media(max-width:640px) {
+ .course-import-grid-toolbar { grid-template-columns:1fr;gap:9px;padding:10px }
+ .course-import-grid-counts { grid-column:auto }
+ .course-import-sheet-panel .course-import-edit-wrap { max-height:none;overflow:visible;border:0 }
+ .course-import-sheet-panel .course-import-edit-table,.course-import-sheet-panel .sheet-courses .course-import-edit-table,.course-import-sheet-panel .sheet-course-modules .course-import-edit-table,.course-import-sheet-panel .sheet-course-submodules .course-import-edit-table,.course-import-sheet-panel .sheet-payment-plans .course-import-edit-table { min-width:0 !important;display:block }
+ .course-import-sheet-panel .course-import-edit-table thead { display:none }
+ .course-import-sheet-panel .course-import-edit-table tbody,.course-import-sheet-panel .course-import-edit-table tr { display:grid;width:100%;gap:0 }
+ .course-import-sheet-panel .course-import-edit-table tr { margin:0 0 11px;border:1px solid #dce6f2;border-radius:10px;overflow:hidden;background:#fff }
+ .course-import-sheet-panel .course-import-edit-table th:first-child { position:static;width:auto;text-align:left;padding:9px 12px;background:#f0f4fc }
+ .course-import-sheet-panel .course-import-edit-table th:nth-child(2) { display:none }
+ .course-import-sheet-panel .course-import-edit-table td.course-import-row-state { position:static;display:flex;align-items:center;gap:8px;width:auto;min-width:0;padding:9px 12px;border-top:1px solid #edf1f7 }
+ .course-import-sheet-panel .course-import-row-state small { margin:0 }
+ .course-import-sheet-panel .course-import-edit-table td { display:grid;grid-template-columns:minmax(112px,38%) minmax(0,1fr);gap:9px;align-items:start;min-width:0;max-width:none;padding:9px 10px }
+ .course-import-sheet-panel .course-import-edit-table td input,.course-import-sheet-panel .course-import-edit-table td select { min-width:0 }
+ .course-import-sheet-panel .course-import-cell-error { grid-column:2 }
+}
+
+
+/* Final table polish: one compact row-status rail and a single search control */
+.course-import-grid-toolbar { grid-template-columns:minmax(0,1fr) minmax(220px,280px) minmax(145px,165px);gap:10px;padding:11px 13px;background:#fff }
+.course-import-grid-search { box-sizing:border-box;flex:1;min-width:0;box-shadow:none }
+.course-import-grid-search input[type="search"] { appearance:none;-webkit-appearance:none;display:block;flex:1;width:100%;min-width:0;height:auto;min-height:0;margin:0;padding:0 2px!important;border:0!important;border-radius:0!important;outline:0!important;box-shadow:none!important;background:transparent!important;color:#243c60;font:inherit;font-size:.78rem;line-height:1.35 }
+.course-import-grid-search input[type="search"]:focus { border:0!important;outline:0!important;box-shadow:none!important }
+.course-import-grid-search input[type="search"]::-webkit-search-cancel-button { cursor:pointer }
+
+.course-import-sheet-panel .course-import-edit-wrap { border-color:#dce5f1;background:#fff }
+.course-import-sheet-panel .course-import-edit-table { min-width:760px!important;width:max-content;table-layout:fixed }
+.course-import-sheet-panel .sheet-courses .course-import-edit-table { min-width:1660px!important }
+.course-import-sheet-panel .sheet-course-modules .course-import-edit-table { min-width:760px!important }
+.course-import-sheet-panel .sheet-course-submodules .course-import-edit-table { min-width:980px!important }
+.course-import-sheet-panel .sheet-payment-plans .course-import-edit-table { min-width:720px!important }
+.course-import-sheet-panel .course-import-edit-table th:first-child,
+.course-import-sheet-panel .course-import-edit-table th[data-column="S.No"] { position:sticky;left:0;z-index:7;width:78px;min-width:78px;max-width:78px;background:#f0f4fc }
+.course-import-sheet-panel .course-import-edit-table th:nth-child(2) { position:sticky;left:78px;z-index:6;width:120px;min-width:120px;max-width:120px;background:#f0f4fc }
+.course-import-sheet-panel .course-import-edit-table th:not(:first-child) { white-space:normal;overflow-wrap:anywhere }
+.course-import-sheet-panel .course-import-edit-table th[data-column="Course Code"],
+.course-import-sheet-panel .course-import-edit-table td[data-column="Course Code"] { width:128px;min-width:128px;max-width:128px }
+.course-import-sheet-panel .course-import-edit-table th[data-column="Course Type"],
+.course-import-sheet-panel .course-import-edit-table td[data-column="Course Type"] { width:150px;min-width:150px;max-width:150px }
+.course-import-sheet-panel .course-import-edit-table th[data-column="Course Name"],
+.course-import-sheet-panel .course-import-edit-table td[data-column="Course Name"] { width:210px;min-width:210px;max-width:210px }
+.course-import-sheet-panel .course-import-edit-table th[data-column="Mode"],
+.course-import-sheet-panel .course-import-edit-table td[data-column="Mode"] { width:128px;min-width:128px;max-width:128px }
+.course-import-sheet-panel .course-import-edit-table th[data-column="Duration in Months"],
+.course-import-sheet-panel .course-import-edit-table td[data-column="Duration in Months"] { width:138px;min-width:138px;max-width:138px }
+.course-import-sheet-panel .course-import-edit-table th[data-column="Total Course Hours"],
+.course-import-sheet-panel .course-import-edit-table td[data-column="Total Course Hours"] { width:145px;min-width:145px;max-width:145px }
+.course-import-sheet-panel .course-import-edit-table th[data-column="Standard Course Fee"],
+.course-import-sheet-panel .course-import-edit-table td[data-column="Standard Course Fee"],
+.course-import-sheet-panel .course-import-edit-table th[data-column="Registration Fee"],
+.course-import-sheet-panel .course-import-edit-table td[data-column="Registration Fee"] { width:155px;min-width:155px;max-width:155px }
+.course-import-sheet-panel .course-import-edit-table th[data-column="Discount"],
+.course-import-sheet-panel .course-import-edit-table td[data-column="Discount"] { width:126px;min-width:126px;max-width:126px }
+.course-import-sheet-panel .course-import-edit-table th[data-column="Academic Test Count"],
+.course-import-sheet-panel .course-import-edit-table td[data-column="Academic Test Count"] { width:150px;min-width:150px;max-width:150px }
+.course-import-sheet-panel .course-import-edit-table th[data-column="Status"],
+.course-import-sheet-panel .course-import-edit-table td[data-column="Status"] { width:120px;min-width:120px;max-width:120px }
+.course-import-sheet-panel .course-import-edit-table th[data-column="Payment Plan Name"],
+.course-import-sheet-panel .course-import-edit-table td[data-column="Payment Plan Name"] { width:270px;min-width:270px;max-width:270px }
+.course-import-sheet-panel .course-import-edit-table td { min-width:0;height:auto;padding:8px 9px;vertical-align:top }
+.course-import-sheet-panel .course-import-edit-table td input,
+.course-import-sheet-panel .course-import-edit-table td select { box-sizing:border-box;display:block;width:100%;max-width:100%;min-width:0;min-height:38px;padding:7px 9px;border:1px solid #d7e1ed;border-radius:7px;font-size:.76rem;line-height:1.3 }
+.course-import-sheet-panel .course-import-edit-table td input:focus,
+.course-import-sheet-panel .course-import-edit-table td select:focus { outline:0;border-color:#4d83de;box-shadow:0 0 0 3px rgba(58,112,210,.13) }
+.course-import-sheet-panel .course-import-edit-table tbody th.course-import-row-heading { position:sticky;left:0;z-index:3;width:78px;min-width:78px;max-width:78px;padding:10px 11px;background:#f7f9fd;border-top:1px solid #edf1f7;text-align:left;vertical-align:middle }
+.course-import-sheet-panel .course-import-edit-table tbody tr:nth-child(even) th.course-import-row-heading { background:#f3f6fb }
+.course-import-sheet-panel .course-import-edit-table tbody tr:hover th.course-import-row-heading { background:#edf4ff }
+.course-import-row-content { display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:7px }
+.course-import-row-number { color:#536b8c;font-size:.75rem;font-weight:750;line-height:1 }
+.course-import-row-badge { min-height:20px;padding:3px 7px;font-size:.62rem }
+.course-import-row-badge.is-valid { background:#eaf7ef;color:#18734d }
+.course-import-row-badge.is-invalid { background:#fff4df;color:#94620a }
+.course-import-row-badge.is-duplicate { background:#fff0ee;color:#b42318 }
+.course-import-sheet-panel .course-import-edit-table tr.has-row-issue td { border-top-color:#f0e2df }
+.course-import-sheet-panel .course-import-edit-table td.has-cell-error { box-shadow:inset 0 0 0 1px #e7a69d }
+.course-import-sheet-panel .course-import-cell-error { min-width:0;overflow-wrap:anywhere }
+
+
+@media(max-width:960px) {
+ .course-import-grid-toolbar { grid-template-columns:minmax(0,1fr) minmax(210px,260px) }
+ .course-import-grid-counts { grid-column:1/-1 }
+}
+@media(max-width:640px) {
+ .course-import-grid-toolbar { grid-template-columns:minmax(0,1fr);gap:9px }
+ .course-import-grid-counts { grid-column:auto }
+ .course-import-sheet-panel .course-import-edit-wrap { max-height:none;overflow:visible;border:0 }
+ .course-import-sheet-panel .course-import-edit-table,
+ .course-import-sheet-panel .sheet-courses .course-import-edit-table,
+ .course-import-sheet-panel .sheet-course-modules .course-import-edit-table,
+ .course-import-sheet-panel .sheet-course-submodules .course-import-edit-table,
+ .course-import-sheet-panel .sheet-payment-plans .course-import-edit-table { min-width:0!important;width:100%;display:block }
+ .course-import-sheet-panel .course-import-edit-table thead { display:none }
+ .course-import-sheet-panel .course-import-edit-table tbody,
+ .course-import-sheet-panel .course-import-edit-table tr { display:grid;width:100%;gap:0 }
+ .course-import-sheet-panel .course-import-edit-table tr { margin:0 0 10px;border:1px solid #dce6f2;border-radius:10px;overflow:hidden;background:#fff }
+ .course-import-sheet-panel .course-import-edit-table tbody th.course-import-row-heading { position:static;width:auto;min-width:0;max-width:none;padding:9px 12px;background:#f0f4fc }
+
+ .course-import-sheet-panel .course-import-edit-table td { display:grid;grid-template-columns:minmax(110px,36%) minmax(0,1fr);gap:9px;align-items:start;width:auto;min-width:0;max-width:none;padding:9px 10px }
+ .course-import-sheet-panel .course-import-edit-table td input,
+ .course-import-sheet-panel .course-import-edit-table td select { min-width:0 }
+ .course-import-sheet-panel .course-import-cell-error { grid-column:2 }
+}
+
+
+/* Dedicated validation status column */
+.course-import-sheet-panel .course-import-edit-table tbody td.course-import-row-state { position:sticky;left:78px;z-index:2;width:120px;min-width:120px;max-width:120px;padding:9px 10px;background:#fff;border-top:1px solid #edf1f7;vertical-align:middle }
+.course-import-sheet-panel .course-import-edit-table tbody tr:nth-child(even) td.course-import-row-state { background:#fbfcff }
+.course-import-sheet-panel .course-import-edit-table tbody tr:hover td.course-import-row-state { background:#f5f9ff }
+.course-import-row-state-content { display:flex;flex-direction:column;align-items:flex-start;gap:5px;min-width:0 }
+.course-import-row-state-content small { color:#8796ab;font-size:.64rem;line-height:1.3;overflow-wrap:anywhere }
+.course-import-row-state .course-import-row-badge.is-invalid { background:#fff0ee;color:#b42318 }
+.course-import-row-state .course-import-row-badge.is-valid { background:#eaf7ef;color:#18734d }
+
+@media(max-width:640px) {
+ .course-import-sheet-panel .course-import-edit-table tbody td.course-import-row-state { position:static;display:grid;grid-template-columns:minmax(110px,36%) minmax(0,1fr);gap:9px;align-items:start;width:auto;min-width:0;max-width:none;padding:9px 10px;background:#fff }
+ .course-import-sheet-panel .course-import-edit-table tbody tr:nth-child(even) td.course-import-row-state { background:#fbfcff }
+ .course-import-row-state-content { grid-column:2 }
+}
+
+
+/* Readable values by default; expose inputs only for the row being edited */
+.course-import-sheet-panel .course-import-edit-table { min-width:1580px!important }
+.course-import-sheet-panel .sheet-courses .course-import-edit-table { min-width:1580px!important }
+.course-import-sheet-panel .course-import-edit-table td { min-height:52px;padding:10px 11px;vertical-align:middle;white-space:normal;overflow-wrap:anywhere }
+.course-import-sheet-panel .course-import-edit-table td .course-import-cell-display { display:block;min-width:0;color:#243c60;font-size:.77rem;line-height:1.45;white-space:normal;overflow-wrap:anywhere }
+.course-import-sheet-panel .course-import-edit-table td.has-cell-error .course-import-cell-display { color:#9e2e24;font-weight:650 }
+.course-import-sheet-panel .course-import-edit-table th[data-column="Course Code"],
+.course-import-sheet-panel .course-import-edit-table td[data-column="Course Code"] { width:118px;min-width:118px;max-width:118px }
+.course-import-sheet-panel .course-import-edit-table th[data-column="Course Type"],
+.course-import-sheet-panel .course-import-edit-table td[data-column="Course Type"] { width:132px;min-width:132px;max-width:132px }
+.course-import-sheet-panel .course-import-edit-table th[data-column="Course Name"],
+.course-import-sheet-panel .course-import-edit-table td[data-column="Course Name"] { width:190px;min-width:190px;max-width:190px }
+.course-import-sheet-panel .course-import-edit-table th[data-column="Mode"],
+.course-import-sheet-panel .course-import-edit-table td[data-column="Mode"] { width:108px;min-width:108px;max-width:108px }
+.course-import-sheet-panel .course-import-edit-table th[data-column="Duration in Months"],
+.course-import-sheet-panel .course-import-edit-table td[data-column="Duration in Months"] { width:112px;min-width:112px;max-width:112px }
+.course-import-sheet-panel .course-import-edit-table th[data-column="Total Course Hours"],
+.course-import-sheet-panel .course-import-edit-table td[data-column="Total Course Hours"] { width:120px;min-width:120px;max-width:120px }
+.course-import-sheet-panel .course-import-edit-table th[data-column="Standard Course Fee"],
+.course-import-sheet-panel .course-import-edit-table td[data-column="Standard Course Fee"],
+.course-import-sheet-panel .course-import-edit-table th[data-column="Registration Fee"],
+.course-import-sheet-panel .course-import-edit-table td[data-column="Registration Fee"] { width:132px;min-width:132px;max-width:132px }
+.course-import-sheet-panel .course-import-edit-table th[data-column="Discount"],
+.course-import-sheet-panel .course-import-edit-table td[data-column="Discount"] { width:104px;min-width:104px;max-width:104px }
+.course-import-sheet-panel .course-import-edit-table th[data-column="Academic Test Count"],
+.course-import-sheet-panel .course-import-edit-table td[data-column="Academic Test Count"] { width:124px;min-width:124px;max-width:124px }
+.course-import-sheet-panel .course-import-edit-table th[data-column="Status"],
+.course-import-sheet-panel .course-import-edit-table td[data-column="Status"] { width:100px;min-width:100px;max-width:100px }
+.course-import-sheet-panel .course-import-edit-table th[data-column="Payment Plan Name"],
+.course-import-sheet-panel .course-import-edit-table td[data-column="Payment Plan Name"] { width:220px;min-width:220px;max-width:220px }
+.course-import-sheet-panel .course-import-edit-table th[data-column="Actions"] { position:sticky;right:0;z-index:8;width:118px;min-width:118px;max-width:118px;background:#f0f4fc }
+.course-import-sheet-panel .course-import-edit-table tbody td[data-column="Actions"] { position:sticky;right:0;z-index:3;width:118px;min-width:118px;max-width:118px;padding:8px 9px;background:#fff;vertical-align:middle }
+.course-import-sheet-panel .course-import-edit-table tbody tr:nth-child(even) td[data-column="Actions"] { background:#fbfcff }
+.course-import-sheet-panel .course-import-edit-table tbody tr:hover td[data-column="Actions"] { background:#f5f9ff }
+.course-import-sheet-panel .course-import-edit-table tbody tr.is-editing td { background:#f5f9ff }
+.course-import-sheet-panel .course-import-edit-table tbody tr.is-editing td.has-cell-error { background:#fff2f0 }
+.course-import-sheet-panel .course-import-edit-table tbody tr.is-editing td.course-import-row-state { background:#f5f9ff }
+.course-import-sheet-panel .course-import-edit-table tbody tr.is-editing td[data-column="Actions"] { background:#f5f9ff }
+.course-import-row-action-buttons { display:flex;align-items:center;justify-content:flex-start;gap:4px;white-space:nowrap }
+.course-import-dialog .course-import-row-action { display:inline-flex;align-items:center;justify-content:center;gap:5px;min-height:31px;padding:5px 8px;border:1px solid #cbd9ec;border-radius:7px;background:#fff;color:#2b5b98;font:inherit;font-size:.69rem;font-weight:700;line-height:1;cursor:pointer }
+.course-import-dialog .course-import-row-action:hover { border-color:#8fb2e4;background:#f4f8ff }
+.course-import-dialog .course-import-row-action.is-edit { color:#1e5dbc }
+.course-import-dialog .course-import-row-action.is-save { border-color:#2587e5;background:#2587e5;color:#fff }
+.course-import-dialog .course-import-row-action.is-cancel { width:30px;padding:5px;color:#687b95 }
+.course-import-sheet-panel .course-import-row-actions { white-space:nowrap }
+.course-import-sheet-panel .course-import-row-actions .course-import-mobile-label { display:none }
+@media(max-width:640px) {
+ .course-import-sheet-panel .course-import-edit-table,
+ .course-import-sheet-panel .sheet-courses .course-import-edit-table,
+ .course-import-sheet-panel .sheet-course-modules .course-import-edit-table,
+ .course-import-sheet-panel .sheet-course-submodules .course-import-edit-table,
+ .course-import-sheet-panel .sheet-payment-plans .course-import-edit-table { min-width:0!important;width:100%;display:block }
+ .course-import-sheet-panel .course-import-edit-table tbody td[data-column="Actions"] { position:static;display:grid;width:auto;min-width:0;max-width:none;padding:9px 10px;background:#fff }
+ .course-import-sheet-panel .course-import-edit-table tbody tr:nth-child(even) td[data-column="Actions"] { background:#fbfcff }
+ .course-import-sheet-panel .course-import-row-actions .course-import-mobile-label { display:block }
+}
+
+
+/* Fresh blue and teal palette for the workbook grid */
+.course-import-sheet-tabs { background:#eef4ff;border-bottom-color:#d5e3fa }
+.course-import-sheet-tab { color:#536b91 }
+.course-import-sheet-tab:hover { color:#1e5dbc;background:#e4eeff }
+.course-import-sheet-tab.is-active { color:#164b9a;background:#fff;border-bottom-color:#2878e5 }
+.course-import-sheet-count { background:#dce9ff;color:#315b99 }
+.course-import-sheet-tab.is-active .course-import-sheet-count { background:#dceaff;color:#1f5ab7 }
+.course-import-grid-toolbar { background:#f8fbff;border-bottom-color:#dbe7f7 }
+.course-import-grid-search,.course-import-grid-filter { border-color:#ccdcf2;background:#fff;color:#4c6b99 }
+.course-import-grid-search:focus-within,.course-import-grid-filter:focus-within { border-color:#5792ea;box-shadow:0 0 0 3px rgba(48,121,224,.13) }
+
+.course-import-sheet-panel .course-import-edit-wrap { border-color:#cddcf2;border-radius:8px;box-shadow:0 2px 8px rgba(42,82,142,.05) }
+.course-import-sheet-panel .course-import-edit-table thead th { background:linear-gradient(180deg,#edf4ff 0%,#e5eeff 100%);color:#355882;border-bottom:1px solid #cfdef3 }
+.course-import-sheet-panel .course-import-edit-table tbody tr { background:#fff }
+.course-import-sheet-panel .course-import-edit-table tbody tr:nth-child(even) { background:#f7faff }
+.course-import-sheet-panel .course-import-edit-table tbody tr:hover { background:#f0f6ff }
+.course-import-sheet-panel .course-import-edit-table td { border-top-color:#e3ecf8 }
+.course-import-sheet-panel .course-import-edit-table tbody th.course-import-row-heading { background:#edf4ff;color:#315b98;border-top-color:#e0eafb }
+.course-import-sheet-panel .course-import-edit-table tbody tr:nth-child(even) th.course-import-row-heading { background:#e8f1ff }
+.course-import-sheet-panel .course-import-edit-table tbody tr:hover th.course-import-row-heading { background:#dceaff }
+.course-import-sheet-panel .course-import-edit-table thead th[data-column="S.No"],
+.course-import-sheet-panel .course-import-edit-table thead th[data-column="Row status"] { background:#e2edff }
+.course-import-sheet-panel .course-import-edit-table tbody td.course-import-row-state { background:#f2f7ff;border-top-color:#e0eafb }
+.course-import-sheet-panel .course-import-edit-table tbody tr:nth-child(even) td.course-import-row-state { background:#eaf2ff }
+.course-import-sheet-panel .course-import-edit-table tbody tr:hover td.course-import-row-state { background:#e3efff }
+.course-import-sheet-panel .course-import-edit-table thead th[data-column="Actions"] { background:#e2edff }
+.course-import-sheet-panel .course-import-edit-table tbody td[data-column="Actions"] { background:#f4f8ff;border-left:1px solid #e4edfa }
+.course-import-sheet-panel .course-import-edit-table tbody tr:nth-child(even) td[data-column="Actions"] { background:#edf4ff }
+.course-import-sheet-panel .course-import-edit-table tbody tr:hover td[data-column="Actions"] { background:#e5efff }
+.course-import-sheet-panel .course-import-edit-table tbody tr.is-editing td,
+.course-import-sheet-panel .course-import-edit-table tbody tr.is-editing td.course-import-row-state,
+.course-import-sheet-panel .course-import-edit-table tbody tr.is-editing td[data-column="Actions"] { background:#eaf3ff }
+.course-import-sheet-panel .course-import-edit-table tbody tr.is-editing th.course-import-row-heading { background:#dceaff }
+.course-import-sheet-panel .course-import-edit-table tbody tr.is-editing td.has-cell-error { background:#fff0ee }
+.course-import-sheet-panel .course-import-edit-table td .course-import-cell-display { color:#213e66 }
+.course-import-sheet-panel .course-import-edit-table td input,
+.course-import-sheet-panel .course-import-edit-table td select { border-color:#cbdaf0;background:#fff;color:#203d65 }
+.course-import-sheet-panel .course-import-edit-table td input:focus,
+.course-import-sheet-panel .course-import-edit-table td select:focus { border-color:#4a8de8;box-shadow:0 0 0 3px rgba(53,126,226,.15) }
+.course-import-row-badge.is-valid,
+.course-import-row-state .course-import-row-badge.is-valid { background:#dcf7ed;color:#08744f }
+.course-import-row-badge.is-invalid,
+.course-import-row-state .course-import-row-badge.is-invalid { background:#ffe6e2;color:#b42318 }
+.course-import-dialog .course-import-row-action.is-edit { border-color:#bdd2f3;background:#eaf2ff;color:#1d5db4 }
+.course-import-dialog .course-import-row-action.is-edit:hover { border-color:#8eb5ef;background:#dfeaff }
+.course-import-dialog .course-import-row-action.is-save { border-color:#237be0;background:linear-gradient(135deg,#2f8cf0,#246ed0);color:#fff;box-shadow:0 2px 5px rgba(35,105,202,.2) }
+.course-import-dialog .course-import-row-action.is-cancel { border-color:#cddcf0;background:#fff;color:#647a9b }
+.course-import-dialog .course-import-row-action.is-cancel:hover { border-color:#9ebbe5;background:#f2f7ff }
+.course-import-sheet-panel .course-import-edit-wrap::-webkit-scrollbar { width:10px;height:10px }
+.course-import-sheet-panel .course-import-edit-wrap::-webkit-scrollbar-track { background:#e8f0fc }
+.course-import-sheet-panel .course-import-edit-wrap::-webkit-scrollbar-thumb { border:2px solid #e8f0fc;border-radius:999px;background:#79a9ed }
+.course-import-sheet-panel .course-import-edit-wrap::-webkit-scrollbar-thumb:hover { background:#4d8ce5 }
+@media(max-width:640px) {
+ .course-import-sheet-panel .course-import-edit-table tbody td.course-import-row-state { background:#f2f7ff }
+ .course-import-sheet-panel .course-import-edit-table tbody tr:nth-child(even) td.course-import-row-state { background:#eaf2ff }
+ .course-import-sheet-panel .course-import-edit-table tbody td[data-column="Actions"] { background:#f4f8ff }
+ .course-import-sheet-panel .course-import-edit-table tbody tr:nth-child(even) td[data-column="Actions"] { background:#edf4ff }
+}
+
+
+/* Higher-contrast accents for status and workbook navigation */
+.course-import-sheet-tabs { background:#e8f1ff;border-bottom-color:#c3d8f7 }
+.course-import-sheet-tab { color:#385b8d }
+.course-import-sheet-tab:hover { color:#144f9f;background:#d9e8ff }
+.course-import-sheet-tab.is-active { color:#12488f;border-bottom-color:#176fe0 }
+.course-import-sheet-count { background:#cfe1ff;color:#214f91 }
+.course-import-sheet-tab.is-active .course-import-sheet-count { background:#c7dcff;color:#174eaa }
+.course-import-grid-toolbar { background:#f2f7ff;border-bottom-color:#cbdcf4 }
+.course-import-grid-search,.course-import-grid-filter { border-color:#b8cfee;color:#365b91 }
+.course-import-grid-search:focus-within,.course-import-grid-filter:focus-within { border-color:#347fe0;box-shadow:0 0 0 3px rgba(39,112,218,.17) }
+.course-import-sheet-panel .course-import-edit-wrap { border-color:#b9cfee;box-shadow:0 3px 12px rgba(35,86,157,.09) }
+.course-import-sheet-panel .course-import-edit-table thead th { background:linear-gradient(180deg,#d8e7ff 0%,#c8dcff 100%);color:#234c80;border-bottom-color:#b2caed }
+.course-import-sheet-panel .course-import-edit-table tbody tr:nth-child(even) { background:#f2f7ff }
+.course-import-sheet-panel .course-import-edit-table tbody tr:hover { background:#e4f0ff }
+.course-import-sheet-panel .course-import-edit-table td { border-top-color:#d6e4f6 }
+.course-import-sheet-panel .course-import-edit-table tbody th.course-import-row-heading { background:#e5efff;color:#244f8d;border-top-color:#d1e0f5 }
+.course-import-sheet-panel .course-import-edit-table tbody tr:nth-child(even) th.course-import-row-heading { background:#d9e8ff }
+.course-import-sheet-panel .course-import-edit-table tbody tr:hover th.course-import-row-heading { background:#c8ddff }
+.course-import-sheet-panel .course-import-edit-table thead th[data-column="S.No"],
+.course-import-sheet-panel .course-import-edit-table thead th[data-column="Row status"],
+.course-import-sheet-panel .course-import-edit-table thead th[data-column="Actions"] { background:#c8dcff }
+.course-import-sheet-panel .course-import-edit-table tbody td.course-import-row-state { background:#edf5ff;border-top-color:#d1e0f5 }
+.course-import-sheet-panel .course-import-edit-table tbody tr:nth-child(even) td.course-import-row-state { background:#e3efff }
+.course-import-sheet-panel .course-import-edit-table tbody tr:hover td.course-import-row-state { background:#d8e9ff }
+.course-import-sheet-panel .course-import-edit-table tbody td[data-column="Actions"] { background:#f0f6ff;border-left-color:#d7e5f8 }
+.course-import-sheet-panel .course-import-edit-table tbody tr:nth-child(even) td[data-column="Actions"] { background:#e7f0ff }
+.course-import-sheet-panel .course-import-edit-table tbody tr:hover td[data-column="Actions"] { background:#d9e9ff }
+.course-import-sheet-panel .course-import-edit-table tbody tr.is-editing td,
+.course-import-sheet-panel .course-import-edit-table tbody tr.is-editing td.course-import-row-state,
+.course-import-sheet-panel .course-import-edit-table tbody tr.is-editing td[data-column="Actions"] { background:#dfedff }
+.course-import-sheet-panel .course-import-edit-table tbody tr.is-editing th.course-import-row-heading { background:#cadfff }
+.course-import-row-state-content small { color:#87524b }
+.course-import-row-badge.is-valid,
+.course-import-row-state .course-import-row-badge.is-valid { background:#bdf2dc;color:#056344 }
+.course-import-row-badge.is-invalid,
+.course-import-row-state .course-import-row-badge.is-invalid { background:#ffd5cf;color:#a51e16 }
+.course-import-dialog .course-import-row-action.is-edit { border-color:#8fb5ec;background:#dceaff;color:#124f9f }
+.course-import-dialog .course-import-row-action.is-edit:hover { border-color:#6399e7;background:#caddff }
+.course-import-dialog .course-import-row-action.is-save { border-color:#176aca;background:linear-gradient(135deg,#318bf0,#1f66cd);box-shadow:0 3px 8px rgba(31,102,205,.25) }
+.course-import-dialog .course-import-row-action.is-cancel { border-color:#b8cfee;color:#4b6790 }
+.course-import-sheet-panel .course-import-edit-wrap::-webkit-scrollbar-track { background:#dfeaff }
+.course-import-sheet-panel .course-import-edit-wrap::-webkit-scrollbar-thumb { border-color:#dfeaff;background:#5c98e8 }
+.course-import-sheet-panel .course-import-edit-wrap::-webkit-scrollbar-thumb:hover { background:#347fdf }
+@media(max-width:640px) {
+ .course-import-sheet-panel .course-import-edit-table tbody td.course-import-row-state { background:#edf5ff }
+ .course-import-sheet-panel .course-import-edit-table tbody tr:nth-child(even) td.course-import-row-state { background:#e3efff }
+ .course-import-sheet-panel .course-import-edit-table tbody td[data-column="Actions"] { background:#f0f6ff }
+ .course-import-sheet-panel .course-import-edit-table tbody tr:nth-child(even) td[data-column="Actions"] { background:#e7f0ff }
+}
+
+
+/* Larger, sharper type in the workbook review table */
+.course-import-row-badge { min-height:27px;padding:5px 10px;border-radius:0;font-size:.8rem;font-weight:800;line-height:1.15 }
+.course-import-sheet-panel .course-import-edit-table td .course-import-cell-display { font-size:.9rem;line-height:1.5 }
+.course-import-sheet-panel .course-import-edit-table td input,
+.course-import-sheet-panel .course-import-edit-table td select { min-height:42px;font-size:.86rem;line-height:1.35 }
+.course-import-sheet-panel .course-import-edit-table thead th { font-size:.75rem;line-height:1.4 }
+.course-import-row-state-content small { font-size:.72rem;line-height:1.4 }
+.course-import-sheet-panel .course-import-edit-table tbody th.course-import-row-heading { font-size:.84rem }
+.course-import-dialog .course-import-row-action { font-size:.75rem }
+
+
+/* Keep the status label and issue detail readable in the pinned rail */
+.course-import-row-state-content { display:flex;flex-direction:column;align-items:flex-start;gap:5px;min-width:0;padding:0!important;border:0!important;border-radius:0!important;background:transparent!important;box-shadow:none!important }
+.course-import-row-state-content small { margin-top:0 }
+
+/* Keep the final two columns anchored to the right edge during horizontal scrolling */
+.course-import-sheet-panel .course-import-edit-table { --course-import-actions-width:132px;--course-import-status-width:136px }
+.course-import-sheet-panel .course-import-edit-table thead th[data-column="Actions"],
+.course-import-sheet-panel .course-import-edit-table thead th[data-column="Row status"] { position:sticky!important;top:0;left:auto!important;transform:none!important;box-sizing:border-box;border-left:1px solid #cadcf4 }
+.course-import-sheet-panel .course-import-edit-table thead th[data-column="Actions"] { right:var(--course-import-status-width)!important;z-index:20;width:var(--course-import-actions-width)!important;min-width:var(--course-import-actions-width)!important;max-width:var(--course-import-actions-width)!important;background:#dceaff;box-shadow:-7px 0 12px -10px rgba(32,75,135,.55) }
+.course-import-sheet-panel .course-import-edit-table thead th[data-column="Row status"] { right:0!important;z-index:21;width:var(--course-import-status-width)!important;min-width:var(--course-import-status-width)!important;max-width:var(--course-import-status-width)!important;background:#d3e4ff }
+.course-import-sheet-panel .course-import-edit-table tbody td[data-column="Actions"],
+.course-import-sheet-panel .course-import-edit-table tbody td[data-column="Row status"] { position:sticky!important;left:auto!important;transform:none!important;box-sizing:border-box;border-left:1px solid #cadcf4 }
+.course-import-sheet-panel .course-import-edit-table tbody td[data-column="Actions"] { right:var(--course-import-status-width)!important;z-index:10;width:var(--course-import-actions-width)!important;min-width:var(--course-import-actions-width)!important;max-width:var(--course-import-actions-width)!important;padding:8px;background:#f0f6ff;box-shadow:-7px 0 12px -10px rgba(32,75,135,.55) }
+.course-import-sheet-panel .course-import-edit-table tbody tr:nth-child(even) td[data-column="Actions"] { background:#e7f0ff }
+.course-import-sheet-panel .course-import-edit-table tbody tr:hover td[data-column="Actions"],
+.course-import-sheet-panel .course-import-edit-table tbody tr.is-editing td[data-column="Actions"] { background:#d9e9ff }
+.course-import-sheet-panel .course-import-edit-table tbody td[data-column="Row status"] { right:0!important;z-index:11;width:var(--course-import-status-width)!important;min-width:var(--course-import-status-width)!important;max-width:var(--course-import-status-width)!important;background:#edf5ff }
+.course-import-sheet-panel .course-import-edit-table tbody tr:nth-child(even) td[data-column="Row status"] { background:#e3efff }
+.course-import-sheet-panel .course-import-edit-table tbody tr:hover td[data-column="Row status"],
+.course-import-sheet-panel .course-import-edit-table tbody tr.is-editing td[data-column="Row status"] { background:#d8e9ff }
+@media (max-width:640px) {
+ .course-import-sheet-panel .course-import-edit-table thead th[data-column="Actions"],
+ .course-import-sheet-panel .course-import-edit-table thead th[data-column="Row status"],
+ .course-import-sheet-panel .course-import-edit-table tbody td[data-column="Actions"],
+ .course-import-sheet-panel .course-import-edit-table tbody td[data-column="Row status"] { position:static!important;inset:auto!important;transform:none!important;width:auto!important;min-width:0!important;max-width:none!important;box-shadow:none }
+}
+
+/* Valid is a plain status label, while invalid rows keep their warning badge. */
+.course-import-sheet-panel .course-import-edit-table tbody td.course-import-row-state,
+.course-import-sheet-panel .course-import-row-state-content,
+.course-import-sheet-panel .course-import-row-state-label.is-valid { border-radius:0!important }
+.course-import-sheet-panel .course-import-row-state-label.is-valid { display:inline!important;min-height:0!important;margin:0;padding:0!important;border:0!important;background:transparent!important;box-shadow:none!important;color:#08744f;font-size:.9rem;font-weight:750;line-height:1.35 }
+
+
+/* Concise validation feedback stays readable inside cells and error reports. */
+.course-import-sheet-panel .course-import-cell-error { display:block;min-width:0;margin-top:7px;padding:6px 8px;border-left:3px solid #cf493d;border-radius:4px;background:#fff1ef;color:#9d3027;font-size:.74rem;font-weight:600;line-height:1.4;white-space:normal;overflow-wrap:anywhere }
+.course-import-error-message { color:#9d3027;font-size:.8rem;line-height:1.45;overflow-wrap:anywhere }
+
+
+/* Full-page course import lives inside the branch dashboard shell. */
+.course-import-page { width:100%;min-width:0;display:flex;flex-direction:column;background:#fff;border:1px solid #dce6f2;border-radius:0;box-shadow:0 8px 28px rgba(24,55,95,.08);color:#263e63;overflow:hidden }
+.course-import-page .course-import-header { flex:0 0 auto;padding:20px 24px;background:#fff }
+.course-import-page .course-import-body { min-width:0;overflow:visible;padding:20px 24px 26px }
+.course-import-page .course-import-footer { position:sticky;bottom:0;z-index:8;flex:0 0 auto;border-radius:0;box-shadow:0 -6px 18px rgba(28,57,94,.06) }
+.course-import-page .course-import-page-back { width:40px;height:40px;border:1px solid #dce6f2;background:#f7faff;transition:background .15s,border-color .15s }
+.course-import-page .course-import-page-back:hover { border-color:#a9c3eb;background:#edf4ff;color:#245eb8 }
+.course-import-page button:disabled { opacity:.55;cursor:not-allowed }
+.course-import-page button:focus-visible,.course-import-page .course-import-course summary:focus-visible { outline:3px solid #b1ceff;outline-offset:2px }
+.course-import-page .course-import-row-action { display:inline-flex;align-items:center;justify-content:center;gap:5px;min-height:31px;padding:5px 8px;border:1px solid #8fb5ec;border-radius:7px;background:#dceaff;color:#124f9f;font:inherit;font-size:.75rem;font-weight:700;line-height:1;cursor:pointer }
+.course-import-page .course-import-row-action:hover { border-color:#6399e7;background:#caddff }
+.course-import-page .course-import-row-action.is-save { border-color:#176aca;background:linear-gradient(135deg,#318bf0,#1f66cd);color:#fff;box-shadow:0 3px 8px rgba(31,102,205,.25) }
+.course-import-page .course-import-row-action.is-cancel { border-color:#b8cfee;background:#fff;color:#4b6790 }
+@media(max-width:820px) { .course-import-page .course-import-header,.course-import-page .course-import-body { padding-left:16px;padding-right:16px } }
+@media(max-width:640px) { .course-import-page { border-radius:0 } .course-import-page .course-import-header { padding:15px 14px } .course-import-page .course-import-body { padding:15px 10px 20px } .course-import-page .course-import-footer { padding:13px 12px;border-radius:0 } }
+
+
+/* Place template guidance and workbook selection side by side. */
+.course-import-upload-options { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;align-items:stretch;margin:0 0 16px }
+.course-import-upload-options .course-import-instructions { display:flex;flex-direction:column;align-items:flex-start;justify-content:center;box-sizing:border-box;min-width:0;min-height:190px;margin:0;padding:20px 22px }
+.course-import-upload-options .course-import-file { box-sizing:border-box;min-width:0;min-height:190px;margin:0;justify-content:center }
+.course-import-upload-options.has-preview { grid-template-columns:minmax(0,1fr) }
+.course-import-upload-options.has-preview .course-import-file { min-height:88px }
+@media(max-width:820px) { .course-import-upload-options { grid-template-columns:minmax(0,1fr);gap:12px } .course-import-upload-options .course-import-instructions,.course-import-upload-options .course-import-file { min-height:150px } .course-import-upload-options.has-preview .course-import-file { min-height:82px } }
+@media(max-width:640px) { .course-import-upload-options .course-import-instructions { padding:16px } .course-import-upload-options .course-import-file { padding:20px 14px } }
+
+
+/* Trim unused space on the full-page course upload route. */
+.branch-dashboard-app-shell.is-course-import-page .super-admin-content { padding-top:0;padding-right:0;padding-bottom:0;padding-left:0 }
+.branch-dashboard-app-shell.is-course-import-page .branch-dashboard-content { min-height:100%;padding-top:0;padding-bottom:0 }
+.branch-dashboard-app-shell.is-course-import-page .course-import-page { min-height:100% }
+.branch-dashboard-app-shell.is-course-import-page .course-import-page .course-import-body { padding-bottom:0 }
+
+
+/* Keep the page import action after all workbook review details. */
+.course-import-page-actions { display:flex;justify-content:flex-end;align-items:center;flex-wrap:wrap;gap:8px;margin:16px 0 8px;padding-top:14px;border-top:1px solid #e4ebf5 }
+.course-import-page-actions .button { box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;min-height:42px;margin:0;padding:9px 18px;white-space:nowrap }
+@media(max-width:640px) { .course-import-page-actions { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));margin-top:12px;padding-top:12px } .course-import-page-actions .button { width:100%;min-width:0 } }
+@media(max-width:360px) { .course-import-page-actions { grid-template-columns:minmax(0,1fr) } }
+
+
+/* Keep the review search and row filter aligned without count chips. */
+.course-import-sheet-review .course-import-grid-toolbar { grid-template-columns:minmax(220px,280px) minmax(160px,190px);justify-content:end;gap:10px }
+.course-import-grid-filter { box-sizing:border-box;display:grid;grid-template-columns:auto minmax(0,1fr);width:100%;min-width:0 }
+.course-import-grid-filter select { appearance:none;-webkit-appearance:none;display:block;box-sizing:border-box;width:100%;min-width:0;height:100%;padding:0 22px 0 2px!important;border:0!important;border-radius:0!important;outline:0!important;box-shadow:none!important;background-color:transparent!important;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%234c6b99' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")!important;background-repeat:no-repeat!important;background-position:right center!important;background-size:14px!important;color:#243c60;font:inherit;font-size:.78rem;line-height:1.3;cursor:pointer }
+.course-import-grid-filter select:focus { outline:0!important;box-shadow:none!important }
+@media(max-width:960px) { .course-import-sheet-review .course-import-grid-toolbar { grid-template-columns:minmax(0,1fr) minmax(190px,240px);justify-content:stretch } }
+@media(max-width:640px) { .course-import-sheet-review .course-import-grid-toolbar { grid-template-columns:minmax(0,1fr) } }
+
+
+/* Keep search at the end of the sheet-tab row and the row filter separate. */
+.course-import-sheet-navigation { display:flex;align-items:center;gap:10px;min-width:0;padding:8px 14px;border-bottom:1px solid #cbdcf4;background:#f2f7ff }
+.course-import-sheet-navigation .course-import-sheet-tabs { flex:1 1 auto;align-self:stretch;min-width:0;padding:0;border-bottom:0;background:transparent }
+.course-import-sheet-navigation .course-import-grid-search { box-sizing:border-box;flex:0 1 260px;width:260px;min-width:145px;height:36px;margin:0 }
+.course-import-sheet-review .course-import-grid-toolbar { display:flex;justify-content:flex-end;align-items:center;padding:8px 13px }
+.course-import-grid-filter { display:flex;box-sizing:border-box;width:170px;min-width:0;height:34px;padding:0 9px }
+.course-import-grid-filter select { flex:1 1 auto;width:100%;height:100%;min-width:0 }
+@media(max-width:960px) { .course-import-sheet-navigation .course-import-grid-search { flex-basis:230px;width:230px;min-width:130px } }
+@media(max-width:640px) { .course-import-sheet-navigation { gap:7px;padding:7px 8px } .course-import-sheet-navigation .course-import-grid-search { flex-basis:190px;width:190px;min-width:120px } .course-import-sheet-navigation .course-import-sheet-tabs { gap:2px;padding:0 } .course-import-sheet-review .course-import-grid-toolbar { padding:8px } .course-import-grid-filter { width:100% } }
+
+
+/* Match the Course Management filter control styling. */
+.course-import-grid-filter { display:flex;box-sizing:border-box;width:170px;min-width:0;height:auto;padding:0;border:0;border-radius:0;background:transparent;color:#172b4d;box-shadow:none }
+.course-import-grid-filter:focus-within { border-color:transparent;box-shadow:none }
+.course-import-grid-filter select { appearance:auto!important;-webkit-appearance:auto!important;box-sizing:border-box;display:block;width:100%;min-width:0;min-height:42px;height:auto;padding:0 30px 0 12px!important;border:1px solid #cbd9ea!important;border-radius:9px!important;outline:none!important;box-shadow:none!important;background:#fff!important;background-image:none!important;color:#172b4d;font:inherit;font-size:13px;font-weight:650;cursor:pointer }
+.course-import-grid-filter select:hover { border-color:#8cb8f4!important;background:#fbfdff!important }
+.course-import-grid-filter select:focus { border-color:#4b8ff5!important;box-shadow:0 0 0 3px rgba(59,130,246,.12)!important }
+@media(max-width:640px) { .course-import-grid-filter { width:100% } }
+
+
+/* Refined pagination controls for workbook tables and previews. */
+.course-import-pagination { box-sizing:border-box;display:flex;align-items:center;justify-content:space-between;gap:14px;width:100%;margin:0;padding:12px 14px;border-top:1px solid #e3ebf5;background:#f8fbff;color:#647895;font-size:.8rem }
+.course-import-pagination > span { flex:1;min-width:0;color:#607590;text-align:center;font-size:.78rem;font-weight:600;line-height:1.4 }
+.course-import-pagination > button { display:inline-flex;align-items:center;justify-content:center;min-width:82px;min-height:38px;padding:0 13px;border:1px solid #cbd9ea;border-radius:9px;background:#fff;color:#28558f;font:inherit;font-size:.78rem;font-weight:750;white-space:nowrap;cursor:pointer;box-shadow:0 1px 2px rgba(20,50,90,.04);transition:background-color .15s,border-color .15s,color .15s,box-shadow .15s }
+.course-import-pagination > button:hover:not(:disabled) { border-color:#8cb8f4;background:#eff6ff;color:#1d5db5;box-shadow:0 3px 8px rgba(40,100,180,.09) }
+.course-import-pagination > button:focus-visible { outline:3px solid rgba(75,143,245,.24);outline-offset:2px }
+.course-import-pagination > button:disabled { border-color:#e0e7f0;background:#f8fafc;color:#9aa9bb;box-shadow:none;cursor:not-allowed;opacity:1 }
+@media(max-width:640px) { .course-import-pagination { display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:9px;padding:11px 10px } .course-import-pagination > span { grid-column:1/-1;grid-row:1;text-align:center } .course-import-pagination > button:first-of-type { grid-column:1;grid-row:2 } .course-import-pagination > button:last-of-type { grid-column:2;grid-row:2 } .course-import-pagination > button { width:100%;min-width:0 } }
+
+
+/* Keep the full pagination control grouped in the center. */
+.course-import-pagination { justify-content:center }
+.course-import-pagination > span { flex:0 1 auto }
+@media(max-width:640px) { .course-import-pagination { grid-template-columns:auto auto;justify-content:center } .course-import-pagination > button { width:auto;min-width:82px } }
+
+
+/* Align the grouped pagination control to the right edge. */
+.course-import-pagination { justify-content:flex-end }
+@media(max-width:640px) { .course-import-pagination { justify-content:end } .course-import-pagination > span { text-align:right } }
+
+/* Keep the table scrollable; pass wheel scrolling to the page at its vertical edges. */
+@media(min-width:641px) {
+ .course-import-page .course-import-sheet-panel .course-import-edit-wrap { max-height:min(48vh,520px);overflow:auto;overscroll-behavior-x:contain;overscroll-behavior-y:auto }
+ .course-import-page .course-import-sheet-panel .course-import-edit-table thead { position:sticky;top:0;z-index:5 }
+}
+/* Distinguish the four course-level validation summary cards. */
+.course-import-stats > div.is-total { border-color:#cbdcf5;background:#f1f6ff }
+.course-import-stats > div.is-valid { border-color:#c8e9d6;background:#effaf3 }
+.course-import-stats > div.is-valid strong { color:#14734c }
+.course-import-stats > div.is-invalid { border-color:#f0d0cb;background:#fff4f2 }
+.course-import-stats > div.is-invalid strong { color:#b42318 }
+.course-import-stats > div.is-duplicate { border-color:#f0dfb8;background:#fff9eb }
+.course-import-stats > div.is-duplicate strong { color:#94620a }
+/* The import-results step replaces the editable sheet grid until the user goes back. */
+.course-import-sheet-review.is-step-hidden { display:none }
+.course-import-import-review { scroll-margin-top:16px;margin:18px 0 0 }
+.course-import-page-next { margin-top:14px }
+
+/* Import results course cards open a focused, scrollable detail dialog. */
+.course-import-course-card { box-sizing:border-box;display:flex;align-items:center;gap:16px;width:100%;min-height:76px;margin:0 0 9px;padding:14px 17px;border:1px solid #dce6f2;border-radius:10px;background:#fff;color:#263e63;text-align:left;cursor:pointer;transition:border-color .15s,background-color .15s,box-shadow .15s }
+.course-import-course-card:hover { border-color:#92b8ef;background:#f8fbff;box-shadow:0 3px 12px rgba(36,85,150,.08) }
+.course-import-course-card:focus-visible { outline:3px solid #b1ceff;outline-offset:2px }
+.course-import-course-card-main { display:grid;gap:6px;flex:1;min-width:0 }
+.course-import-course-card-main strong { color:#17345f;font-size:.95rem;font-weight:750;overflow-wrap:anywhere }
+.course-import-course-card-main small { color:#71849d;font-size:.78rem;overflow-wrap:anywhere }
+.course-import-course-card-fee { color:#17345f;font-size:.9rem;font-weight:750;white-space:nowrap }
+.course-import-course-card-link { color:#2864df;font-size:.8rem;font-weight:750;white-space:nowrap }
+.course-import-course-detail-backdrop { position:fixed;inset:0;z-index:30000;display:flex;align-items:center;justify-content:center;padding:22px;background:rgba(13,31,58,.56);backdrop-filter:blur(3px) }
+.course-import-course-detail-dialog { display:flex;flex-direction:column;width:min(900px,100%);max-height:min(88dvh,900px);overflow:hidden;border:1px solid #dce6f2;border-radius:16px;background:#fff;color:#263e63;box-shadow:0 24px 80px rgba(16,42,86,.3);outline:none }
+.course-import-course-detail-header { display:flex;flex:0 0 auto;align-items:center;justify-content:space-between;gap:16px;padding:18px 22px;border-bottom:1px solid #e5edf6;background:#fff }
+.course-import-course-detail-header > div { min-width:0 }
+.course-import-course-detail-header p { margin:0 0 5px;color:#647c9d;font-size:.67rem;font-weight:800;letter-spacing:.12em }
+.course-import-course-detail-header h2 { margin:0;color:#102a56;font-size:1.15rem;overflow-wrap:anywhere }
+.course-import-course-detail-header span { display:block;margin-top:5px;color:#7488a2;font-size:.8rem }
+.course-import-course-detail-header button { display:grid;place-items:center;flex:0 0 auto;width:38px;height:38px;border:1px solid #dce6f2;border-radius:9px;background:#f7faff;color:#526b8d;cursor:pointer }
+.course-import-course-detail-header button:hover { border-color:#a9c3eb;background:#edf4ff;color:#245eb8 }
+.course-import-course-detail-body { min-height:0;overflow:auto;padding:20px 22px;overscroll-behavior:contain }
+.course-import-course-detail-body .course-import-fields { margin-top:0 }
+.course-import-course-detail-dialog button:focus-visible { outline:3px solid #b1ceff;outline-offset:2px }
+@media(max-width:640px) {
+ .course-import-course-card { align-items:flex-start;gap:8px;flex-wrap:wrap;padding:13px }
+ .course-import-course-card-main { flex-basis:100% }
+ .course-import-course-card-link { margin-left:auto }
+ .course-import-course-detail-backdrop { align-items:flex-end;padding:8px }
+ .course-import-course-detail-dialog { width:100%;max-height:92dvh;border-radius:14px 14px 8px 8px }
+ .course-import-course-detail-header { padding:15px }
+ .course-import-course-detail-header h2 { font-size:1.02rem }
+ .course-import-course-detail-body { padding:15px }
+}
+
+/* Confirm and report the final workbook import in focused dialogs. */
+.course-import-loading.is-importing { align-items:flex-start;max-width:620px;margin:14px auto;padding:14px 16px;border:1px solid #cfe0f7;border-radius:10px;background:#f3f8ff }
+.course-import-progress-copy { display:grid;flex:1;gap:9px;min-width:0;color:#28558f;font-weight:650 }
+.course-import-progress-track { position:relative;display:block;width:100%;height:7px;overflow:hidden;border-radius:999px;background:#d8e6fa }
+.course-import-progress-track > span { position:absolute;inset:0 auto 0 0;width:38%;border-radius:inherit;background:linear-gradient(90deg,#3987ef,#1f66cd);animation:course-import-progress 1.25s ease-in-out infinite }
+@keyframes course-import-progress { 0% { transform:translateX(-110%) } 100% { transform:translateX(275%) } }
+.course-import-workflow-backdrop { position:fixed;inset:0;z-index:32000;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(13,31,58,.56);backdrop-filter:blur(3px) }
+.course-import-workflow-dialog { width:min(480px,100%);overflow:hidden;border:1px solid #dce6f2;border-radius:16px;background:#fff;color:#263e63;box-shadow:0 24px 80px rgba(16,42,86,.3);outline:none }
+.course-import-workflow-header { display:flex;align-items:center;gap:13px;padding:19px 21px;border-bottom:1px solid #e5edf6 }
+.course-import-workflow-header > div { flex:1;min-width:0 }
+.course-import-workflow-header p { margin:0 0 5px;color:#647c9d;font-size:.65rem;font-weight:800;letter-spacing:.12em }
+.course-import-workflow-header h2 { margin:0;color:#102a56;font-size:1.1rem;line-height:1.35 }
+.course-import-workflow-header > button { display:grid;place-items:center;width:36px;height:36px;flex:0 0 auto;border:1px solid #dce6f2;border-radius:9px;background:#f7faff;color:#526b8d;cursor:pointer }
+.course-import-workflow-icon { display:grid;place-items:center;width:43px;height:43px;flex:0 0 auto;border-radius:12px;background:#eaf8f0;color:#168354 }
+.course-import-workflow-icon.is-confirm { background:#edf4ff;color:#2864df }
+.course-import-workflow-content { padding:20px 22px 14px }
+.course-import-workflow-content p { margin:0;color:#203b63;font-size:.95rem;font-weight:700;line-height:1.5 }
+.course-import-workflow-content > span { display:block;margin-top:8px;color:#71849d;font-size:.82rem;line-height:1.55 }
+.course-import-workflow-actions { display:flex;justify-content:flex-end;gap:9px;padding:13px 22px 19px }
+.course-import-workflow-actions .button { min-width:88px;min-height:40px }
+.course-import-workflow-actions.is-success { padding-top:8px }
+.course-import-workflow-dialog button:focus-visible { outline:3px solid #b1ceff;outline-offset:2px }
+@media(max-width:640px) {
+ .course-import-workflow-backdrop { align-items:flex-end;padding:9px }
+ .course-import-workflow-dialog { border-radius:15px 15px 10px 10px }
+ .course-import-workflow-header { padding:16px }
+ .course-import-workflow-content { padding:18px 16px 12px }
+ .course-import-workflow-actions { padding:12px 16px 16px }
+ .course-import-workflow-actions .button { flex:1 }
+}
+.course-import-progress-track.is-dialog-progress { margin-top:15px;height:8px }
+
+
+/* Keep sheet tabs, search and row filter together; move controls to a second row on narrow screens. */
+.course-import-sheet-navigation { flex-wrap:nowrap }
+.course-import-sheet-navigation .course-import-sheet-tabs { flex:1 1 auto;min-width:0;overflow-x:auto }
+.course-import-sheet-navigation .course-import-grid-search { flex:0 1 230px;width:230px;min-width:150px }
+.course-import-sheet-navigation .course-import-grid-filter { flex:0 0 160px;width:160px;height:42px;margin:0 }
+@media(max-width:960px) { .course-import-sheet-navigation { flex-wrap:wrap } .course-import-sheet-navigation .course-import-sheet-tabs { flex:1 1 100% } .course-import-sheet-navigation .course-import-grid-search { flex:1 1 0;width:auto;min-width:0 } .course-import-sheet-navigation .course-import-grid-filter { flex:0 0 160px;width:160px } }
+@media(max-width:640px) { .course-import-sheet-navigation { flex-wrap:wrap } .course-import-sheet-navigation .course-import-grid-search { flex:1 1 0;min-width:0 } .course-import-sheet-navigation .course-import-grid-filter { flex:0 0 145px;width:145px } }
+
+
+/* Match the Course Management custom filter dropdown. */
+.course-import-sheet-navigation .course-import-row-filter { position:relative;z-index:12;flex:0 0 160px;width:160px;min-width:0 }
+.course-import-row-filter-trigger { display:flex;align-items:center;justify-content:space-between;gap:12px;box-sizing:border-box;width:100%;min-height:42px;padding:0 12px;border:1px solid #cbd9ea;border-radius:10px;color:#172b4d;background:#fff;font-size:13px;font-weight:700;text-align:left;cursor:pointer;transition:border-color 180ms ease,box-shadow 180ms ease,background-color 180ms ease }
+.course-import-row-filter-trigger > span { min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap }
+.course-import-row-filter-trigger > svg { flex:0 0 auto;color:#526681;transition:color 180ms ease,transform 180ms ease }
+.course-import-row-filter:hover .course-import-row-filter-trigger { border-color:#8cb8f4;background:#fbfdff }
+.course-import-row-filter.is-open .course-import-row-filter-trigger { border-color:#4b8ff5;box-shadow:0 0 0 3px rgba(59,130,246,.12) }
+.course-import-row-filter.is-open .course-import-row-filter-trigger > svg { color:#2563eb;transform:rotate(180deg) }
+.course-import-row-filter-trigger:disabled { opacity:.55;cursor:not-allowed }
+.course-import-row-filter-menu { position:absolute;top:calc(100% + 6px);right:0;z-index:40;display:grid;gap:2px;width:max-content;min-width:max(100%,220px);max-width:min(320px,calc(100vw - 32px));max-height:280px;overflow-y:auto;padding:6px;border:1px solid #d7e3f2;border-radius:11px;background:#fff;box-shadow:0 16px 30px rgba(15,23,42,.16);scrollbar-color:#a9c5e8 transparent;scrollbar-width:thin }
+.course-import-row-filter-option { width:100%;min-height:34px;padding:7px 10px;border:0;border-radius:7px;color:#334155;background:#fff;font-size:12px;font-weight:650;text-align:left;cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;transition:color 140ms ease,background-color 140ms ease }
+.course-import-row-filter-option:hover,.course-import-row-filter-option:focus-visible { color:#fff;background:#2563eb;outline:none }
+.course-import-row-filter-option.is-selected { color:#1557b0;background:#eaf2ff;font-weight:800 }
+.course-import-row-filter-option.is-selected:hover,.course-import-row-filter-option.is-selected:focus-visible { color:#fff;background:#2563eb }
+@media(max-width:960px) { .course-import-sheet-navigation .course-import-row-filter { flex:0 0 160px;width:160px } }
+@media(max-width:640px) { .course-import-sheet-navigation .course-import-row-filter { flex:0 0 145px;width:145px } }
+
+
+/* Highlight the most recently created course code in the upload header. */
+.course-import-latest-code { display:flex;align-items:center;gap:10px;min-width:0;margin-left:auto;margin-right:12px;padding:8px 12px;border:1px solid #d6e4f6;border-radius:10px;background:#f5f9ff;white-space:nowrap }
+.course-import-latest-code > span { color:#6b7f9a;font-size:.72rem;font-weight:700 }
+.course-import-latest-code > strong { color:#1d5db5;font-size:.86rem;font-weight:800;letter-spacing:.02em }
+@media(max-width:640px) { .course-import-header { flex-wrap:wrap;gap:10px } .course-import-heading { order:1 } .course-import-page-back,.course-import-close { order:2;margin-left:auto } .course-import-latest-code { order:3;flex:1 1 100%;justify-content:space-between;margin:0 0 0 61px;padding:7px 10px } }

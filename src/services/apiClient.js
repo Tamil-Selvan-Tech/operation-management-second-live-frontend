@@ -139,14 +139,14 @@ function persistRefreshedTokens(nextAccessToken, nextRefreshToken) {
 }
 
 async function request(path, options = {}, retryCount = 0) {
-  const { skipAuth, headers: optionHeaders, body, impersonateBranchId: requestBranchId, ...fetchOptions } = options
+  const { skipAuth, headers: optionHeaders, body, impersonateBranchId: requestBranchId, timeoutMs = REQUEST_TIMEOUT_MS, ...fetchOptions } = options
   const headers = new Headers(optionHeaders || {})
   const controller = new AbortController()
   let didTimeout = false
   const timeoutId = window.setTimeout(() => {
     didTimeout = true
     controller.abort()
-  }, REQUEST_TIMEOUT_MS)
+  }, timeoutMs)
 
   if (skipAuth !== true) {
     hydrateAuthTokensFromSessionStorage()
@@ -391,14 +391,14 @@ export async function warmBackendConnection() {
 }
 
 export async function requestBlob(path, options = {}, retryCount = 0) {
-  const { skipAuth, headers: optionHeaders, body, ...fetchOptions } = options
+  const { skipAuth, headers: optionHeaders, body, timeoutMs = REQUEST_TIMEOUT_MS, ...fetchOptions } = options
   const headers = new Headers(optionHeaders || {})
   const controller = new AbortController()
   let didTimeout = false
   const timeoutId = window.setTimeout(() => {
     didTimeout = true
     controller.abort()
-  }, REQUEST_TIMEOUT_MS)
+  }, timeoutMs)
 
   if (skipAuth !== true) {
     hydrateAuthTokensFromSessionStorage()
@@ -408,7 +408,7 @@ export async function requestBlob(path, options = {}, retryCount = 0) {
     headers.set('Authorization', `Bearer ${accessToken}`)
   }
 
-  if (body && !headers.has('Content-Type')) {
+  if (body && !(typeof FormData !== 'undefined' && body instanceof FormData) && !headers.has('Content-Type')) {
     headers.set('Content-Type', 'application/json')
   }
 

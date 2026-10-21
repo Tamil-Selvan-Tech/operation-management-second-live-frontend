@@ -55,6 +55,8 @@ import {
   PhoneCall,
 } from 'lucide-react'
 
+import { CourseExcelUpload } from '../components/CourseExcelUpload'
+import { useCourseCalculations } from '../lib/useCourseCalculations'
 import { useAuth } from '../auth/useAuth'
 import { Button } from '../components/Button'
 import { request, setImpersonateBranchId } from '../services/apiClient'
@@ -2524,6 +2526,7 @@ function getBranchDashboardSectionFromPath(pathname = '', search = '') {
   if (section === 'students') return 'students'
   if (section === 'completed-students') return 'completed-students'
   if (section === 'courses') return 'courses'
+  if (section === 'course-import') return 'course-import'
   if (section === 'installments') return 'installments'
   if (section === 'faculty') return 'faculty'
   if (section === 'batches') return 'batches'
@@ -3042,7 +3045,7 @@ function createBranchInstallmentAmounts(count = 3, value = '') {
   return Array.from({ length: safeCount }, () => String(value || '').trim())
 }
 
-function buildBalancedBranchInstallmentAmounts(totalFee = 0, count = 3) {
+function buildStudentInstallmentAmounts(totalFee = 0, count = 3) {
   const safeCount = Math.max(1, Number(count) || 1)
   const safeTotal = Math.max(0, Math.round(Number(totalFee) || 0))
   if (safeCount === 1) {
@@ -3180,22 +3183,15 @@ function normalizeBranchCoursePaymentPlanSelections(plans = [], fallbackPlans = 
     })
 
     if (normalizedPlan.type === 'template') {
-      const installmentCount = getBranchCoursePaymentPlanInstallmentCount(normalizedPlan)
-      if (seenTemplateCounts.has(installmentCount)) return null
-      seenTemplateCounts.add(installmentCount)
+      const planKey = normalizedPlan.templateId || normalizedPlan.id || normalizedPlan.templateName
+      if (seenTemplateCounts.has(planKey)) return null
+      seenTemplateCounts.add(planKey)
     }
 
     return normalizedPlan
   }).filter(Boolean)
 }
 
-function getBranchInstallmentTemplateCountKey(template = {}) {
-  return String(Math.max(1, Number(template?.installmentCount) || 1))
-}
-
-function buildBranchCoursePaymentPlanInstallments(totalFee = 0, count = 1) {
-  return buildBalancedBranchInstallmentAmounts(totalFee, count)
-}
 
 function getBranchCoursePaymentPlanInstallmentCount(plan = {}) {
   if (String(plan?.type || '').trim().toLowerCase() === 'custom' && !String(plan?.installmentCount || '').trim()) {
@@ -3204,37 +3200,17 @@ function getBranchCoursePaymentPlanInstallmentCount(plan = {}) {
   return Math.max(1, Number(plan?.installmentCount || 0) || 1)
 }
 
-function buildBranchCoursePaymentPlanPayloadSelections(plans = [], finalFee = 0) {
-  const normalizedPlans = normalizeBranchCoursePaymentPlanSelections(plans)
-
-  return normalizedPlans.map((plan, index) => {
-    const installmentCount = getBranchCoursePaymentPlanInstallmentCount(plan)
-    const installments = buildBranchCoursePaymentPlanInstallments(finalFee, installmentCount)
-
-    return {
-      id: plan.id || `payment-plan-${index + 1}`,
-      type: plan.type,
-      templateId: plan.templateId,
-      templateName: plan.templateName,
-      installmentCount: String(installmentCount),
-      installments,
-      dueRule: plan.dueRule,
-      allowCustomization: plan.allowCustomization,
-      status: plan.status,
-    }
-  })
+function buildBranchCoursePaymentPlanPayloadSelections(plans = []) {
+  return normalizeBranchCoursePaymentPlanSelections(plans).map((plan, index) => ({
+    id: plan.id || 'payment-plan-' + (index + 1), type: plan.type, templateId: plan.templateId,
+    templateName: plan.templateName, installmentCount: String(getBranchCoursePaymentPlanInstallmentCount(plan)),
+    dueRule: plan.dueRule, allowCustomization: plan.allowCustomization, status: plan.status,
+  }))
 }
 
-function buildBranchCourseInstallmentTemplateFromPaymentPlan(plan = {}, finalFee = 0) {
-  const installmentCount = getBranchCoursePaymentPlanInstallmentCount(plan)
-  return {
-    templateName: String(plan.templateName || (plan.type === 'custom' ? 'Custom' : 'Payment Plan')).trim(),
-    installmentCount: String(installmentCount),
-    installments: buildBranchCoursePaymentPlanInstallments(finalFee, installmentCount),
-    dueRule: String(plan.dueRule || 'Admission').trim(),
-    allowCustomization: Boolean(plan.allowCustomization ?? true),
-    status: String(plan.status || 'Active').trim(),
-  }
+function buildBranchCourseInstallmentTemplateFromPaymentPlan(plan = {}) {
+  return { templateName: plan.templateName, installmentCount: String(getBranchCoursePaymentPlanInstallmentCount(plan)),
+    dueRule: plan.dueRule || 'Admission', allowCustomization: Boolean(plan.allowCustomization ?? true), status: plan.status || 'Active' }
 }
 
 function buildBranchCoursePaymentPlanSelectionsFromRecord(course = {}, fallbackTemplates = []) {
@@ -3276,34 +3252,14 @@ function buildBranchCoursePaymentPlanSelectionsFromRecord(course = {}, fallbackT
   return []
 }
 
-function distributeBranchCoursePercentages(totalItems = 0) {
-  const count = Math.max(0, Number(totalItems) || 0)
-  if (!count) return []
-  if (count === 1) return [100]
 
-  const precision = 2
-  const scale = 10 ** precision
-  const base = Math.floor((100 / count) * scale) / scale
-  const percentages = []
-  let remaining = 100
-
-  for (let index = 0; index < count; index += 1) {
-    if (index === count - 1) {
-      percentages.push(Number(remaining.toFixed(precision)))
-    } else {
-      percentages.push(Number(base.toFixed(precision)))
-      remaining -= base
-    }
-  }
-
-  return percentages
-}
 
 function normalizeBranchCourseSubmodels(submodels = [], modelIndex = 0) {
   const items = Array.isArray(submodels) ? submodels : []
 
   return items.map((submodel, submodelIndex) => ({
     id: String(submodel?.id || createCourseNodeId(`submodel-${modelIndex + 1}`)),
+    percentage: submodel?.percentage ?? null,
     name: String(submodel?.name || submodel?.title || submodel?.submoduleName || '').trim(),
   }))
 }
@@ -3317,30 +3273,17 @@ function normalizeBranchCourseModels(models = []) {
 
   return items.map((model, modelIndex) => ({
     id: String(model?.id || createCourseNodeId(`model-${modelIndex + 1}`)),
+    percentage: model?.percentage ?? null,
     name: String(model?.name || model?.title || model?.moduleName || model?.moduleTitle || '').trim(),
     submodels: normalizeBranchCourseSubmodels(getBranchCourseSubmodelSource(model), modelIndex),
   }))
 }
 
 function buildBranchCourseModelPayload(models = []) {
-  const normalizedModels = normalizeBranchCourseModels(models)
-  const modelPercentages = distributeBranchCoursePercentages(normalizedModels.length)
-
-  return normalizedModels.map((model, modelIndex) => {
-    const submodels = Array.isArray(model.submodels) ? model.submodels : []
-    const submodelPercentages = distributeBranchCoursePercentages(submodels.length)
-
-    return {
-      id: model.id,
-      name: String(model.name || '').trim(),
-      percentage: modelPercentages[modelIndex] ?? 0,
-      submodels: submodels.map((submodel, submodelIndex) => ({
-        id: submodel.id,
-        name: String(submodel.name || '').trim(),
-        percentage: submodelPercentages[submodelIndex] ?? 0,
-      })),
-    }
-  })
+  return normalizeBranchCourseModels(models).map((model) => ({
+    id: model.id, name: model.name,
+    submodels: model.submodels.map((submodel) => ({ id: submodel.id, name: submodel.name })),
+  }))
 }
 
 function getBranchCourseFinalFeeValue(form = {}) {
@@ -3355,22 +3298,13 @@ function getBranchCourseFinalFeeValue(form = {}) {
   return Math.max(actualFees + registrationFees - discount, 0)
 }
 
-function buildBranchCourseHierarchySummary(models = []) {
-  const normalizedModels = normalizeBranchCourseModels(models)
-  return normalizedModels.map((model, modelIndex) => {
-    const submodels = Array.isArray(model.submodels) ? model.submodels : []
-    const modelPercentages = distributeBranchCoursePercentages(normalizedModels.length)
-    const submodelPercentages = distributeBranchCoursePercentages(submodels.length)
-
-    return {
-      ...model,
-      percentage: modelPercentages[modelIndex] ?? 0,
-      submodels: submodels.map((submodel, submodelIndex) => ({
-        ...submodel,
-        percentage: submodelPercentages[submodelIndex] ?? 0,
-      })),
-    }
-  })
+function buildBranchCourseHierarchySummary(models = [], calculated = null) {
+  return normalizeBranchCourseModels(models).map((model, index) => ({
+    ...model, percentage: calculated?.[index]?.percentage ?? model.percentage,
+    submodels: model.submodels.map((submodel, childIndex) => ({
+      ...submodel, percentage: calculated?.[index]?.submodules?.[childIndex] ?? submodel.percentage,
+    })),
+  }))
 }
 
 function getBranchCourseModuleWeightageSummary(models = []) {
@@ -3621,18 +3555,9 @@ function formatBranchCourseAmountInWords(value) {
 }
 
 function formatBranchCoursePercentage(value) {
+  if (value === null || value === undefined || value === '') return '-'
   const number = Number(value)
-  if (!Number.isFinite(number)) return '-'
-  const rounded = Number.isInteger(number) ? String(number) : number.toFixed(2).replace(/\.?0+$/, '')
-  return `${rounded}%`
-}
-
-function getRoundedEqualModulePercentage(index, total) {
-  const count = Number(total) || 0
-  if (count <= 0) return 0
-
-  const basePercentage = Math.floor(100 / count)
-  return index === count - 1 ? 100 - (basePercentage * (count - 1)) : basePercentage
+  return Number.isFinite(number) ? number.toFixed(2) + '%' : '-'
 }
 
 function formatBranchCourseDate(value) {
@@ -3752,6 +3677,7 @@ function buildBranchCoursePayload(form) {
   const primaryPaymentPlan = paymentPlans[0] || null
 
   return {
+    expectedUpdatedAt: form.expectedUpdatedAt,
     courseCode: normalizeBranchCourseCode(form.courseCode),
     courseType: String(form.courseType || '').trim(),
     name: String(form.name || '').trim(),
@@ -3831,6 +3757,7 @@ function buildBranchCourseFormFromRecord(course = {}) {
   })
 
   return {
+    expectedUpdatedAt: course.updatedAt,
     courseCode: String(course.courseCode || COURSE_CODE_PREFIX).trim() || COURSE_CODE_PREFIX,
     courseType: String(course.courseType || '').trim(),
     name: String(course.name || '').trim(),
@@ -3936,6 +3863,7 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
   }, [location.pathname, location.search])
   const [expandedSidebarGroups, setExpandedSidebarGroups] = useState(() => ({
     courses: false,
+    academic: ['courses', 'course-import'].includes(activeSection),
     faculty: activeSection === 'batches',
     students: ['students', 'student-management', 'completed-students', 'courses', 'batches', 'installments', 'progress-notifications', 'institute-leave', 'faculty-leave', 'discontinuations'].includes(activeSection),
     management: ['institute-leave', 'faculty-leave', 'progress-notifications', 'faculty-edit-requests', 'discontinuations'].includes(activeSection),
@@ -4660,8 +4588,8 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
 
       const uniqueTemplates = []
       const seenTemplateCounts = new Set()
-      collectedTemplates.forEach((template) => {
-        const countKey = getBranchInstallmentTemplateCountKey(template)
+      collectedTemplates.filter((template) => !template.branchCourseId && String(template.status).toUpperCase() === "ACTIVE").forEach((template) => {
+        const countKey = String(template.id)
         if (seenTemplateCounts.has(countKey)) return
         seenTemplateCounts.add(countKey)
         uniqueTemplates.push(template)
@@ -5885,6 +5813,13 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
     }
   }
 
+  const latestBranchCourseCode = useMemo(() => {
+    const latestCourse = [...branchCourseCards]
+      .filter((course) => String(course?.courseCode || '').trim())
+      .sort((left, right) => (Date.parse(right?.createdAt || '') || 0) - (Date.parse(left?.createdAt || '') || 0))[0]
+    return String(latestCourse?.courseCode || '').trim()
+  }, [branchCourseCards])
+
   const filteredBranchCourseCards = useMemo(() => {
     const q = appliedCourseSearchTerm.trim().toLowerCase()
     const filtered = branchCourseCards.filter((course) => {
@@ -5935,9 +5870,20 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
     () => branchCourseCards.find((course) => String(course.id || '').trim() === String(editingCourseId || '').trim()) || null,
     [branchCourseCards, editingCourseId],
   )
+  const courseCalculationSelections = normalizeBranchCoursePaymentPlanSelections(addCourseForm.paymentPlans)
+  const courseSavedCalculationSelections = normalizeBranchCoursePaymentPlanSelections(addCourseSavedPaymentPlans)
+  const courseCalculations = useCourseCalculations({
+    finalFee: getBranchCourseFinalFeeValue(addCourseForm),
+    installmentCounts: [...courseCalculationSelections, ...courseSavedCalculationSelections].map((plan) => getBranchCoursePaymentPlanInstallmentCount(plan) || 1),
+    moduleSubmoduleCounts: normalizeBranchCourseModels(addCourseForm.models).map((model) => model.submodels.length),
+  }, isAddCourseOpen)
+  const savedHierarchyCalculations = useCourseCalculations({
+    finalFee: 0, installmentCounts: [],
+    moduleSubmoduleCounts: normalizeBranchCourseModels(savedCourseHierarchy.filter(Boolean)).map((model) => model.submodels.length),
+  }, isAddCourseOpen)
   const addCourseHierarchy = useMemo(
-    () => buildBranchCourseHierarchySummary(addCourseForm.models),
-    [addCourseForm.models],
+    () => buildBranchCourseHierarchySummary(addCourseForm.models, courseCalculations.data?.modules),
+    [addCourseForm.models, courseCalculations.data],
   )
   const activeCourseModelIndex = Math.min(selectedSavedModelIndex, Math.max(addCourseHierarchy.length - 1, 0))
   const activeCourseModel = addCourseHierarchy[activeCourseModelIndex] || null
@@ -6014,7 +5960,7 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
   )
   const addCoursePaymentPlanDisplayPlans = useMemo(
     () =>
-      addCoursePaymentPlanSelections.map((plan) => {
+      addCoursePaymentPlanSelections.map((plan, planIndex) => {
         const matchedTemplate = plan.type === 'template'
           ? addCoursePaymentPlanLookup.get(String(plan.templateId || '').trim())
           : null
@@ -6022,7 +5968,7 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
         const installmentCount = plan.type === 'custom' && !rawInstallmentCount
           ? 0
           : getBranchCoursePaymentPlanInstallmentCount(plan)
-        const installments = buildBranchCoursePaymentPlanInstallments(addCourseFinalFee, installmentCount)
+        const installments = courseCalculations.data?.paymentPlans?.[planIndex] || []
 
         return {
           ...plan,
@@ -6034,11 +5980,11 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
           installmentCountLabel: rawInstallmentCount,
         }
       }),
-    [addCourseFinalFee, addCoursePaymentPlanLookup, addCoursePaymentPlanSelections],
+    [courseCalculations.data, addCoursePaymentPlanLookup, addCoursePaymentPlanSelections],
   )
   const addCourseSavedPaymentPlanDisplayPlans = useMemo(
     () =>
-      addCourseSavedPaymentPlans.map((plan) => {
+      addCourseSavedPaymentPlans.map((plan, planIndex) => {
         const matchedTemplate = plan.type === 'template'
           ? addCoursePaymentPlanLookup.get(String(plan.templateId || '').trim())
           : null
@@ -6046,7 +5992,7 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
         const installmentCount = plan.type === 'custom' && !rawInstallmentCount
           ? 0
           : getBranchCoursePaymentPlanInstallmentCount(plan)
-        const installments = buildBranchCoursePaymentPlanInstallments(addCourseFinalFee, installmentCount)
+        const installments = courseCalculations.data?.paymentPlans?.[courseCalculationSelections.length + planIndex] || []
 
         return {
           ...plan,
@@ -6058,7 +6004,7 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
           installmentCountLabel: rawInstallmentCount,
         }
       }),
-    [addCourseFinalFee, addCoursePaymentPlanLookup, addCourseSavedPaymentPlans],
+    [courseCalculations.data, courseCalculationSelections.length, addCoursePaymentPlanLookup, addCourseSavedPaymentPlans],
   )
   const addCourseDraftCustomPaymentPlan = useMemo(
     () => normalizeBranchCoursePaymentPlanSelections(addCourseForm.paymentPlans).find((plan) => plan.type === 'custom') || null,
@@ -6073,8 +6019,8 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
   }, [addCoursePaymentPlanDisplayPlans])
   const addCoursePaymentPlanVisibleError = addCoursePaymentPlanSaveAttempted ? addCoursePaymentPlanValidationError : ''
   const savedCourseRows = useMemo(
-    () => buildBranchCourseHierarchySummary(savedCourseHierarchy.filter(Boolean)),
-    [savedCourseHierarchy],
+    () => buildBranchCourseHierarchySummary(savedCourseHierarchy.filter(Boolean), savedHierarchyCalculations.data?.modules),
+    [savedCourseHierarchy, savedHierarchyCalculations.data],
   )
 
   const bulkSubmodulePreview = useMemo(() => {
@@ -6915,10 +6861,13 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
     setExpandedViewCourseModuleIds([])
     setViewCoursePaymentPlanOpenId('')
   }
-  const openEditCourseModal = (course) => {
+  const openEditCourseModal = async (course) => {
+    try { course = await getBranchCourse(resolveBranchCourseEditableId(course, branchCourseCards)) || course }
+    catch (error) { setCourseSaveSuccess({ title: "Unable to load course", message: apiErrorMessage(error, "Please try again.") }); return }
     isAddCourseSubmitLockedRef.current = false
     const nextEditingCourseId = resolveBranchCourseEditableId(course, branchCourseCards)
-    const savedDraft = readBranchCourseDraft(nextEditingCourseId)
+    const draft = readBranchCourseDraft(nextEditingCourseId)
+    const savedDraft = draft?.baseUpdatedAt === course.updatedAt ? draft : null
     const nextForm = savedDraft?.form || buildBranchCourseFormFromRecord(course)
     const nextSavedPaymentPlans = normalizeBranchCoursePaymentPlanSelections(nextForm.paymentPlans)
     setCourseDraftKey(nextEditingCourseId || 'new')
@@ -6974,6 +6923,7 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
     if (!isAddCourseOpen || !courseDraftKey) return undefined
 
     writeBranchCourseDraft(courseDraftKey, {
+      baseUpdatedAt: addCourseForm.expectedUpdatedAt || null,
       form: addCourseForm,
       touched: addCourseTouched,
       step: addCourseStep,
@@ -7085,6 +7035,11 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
 
   const handleAddCourseSubmit = async (event) => {
     event?.preventDefault()
+    if (courseCalculations.pending || courseCalculations.error) {
+      courseSaveIntentRef.current = false
+      setAddCourseError(courseCalculations.error || "Please wait for course calculations to finish.")
+      return
+    }
     if (!courseSaveIntentRef.current) return
     courseSaveIntentRef.current = false
     if (isAddCourseSubmitLockedRef.current) return
@@ -7891,7 +7846,7 @@ const studentCourseOptions = useMemo(() => {
 
     if (!total || !studentInstallmentCount) return []
 
-    return buildBranchCoursePaymentPlanInstallments(total, studentInstallmentCount).map((amount) => Number(amount))
+    return buildStudentInstallmentAmounts(total, studentInstallmentCount).map((amount) => Number(amount))
   }, [studentInstallmentCount, studentScheduleAmount])
 
   const studentInstallmentSchedule = useMemo(() => {
@@ -10560,7 +10515,7 @@ useEffect(() => {
           const Icon = item.icon
           const child = item.child
           const children = item.children || (child ? [child] : [])
-          const hasActiveEntry = (entry) => activeSection === entry.id || (entry.children || []).some(hasActiveEntry)
+          const hasActiveEntry = (entry) => activeSection === entry.id || (entry.id === 'courses' && activeSection === 'course-import') || (entry.children || []).some(hasActiveEntry)
           const isChildActive = children.some(hasActiveEntry)
           const isActive = activeSection === item.id || isChildActive
           const isExpanded = Boolean(expandedSidebarGroups[item.id])
@@ -10601,7 +10556,7 @@ useEffect(() => {
                 key={entry.id}
                 type="button"
                 role={mode === 'flyout' ? 'menuitem' : undefined}
-                className={`super-admin-sidebar-subitem ${(activeSection === entry.id || (entry.id === 'academic-test-reports' && activeSection === 'academic-tests' && new URLSearchParams(location.search).get('view') === 'reports')) ? 'is-active' : ''}`.trim()}
+                className={`super-admin-sidebar-subitem ${(activeSection === entry.id || (entry.id === 'courses' && activeSection === 'course-import') || (entry.id === 'academic-test-reports' && activeSection === 'academic-tests' && new URLSearchParams(location.search).get('view') === 'reports')) ? 'is-active' : ''}`.trim()}
                 onClick={() => {
                   if (mode === 'flyout') {
                     cancelSidebarFlyoutClose()
@@ -10721,7 +10676,7 @@ useEffect(() => {
         >
           {isSidebarCollapsed ? <PanelLeftOpen size={18} strokeWidth={2.3} /> : <Menu size={20} strokeWidth={2.2} />}
         </button>
-        <h1>Branch Dashboard</h1>
+        <h1>{activeSection === 'course-import' ? 'Course Management' : 'Branch Dashboard'}</h1>
       </div>
       <div className="super-admin-topbar-right">
         <>
@@ -11002,7 +10957,7 @@ useEffect(() => {
     ])).values()]
 
   return (
-    <section className={`super-admin-page branch-dashboard-app-shell ${isSidebarCollapsed ? 'is-sidebar-collapsed' : ''}`.trim()} onClickCapture={handleInactiveBranchActionClick}>
+    <section className={`super-admin-page branch-dashboard-app-shell ${isSidebarCollapsed ? 'is-sidebar-collapsed' : ''} ${activeSection === 'course-import' ? 'is-course-import-page' : ''}`.trim()} onClickCapture={handleInactiveBranchActionClick}>
       <div className="super-admin-shell">
         {isMobileSidebarOpen ? <button type="button" className="super-admin-sidebar-backdrop" aria-label="Close navigation menu" onClick={() => setIsMobileSidebarOpen(false)} /> : null}
         {renderSidebar()}
@@ -12528,6 +12483,24 @@ else {
                 </BranchDashboardSection>
               ) : null}
 
+              {activeSection === 'course-import' ? (
+                <CourseExcelUpload
+                  pageMode
+                  latestCourseCode={latestBranchCourseCode}
+                  onClose={() => goToBranchSection('courses')}
+                  onImported={async () => {
+                    clearBranchCourseListCache()
+                    setCourseSearchTerm('')
+                    setAppliedCourseSearchTerm('')
+                    setCourseStatusFilter('all')
+                    setCourseTypeFilter('all')
+                    setBranchCoursePage(1)
+                    await loadBranchCourses()
+                  }}
+                  onView={openViewCourseDrawer}
+                />
+              ) : null}
+
               {activeSection === 'courses' ? (
                 <BranchDashboardSection
                   title="Courses"
@@ -12542,6 +12515,20 @@ else {
                         + Add Course
                       </button>
 
+                      <CourseExcelUpload
+                        latestCourseCode={latestBranchCourseCode}
+                        onStart={() => goToBranchSection('course-import')}
+                        onImported={async () => {
+                          clearBranchCourseListCache()
+                          setCourseSearchTerm('')
+                          setAppliedCourseSearchTerm('')
+                          setCourseStatusFilter('all')
+                          setCourseTypeFilter('all')
+                          setBranchCoursePage(1)
+                          await loadBranchCourses()
+                        }}
+                        onView={openViewCourseDrawer}
+                      />
                       <div className="branch-dashboard-section-summary">
                         <span>Saved courses:</span>
                         <strong>{filteredBranchCourseCards.length}</strong>
@@ -14613,6 +14600,8 @@ else {
                 <span className="detail-badge">Required fields marked *</span>
               </div>
 
+              {courseCalculations.error ? <div className="course-validation-note" role="alert">{courseCalculations.error}</div> : null}
+              {courseCalculations.pending ? <div className="course-validation-note" role="status">Updating course amounts and percentages...</div> : null}
               <div className="course-stepper" aria-label="Course creation steps">
                 <button
                   type="button"
@@ -15241,7 +15230,7 @@ else {
                           <aside className="course-added-modules-panel" aria-label="Modules">
                             <div className="course-added-modules-panel-heading">
                               <strong>Modules ({savedCourseRows.length})</strong>
-                              <span>Total: 100%</span>
+                              <span>Total: {savedHierarchyCalculations.pending ? "?" : "100.00%"}</span>
                             </div>
                             <div className="course-added-modules-list">
                               {savedCourseRows.map((model, modelIndex) => {
@@ -15257,7 +15246,7 @@ else {
                                         <small>{submodels.length} submodules</small>
                                       </span>
                                       <span className="course-table-percentage">
-                                      {formatBranchCoursePercentage(getRoundedEqualModulePercentage(modelIndex, savedCourseRows.length))}
+                                      {formatBranchCoursePercentage(model.percentage)}
                                       </span>
                                     </button>
                                     <div className="course-added-module-select-actions">
@@ -15293,7 +15282,7 @@ else {
                                     <strong>Submodules ({selectedSubmodels.length})</strong>
                                   </div>
                                   <span className="course-table-percentage">
-                                    {formatBranchCoursePercentage(getRoundedEqualModulePercentage(selectedModelIndex, savedCourseRows.length))}
+                                    {formatBranchCoursePercentage(selectedModel.percentage)}
                                   </span>
                                 </div>
                                 <div className="course-added-submodules-list">
@@ -15313,7 +15302,8 @@ else {
                                           aria-label={`Edit submodule ${submoduleIndex + 1}`}
                                         />
                                       ) : (
-                                        <strong>{submodel.name || `Submodule ${submoduleIndex + 1}`}</strong>
+                                        <><strong>{submodel.name || `Submodule ${submoduleIndex + 1}`}</strong>
+                                        <span className="course-table-percentage">{formatBranchCoursePercentage(submodel.percentage)}</span></>
                                       )}
                                       {inlineSubmoduleEdit?.modelIndex === selectedModelIndex && inlineSubmoduleEdit?.submoduleIndex === submoduleIndex ? (
                                         <>
@@ -15643,7 +15633,7 @@ else {
                     <button type="button" className="button button-ghost" onClick={() => { setAddCourseStep(2); setIsCourseSubmoduleListExpanded(false) }} disabled={isAddCourseSaving}>
                       Back
                     </button>
-                    <button type="button" className="button button-solid" onClick={triggerAddCourseSubmit} disabled={isAddCourseSaving}>
+                    <button type="button" className="button button-solid" onClick={triggerAddCourseSubmit} disabled={isAddCourseSaving || courseCalculations.pending || Boolean(courseCalculations.error)}>
                       <span className="course-save-button-content">
                         {isAddCourseSaving ? <Loader2 size={16} className="course-save-spinner" aria-hidden="true" /> : null}
                         {isAddCourseSaving ? (editingCourseId ? 'Updating...' : 'Saving...') : editingCourseId ? 'Update Course' : 'Save Course'}
@@ -16150,12 +16140,7 @@ else {
                             const planId = String(plan.id || `${plan.type}-${planIndex}`).trim()
                             const isOpen = viewCoursePaymentPlanOpenId === planId
                             const rawInstallmentCount = String(plan.installmentCount || '').trim()
-                            const installmentCount = Number(rawInstallmentCount || plan.installments?.length || 0) || 0
-                            const installments = Array.isArray(plan.installments) && plan.installments.length
-                              ? plan.installments
-                              : installmentCount > 0
-                                ? buildBranchCoursePaymentPlanInstallments(viewCourseFinalFeeValue, installmentCount)
-                                : []
+                            const installments = Array.isArray(plan.installments) ? plan.installments : []
 
                             return (
                               <article key={planId} className={`course-payment-plan-saved-card ${isOpen ? 'is-open' : ''}`.trim()}>
@@ -16260,7 +16245,7 @@ else {
                                   </div>
 
                                   <div className="branch-course-view-model-cell branch-course-view-model-cell-percentage" role="cell">
-                                    <b>{formatBranchCoursePercentage(getRoundedEqualModulePercentage(modelIndex, viewCourseModels.length))}</b>
+                                    <b>{formatBranchCoursePercentage(model.percentage)}</b>
                                   </div>
 
                                   <div className="branch-course-view-model-cell branch-course-view-model-cell-actions" role="cell">
@@ -16290,6 +16275,7 @@ else {
                                               {String(submodelIndex + 1).padStart(2, '0')}
                                             </span>
                                             <strong>{submodel.name || `Submodel ${submodelIndex + 1}`}</strong>
+                                            <span className="branch-course-view-submodel-percentage" title="Weight within this module">{formatBranchCoursePercentage(submodel.percentage)}</span>
                                           </div>
                                         </div>
                                       ))
@@ -16314,7 +16300,7 @@ else {
                               </div>
 
                               <div className="branch-course-view-model-cell branch-course-view-model-cell-total-percentage" role="cell">
-                                <strong className="branch-course-view-total-percentage">100%</strong>
+                                <strong className="branch-course-view-total-percentage">100.00%</strong>
                               </div>
                             </div>
                           </article>
