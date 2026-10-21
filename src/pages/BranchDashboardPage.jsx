@@ -124,6 +124,7 @@ import { getBranchStudentSyllabusReports } from '../services/examService'
 import { calculateBatchCourseEndDate, getBatchAvailability } from '../lib/batchAllocation'
 import { StudentCalendarPage } from './StudentCalendarPage'
 import CompletedStudentsPage from './CompletedStudentsPage'
+import { BranchMonthlyReportModal } from '../components/BranchMonthlyReportModal'
 import RecordPayment from '../components/payments/RecordPayment'
 import { buildModernPaymentReceiptHtml } from '../components/payments/RecordPayment'
 import '../components/payments/RecordPayment.css'
@@ -484,13 +485,27 @@ function isCourseCompletionComplete(student = {}, courseId = '', courseName = ''
     : hasReportedTestsComplete || isAcademicTestProgressComplete(academicProgress)
   const normalizedCourseId = String(courseId || '').trim().toLowerCase()
   const normalizedCourseName = String(courseName || '').trim().toLowerCase()
-  const completedEnrollment = (Array.isArray(student?.courseEnrollments) ? student.courseEnrollments : []).find((entry) => {
+  const matchingEnrollments = (Array.isArray(student?.courseEnrollments) ? student.courseEnrollments : []).filter((entry) => {
     const entryCourseId = String(entry?.courseId || entry?.id || entry?.course?.id || '').trim().toLowerCase()
     const entryCourseName = String(entry?.courseName || entry?.name || entry?.course?.name || '').trim().toLowerCase()
     return (normalizedCourseId && entryCourseId === normalizedCourseId)
       || (normalizedCourseName && entryCourseName === normalizedCourseName)
   })
-  if (completedEnrollment?.courseCompletedAt || (normalizedCourseId && String(student?.courseId || '').trim().toLowerCase() === normalizedCourseId && student?.courseCompletedAt)) return true
+  const activeEnrollment = matchingEnrollments.find((entry) => {
+    const status = String(entry?.status || entry?.recordStatus || '').trim().toUpperCase()
+    const enrollmentProgress = Number(entry?.courseProgress ?? entry?.courseCompletionPercentage ?? entry?.progress)
+    return status === 'ACTIVE'
+      || (!entry?.courseCompletedAt && !entry?.completedAt && Number.isFinite(enrollmentProgress) && enrollmentProgress < 100)
+  })
+  if (activeEnrollment) {
+    const activeProgress = Number(activeEnrollment.courseProgress ?? activeEnrollment.courseCompletionPercentage ?? activeEnrollment.progress)
+    if (Number.isFinite(activeProgress) && activeProgress < 100) return false
+    if (activeEnrollment.courseCompletedAt || activeEnrollment.completedAt) return true
+  } else {
+    const completedEnrollment = matchingEnrollments[0]
+    if (completedEnrollment?.courseCompletedAt || completedEnrollment?.completedAt
+      || (normalizedCourseId && String(student?.courseId || '').trim().toLowerCase() === normalizedCourseId && student?.courseCompletedAt)) return true
+  }
   return Number(progress) >= 100
     && hasRequiredAcademicResult
     && hasRequiredProjects
@@ -4454,6 +4469,7 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
   const [appliedStudentSearchTerm, setAppliedStudentSearchTerm] = useState('')
   const [studentCourseFilter, setStudentCourseFilter] = useState('all')
   const [studentStatusFilter, setStudentStatusFilter] = useState('all')
+  const [isStudentMonthlyReportOpen, setIsStudentMonthlyReportOpen] = useState(false)
   const [studentSortBy, setStudentSortBy] = useState('createdAt')
   const [studentSortOrder, setStudentSortOrder] = useState('desc')
   const [studentPage, setStudentPage] = useState(1)
@@ -11182,6 +11198,7 @@ useEffect(() => {
                 />
               ) : null}
               {activeSection === 'completed-students' ? <CompletedStudentsPage academicProgressByStudent={branchAcademicProgressByStudent} branchAdminName={branchAdminDisplay} completedStudents={completedStudentsForLifecycle} completedStudentsLoading={!isBranchAcademicProgressLoaded} courseCatalog={branchCourseCards} onDeleted={reloadBranchStudents} paymentHistoryRecords={allPaymentHistoryRecords} students={branchStudentsForDisplay} /> : null}
+              <BranchMonthlyReportModal isOpen={isStudentMonthlyReportOpen} onClose={() => setIsStudentMonthlyReportOpen(false)} />
               {activeSection === 'faculty-skills' ? <FacultySkillsUpgradePage embedded branchId={branchData?.id || branchData?.branchId || branchProfile?.id || branchProfile?.branchId || ''} /> : null}
               {activeSection === 'dashboard' ? (
                 <>
@@ -11603,6 +11620,13 @@ useEffect(() => {
                       >
                         + Add Student
                       </button>
+                      <button
+                        type="button"
+                        className="branch-student-monthly-report-button"
+                        onClick={() => setIsStudentMonthlyReportOpen(true)}
+                      >
+                        <Download size={16} aria-hidden="true" /> Monthly Report
+                      </button>
                       <div className="branch-dashboard-section-summary">
                         <span>Total students:</span>
                         <strong>{filteredBranchStudents.length}</strong>
@@ -11908,11 +11932,34 @@ else {
             stu?.progress ??
             NaN,
           )
+          const activeCourseEnrollment = (Array.isArray(stu?.courseEnrollments) ? stu.courseEnrollments : [])
+            .find((entry) => {
+              const entryCourseId = String(entry?.courseId || entry?.id || entry?.course?.id || '').trim().toLowerCase()
+              const entryCourseName = String(entry?.courseName || entry?.name || entry?.course?.name || '').trim().toLowerCase()
+              const currentCourseId = String(stu?.courseId || resolvedCourse?.id || '').trim().toLowerCase()
+              const currentCourseName = String(stu?.courseName || stu?.courseInterested || resolvedCourse?.name || '').trim().toLowerCase()
+              const entryProgress = Number(entry?.courseProgress ?? entry?.courseCompletionPercentage ?? entry?.progress)
+              return (
+                String(entry?.status || entry?.recordStatus || '').trim().toUpperCase() === 'ACTIVE'
+                || (!entry?.courseCompletedAt && !entry?.completedAt && Number.isFinite(entryProgress) && entryProgress < 100)
+              )
+                && ((currentCourseId && entryCourseId === currentCourseId)
+                  || (currentCourseName && entryCourseName === currentCourseName))
+            })
+          const activeEnrollmentProgress = Number(
+            activeCourseEnrollment?.courseProgress ??
+            activeCourseEnrollment?.courseCompletionPercentage ??
+            activeCourseEnrollment?.progress ??
+            NaN,
+          )
           const fallbackCourseProgress = studentKeys
             .map((key) => branchStudentCourseProgressByKey.get(key))
             .find((value) => Number.isFinite(value))
-          const studentProgressValues = [storedCourseProgress, directCourseProgress, fallbackCourseProgress]
-            .filter(Number.isFinite)
+          const studentProgressValues = (
+            Number.isFinite(activeEnrollmentProgress)
+              ? [activeEnrollmentProgress]
+              : [storedCourseProgress, directCourseProgress, fallbackCourseProgress]
+          ).filter(Number.isFinite)
           const studentCourseProgress = studentProgressValues.length
             ? Math.min(100, Math.max(0, ...studentProgressValues))
             : (effectiveCourse ? 0 : null)
