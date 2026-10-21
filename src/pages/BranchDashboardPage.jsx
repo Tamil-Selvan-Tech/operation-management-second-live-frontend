@@ -124,6 +124,7 @@ import { getBranchStudentSyllabusReports } from '../services/examService'
 import { calculateBatchCourseEndDate, getBatchAvailability } from '../lib/batchAllocation'
 import { StudentCalendarPage } from './StudentCalendarPage'
 import CompletedStudentsPage from './CompletedStudentsPage'
+import { BranchMonthlyReportModal } from '../components/BranchMonthlyReportModal'
 import RecordPayment from '../components/payments/RecordPayment'
 import { buildModernPaymentReceiptHtml } from '../components/payments/RecordPayment'
 import '../components/payments/RecordPayment.css'
@@ -4377,6 +4378,7 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
   const [appliedStudentSearchTerm, setAppliedStudentSearchTerm] = useState('')
   const [studentCourseFilter, setStudentCourseFilter] = useState('all')
   const [studentStatusFilter, setStudentStatusFilter] = useState('all')
+  const [isStudentMonthlyReportOpen, setIsStudentMonthlyReportOpen] = useState(false)
   const [studentSortBy, setStudentSortBy] = useState('createdAt')
   const [studentSortOrder, setStudentSortOrder] = useState('desc')
   const [studentPage, setStudentPage] = useState(1)
@@ -11101,6 +11103,7 @@ useEffect(() => {
                 />
               ) : null}
               {activeSection === 'completed-students' ? <CompletedStudentsPage academicProgressByStudent={branchAcademicProgressByStudent} branchAdminName={branchAdminDisplay} completedStudents={completedStudentsForLifecycle} completedStudentsLoading={!isBranchAcademicProgressLoaded} courseCatalog={branchCourseCards} onDeleted={reloadBranchStudents} paymentHistoryRecords={allPaymentHistoryRecords} students={branchStudentsForDisplay} /> : null}
+              <BranchMonthlyReportModal isOpen={isStudentMonthlyReportOpen} onClose={() => setIsStudentMonthlyReportOpen(false)} />
               {activeSection === 'faculty-skills' ? <FacultySkillsUpgradePage embedded branchId={branchData?.id || branchData?.branchId || branchProfile?.id || branchProfile?.branchId || ''} /> : null}
               {activeSection === 'dashboard' ? (
                 <>
@@ -11521,6 +11524,13 @@ useEffect(() => {
                         onClick={openAddStudentForm}
                       >
                         + Add Student
+                      </button>
+                      <button
+                        type="button"
+                        className="branch-student-monthly-report-button"
+                        onClick={() => setIsStudentMonthlyReportOpen(true)}
+                      >
+                        <Download size={16} aria-hidden="true" /> Monthly Report
                       </button>
                       <div className="branch-dashboard-section-summary">
                         <span>Total students:</span>
