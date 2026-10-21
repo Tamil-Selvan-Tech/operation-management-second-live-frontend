@@ -36,7 +36,7 @@
 .completed-students-action-menu { position: relative; display: inline-flex; }
 .completed-students-action-trigger { display: grid; place-items: center; width: 34px; height: 32px; border: 1px solid #cbd5e1; border-radius: 8px; background: #fff; color: #334155; cursor: pointer; }
 .completed-students-action-trigger:hover, .completed-students-action-trigger[aria-expanded="true"] { border-color: #93c5fd; background: #eff6ff; color: #1d4ed8; }
-.completed-students-action-dropdown { position: absolute; z-index: 20; top: calc(100% + 6px); right: 0; display: grid; min-width: 142px; padding: 5px; border: 1px solid #dbeafe; border-radius: 10px; background: #fff; box-shadow: 0 12px 28px rgba(15, 23, 42, .16); }
+.completed-students-action-dropdown { position: fixed; z-index: 1400; display: grid; min-width: 142px; padding: 5px; border: 1px solid #dbeafe; border-radius: 10px; background: #fff; box-shadow: 0 12px 28px rgba(15, 23, 42, .16); }
 .completed-students-action-dropdown button { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 34px; padding: 0 9px; border: 0; border-radius: 7px; background: transparent; color: #334155; font: inherit; font-size: .75rem; font-weight: 750; text-align: left; cursor: pointer; }
 .completed-students-action-dropdown button:hover { background: #eff6ff; color: #1d4ed8; }
 .completed-students-action-dropdown button.is-danger { color: #b91c1c; }
@@ -103,6 +103,9 @@
 .completed-students-view-card--full { width: 100%; }
 .completed-students-view-card--full dl { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .completed-students-view-card--full:last-child h3 { background: linear-gradient(90deg, #f5f3ff, #fff); color: #6d28d9; }
+.completed-students-view-card--academic dl { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.completed-students-view-card--academic .completed-students-modal-field { border: 0; border-right: 1px solid #eef2f7; }
+.completed-students-view-card--academic .completed-students-modal-field:last-child { border-right: 0; }
 @media (max-width: 760px) { .completed-students-view-summary, .completed-students-view-grid { grid-template-columns: 1fr; }.completed-students-view-card--full dl, .completed-students-view-card dl { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 460px) { .completed-students-view-card--full dl, .completed-students-view-card dl { grid-template-columns: 1fr; }.completed-students-view-summary { margin-inline: 10px; }.completed-students-view-modal .completed-students-modal-body { padding-inline: 10px; } }
 

@@ -42,8 +42,8 @@ function mergeStudentDetails(row = {}, student = {}, enrollment = {}) {
     studentId: firstAvailable(row.studentId, student.studentId, student.id),
     studentName: firstAvailable(row.studentName, student.studentName, student.name),
     parentName: firstAvailable(row.parentName, student.parentName),
-    mobileNumber: firstAvailable(row.mobileNumber, row.contactNumber, student.mobileNumber, student.contactNumber, student.phoneNumber),
     parentSpouseNumber: firstAvailable(row.parentSpouseNumber, student.parentSpouseNumber),
+    mobileNumber: firstAvailable(row.mobileNumber, row.contactNumber, student.mobileNumber, student.contactNumber, student.phoneNumber),
     emailAddress: firstAvailable(row.emailAddress, row.email, student.emailAddress, student.email),
     linkedInUrl: firstAvailable(row.linkedInUrl, row.linkedinUrl, student.linkedInUrl, student.linkedinUrl),
     currentStatus: firstAvailable(row.currentStatus, student.currentStatus),
@@ -192,6 +192,13 @@ function getAcademicTestsForRow(academicProgressByStudent, studentId, courseId, 
   })
 }
 
+function getImportedAcademicTests(source = {}) {
+  const values = source?.importedAcademicResults && typeof source.importedAcademicResults === 'object' ? source.importedAcademicResults : {}
+  return Object.entries(values)
+    .filter(([, value]) => value !== null && value !== undefined && value !== '')
+    .map(([field, value]) => ({ label: field === 'academicProject' ? 'Academic Project' : `Assessment-${String(field.replace('assessment', '')).padStart(2, '0')}`, value: `${value}%` }))
+}
+
 function dedupeStudentCourseRows(rows = []) {
   return [...new Map(rows.map((row) => {
     const studentKey = String(row?.studentId || row?.recordId || row?.studentName || '').toLowerCase().replace(/[^a-z0-9]/g, '')
@@ -229,7 +236,7 @@ function getModalSections(fields) {
     { title: 'Student Information', match: (label) => ['Student ID', 'Student Name', 'Parent Name', 'Contact Number', 'Parent / Spouse Number', 'Email ID', 'LinkedIn URL', 'Current Status', 'Purpose', 'Qualification', 'Education Level', 'Education Status', 'Passed Out Year', 'Designation', 'Company Name', 'Database Source', 'Branch Admin Name', 'Student Status'].includes(label) },
     { title: 'Course & Schedule', match: (label) => ['Course', 'Course Starting Date', 'Course Ending Date', 'Weekday / Weekend', 'Online / Offline', 'Batch Timing', 'Faculty Name', 'Attendance Percentage'].includes(label) },
     { title: 'Fees & Payment', match: (label) => ['Course Fees', 'Registration Fees', 'Payment Plan', 'Paid Amount', 'Pending Amount'].includes(label) || /Installment(?: Payment Mode| Receipt Number)?$/.test(label) },
-    { title: 'Academic Performance', match: (label) => label.startsWith('Academic Test') || label.startsWith('Project') },
+    { title: 'Academic Performance', match: (label) => label.startsWith('Academic Test') || label.startsWith('Assessment-') || label === 'Academic Project' || label.startsWith('Project') },
   ]
   const remaining = fields.filter(([label]) => !sectionDefinitions.some((section) => section.match(label)))
   return [
@@ -257,6 +264,9 @@ export function CompletedStudentsPage({ academicProgressByStudent = new Map(), b
   const [deleteTarget, setDeleteTarget] = useState(null)
   const [deleteState, setDeleteState] = useState({ busy: false, error: '' })
   const [actionMenuKey, setActionMenuKey] = useState(null)
+  const [actionMenuPosition, setActionMenuPosition] = useState(null)
+  const [actionMenuPinned, setActionMenuPinned] = useState(false)
+  const openActionMenu = (event, rowKey) => { const rect = event.currentTarget.getBoundingClientRect(); const width = 142; const left = Math.max(8, Math.min(window.innerWidth - width - 8, rect.right - width)); setActionMenuPosition({ top: rect.bottom + 6, left }); setActionMenuKey(rowKey) }
 
   const load = useCallback(async (lifecycle = tab, requestedPage = page) => {
     setState((current) => ({ ...current, loading: true, error: '' }))
@@ -264,7 +274,7 @@ export function CompletedStudentsPage({ academicProgressByStudent = new Map(), b
       // Prefer the backend lifecycle endpoint whenever the active Students
       // list does not contain a local completed source. Completed imports are
       // intentionally excluded from that active list.
-      if (lifecycle === 'COMPLETED' && Array.isArray(completedStudents) && completedStudents.length > 0) {
+      if (false && lifecycle === 'COMPLETED' && Array.isArray(completedStudents) && completedStudents.length > 0) {
         if (completedStudentsLoading) {
           setState({ data: [], meta: { page: 1, total: 0, totalPages: 1 }, loading: true, error: '' })
           return
@@ -353,6 +363,7 @@ export function CompletedStudentsPage({ academicProgressByStudent = new Map(), b
             ...matchedStudent,
             recordId: matchedStudent.recordId || matchedStudent.id || matchedStudent.studentId,
             studentId: matchedStudent.studentId || matchedStudent.id,
+            source: matchedStudent.source || matchedStudent.databaseSource || student.source || student.databaseSource,
             courseId,
             branchAdminName: matchedStudent.branchAdminName || branchAdminName,
             studentName: matchedStudent.studentName || matchedStudent.name,
@@ -370,7 +381,7 @@ export function CompletedStudentsPage({ academicProgressByStudent = new Map(), b
             paidInstallments,
             paymentPlanLabel: displayPaymentPlan,
             studentStatus: matchedStudent.studentStatus || matchedStudent.studentLifecycleStatus || matchedStudent.lifecycleStatus || 'Active',
-            academicTests: getAcademicTestsForRow(academicProgressByStudent, matchedStudent.studentId || matchedStudent.id, courseId, courseName),
+            academicTests: [...getAcademicTestsForRow(academicProgressByStudent, matchedStudent.studentId || matchedStudent.id, courseId, courseName), ...getImportedAcademicTests(selectedEnrollment), ...getImportedAcademicTests(student)],
             registrationFees: matchedStudent.registrationFees ?? catalogCourse?.registrationFees ?? catalogCourse?.registrationFee,
             totalFees: financials.totalFees,
             paidAmount: coursePaidAmount,
@@ -397,10 +408,7 @@ export function CompletedStudentsPage({ academicProgressByStudent = new Map(), b
         ...(Array.isArray(students) ? students : []),
         ...normalizedCompleted,
       ].filter((student, index, list) => list.findIndex((item) => String(item.studentId || item.id || '').trim().toLowerCase() === String(student.studentId || student.id || '').trim().toLowerCase()) === index)
-      const hasCompletionSync = normalizedCompleted.length > 0
-      const apiRows = lifecycle === 'COMPLETED' && hasCompletionSync
-        ? result.data.filter((row) => normalizedCompleted.some((student) => String(student.studentId || student.id || '').trim().toLowerCase() === String(row.studentId || '').trim().toLowerCase()))
-        : result.data
+        const apiRows = result.data
       const syncedApiRows = apiRows.map((row) => {
         const rowStudentKey = row.studentId || row.id || row.recordId
         const student = sourceStudents.find((item) => String(item.studentId || item.id || item.recordId || '').trim().toLowerCase() === String(rowStudentKey || '').trim().toLowerCase())
@@ -452,8 +460,10 @@ export function CompletedStudentsPage({ academicProgressByStudent = new Map(), b
           }))
         : []
       const data = dedupeStudentCourseRows([...syncedApiRows, ...supplementalRows])
-      setState({ ...result, data, loading: false, error: '' })
-      setCounts((current) => ({ ...current, [lifecycle]: result.meta?.total ?? data.length }))
+      const mergedMeta = { ...(result.meta || {}), total: Math.max(Number(result.meta?.total || 0), data.length) }
+      mergedMeta.totalPages = Math.max(1, Math.ceil(mergedMeta.total / PAGE_SIZE))
+      setState({ ...result, meta: mergedMeta, data, loading: false, error: '' })
+      setCounts((current) => ({ ...current, [lifecycle]: mergedMeta.total }))
     } catch (error) {
       const fallbackData = lifecycle === 'COMPLETED'
         ? (Array.isArray(completedStudents) ? completedStudents : []).map((student) => {
@@ -493,7 +503,7 @@ export function CompletedStudentsPage({ academicProgressByStudent = new Map(), b
   useEffect(() => {
     if (!actionMenuKey) return undefined
     const closeMenu = (event) => {
-      if (!event.target.closest('.completed-students-action-menu')) setActionMenuKey(null)
+      if (!event.target.closest('.completed-students-action-menu')) { setActionMenuKey(null); setActionMenuPosition(null); setActionMenuPinned(false) }
     }
     document.addEventListener('pointerdown', closeMenu)
     return () => document.removeEventListener('pointerdown', closeMenu)
@@ -569,7 +579,7 @@ export function CompletedStudentsPage({ academicProgressByStudent = new Map(), b
 
       {state.error ? <div className="completed-students-error" role="alert">{state.error}</div> : null}
       <div className="completed-students-table-wrap"><table><thead><tr><th>Student</th><th>Course</th><th>Dates</th><th>Batch / Faculty</th><th>Attendance</th><th>Total Fees</th><th>Paid</th><th>Pending</th><th>Status</th><th>Actions</th></tr></thead><tbody>
-        {state.loading ? <tr><td colSpan="10" className="completed-students-state">Loading records…</td></tr> : displayRows.length ? displayRows.map((row) => { const rowKey = `${row.studentId || row.recordId}-${row.courseName || row.courseId}`; return <tr key={rowKey} onClick={() => setSelected(row)} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); setSelected(row) } }} role="button" tabIndex={0}><td><strong>{valueOf(row.studentName)}</strong><small>{valueOf(row.studentId)}</small></td><td>{valueOf(row.courseName)}</td><td>{formatDate(row.courseStartDate)}<small>to {formatDate(row.courseEndDate)}</small></td><td>{valueOf(row.batchName)}<small>{valueOf(row.facultyName)}</small></td><td>{attendanceLabel(row)}</td><td>{formatMoney(row.totalFees)}</td><td>{formatMoney(row.paidAmount)}</td><td>{formatMoney(row.pendingAmount)}</td><td><StatusPill value={row.lifecycleStatus || tab} /></td><td className="completed-students-actions"><div className="completed-students-action-menu"><button type="button" className="completed-students-action-trigger" aria-label={`Open actions for ${row.studentName || 'student'}`} aria-expanded={actionMenuKey === rowKey} onClick={(event) => { event.stopPropagation(); setActionMenuKey((current) => current === rowKey ? null : rowKey) }}><MoreVertical size={18} /></button>{actionMenuKey === rowKey ? <div className="completed-students-action-dropdown" role="menu"><button type="button" role="menuitem" onClick={(event) => { event.stopPropagation(); setActionMenuKey(null); setSelected(row) }}><Eye size={15} /> View</button><button type="button" role="menuitem" className="is-danger" onClick={(event) => { event.stopPropagation(); setActionMenuKey(null); setDeleteState({ busy: false, error: '' }); setDeleteTarget(row) }}><Trash2 size={15} /> Delete</button></div> : null}</div></td></tr> }) : <tr><td colSpan="10" className="completed-students-state"><CheckCircle2 size={22} /><strong>No {tab === 'COMPLETED' ? 'completed' : 'discontinued'} course records found.</strong><span>Records will appear here when the persisted course status changes.</span></td></tr>}
+        {state.loading ? <tr><td colSpan="10" className="completed-students-state">Loading records…</td></tr> : displayRows.length ? displayRows.map((row) => { const rowKey = `${row.studentId || row.recordId}-${row.courseName || row.courseId}`; return <tr key={rowKey} onClick={() => setSelected(row)} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); setSelected(row) } }} role="button" tabIndex={0}><td><strong>{valueOf(row.studentName)}</strong><small>{valueOf(row.studentId)}</small></td><td>{valueOf(row.courseName)}</td><td>{formatDate(row.courseStartDate)}<small>to {formatDate(row.courseEndDate)}</small></td><td>{valueOf(row.batchName)}<small>{valueOf(row.facultyName)}</small></td><td>{attendanceLabel(row)}</td><td>{formatMoney(row.totalFees)}</td><td>{formatMoney(row.paidAmount)}</td><td>{formatMoney(row.pendingAmount)}</td><td><StatusPill value={row.lifecycleStatus || tab} /></td><td className="completed-students-actions"><div className="completed-students-action-menu"><button type="button" className="completed-students-action-trigger" aria-label={`Open actions for ${row.studentName || 'student'}`} aria-expanded={actionMenuKey === rowKey} onMouseEnter={(event) => openActionMenu(event, rowKey)} onMouseLeave={() => { if (actionMenuKey === rowKey && !actionMenuPinned) { setActionMenuKey(null); setActionMenuPosition(null) } }} onClick={(event) => { event.stopPropagation(); if (actionMenuKey === rowKey && actionMenuPinned) { setActionMenuKey(null); setActionMenuPosition(null); setActionMenuPinned(false) } else { setActionMenuPinned(true); openActionMenu(event, rowKey) } }}><MoreVertical size={18} /></button>{actionMenuKey === rowKey ? <div className="completed-students-action-dropdown" role="menu" style={actionMenuPosition ? { top: `${actionMenuPosition.top}px`, left: `${actionMenuPosition.left}px` } : undefined}><button type="button" role="menuitem" onClick={(event) => { event.stopPropagation(); setActionMenuKey(null); setActionMenuPosition(null); setActionMenuPinned(false); setSelected(row) }}><Eye size={15} /> View</button><button type="button" role="menuitem" className="is-danger" onClick={(event) => { event.stopPropagation(); setActionMenuKey(null); setActionMenuPosition(null); setActionMenuPinned(false); setDeleteState({ busy: false, error: '' }); setDeleteTarget(row) }}><Trash2 size={15} /> Delete</button></div> : null}</div></td></tr> }) : <tr><td colSpan="10" className="completed-students-state"><CheckCircle2 size={22} /><strong>No {tab === 'COMPLETED' ? 'completed' : 'discontinued'} course records found.</strong><span>Records will appear here when the persisted course status changes.</span></td></tr>}
       </tbody></table></div>
 
       <footer className="completed-students-pagination">
@@ -583,7 +593,7 @@ export function CompletedStudentsPage({ academicProgressByStudent = new Map(), b
         <span className="completed-students-pagination-summary">{state.meta?.total ? `${safePage} of ${totalPages}` : 'No records'}</span>
       </footer>
 
-      {selected ? <div className="completed-students-modal-backdrop" role="presentation"><section className="completed-students-modal completed-students-view-modal" role="dialog" aria-modal="true" aria-labelledby="completed-student-details-title"><header className="completed-students-modal-header"><div className="completed-students-profile"><div className="completed-students-avatar">{String(selected.studentName || '?').trim().charAt(0).toUpperCase()}</div><div><p className="completed-students-kicker">COURSE RECORD</p><h2 id="completed-student-details-title">{valueOf(selected.studentName)}</h2><span>{valueOf(selected.studentId)}{selected.courseName ? ` · ${selected.courseName}` : ''}</span></div></div><button type="button" className="completed-students-modal-close" onClick={() => setSelected(null)} aria-label="Close"><X size={18} /></button></header><div className="completed-students-view-summary"><div><span>Current Status</span><strong>{valueOf(selectedValue('Current Status') || selected.currentStatus || selected.studentStatus)}</strong></div><div><span>Purpose</span><strong>{valueOf(selectedValue('Purpose'))}</strong></div><div><span>Student Status</span><strong className="completed-students-summary-status">{valueOf(selectedValue('Student Status') || selected.lifecycleStatus)}</strong></div></div><div className="completed-students-modal-body"><section className="completed-students-modal-section completed-students-view-card completed-students-view-card--full"><h3>Student Information</h3><dl>{selectedSection('Student Information')?.fields.map(([label, value]) => <div className="completed-students-modal-field" key={label}><dt>{label}</dt><dd>{valueOf(value)}</dd></div>)}</dl></section><div className="completed-students-view-grid"><section className="completed-students-modal-section completed-students-view-card"><h3>Course &amp; Schedule</h3><dl>{selectedSection('Course & Schedule')?.fields.map(([label, value]) => <div className="completed-students-modal-field" key={label}><dt>{label}</dt><dd>{valueOf(value)}</dd></div>)}</dl></section><section className="completed-students-modal-section completed-students-view-card"><h3>Fees &amp; Payment</h3><dl>{selectedSection('Fees & Payment')?.fields.map(([label, value]) => <div className="completed-students-modal-field" key={label}><dt>{label}</dt><dd>{valueOf(value)}</dd></div>)}</dl></section></div>{selectedSection('Academic Performance')?.fields.length ? <section className="completed-students-modal-section completed-students-view-card completed-students-view-card--full"><h3>Academic Performance</h3><dl>{selectedSection('Academic Performance').fields.map(([label, value]) => <div className="completed-students-modal-field" key={label}><dt>{label}</dt><dd>{valueOf(value)}</dd></div>)}</dl></section> : null}</div></section></div> : null}
+      {selected ? <div className="completed-students-modal-backdrop" role="presentation"><section className="completed-students-modal completed-students-view-modal" role="dialog" aria-modal="true" aria-labelledby="completed-student-details-title"><header className="completed-students-modal-header"><div className="completed-students-profile"><div className="completed-students-avatar">{String(selected.studentName || '?').trim().charAt(0).toUpperCase()}</div><div><p className="completed-students-kicker">COURSE RECORD</p><h2 id="completed-student-details-title">{valueOf(selected.studentName)}</h2><span>{valueOf(selected.studentId)}{selected.courseName ? ` · ${selected.courseName}` : ''}</span></div></div><button type="button" className="completed-students-modal-close" onClick={() => setSelected(null)} aria-label="Close"><X size={18} /></button></header><div className="completed-students-view-summary"><div><span>Current Status</span><strong>{valueOf(selectedValue('Current Status') || selected.currentStatus || selected.studentStatus)}</strong></div><div><span>Purpose</span><strong>{valueOf(selectedValue('Purpose'))}</strong></div><div><span>Student Status</span><strong className="completed-students-summary-status">{valueOf(selectedValue('Student Status') || selected.lifecycleStatus)}</strong></div></div><div className="completed-students-modal-body"><section className="completed-students-modal-section completed-students-view-card completed-students-view-card--full"><h3>Student Information</h3><dl>{selectedSection('Student Information')?.fields.map(([label, value]) => <div className="completed-students-modal-field" key={label}><dt>{label}</dt><dd>{valueOf(value)}</dd></div>)}</dl></section><div className="completed-students-view-grid"><section className="completed-students-modal-section completed-students-view-card"><h3>Course &amp; Schedule</h3><dl>{selectedSection('Course & Schedule')?.fields.map(([label, value]) => <div className="completed-students-modal-field" key={label}><dt>{label}</dt><dd>{valueOf(value)}</dd></div>)}</dl></section><section className="completed-students-modal-section completed-students-view-card"><h3>Fees &amp; Payment</h3><dl>{selectedSection('Fees & Payment')?.fields.map(([label, value]) => <div className="completed-students-modal-field" key={label}><dt>{label}</dt><dd>{valueOf(value)}</dd></div>)}</dl></section></div>{selectedSection('Academic Performance')?.fields.length ? <section className="completed-students-modal-section completed-students-view-card completed-students-view-card--full completed-students-view-card--academic"><h3>Academic Performance</h3><dl>{selectedSection('Academic Performance').fields.map(([label, value]) => <div className="completed-students-modal-field" key={label}><dt>{label}</dt><dd>{valueOf(value)}</dd></div>)}</dl></section> : null}</div></section></div> : null}
 
       {deleteTarget ? <div className="completed-students-modal-backdrop" role="presentation"><section className="completed-students-modal completed-students-delete-modal" role="dialog" aria-modal="true" aria-labelledby="completed-student-delete-title"><header className="completed-students-modal-header"><div className="completed-students-profile"><div className="completed-students-delete-icon"><Trash2 size={20} /></div><div><p className="completed-students-kicker">PERMANENT ACTION</p><h2 id="completed-student-delete-title">Delete student?</h2><span>{valueOf(deleteTarget.studentName)} · {valueOf(deleteTarget.studentId)}</span></div></div><button type="button" className="completed-students-modal-close" onClick={() => setDeleteTarget(null)} disabled={deleteState.busy} aria-label="Close"><X size={18} /></button></header><div className="completed-students-delete-body"><p>This will permanently delete this student and all related course records, payments, installments, attendance, academic tests/projects, exam attempts, and discontinuation data.</p><strong>This action cannot be undone.</strong>{deleteState.error ? <div className="completed-students-error" role="alert">{deleteState.error}</div> : null}</div><footer className="completed-students-delete-actions"><button type="button" className="completed-students-delete-cancel" onClick={() => setDeleteTarget(null)} disabled={deleteState.busy}>Cancel</button><button type="button" className="completed-students-delete-confirm" onClick={() => void confirmDelete()} disabled={deleteState.busy}>{deleteState.busy ? 'Deleting…' : 'Delete permanently'}</button></footer></section></div> : null}
 
