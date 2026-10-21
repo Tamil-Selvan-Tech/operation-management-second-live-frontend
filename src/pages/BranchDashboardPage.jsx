@@ -217,6 +217,7 @@ function BranchCourseFilterSelect({ value, options, onChange, ariaLabel, width =
 // Notifications are supplementary to the dashboard. They must never keep the
 // whole section in a skeleton state when the notifications API is unavailable.
 const BRANCH_NOTIFICATIONS_TIMEOUT_MS = 5000
+const EMPTY_COMPLETED_STUDENTS = Object.freeze([])
 
 function BranchProfileSkeleton() {
   return <div className="branch-profile-skeleton" role="status" aria-label="Loading profile"><div className="branch-profile-skeleton-identity"><span className="branch-profile-skeleton-avatar" /><span><i /><i /><i /></span></div><div className="branch-profile-skeleton-heading" /><div className="branch-profile-skeleton-card"><i /><i /><i /><i /></div><div className="branch-profile-skeleton-heading short" /><div className="branch-profile-skeleton-card security"><i /><i /></div></div>
@@ -528,26 +529,78 @@ function isCompletedStudentReportRecord(student = {}) {
   ].some((value) => String(value || '').trim().toUpperCase().replace(/[\s-]+/g, '_')
     .includes('COMPLETED_STUDENT'))
 
-  if (importMarker || sourceMarker) return true
+  const reportFieldMarker = [
+    student?.databaseSource,
+    student?.courseStartingDate,
+    student?.courseEndingDate,
+    student?.certificationStatus,
+    student?.certificateIssuedDate,
+    student?.academicProject,
+    student?.placement,
+  ].some((value) => value !== undefined && value !== null && String(value).trim() !== '')
 
-  const lifecycleStatus = String(
-    student?.lifecycleStatus
-      || student?.studentLifecycleStatus
-      || student?.recordStatus
-      || student?.studentStatus
-      || student?.currentStatus
-      || '',
-  ).trim().toUpperCase()
+  if (importMarker || sourceMarker || reportFieldMarker) return true
+
+  const lifecycleValues = [
+    student?.lifecycleStatus,
+    student?.studentLifecycleStatus,
+    student?.recordStatus,
+    student?.studentStatus,
+    student?.currentStatus,
+    student?.status,
+  ].map((value) => String(value || '').trim().toUpperCase().replace(/[\s-]+/g, '_'))
+  const hasCompletedLifecycleStatus = lifecycleValues.some((value) => (
+    value.includes('COMPLETED') && !value.includes('NOT_COMPLETED')
+  ))
+  const hasDiscontinuedLifecycleStatus = lifecycleValues.some((value) => value === 'DISCONTINUED')
   const hasCompletedDate = Boolean(student?.courseCompletedAt || student?.completedAt)
+  const isDiscontinued = Boolean(
+    student?.isDiscontinued
+      || String(student?.discontinuationStatus || '').trim().toUpperCase() === 'APPROVED'
+      || hasDiscontinuedLifecycleStatus,
+  )
   const enrollments = Array.isArray(student?.courseEnrollments) ? student.courseEnrollments : []
   const hasActiveEnrollment = enrollments.some((entry) => {
     const status = String(entry?.status || entry?.recordStatus || '').trim().toUpperCase()
     return status === 'ACTIVE' && !entry?.courseCompletedAt && !entry?.completedAt
   })
+  const hasVisibleEnrollment = enrollments.some((entry) => {
+    const status = String(entry?.status || entry?.recordStatus || entry?.studentStatus || '').trim().toUpperCase()
+    return !['COMPLETED', 'DISCONTINUED'].includes(status)
+      && !entry?.courseCompletedAt
+      && !entry?.completedAt
+  })
+
+  if (enrollments.length) return !hasVisibleEnrollment
+
+  const hasOperationalData = [
+    student?.finalFee,
+    student?.courseAmount,
+    student?.totalAmount,
+    student?.afterDiscount,
+    student?.paidAmount,
+    student?.totalPaid,
+    student?.amountPaid,
+    student?.courseProgress,
+    student?.courseCompletionPercentage,
+    student?.progress,
+    student?.admissionDate,
+    student?.courseStartDate,
+    student?.courseEndDate,
+    student?.batchId,
+    student?.batchName,
+    student?.facultyId,
+    student?.facultyName,
+  ].some((value) => value !== undefined && value !== null && String(value).trim() !== '')
+    || (Array.isArray(student?.installmentSchedule) && student.installmentSchedule.length > 0)
+
+  // A report row can arrive with only the student/course identity populated.
+  // It is not an active student row and must not affect the Students count.
+  if (!hasOperationalData) return true
 
   // Imported report rows are historical completed records. Keep a student
   // with an active enrollment visible if it also has an older completed course.
-  return (hasCompletedDate && !hasActiveEnrollment) || lifecycleStatus === 'COMPLETED'
+  return isDiscontinued || (hasCompletedDate && !hasActiveEnrollment) || hasCompletedLifecycleStatus
 }
 
 function getBranchEntityPrefix(branchCode, entityPrefix) {
@@ -9553,7 +9606,6 @@ useEffect(() => {
   }, [branchStudentsForDisplay])
 
   const studentLifecycleFilterOptions = [
-    { value: 'course-completed', label: 'Course Completed' },
     { value: 'discontinued', label: 'Discontinued' },
   ]
   const isCourseCompletedFilter = String(studentStatusFilter || '')
@@ -11237,7 +11289,7 @@ useEffect(() => {
                   onBack={() => navigate('/branch-dashboard?section=students')}
                 />
               ) : null}
-              {activeSection === 'completed-students' ? <CompletedStudentsPage academicProgressByStudent={branchAcademicProgressByStudent} branchAdminName={branchAdminDisplay} completedStudents={completedStudentsForLifecycle} completedStudentsLoading={!isBranchAcademicProgressLoaded} courseCatalog={branchCourseCards} onDeleted={reloadBranchStudents} paymentHistoryRecords={allPaymentHistoryRecords} students={branchStudentsForDisplay} /> : null}
+              {activeSection === 'completed-students' ? <CompletedStudentsPage academicProgressByStudent={branchAcademicProgressByStudent} branchAdminName={branchAdminDisplay} completedStudents={EMPTY_COMPLETED_STUDENTS} completedStudentsLoading={false} courseCatalog={branchCourseCards} onDeleted={reloadBranchStudents} paymentHistoryRecords={allPaymentHistoryRecords} students={branchStudentsForDisplay} /> : null}
               <BranchMonthlyReportModal isOpen={isStudentMonthlyReportOpen} onClose={() => setIsStudentMonthlyReportOpen(false)} reportVariant="monthly" />
               {activeSection === 'faculty-skills' ? <FacultySkillsUpgradePage embedded branchId={branchData?.id || branchData?.branchId || branchProfile?.id || branchProfile?.branchId || ''} /> : null}
               {activeSection === 'dashboard' ? (
@@ -12213,13 +12265,19 @@ else {
               const isCoursePaymentCompleted = item.amount > 0 && (
                 paidPercentage >= 100 || coursePaidAmount >= item.amount
               )
+              const isCourseDiscontinued = Boolean(
+                isStudentDiscontinued
+                || item.entry?.isDiscontinued
+                || String(item.entry?.discontinuationStatus || '').trim().toUpperCase() === 'APPROVED'
+                || String(item.entry?.status || item.entry?.recordStatus || item.entry?.studentStatus || '').trim().toUpperCase() === 'DISCONTINUED',
+              )
               // The list API can retain an older IN_PROGRESS value after the
               // faculty progress and payment records are complete. Prefer the
               // effective row values, while still honoring an explicit test
               // result when it is available.
               // Course completion depends only on learning completion. Payment
               // status is displayed separately and must not block this label.
-              const courseCompletionStatus = isStudentDiscontinued
+              const courseCompletionStatus = isCourseDiscontinued
                 ? 'DISCONTINUED'
                 : isCourseCompletionComplete(stu, item.courseId, item.courseName, progressValue, branchAcademicProgressByStudent, item.catalogCourse)
                   ? 'COMPLETED'
@@ -12235,13 +12293,13 @@ else {
                   : coursePaidAmount > 0
                     ? 'Partial'
                     : 'Upcoming'
-              return { ...item, coursePaidAmount, paidPercentage, progressValue, courseCompletionStatus, nextCourseInstallment, nextCourseDueDate, courseStatus, rowInstallments: courseInstallments }
+              return { ...item, coursePaidAmount, paidPercentage, progressValue, courseCompletionStatus, courseIsDiscontinued: isCourseDiscontinued, nextCourseInstallment, nextCourseDueDate, courseStatus, rowInstallments: courseInstallments }
             })
             const completedCourseRows = courseRows.filter((courseRow) => courseRow.courseCompletionStatus === 'COMPLETED')
             if (isCourseCompletedFilter && !completedCourseRows.length) return null
             const displayCourseRows = isCourseCompletedFilter
               ? completedCourseRows
-              : courseRows
+              : courseRows.filter((courseRow) => !['COMPLETED', 'DISCONTINUED'].includes(courseRow.courseCompletionStatus))
             if (!displayCourseRows.length) return null
             const coursesWithNextInstallment = displayCourseRows.filter((courseRow) => courseRow.nextCourseInstallment)
             const combinedNextInstallmentAmount = coursesWithNextInstallment.reduce((sum, courseRow) => (
@@ -12422,6 +12480,7 @@ else {
             && isCourseCompletionComplete(stu, stu.courseId, stu.courseName || stu.courseInterested, studentCourseProgress, branchAcademicProgressByStudent, effectiveCourse)
             
           if (isCourseCompletedFilter && !singleCourseCompleted) return null
+          if (!isCourseCompletedFilter && (isStudentDiscontinued || singleCourseCompleted || isCompletedStudentReportRecord(stu))) return null
 
           return (
             <tr

@@ -261,7 +261,10 @@ export function CompletedStudentsPage({ academicProgressByStudent = new Map(), b
   const load = useCallback(async (lifecycle = tab, requestedPage = page) => {
     setState((current) => ({ ...current, loading: true, error: '' }))
     try {
-      if (lifecycle === 'COMPLETED') {
+      // Prefer the backend lifecycle endpoint whenever the active Students
+      // list does not contain a local completed source. Completed imports are
+      // intentionally excluded from that active list.
+      if (lifecycle === 'COMPLETED' && Array.isArray(completedStudents) && completedStudents.length > 0) {
         if (completedStudentsLoading) {
           setState({ data: [], meta: { page: 1, total: 0, totalPages: 1 }, loading: true, error: '' })
           return
@@ -450,7 +453,7 @@ export function CompletedStudentsPage({ academicProgressByStudent = new Map(), b
         : []
       const data = dedupeStudentCourseRows([...syncedApiRows, ...supplementalRows])
       setState({ ...result, data, loading: false, error: '' })
-      setCounts((current) => ({ ...current, [lifecycle]: lifecycle === 'COMPLETED' ? data.length : (result.meta?.total ?? result.data.length) }))
+      setCounts((current) => ({ ...current, [lifecycle]: result.meta?.total ?? data.length }))
     } catch (error) {
       const fallbackData = lifecycle === 'COMPLETED'
         ? (Array.isArray(completedStudents) ? completedStudents : []).map((student) => {
@@ -529,6 +532,9 @@ export function CompletedStudentsPage({ academicProgressByStudent = new Map(), b
   }
 
   const totalPages = Math.max(1, Number(state.meta?.totalPages || Math.ceil(Number(state.meta?.total || 0) / PAGE_SIZE) || 1))
+  const safePage = Math.min(Math.max(page, 1), totalPages)
+  const pageWindowStart = Math.min(Math.max(safePage - 1, 1), Math.max(totalPages - 2, 1))
+  const pageNumbers = Array.from({ length: Math.min(3, totalPages) }, (_, index) => pageWindowStart + index)
   const displayRows = dedupeStudentCourseRows(state.data)
   const selectedSections = selected ? getModalSections(buildFields(selected)) : []
   const selectedSection = (title) => selectedSections.find((section) => section.title === title)
@@ -566,7 +572,16 @@ export function CompletedStudentsPage({ academicProgressByStudent = new Map(), b
         {state.loading ? <tr><td colSpan="10" className="completed-students-state">Loading records…</td></tr> : displayRows.length ? displayRows.map((row) => { const rowKey = `${row.studentId || row.recordId}-${row.courseName || row.courseId}`; return <tr key={rowKey} onClick={() => setSelected(row)} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); setSelected(row) } }} role="button" tabIndex={0}><td><strong>{valueOf(row.studentName)}</strong><small>{valueOf(row.studentId)}</small></td><td>{valueOf(row.courseName)}</td><td>{formatDate(row.courseStartDate)}<small>to {formatDate(row.courseEndDate)}</small></td><td>{valueOf(row.batchName)}<small>{valueOf(row.facultyName)}</small></td><td>{attendanceLabel(row)}</td><td>{formatMoney(row.totalFees)}</td><td>{formatMoney(row.paidAmount)}</td><td>{formatMoney(row.pendingAmount)}</td><td><StatusPill value={row.lifecycleStatus || tab} /></td><td className="completed-students-actions"><div className="completed-students-action-menu"><button type="button" className="completed-students-action-trigger" aria-label={`Open actions for ${row.studentName || 'student'}`} aria-expanded={actionMenuKey === rowKey} onClick={(event) => { event.stopPropagation(); setActionMenuKey((current) => current === rowKey ? null : rowKey) }}><MoreVertical size={18} /></button>{actionMenuKey === rowKey ? <div className="completed-students-action-dropdown" role="menu"><button type="button" role="menuitem" onClick={(event) => { event.stopPropagation(); setActionMenuKey(null); setSelected(row) }}><Eye size={15} /> View</button><button type="button" role="menuitem" className="is-danger" onClick={(event) => { event.stopPropagation(); setActionMenuKey(null); setDeleteState({ busy: false, error: '' }); setDeleteTarget(row) }}><Trash2 size={15} /> Delete</button></div> : null}</div></td></tr> }) : <tr><td colSpan="10" className="completed-students-state"><CheckCircle2 size={22} /><strong>No {tab === 'COMPLETED' ? 'completed' : 'discontinued'} course records found.</strong><span>Records will appear here when the persisted course status changes.</span></td></tr>}
       </tbody></table></div>
 
-      <footer className="completed-students-pagination"><span>{state.meta?.total ? `Showing page ${state.meta.page} of ${totalPages}` : 'No records'}</span><div><button type="button" onClick={() => setPage((current) => Math.max(1, current - 1))} disabled={page <= 1 || state.loading}><ChevronLeft size={17} /></button><button type="button" onClick={() => setPage((current) => Math.min(totalPages, current + 1))} disabled={page >= totalPages || state.loading}><ChevronRight size={17} /></button></div></footer>
+      <footer className="completed-students-pagination">
+        <div className="completed-students-pagination-controls">
+          <button type="button" className="completed-students-pagination-nav" onClick={() => setPage((current) => Math.max(1, current - 1))} disabled={safePage <= 1 || state.loading}><ChevronLeft size={16} /> <span>Previous</span></button>
+          <div className="completed-students-pagination-pages" aria-label="Completed students pages">
+            {pageNumbers.map((pageNumber) => <button key={pageNumber} type="button" className={pageNumber === safePage ? 'is-active' : ''} onClick={() => setPage(pageNumber)} disabled={state.loading}>{pageNumber}</button>)}
+          </div>
+          <button type="button" className="completed-students-pagination-nav" onClick={() => setPage((current) => Math.min(totalPages, current + 1))} disabled={safePage >= totalPages || state.loading}><span>Next</span> <ChevronRight size={16} /></button>
+        </div>
+        <span className="completed-students-pagination-summary">{state.meta?.total ? `${safePage} of ${totalPages}` : 'No records'}</span>
+      </footer>
 
       {selected ? <div className="completed-students-modal-backdrop" role="presentation"><section className="completed-students-modal completed-students-view-modal" role="dialog" aria-modal="true" aria-labelledby="completed-student-details-title"><header className="completed-students-modal-header"><div className="completed-students-profile"><div className="completed-students-avatar">{String(selected.studentName || '?').trim().charAt(0).toUpperCase()}</div><div><p className="completed-students-kicker">COURSE RECORD</p><h2 id="completed-student-details-title">{valueOf(selected.studentName)}</h2><span>{valueOf(selected.studentId)}{selected.courseName ? ` · ${selected.courseName}` : ''}</span></div></div><button type="button" className="completed-students-modal-close" onClick={() => setSelected(null)} aria-label="Close"><X size={18} /></button></header><div className="completed-students-view-summary"><div><span>Current Status</span><strong>{valueOf(selectedValue('Current Status') || selected.currentStatus || selected.studentStatus)}</strong></div><div><span>Purpose</span><strong>{valueOf(selectedValue('Purpose'))}</strong></div><div><span>Student Status</span><strong className="completed-students-summary-status">{valueOf(selectedValue('Student Status') || selected.lifecycleStatus)}</strong></div></div><div className="completed-students-modal-body"><section className="completed-students-modal-section completed-students-view-card completed-students-view-card--full"><h3>Student Information</h3><dl>{selectedSection('Student Information')?.fields.map(([label, value]) => <div className="completed-students-modal-field" key={label}><dt>{label}</dt><dd>{valueOf(value)}</dd></div>)}</dl></section><div className="completed-students-view-grid"><section className="completed-students-modal-section completed-students-view-card"><h3>Course &amp; Schedule</h3><dl>{selectedSection('Course & Schedule')?.fields.map(([label, value]) => <div className="completed-students-modal-field" key={label}><dt>{label}</dt><dd>{valueOf(value)}</dd></div>)}</dl></section><section className="completed-students-modal-section completed-students-view-card"><h3>Fees &amp; Payment</h3><dl>{selectedSection('Fees & Payment')?.fields.map(([label, value]) => <div className="completed-students-modal-field" key={label}><dt>{label}</dt><dd>{valueOf(value)}</dd></div>)}</dl></section></div>{selectedSection('Academic Performance')?.fields.length ? <section className="completed-students-modal-section completed-students-view-card completed-students-view-card--full"><h3>Academic Performance</h3><dl>{selectedSection('Academic Performance').fields.map(([label, value]) => <div className="completed-students-modal-field" key={label}><dt>{label}</dt><dd>{valueOf(value)}</dd></div>)}</dl></section> : null}</div></section></div> : null}
 
