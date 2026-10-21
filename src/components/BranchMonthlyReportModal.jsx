@@ -1,0 +1,72 @@
+import { useEffect, useRef, useState } from 'react'
+import { ChevronDown, ChevronUp, Download, FileSpreadsheet, Loader2, X } from 'lucide-react'
+import { downloadBranchMonthlyStudentReport } from '../services/reportService'
+import '../styles/BranchMonthlyReportModal.css'
+
+const pad = (value) => String(value).padStart(2, '0')
+const today = new Date()
+const todayValue = today.toISOString().slice(0, 10)
+
+function ReportFilterSelect({ label, value, onChange, options }) {
+  const [isOpen, setIsOpen] = useState(false)
+  const rootRef = useRef(null)
+  const selected = options.find((option) => option.value === value) || options[0]
+
+  useEffect(() => {
+    const handlePointerDown = (event) => {
+      if (!rootRef.current?.contains(event.target)) setIsOpen(false)
+    }
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') setIsOpen(false)
+    }
+    document.addEventListener('pointerdown', handlePointerDown)
+    document.addEventListener('keydown', handleKeyDown)
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown)
+      document.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [])
+
+  return <div ref={rootRef} className="branch-monthly-report-custom-select">
+    <span className="branch-monthly-report-custom-select-label">{label}</span>
+    <button type="button" className={isOpen ? 'branch-monthly-report-custom-select-trigger is-open' : 'branch-monthly-report-custom-select-trigger'} onClick={() => setIsOpen((open) => !open)} aria-haspopup="listbox" aria-expanded={isOpen}>
+      <span>{selected.label}</span>{isOpen ? <ChevronUp size={17} /> : <ChevronDown size={17} />}
+    </button>
+    {isOpen ? <div className="branch-monthly-report-custom-select-menu" role="listbox" aria-label={label}>{options.map((option) => <button key={option.value} type="button" role="option" aria-selected={option.value === value} className={option.value === value ? 'is-selected' : ''} onClick={() => { onChange(option.value); setIsOpen(false) }}>{option.label}</button>)}</div> : null}
+  </div>
+}
+
+export function BranchMonthlyReportModal({ isOpen, onClose }) {
+  const [mode, setMode] = useState('month')
+  const [status, setStatus] = useState('completed')
+  const [month, setMonth] = useState(String(today.getMonth() + 1))
+  const [year, setYear] = useState(String(today.getFullYear()))
+  const [fromDate, setFromDate] = useState(today.getFullYear() + '-' + pad(today.getMonth() + 1) + '-01')
+  const [toDate, setToDate] = useState(todayValue)
+  const [error, setError] = useState('')
+  const [isDownloading, setIsDownloading] = useState(false)
+  if (!isOpen) return null
+  const submit = async (event) => {
+    event.preventDefault(); setError('')
+    if (['week', 'range'].includes(mode) && (!fromDate || !toDate || fromDate > toDate)) return setError('Please select a valid date range.')
+    setIsDownloading(true)
+    try {
+      const query = mode === 'month' ? { mode, month, year, status } : mode === 'year' ? { mode, year, status } : mode === 'all' ? { mode, status } : { mode, fromDate, toDate, status }
+      const statusName = status === 'all' ? 'All_Students' : status === 'completed' ? 'Completed_Students' : 'Discontinued_Students'
+      const periodName = mode === 'month' ? 'Monthly_' + year + '-' + pad(month) : mode === 'year' ? 'Yearly_' + year : mode === 'all' ? 'All_Records' : mode === 'week' ? 'Weekly_' + fromDate : 'Custom_' + fromDate + '_to_' + toDate
+      await downloadBranchMonthlyStudentReport(query, statusName + '_' + periodName + '.xlsx')
+      onClose()
+    } catch (downloadError) { setError(downloadError?.message || 'Unable to generate the report. Please try again.') } finally { setIsDownloading(false) }
+  }
+  return <div className="branch-monthly-report-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !isDownloading) onClose() }}>
+    <section className="branch-monthly-report-modal" role="dialog" aria-modal="true" aria-labelledby="branch-monthly-report-title">
+      <header className="branch-monthly-report-header"><div className="branch-monthly-report-title"><span><FileSpreadsheet size={20} /></span><div><p>BRANCH ADMIN REPORT</p><h2 id="branch-monthly-report-title">Student Status Report</h2><small>Export complete or discontinued student data with all course and academic details.</small></div></div><button type="button" className="branch-monthly-report-close" onClick={onClose} disabled={isDownloading} aria-label="Close"><X size={20} /></button></header>
+      <form onSubmit={submit} className="branch-monthly-report-form">
+        <div className="branch-monthly-report-section"><div className="branch-monthly-report-select-row"><ReportFilterSelect label="Period type" value={mode} onChange={setMode} options={[{ value: 'month', label: 'Month' }, { value: 'week', label: 'Week' }, { value: 'year', label: 'Year' }, { value: 'range', label: 'Custom Range' }, { value: 'all', label: 'All Records' }]} /><ReportFilterSelect label="Student status" value={status} onChange={setStatus} options={[{ value: 'completed', label: 'Completed Students' }, { value: 'discontinued', label: 'Discontinued Students' }, { value: 'all', label: 'All Students' }]} /></div>{mode === 'month' ? <div className="branch-monthly-report-fields"><label>Month<select value={month} onChange={(event) => setMonth(event.target.value)}>{Array.from({ length: 12 }, (_, index) => <option key={index + 1} value={index + 1}>{new Date(2000, index, 1).toLocaleString('en', { month: 'long' })}</option>)}</select></label><label>Year<input type="number" min="2000" max="2100" value={year} onChange={(event) => setYear(event.target.value)} /></label></div> : mode === 'year' ? <div className="branch-monthly-report-fields"><label>Year<input type="number" min="2000" max="2100" value={year} onChange={(event) => setYear(event.target.value)} /></label></div> : mode === 'all' ? <p className="branch-monthly-report-hint">No date filter. This includes completed and discontinued course records.</p> : <div className="branch-monthly-report-fields"><label>{mode === 'week' ? 'Week Start' : 'From Date'}<input type="date" value={fromDate} onChange={(event) => setFromDate(event.target.value)} /></label><label>{mode === 'week' ? 'Week End' : 'To Date'}<input type="date" value={toDate} onChange={(event) => setToDate(event.target.value)} /></label></div>}</div>
+        {error ? <div className="branch-monthly-report-error" role="alert">{error}</div> : null}
+        <footer className="branch-monthly-report-footer"><span>Excel format: xlsx · Missing values use -</span><div><button type="button" className="branch-monthly-report-cancel" onClick={onClose} disabled={isDownloading}>Cancel</button><button type="submit" className="branch-monthly-report-download" disabled={isDownloading}>{isDownloading ? <><Loader2 className="is-spinning" size={17} /> Generating...</> : <><Download size={17} /> Download Excel</>}</button></div></footer>
+      </form>
+      {isDownloading ? <div className="branch-monthly-report-loading" role="status" aria-live="polite"><div className="branch-monthly-report-loading-card"><Loader2 size={30} className="is-spinning" /><strong>Preparing report...</strong><span>Collecting student, course, payment and academic data. Please wait.</span></div></div> : null}
+    </section>
+  </div>
+}

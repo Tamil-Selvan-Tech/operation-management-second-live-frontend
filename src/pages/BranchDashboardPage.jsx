@@ -422,6 +422,15 @@ function getCourseAcademicProgress(student = {}, courseId = '', courseName = '',
 }
 
 function isCourseCompletionComplete(student = {}, courseId = '', courseName = '', progress = 0, fetchedByStudent = new Map()) {
+  const normalizedCourseId = String(courseId || '').trim().toLowerCase()
+  const normalizedCourseName = String(courseName || '').trim().toLowerCase()
+  const completedEnrollment = (Array.isArray(student?.courseEnrollments) ? student.courseEnrollments : []).find((entry) => {
+    const entryCourseId = String(entry?.courseId || entry?.id || entry?.course?.id || '').trim().toLowerCase()
+    const entryCourseName = String(entry?.courseName || entry?.name || entry?.course?.name || '').trim().toLowerCase()
+    return (normalizedCourseId && entryCourseId === normalizedCourseId)
+      || (normalizedCourseName && entryCourseName === normalizedCourseName)
+  })
+  if (completedEnrollment?.courseCompletedAt || (normalizedCourseId && String(student?.courseId || '').trim().toLowerCase() === normalizedCourseId && student?.courseCompletedAt)) return true
   return Number(progress) >= 100
     && isAcademicTestProgressComplete(getCourseAcademicProgress(student, courseId, courseName, fetchedByStudent))
 }
@@ -9403,6 +9412,7 @@ useEffect(() => {
               courseId: student?.courseId,
               courseName: student?.courseName || student?.courseInterested || student?.course?.name,
               courseProgress: student?.courseProgress ?? student?.courseCompletionPercentage ?? student?.progress,
+              courseCompletedAt: student?.courseCompletedAt,
             }]
       const isCompleted = entries.some((entry) => {
         const courseId = String(entry?.courseId || entry?.id || entry?.course?.id || student?.courseId || '').trim()
@@ -9419,7 +9429,8 @@ useEffect(() => {
           Number.isFinite(savedProgress) ? savedProgress : 0,
           Number.isFinite(workProgress) ? workProgress : 0,
         )
-        return isCourseCompletionComplete(student, courseId, courseName, progress, branchAcademicProgressByStudent)
+        const persistedCompleted = Boolean(entry?.courseCompletedAt || entry?.completedAt)
+        return persistedCompleted || isCourseCompletionComplete(student, courseId, courseName, progress, branchAcademicProgressByStudent)
       })
       if (isCompleted) completedKeys.add(String(student?.studentId || student?.id || '').trim().toLowerCase())
     })
@@ -9639,7 +9650,8 @@ useEffect(() => {
           Number.isFinite(savedProgress) ? savedProgress : 0,
           Number.isFinite(workProgress) ? workProgress : 0,
         )
-        return isCourseCompletionComplete(student, courseId, courseName, progress, branchAcademicProgressByStudent)
+        const persistedCompleted = Boolean(entry?.courseCompletedAt || entry?.completedAt)
+        return persistedCompleted || isCourseCompletionComplete(student, courseId, courseName, progress, branchAcademicProgressByStudent)
       }).map((entry) => ({
         ...student,
         courseId: entry?.courseId || entry?.id || entry?.course?.id || student?.courseId || '',
@@ -11062,7 +11074,7 @@ useEffect(() => {
                   onBack={() => navigate('/branch-dashboard?section=students')}
                 />
               ) : null}
-              {activeSection === 'completed-students' ? <CompletedStudentsPage academicProgressByStudent={branchAcademicProgressByStudent} branchAdminName={branchAdminDisplay} completedStudents={completedStudentsForLifecycle} completedStudentsLoading={!isBranchAcademicProgressLoaded} courseCatalog={branchCourseCards} paymentHistoryRecords={allPaymentHistoryRecords} students={branchStudentsForDisplay} /> : null}
+              {activeSection === 'completed-students' ? <CompletedStudentsPage academicProgressByStudent={branchAcademicProgressByStudent} branchAdminName={branchAdminDisplay} completedStudents={completedStudentsForLifecycle} completedStudentsLoading={!isBranchAcademicProgressLoaded} courseCatalog={branchCourseCards} onDeleted={reloadBranchStudents} paymentHistoryRecords={allPaymentHistoryRecords} students={branchStudentsForDisplay} /> : null}
               {activeSection === 'faculty-skills' ? <FacultySkillsUpgradePage embedded branchId={branchData?.id || branchData?.branchId || branchProfile?.id || branchProfile?.branchId || ''} /> : null}
               {activeSection === 'dashboard' ? (
                 <>
