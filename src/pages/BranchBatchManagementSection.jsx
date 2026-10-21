@@ -32,6 +32,7 @@ import { getMatchingStudents } from '../lib/facultyFlow'
 import { buildFacultyTodayWorkProgressSummary } from '../lib/facultyProgress'
 import { getStudentCalendarAttendance } from '../lib/studentAttendanceCalendar'
 import { getBranchAttendanceOverview, getCurrentFacultyAttendanceOverview } from '../services/attendanceService'
+import { getBranchStudentAcademicReports, listAcademicTests, listBranchAcademicTestReports } from '../services/academicTestService'
 import { calculateBatchCourseEndDate, getBatchAvailability } from '../lib/batchAllocation'
 import '../styles/BranchBatchManagementSection.css'
 import '../styles/SuperAdminDashboardPage.css'
@@ -191,8 +192,10 @@ function extractAttendanceStatuses(payload = {}, filters = {}) {
   }
 
   rows.forEach((row) => {
+    const nestedStudent = row?.student || row?.learner || row?.user || {}
     const studentId = normalizeMatchKey(
-      row?.studentId || row?.studentCode || row?.id || row?.student?.studentId || row?.student?.studentCode || row?.student?.id,
+      nestedStudent?.studentId || nestedStudent?.studentCode || nestedStudent?.id ||
+      row?.studentId || row?.studentCode || row?.branchStudentId || row?.studentRecordId || row?.id,
     )
     const rowScope = getScope(row)
     const rawStatus = String(row?.attendanceStatus || row?.attendanceStatusLabel || row?.status || '').trim().toUpperCase()
@@ -204,11 +207,16 @@ function extractAttendanceStatuses(payload = {}, filters = {}) {
 
     const records = Array.isArray(row?.records) ? row.records : []
     records.forEach((record) => {
+      const recordStudent = record?.student || record?.learner || record?.user || {}
+      const recordStudentId = normalizeMatchKey(
+        recordStudent?.studentId || recordStudent?.studentCode || recordStudent?.id ||
+        record?.studentId || record?.studentCode || record?.branchStudentId || record?.studentRecordId || studentId,
+      )
       const recordDate = String(record?.attendanceDate || record?.date || '').trim()
       if (expectedDate && recordDate !== expectedDate && responseDate !== expectedDate) return
       if (!matchesScope(getScope(row, record))) return
       const recordStatus = String(record?.attendanceStatus || record?.attendanceStatusLabel || record?.status || '').trim().toUpperCase()
-      if (studentId && ['PRESENT', 'ABSENT'].includes(recordStatus)) statuses[studentId] = recordStatus
+      if (recordStudentId && ['PRESENT', 'ABSENT'].includes(recordStatus)) statuses[recordStudentId] = recordStatus
     })
   })
 
@@ -321,6 +329,48 @@ function getStudentBatchCourseProgress(student = {}, batch = {}, course = null, 
   )
   const progress = Number(value)
   return Number.isFinite(progress) ? Math.min(Math.max(progress, 0), 100) : 0
+}
+
+function isStudentBatchCourseCompleted(student = {}, batch = {}, progress = 0, academicProgress = null) {
+  const courseId = normalizeMatchKey(batch?.courseId || batch?.branchCourseId)
+  const courseName = normalizeMatchKey(batch?.courseName)
+  const completionByCourse = student?.courseCompletionByCourse
+  const mappedEntry = completionByCourse && typeof completionByCourse === 'object' && !Array.isArray(completionByCourse)
+    ? Object.entries(completionByCourse).find(([key]) => {
+      const normalizedKey = normalizeMatchKey(key)
+      return (courseId && normalizedKey === courseId) || (courseName && normalizedKey === courseName)
+    })?.[1]
+    : null
+  const mappedCompletion = typeof mappedEntry === 'object'
+    ? mappedEntry?.courseCompletion || mappedEntry?.courseCompletionStatus || mappedEntry?.completionStatus || mappedEntry?.status
+    : mappedEntry
+  const enrollment = (student?.courseEnrollments || []).find((item) => {
+    const enrollmentCourseId = normalizeMatchKey(item?.courseId || item?.id)
+    const enrollmentCourseName = normalizeMatchKey(item?.courseName || item?.name)
+    return (courseId && enrollmentCourseId === courseId) || (courseName && enrollmentCourseName === courseName)
+  })
+  const enrollmentCompletion = enrollment?.courseCompletion || enrollment?.courseCompletionStatus || enrollment?.completionStatus || enrollment?.status
+  const progressValues = [
+    progress,
+    enrollment?.courseProgress,
+    enrollment?.courseCompletionPercentage,
+    enrollment?.progress,
+    student?.courseProgress,
+    student?.courseCompletionPercentage,
+    student?.courseProgressPercentage,
+    student?.progress,
+  ].map((value) => Number(String(value ?? '').replace('%', '').trim())).filter(Number.isFinite)
+  const hasCourseCompletionFlag = String(mappedCompletion || enrollmentCompletion || student?.courseCompletion || student?.courseCompletionStatus || '').trim().toUpperCase() === 'COMPLETED'
+    || mappedEntry?.isCompleted === true
+    || enrollment?.isCompleted === true
+    || enrollment?.completed === true
+  const hasCourseProgress = progressValues.some((value) => value >= 100)
+  const hasAcademicProgress = academicProgress == null
+    ? true
+    : Number(academicProgress?.total) > 0
+      && Number(academicProgress?.completed) >= Number(academicProgress?.total)
+
+  return (hasCourseCompletionFlag || hasCourseProgress) && hasAcademicProgress
 }
 
 function toNumber(value = '') {
@@ -818,6 +868,125 @@ function getBatchDisplayKey(group = {}) {
   return normalizeMatchKey(primaryBatch.batchId || group?.batchId || group?.batchGroupId || group?.id || '')
 }
 
+function getAcademicTestCountForBatch(rows = [], group = {}, batch = {}) {
+  const courseId = normalizeMatchKey(group?.courseId || group?.branchCourseId)
+  const courseName = normalizeMatchKey(group?.courseName)
+  const batchIds = new Set([
+    group?.batchGroupId,
+    group?.id,
+    group?.batchId,
+    batch?.batchId,
+    batch?.id,
+  ].map(normalizeMatchKey).filter(Boolean))
+  const batchName = normalizeMatchKey(batch?.batchName || group?.batchName)
+  return (Array.isArray(rows) ? rows : []).filter((row) => {
+    const rowCourse = row?.course || {}
+    const rowCourseId = normalizeMatchKey(rowCourse?.id || rowCourse?.courseId || row?.courseId)
+    const rowCourseName = normalizeMatchKey(rowCourse?.name || rowCourse?.courseName || row?.courseName)
+    const courseMatches = (courseId && rowCourseId === courseId) || (!courseId && courseName && rowCourseName === courseName)
+    if (!courseMatches) return false
+    const assignedBatches = Array.isArray(row?.batches) && row.batches.length
+      ? row.batches
+      : [row?.batch || row]
+    return assignedBatches.some((assignedBatch) => {
+      const assignedId = normalizeMatchKey(assignedBatch?.id || assignedBatch?.batchId)
+      const assignedName = normalizeMatchKey(assignedBatch?.batchName)
+      return (assignedId && batchIds.has(assignedId)) || (batchName && assignedName === batchName)
+    })
+  }).reduce((total, row) => {
+    const itemCount = Array.isArray(row?.items) ? row.items.length : Number(row?.academicTestCount ?? row?.testCount ?? row?.totalTests ?? 0)
+    return total + (Number.isFinite(itemCount) && itemCount > 0 ? itemCount : 0)
+  }, 0)
+}
+
+function getAcademicTestProgressForBatch(rows = [], reports = [], group = {}, batch = {}) {
+  const total = getAcademicTestCountForBatch(rows, group, batch)
+  const batchIds = new Set([
+    group?.batchGroupId,
+    group?.id,
+    group?.batchId,
+    batch?.batchId,
+    batch?.id,
+  ].map(normalizeMatchKey).filter(Boolean))
+  const courseId = normalizeMatchKey(group?.courseId || group?.branchCourseId)
+  const courseName = normalizeMatchKey(group?.courseName)
+  const completedTestIds = new Set()
+  ;(Array.isArray(reports) ? reports : []).forEach((report) => {
+    const reportBatch = report?.batch || {}
+    const reportBatchId = normalizeMatchKey(reportBatch?.id || reportBatch?.batchId || report?.batchId)
+    const reportBatchName = normalizeMatchKey(reportBatch?.batchName || reportBatch?.batchName || report?.batchName)
+    const reportCourse = report?.course || reportBatch || {}
+    const reportCourseId = normalizeMatchKey(reportCourse?.id || reportCourse?.courseId || report?.courseId || reportBatch?.courseId)
+    const reportCourseName = normalizeMatchKey(reportCourse?.name || reportCourse?.courseName || report?.courseName || reportBatch?.courseName)
+    const matchesBatch = (reportBatchId && batchIds.has(reportBatchId)) || (reportBatchName && reportBatchName === normalizeMatchKey(batch?.batchName || group?.batchName))
+    const matchesCourse = (courseId && reportCourseId === courseId) || (courseName && reportCourseName === courseName)
+    if (!matchesBatch || !matchesCourse) return
+    const ids = Array.isArray(report?.academicTestIds)
+      ? report.academicTestIds
+      : Array.isArray(report?.tests)
+        ? report.tests.map((test) => test?.id || test?.testId || test?.testNumber)
+        : report?.id ? [report.id] : []
+    ids.forEach((id) => { if (id !== undefined && id !== null && String(id).trim()) completedTestIds.add(String(id)) })
+  })
+  const completed = Math.min(total, completedTestIds.size)
+  return { total, completed, percentage: total ? Math.round((completed / total) * 100) : 0 }
+}
+
+function getStudentAcademicTestProgress(response = {}, totalConfiguredTests = 0, group = {}) {
+  const payload = response?.data || response || {}
+  const source = Array.isArray(payload)
+    ? payload
+    : Array.isArray(payload?.evaluations)
+      ? payload.evaluations
+      : Array.isArray(payload?.items)
+        ? payload.items
+        : []
+  const courseId = normalizeMatchKey(group?.courseId || group?.branchCourseId)
+  const courseName = normalizeMatchKey(group?.courseName)
+  const scoped = source.filter((item) => {
+    const course = item?.course || item?.courseDetails || {}
+    const itemCourseId = normalizeMatchKey(item?.courseId || course?.id || course?.courseId)
+    const itemCourseName = normalizeMatchKey(item?.courseName || course?.name || course?.courseName)
+    return (!itemCourseId && !itemCourseName) || (courseId && itemCourseId === courseId) || (courseName && itemCourseName === courseName)
+  })
+  const unique = new Map()
+  scoped.forEach((item, index) => {
+    // A combined test + project report must count as one academic test.
+    const key = String(item?.testNumber || item?.evaluationId || item?.id || item?.name || item?.title || item?.testName || index).trim().toUpperCase()
+    unique.set(key, [...(unique.get(key) || []), item])
+  })
+  const completed = [...unique.values()].filter((items) => {
+    const getNestedResults = (item = {}) => [
+      item,
+      ...(Array.isArray(item?.tests) ? item.tests : []),
+      ...(Array.isArray(item?.projects) ? item.projects : []),
+      ...(Array.isArray(item?.attempts) ? item.attempts : []),
+      item?.final,
+      item?.result,
+    ].filter(Boolean)
+    const getStatus = (item) => String(item?.status || item?.reportStatus || item?.final?.status || item?.test?.status || item?.result?.status || '').trim().toUpperCase().replace(/\s+/g, '_')
+    const nestedResults = items.flatMap(getNestedResults)
+    return nestedResults.some((item) => {
+      const status = getStatus(item)
+      // A retest can follow an original Not Attended attempt. Ignore the
+      // incomplete attempt when a later valid result/mark is present.
+      if (['NOT_ATTENDED', 'NOT_SUBMITTED', 'ABSENT'].includes(status)) return false
+      return ['SUBMITTED', 'EVALUATED', 'GRADED', 'COMPLETED', 'PROJECT_SUBMITTED', 'PROJECT_GRADED'].includes(status)
+        || Number(item?.percentage ?? item?.final?.percentage) > 0
+        || Number(item?.overallTestPercentage) > 0
+        || Number(item?.overallProjectPercentage) > 0
+        || Number(item?.projectPercentage) > 0
+        || Number.isFinite(Number(item?.marksObtained ?? item?.marksAwarded ?? item?.final?.marksObtained ?? item?.final?.marksAwarded))
+        || ['PASS', 'FAIL'].includes(String(item?.result || item?.final?.result || '').trim().toUpperCase())
+    })
+  }).length
+  // The batch configuration is the source of truth. Reports must never
+  // increase the number of academic tests shown for the batch.
+  const configuredTotal = Number(totalConfiguredTests) || 0
+  const total = configuredTotal > 0 ? configuredTotal : unique.size
+  return { total, completed: Math.min(total, completed), percentage: total ? Math.round((Math.min(total, completed) / total) * 100) : 0 }
+}
+
 function buildSingleBatchDisplayGroup(group = {}) {
   const primaryBatch = getPrimaryBatchForGroup(group)
   const batchId = primaryBatch.batchId || normalizeText(group?.batchId || group?.batchGroupId || group?.id || '')
@@ -878,7 +1047,64 @@ export function BranchBatchManagementSection({
   const [actionMenuPosition, setActionMenuPosition] = useState(null)
   const [saveSuccessPopup, setSaveSuccessPopup] = useState(null)
   const [attendanceReportBatch, setAttendanceReportBatch] = useState(null)
+  const [academicTestRows, setAcademicTestRows] = useState([])
+  const [academicTestReports, setAcademicTestReports] = useState([])
+  const [studentAcademicTestProgress, setStudentAcademicTestProgress] = useState({})
   const actionMenuCloseTimerRef = useRef(null)
+
+  useEffect(() => {
+    let active = true
+    Promise.all([listAcademicTests(), listBranchAcademicTestReports()])
+      .then(([rows, reports]) => {
+        const items = Array.isArray(rows) ? rows : Array.isArray(rows?.data) ? rows.data : []
+        const reportItems = Array.isArray(reports) ? reports : Array.isArray(reports?.data) ? reports.data : []
+        if (active) {
+          setAcademicTestRows(items)
+          setAcademicTestReports(reportItems)
+        }
+      })
+      .catch(() => {
+        if (active) {
+          setAcademicTestRows([])
+          setAcademicTestReports([])
+        }
+      })
+    return () => { active = false }
+  }, [branchId])
+
+  useEffect(() => {
+    if (!detailGroup) {
+      return undefined
+    }
+    const detailBatch = getPrimaryBatchForGroup(detailGroup)
+    const students = getMatchingStudents(branchStudents, {
+      facultyId: detailGroup?.facultyId || detailGroup?.branchFacultyId || '',
+      facultyName: detailGroup?.facultyName || '',
+      courseId: detailGroup?.courseId || detailGroup?.branchCourseId || '',
+      courseName: detailGroup?.courseName || '',
+      batchGroupId: detailGroup?.batchGroupId || detailGroup?.id || '',
+      batchId: detailBatch?.batchId || detailBatch?.id || '',
+      batchName: detailBatch?.batchName || '',
+      batchTiming: detailBatch?.batchTiming || '',
+    })
+    const total = getAcademicTestCountForBatch(academicTestRows, detailGroup, detailBatch)
+    const progressScopeKey = getBatchSeatMapKey(detailBatch, detailGroup)
+    let active = true
+    Promise.all(students.map(async (student) => {
+      const studentId = String(student?.studentId || student?.id || student?._id || '').trim()
+      if (!studentId) return null
+      try {
+        const response = await getBranchStudentAcademicReports(studentId, branchId)
+        return [`${progressScopeKey}:${normalizeMatchKey(studentId)}`, getStudentAcademicTestProgress(response, total, detailGroup)]
+      } catch {
+        return [`${progressScopeKey}:${normalizeMatchKey(studentId)}`, { total, completed: 0, percentage: 0 }]
+      }
+    })).then((entries) => {
+      if (!active) return
+      setStudentAcademicTestProgress(Object.fromEntries(entries.filter(Boolean)))
+    })
+    return () => { active = false }
+  }, [academicTestRows, branchId, branchStudents, detailGroup])
 
   const refreshBatchGroups = useCallback(async () => {
     setIsLoading(true)
@@ -1303,11 +1529,14 @@ export function BranchBatchManagementSection({
           })
       // The server response is authoritative. This also clears stale local
       // browser marks when today's attendance has not actually been saved.
-      setDetailAttendanceStatuses(extractAttendanceStatuses(overview, {
+      setDetailAttendanceStatuses({
+        ...localStatuses,
+        ...extractAttendanceStatuses(overview, {
         date: todayKey,
         courseId: group?.courseId || group?.branchCourseId || detailBatch?.courseId || '',
         batchId: detailBatch?.batchId || detailBatch?.id || '',
-      }))
+        }),
+      })
     } catch {
       // The faculty dashboard also persists today's marks locally. Keep those
       // marks visible when the branch overview endpoint is unavailable.
@@ -1800,6 +2029,35 @@ export function BranchBatchManagementSection({
     }
   }, [currentBranchBatchGroups])
 
+  const getComputedBatchStatus = (group = {}) => {
+    const primaryBatch = getPrimaryBatchForGroup(group)
+    const students = getMatchingStudents(branchStudents, {
+      facultyId: group?.facultyId || group?.branchFacultyId || '',
+      facultyName: group?.facultyName || '',
+      courseId: group?.courseId || group?.branchCourseId || '',
+      courseName: group?.courseName || '',
+      batchGroupId: group?.batchGroupId || group?.id || '',
+      batchId: primaryBatch?.batchId || primaryBatch?.id || '',
+      batchName: primaryBatch?.batchName || '',
+      batchTiming: primaryBatch?.batchTiming || '',
+    })
+    const total = getAcademicTestCountForBatch(academicTestRows, group, primaryBatch)
+    const scopeKey = getBatchSeatMapKey(primaryBatch, group)
+    const completed = students.length > 0 && students.every((student) => isStudentBatchCourseCompleted(
+      student,
+      { ...group, ...primaryBatch },
+      getStudentBatchCourseProgress(
+        student,
+        { ...group, ...primaryBatch },
+        branchCourses.find((course) => normalizeMatchKey(course?.id || course?.courseId) === normalizeMatchKey(group?.courseId || group?.branchCourseId)),
+        facultyTodayWorkEntries,
+      ),
+      studentAcademicTestProgress[`${scopeKey}:${normalizeMatchKey(student?.studentId || student?.id || student?._id || '')}`]
+        || { total, completed: 0, percentage: 0 },
+    ))
+    return completed ? 'completed' : isInactiveBatchGroup(group) ? 'inactive' : 'active'
+  }
+
   const filteredGroups = currentBranchBatchGroups
     .filter((group) => {
       const search = normalizeText(appliedSearchTerm).toLowerCase()
@@ -1820,7 +2078,7 @@ export function BranchBatchManagementSection({
     })
     .filter((group) => {
       if (batchStatusFilter === 'all') return true
-      const status = isInactiveBatchGroup(group) ? 'inactive' : 'active'
+      const status = getComputedBatchStatus(group)
       return status === batchStatusFilter
     })
     .filter((group) => {
@@ -1864,6 +2122,67 @@ export function BranchBatchManagementSection({
     uniqueDisplayGroupKeys.add(key)
     displayGroups.push(displayGroup)
   })
+
+  const displayGroupAcademicKey = displayGroups.map((group) => getBatchDisplayKey(group)).join('|')
+
+  useEffect(() => {
+    if (!displayGroups.length || !branchStudents.length) return undefined
+    let active = true
+    const scopedStudents = new Map()
+    displayGroups.forEach((group) => {
+      const batch = getPrimaryBatchForGroup(group)
+      const students = getMatchingStudents(branchStudents, {
+        facultyId: group?.facultyId || group?.branchFacultyId || '',
+        facultyName: group?.facultyName || '',
+        courseId: group?.courseId || group?.branchCourseId || '',
+        courseName: group?.courseName || '',
+        batchGroupId: group?.batchGroupId || group?.id || '',
+        batchId: batch?.batchId || batch?.id || '',
+        batchName: batch?.batchName || '',
+        batchTiming: batch?.batchTiming || '',
+      })
+      students.forEach((student) => {
+        const studentId = String(student?.studentId || student?.id || student?._id || '').trim()
+        if (studentId) scopedStudents.set(normalizeMatchKey(studentId), student)
+      })
+    })
+
+    Promise.all([...scopedStudents.entries()].map(async ([studentKey, student]) => {
+      try {
+        return [studentKey, await getBranchStudentAcademicReports(String(student?.studentId || student?.id || student?._id || '').trim(), branchId)]
+      } catch {
+        return [studentKey, null]
+      }
+    })).then((studentResponses) => {
+      if (!active) return
+      const nextProgress = {}
+      displayGroups.forEach((group) => {
+        const batch = getPrimaryBatchForGroup(group)
+        const total = getAcademicTestCountForBatch(academicTestRows, group, batch)
+        const scopeKey = getBatchSeatMapKey(batch, group)
+        const students = getMatchingStudents(branchStudents, {
+          facultyId: group?.facultyId || group?.branchFacultyId || '',
+          facultyName: group?.facultyName || '',
+          courseId: group?.courseId || group?.branchCourseId || '',
+          courseName: group?.courseName || '',
+          batchGroupId: group?.batchGroupId || group?.id || '',
+          batchId: batch?.batchId || batch?.id || '',
+          batchName: batch?.batchName || '',
+          batchTiming: batch?.batchTiming || '',
+        })
+        students.forEach((student) => {
+          const studentId = String(student?.studentId || student?.id || student?._id || '').trim()
+          const response = studentResponses.find(([key]) => key === normalizeMatchKey(studentId))?.[1]
+          if (studentId) nextProgress[`${scopeKey}:${normalizeMatchKey(studentId)}`] = getStudentAcademicTestProgress(response || {}, total, group)
+        })
+      })
+      setStudentAcademicTestProgress((current) => ({ ...current, ...nextProgress }))
+    })
+
+    return () => { active = false }
+  // The signature prevents this background sync from firing on every render.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [academicTestRows, branchId, branchStudents, displayGroupAcademicKey])
 
   const batchRowsPerPage = 5
   const totalBatchPages = Math.max(1, Math.ceil(displayGroups.length / batchRowsPerPage))
@@ -2265,6 +2584,20 @@ export function BranchBatchManagementSection({
       branchCourses.find((course) => normalizeMatchKey(course?.id || course?.courseId) === normalizeMatchKey(detailGroup?.courseId || detailGroup?.branchCourseId)),
       facultyTodayWorkEntries,
     )
+    const detailAcademicTestCount = getAcademicTestCountForBatch(academicTestRows, detailGroup, detailBatch)
+    const progressScopeKey = getBatchSeatMapKey(detailBatch, detailGroup)
+    const studentAcademicProgressValues = detailStudents.map((student) => {
+      const studentKey = normalizeMatchKey(student?.studentId || student?.id || student?._id || '')
+      return studentAcademicTestProgress[`${progressScopeKey}:${studentKey}`] || { total: detailAcademicTestCount, completed: 0, percentage: 0 }
+    })
+    const batchAcademicCompleted = studentAcademicProgressValues.length
+      ? Math.min(...studentAcademicProgressValues.map((progress) => Math.min(detailAcademicTestCount, Number(progress.completed) || 0)))
+      : getAcademicTestProgressForBatch(academicTestRows, academicTestReports, detailGroup, detailBatch).completed
+    const academicTestProgress = {
+      total: detailAcademicTestCount,
+      completed: batchAcademicCompleted,
+      percentage: detailAcademicTestCount ? Math.round((batchAcademicCompleted / detailAcademicTestCount) * 100) : 0,
+    }
     const detailStatus = normalizeStatus(detailGroup.status || 'Active')
     const detailStatusClass = String(detailStatus).toLowerCase()
 
@@ -2320,6 +2653,11 @@ export function BranchBatchManagementSection({
                 <span>Course: <strong>{detailGroup.courseName || '-'}</strong></span>
                 <span>Faculty: <strong>{detailGroup.facultyName || '-'}</strong></span>
                 <span>Course Progress: <strong>{detailCourseProgress}%</strong></span>
+                <span>Academic Tests: <strong>{detailAcademicTestCount}</strong></span>
+              </div>
+              <div className="batch-detail-academic-progress" aria-label={`Academic test progress: ${academicTestProgress.completed} of ${academicTestProgress.total} completed`}>
+                <div className="batch-detail-academic-progress-label"><span>Academic Test Progress</span><strong>{academicTestProgress.completed}/{academicTestProgress.total} ({academicTestProgress.percentage}%)</strong></div>
+                <div className="batch-detail-academic-progress-track" aria-hidden="true"><span style={{ width: `${academicTestProgress.percentage}%` }} /></div>
               </div>
 
             </div>
@@ -2334,15 +2672,17 @@ export function BranchBatchManagementSection({
               <div className="batch-detail-students-list">
                 {detailStudents.map((student, index) => {
                   const attendanceKey = normalizeMatchKey(student?.studentId || student?.id || student?._id || '')
+                  const progressScopeKey = getBatchSeatMapKey(detailBatch, detailGroup)
                   const attendanceStatus = detailAttendanceStatuses[attendanceKey] || 'UNMARKED'
                   const selectedCourse = branchCourses.find((course) => normalizeMatchKey(course?.id || course?.courseId) === normalizeMatchKey(detailGroup?.courseId || detailGroup?.branchCourseId))
                   const studentCourseProgress = getStudentBatchCourseProgress(student, { ...detailGroup, ...detailBatch }, selectedCourse, facultyTodayWorkEntries)
-                  const selectedCourseCompletion = student?.courseCompletionByCourse?.[
-                    detailGroup?.courseId || detailGroup?.branchCourseId || ''
-                  ]
-                  const isCourseCompleted = String(
-                    selectedCourseCompletion || student?.courseCompletion || student?.courseCompletionStatus || '',
-                  ).toUpperCase() === 'COMPLETED'
+                  const studentAcademicProgress = studentAcademicTestProgress[`${progressScopeKey}:${attendanceKey}`] || { total: detailAcademicTestCount, completed: 0, percentage: 0 }
+                  const isCourseCompleted = isStudentBatchCourseCompleted(
+                    student,
+                    { ...detailGroup, ...detailBatch },
+                    studentCourseProgress,
+                    studentAcademicProgress,
+                  )
                   const isStudentDiscontinued = Boolean(
                     student?.isDiscontinued
                     || String(student?.discontinuationStatus || '').trim().toUpperCase() === 'APPROVED'
@@ -2372,6 +2712,13 @@ export function BranchBatchManagementSection({
                       </div>
                       <div className="batch-detail-student-progress-track" aria-hidden="true">
                         <span style={{ width: `${studentCourseProgress}%` }} />
+                      </div>
+                      <div className="batch-detail-student-progress-label academic-test-progress-label">
+                        <span>Academic Tests</span>
+                        <strong>{studentAcademicProgress.completed}/{studentAcademicProgress.total}</strong>
+                      </div>
+                      <div className="batch-detail-student-progress-track" aria-hidden="true">
+                        <span style={{ width: `${studentAcademicProgress.percentage}%` }} />
                       </div>
                     </div> : null}
                     </div>
@@ -2426,13 +2773,22 @@ export function BranchBatchManagementSection({
     const batchAvailability = getBatchAvailability(primaryBatch.courseEndDate || group.courseEndDate)
     const groupKey = String(group.id || group.batchGroupId || group.batchId || primaryBatch.batchId || '')
     const batchCourseId = String(group?.courseId || group?.branchCourseId || '').trim().toLowerCase()
-    const allBatchStudentsCompleted = batchStudents.length > 0 && batchStudents.every((student) => {
-      const courseStatuses = student?.courseCompletionByCourse || {}
-      const courseStatus = Object.entries(courseStatuses).find(([courseId]) => String(courseId).trim().toLowerCase() === batchCourseId)?.[1]
-        || student?.courseCompletion
-        || student?.courseCompletionStatus
-      return String(courseStatus || '').toUpperCase() === 'COMPLETED'
-    })
+    const academicTestTotal = getAcademicTestCountForBatch(academicTestRows, group, primaryBatch)
+    const progressScopeKey = getBatchSeatMapKey(primaryBatch, group)
+    const allBatchStudentsCompleted = batchStudents.length > 0 && batchStudents.every((student) => (
+      isStudentBatchCourseCompleted(
+        student,
+        { ...group, ...primaryBatch },
+        getStudentBatchCourseProgress(
+          student,
+          { ...group, ...primaryBatch },
+          branchCourses.find((course) => normalizeMatchKey(course?.id || course?.courseId) === batchCourseId),
+          facultyTodayWorkEntries,
+        ),
+        studentAcademicTestProgress[`${progressScopeKey}:${normalizeMatchKey(student?.studentId || student?.id || student?._id || '')}`]
+          || { total: academicTestTotal, completed: 0, percentage: 0 },
+      )
+    ))
     const statusLabel = allBatchStudentsCompleted
       ? 'Completed'
       : isInactiveBatchGroup(group)
@@ -2606,6 +2962,18 @@ export function BranchBatchManagementSection({
           </button>
         </div>
         <div className="batch-management-filter-controls" aria-label="Batch filters">
+          <BranchBatchFilterSelect
+            value={batchStatusFilter}
+            width={145}
+            ariaLabel="Filter by status"
+            options={[
+              { value: 'all', label: 'All status' },
+              { value: 'active', label: 'Active' },
+              { value: 'inactive', label: 'Inactive' },
+              { value: 'completed', label: 'Completed' },
+            ]}
+            onChange={(value) => { setBatchStatusFilter(value); setBatchTablePage(1) }}
+          />
           <BranchBatchFilterSelect
             value={batchCourseFilter}
             width={150}

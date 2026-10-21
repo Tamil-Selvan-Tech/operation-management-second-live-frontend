@@ -1,17 +1,38 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { ArrowLeft, ChevronDown } from 'lucide-react'
-import { getBranchAcademicTestReport, listBranchAcademicTestReports } from '../services/academicTestService'
+import { getBranchAcademicTestReport, listAcademicTests, listBranchAcademicTestReports } from '../services/academicTestService'
 import '../styles/AcademicTestReportPage.css'
 
 const resultClass = (result) => String(result || '').toLowerCase() === 'pass' ? 'is-pass' : String(result || '').toLowerCase() === 'fail' ? 'is-fail' : ''
 const display = (value, fallback = '-') => value === null || value === undefined || value === '' ? fallback : value
+const normalizeKey = (value) => String(value || '').trim().toLowerCase()
+
+const getBatchReportKey = (item = {}) => {
+  const batch = item?.batch || {}
+  const course = item?.course || {}
+  const batchKey = normalizeKey(batch.id || batch.batchId || item.batchId || batch.batchName || item.batchName)
+  const courseKey = normalizeKey(course.id || course.courseId || item.courseId || course.name || item.courseName || batch.courseId || batch.courseName)
+  return batchKey ? `batch:${batchKey}` : `${courseKey}|${normalizeKey(batch.batchName || item.batchName)}`
+}
+
+const getAcademicTestCount = (row = {}) => {
+  if (Array.isArray(row?.items) && row.items.length) return row.items.length
+  const value = Number(row?.academicTestCount ?? row?.testCount ?? row?.totalTests ?? 0)
+  return Number.isFinite(value) && value > 0 ? value : 0
+}
+
+const getReportTestIds = (report = {}) => {
+  if (Array.isArray(report?.academicTestIds)) return report.academicTestIds
+  if (Array.isArray(report?.tests)) return report.tests.map((test) => test?.id || test?.testId || test?.testNumber).filter(Boolean)
+  return report?.id ? [report.id] : []
+}
 
 function AcademicReportSkeletonRows({ columns, count = 5 }) {
-  return Array.from({ length: count }, (_, rowIndex) => (
-    <tr key={`academic-report-skeleton-${rowIndex}`} className="academic-report-skeleton-row" aria-hidden="true">
-      {Array.from({ length: columns }, (_, columnIndex) => <td key={columnIndex}><span /></td>)}
-    </tr>
-  ))
+  return Array.from({ length: count }, (_, rowIndex) => <tr key={`academic-report-skeleton-${rowIndex}`} className="academic-report-skeleton-row" aria-hidden="true">{Array.from({ length: columns }, (_, columnIndex) => <td key={columnIndex}><span /></td>)}</tr>)
+}
+
+function AcademicReportProgressCell({ progress }) {
+  return <div className="academic-report-progress-cell" aria-label={`Test progress: ${progress.completed} of ${progress.total} completed`} style={{ minWidth: 150 }}><div className="academic-report-progress-label" style={{ display: 'flex', justifyContent: 'space-between', gap: 8, fontSize: 12, fontWeight: 800 }}><strong>{progress.completed}/{progress.total}</strong><span>{progress.percentage}%</span></div><div className="academic-report-progress-track" aria-hidden="true" style={{ height: 7, marginTop: 6, overflow: 'hidden', borderRadius: 999, background: '#dbeafe' }}><span style={{ display: 'block', width: `${progress.percentage}%`, height: '100%', borderRadius: 'inherit', background: '#2563eb' }} /></div></div>
 }
 
 function TestCell({ test }) {
@@ -23,40 +44,41 @@ function TestCell({ test }) {
 
 export default function BranchAcademicTestReports() {
   const [reports, setReports] = useState([])
+  const [academicTestRows, setAcademicTestRows] = useState([])
   const [report, setReport] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [studentSearch, setStudentSearch] = useState('')
-  useEffect(() => { listBranchAcademicTestReports().then(setReports).catch((err) => setError(err.message || 'Unable to load reports.')).finally(() => setLoading(false)) }, [])
-  useEffect(() => { if (report || loading) return; const card = document.querySelector('.branch-academic-report .academic-report-card'); const wrapper = document.querySelector('.branch-academic-report .branch-report-search'); if (card && wrapper) card.parentNode.insertBefore(wrapper, card) }, [report, loading, reports.length])
-  useEffect(() => { if (report || loading) return undefined; const card = document.querySelector('.branch-academic-report .academic-report-card'); const tableWrap = card?.querySelector('.academic-report-table-wrap'); const body = tableWrap?.querySelector('tbody'); if (!card || !tableWrap || !body || card.querySelector('.branch-report-search')) return undefined; const wrapper = document.createElement('div'); wrapper.className = 'branch-report-search'; const input = document.createElement('input'); input.type = 'search'; input.placeholder = 'Search Batch ID or Batch Name'; wrapper.appendChild(input); card.querySelector('.academic-report-card-title')?.appendChild(wrapper); const pagination = document.createElement('div'); pagination.className = 'academic-report-pagination'; tableWrap.after(pagination); let currentPage = 1; const apply = () => { const query = input.value.trim().toLowerCase(); const tableRows = [...body.querySelectorAll('tr')].filter((row) => row.querySelectorAll('td').length); const matching = tableRows.filter((row) => [row.cells[0]?.textContent, row.cells[1]?.textContent].some((text) => String(text || '').toLowerCase().includes(query))); const pageCount = Math.max(1, Math.ceil(matching.length / 5)); currentPage = Math.min(currentPage, pageCount); tableRows.forEach((row) => { row.style.display = 'none' }); matching.slice((currentPage - 1) * 5, currentPage * 5).forEach((row) => { row.style.display = '' }); pagination.innerHTML = ''; if (pageCount <= 1) return; const addButton = (label, disabled, action, active = false) => { const button = document.createElement('button'); button.type = 'button'; button.textContent = label; button.disabled = disabled; if (active) button.className = 'is-active'; button.onclick = action; pagination.appendChild(button) }; addButton('Previous', currentPage === 1, () => { currentPage -= 1; apply() }); for (let pageNumber = 1; pageNumber <= pageCount; pageNumber += 1) addButton(String(pageNumber), false, () => { currentPage = pageNumber; apply() }, currentPage === pageNumber); addButton('Next', currentPage === pageCount, () => { currentPage += 1; apply() }); }; input.addEventListener('input', () => { currentPage = 1; apply() }); apply(); return () => { wrapper.remove(); pagination.remove() } }, [report, loading, reports.length])
-  useEffect(() => {
-    if (!report || loading) return undefined
-    const card = document.querySelector('.branch-academic-report .academic-report-card')
-    const title = card?.querySelector('.academic-report-card-title')
-    const table = card?.querySelector('.academic-report-student-table')
-    if (!title || !table || title.querySelector('.academic-report-student-search')) return undefined
-    const input = document.createElement('input')
-    input.type = 'search'
-    input.className = 'academic-report-student-search'
-    input.placeholder = 'Search Student Name or Student ID'
-    input.setAttribute('aria-label', 'Search Student Name or Student ID')
-    title.appendChild(input)
-    const apply = () => {
-      const query = input.value.trim().toLowerCase()
-      table.querySelectorAll('tbody tr').forEach((row) => {
-        const text = [row.cells[0]?.textContent, row.cells[1]?.textContent].join(' ').toLowerCase()
-        row.style.display = !query || text.includes(query) ? '' : 'none'
+
+  useEffect(() => { Promise.all([listBranchAcademicTestReports(), listAcademicTests()]).then(([reportRows, testRows]) => { setReports(Array.isArray(reportRows) ? reportRows : []); setAcademicTestRows(Array.isArray(testRows) ? testRows : []) }).catch((err) => setError(err.message || 'Unable to load reports.')).finally(() => setLoading(false)) }, [])
+
+  const reportProgressByKey = useMemo(() => {
+    const totals = new Map()
+    academicTestRows.forEach((row) => {
+      const total = getAcademicTestCount(row)
+      const course = row?.course || {}
+      const courseKey = normalizeKey(course.id || course.courseId || row?.courseId || course.name || row?.courseName)
+      const assignedBatches = Array.isArray(row?.batches) && row.batches.length ? row.batches : [row?.batch || row]
+      assignedBatches.forEach((batch) => {
+        const batchId = normalizeKey(batch?.id || batch?.batchId)
+        const batchKey = batchId ? `batch:${batchId}` : `${courseKey}|${normalizeKey(batch?.batchName)}`
+        if (courseKey && batchKey) totals.set(batchKey, (totals.get(batchKey) || 0) + total)
       })
-    }
-    input.addEventListener('input', apply)
-    return () => { input.removeEventListener('input', apply); input.remove() }
-  }, [report, loading])
+    })
+    const completed = new Map()
+    reports.forEach((item) => { const key = getBatchReportKey(item); if (!key || key === '|') return; const ids = completed.get(key) || new Set(); getReportTestIds(item).forEach((id) => ids.add(String(id))); completed.set(key, ids) })
+    const result = new Map()
+    new Set([...totals.keys(), ...completed.keys()]).forEach((key) => { const total = totals.get(key) || completed.get(key)?.size || 0; const done = Math.min(total, completed.get(key)?.size || 0); result.set(key, { total, completed: done, percentage: total ? Math.round((done / total) * 100) : 0 }) })
+    return result
+  }, [academicTestRows, reports])
+
   const openReport = async (id) => { try { setError(''); setStudentSearch(''); setLoading(true); setReport(await getBranchAcademicTestReport(id)) } catch (err) { setError(err.message || 'Unable to load report.') } finally { setLoading(false) } }
   const tests = report?.tests || []
   const hasProject = Boolean(report?.hasProject)
   const studentQuery = studentSearch.trim().toLowerCase()
   const visibleStudents = (report?.students || []).filter((row) => !studentQuery || [row.student?.studentName, row.student?.studentId].some((field) => String(field || '').toLowerCase().includes(studentQuery)))
-  if (loading && !report) return <section className="academic-report-page is-embedded branch-academic-report"><div className="academic-report-heading"><div><p className="academic-report-kicker">BRANCH ADMIN WORKSPACE</p><h1>Academic Test Report</h1><p>Reports sent by faculty for completed Academic Tests.</p></div></div><section className="academic-report-card academic-report-loading-card"><div className="academic-report-card-title"><h2>Received Reports</h2><span className="academic-report-skeleton-short" /></div><div className="academic-report-table-wrap"><table className="academic-report-table"><thead><tr><th>Batch</th><th>Batch ID</th><th>Course</th><th>Faculty</th><th>Tests</th><th>Sent At</th><th>Action</th></tr></thead><tbody><AcademicReportSkeletonRows columns={7} /></tbody></table></div></section></section>
-  return <section className="academic-report-page is-embedded branch-academic-report"><div className="academic-report-heading"><div><p className="academic-report-kicker">BRANCH ADMIN WORKSPACE</p><h1>Academic Test Report</h1><p>Reports sent by faculty for completed Academic Tests.</p></div>{report && <button type="button" className="academic-report-back" onClick={() => setReport(null)}><ArrowLeft size={16} /> All reports</button>}</div>{error && <div className="academic-report-error">{error}</div>}{!report ? <section className="academic-report-card"><div className="academic-report-card-title"><h2>Received Reports</h2><span>{reports.length} reports</span></div><div className="academic-report-table-wrap"><table className="academic-report-table"><thead><tr><th>Batch</th><th>Batch ID</th><th>Course</th><th>Faculty</th><th>Tests</th><th>Sent At</th><th>Action</th></tr></thead><tbody>{loading ? <tr><td colSpan="7">Loading reports...</td></tr> : reports.length ? reports.map((item) => <tr key={item.id}><td>{item.batch?.batchName || '-'}</td><td>{item.batch?.batchId || '-'}</td><td>{item.batch?.courseName || '-'}</td><td>{item.faculty?.fullName || '-'}</td><td>{item.academicTestIds?.length || 0}</td><td>{item.sentAt ? new Date(item.sentAt).toLocaleDateString() : '-'}</td><td><button type="button" className="academic-report-primary" onClick={() => openReport(item.id)}>View Students</button></td></tr>) : <tr><td colSpan="7">No Academic Test reports received.</td></tr>}</tbody></table></div></section> : <section className="academic-report-card"><div className="academic-report-card-title"><div><h2>{report.batch?.batchName || '-'}</h2><p>{report.batch?.batchId || '-'} · {report.course?.name || report.batch?.courseName || '-'}</p></div><span>{report.students?.length || 0} students</span></div><div className="academic-report-table-wrap"><table className="academic-report-table academic-report-student-table"><thead><tr><th>Student</th><th>Student ID</th>{tests.map((test) => <th key={test.testNumber}>Test {test.testNumber}</th>)}{hasProject && <th>Project</th>}<th>Overall Test %</th>{hasProject && <th>Overall Project %</th>}</tr></thead><tbody>{loading ? <tr><td colSpan={tests.length + 4}>Loading...</td></tr> : report.students?.length ? report.students.map((row) => <tr key={row.student.id}><td><strong>{row.student.studentName}</strong><small>{row.student.emailAddress}</small></td><td>{row.student.studentId}</td>{row.tests.map((test) => <td key={test.testNumber}><TestCell test={test} /></td>)}{hasProject && <td>{row.project?.marksAwarded == null ? '-' : `${row.project.marksAwarded}/${row.project.totalMarks}`}</td>}<td className="academic-report-percent">{row.overallTestPercentage == null ? '-' : `${row.overallTestPercentage}%`}</td>{hasProject && <td className="academic-report-percent">{row.overallProjectPercentage == null ? '-' : `${row.overallProjectPercentage}%`}</td>}</tr>) : <tr><td colSpan={tests.length + 4}>No students found.</td></tr>}</tbody></table></div></section>}</section>
+
+  if (loading && !report) return <section className="academic-report-page is-embedded branch-academic-report"><div className="academic-report-heading"><div><p className="academic-report-kicker">BRANCH ADMIN WORKSPACE</p><h1>Academic Test Report</h1><p>Reports sent by faculty for completed Academic Tests.</p></div></div><section className="academic-report-card academic-report-loading-card"><div className="academic-report-card-title"><h2>Received Reports</h2><span className="academic-report-skeleton-short" /></div><div className="academic-report-table-wrap"><table className="academic-report-table"><thead><tr><th>Batch</th><th>Batch ID</th><th>Course</th><th>Faculty</th><th>Tests</th><th>Test Progress</th><th>Sent At</th><th>Action</th></tr></thead><tbody><AcademicReportSkeletonRows columns={8} /></tbody></table></div></section></section>
+
+  return <section className="academic-report-page is-embedded branch-academic-report"><div className="academic-report-heading"><div><p className="academic-report-kicker">BRANCH ADMIN WORKSPACE</p><h1>Academic Test Report</h1><p>Reports sent by faculty for completed Academic Tests.</p></div>{report && <button type="button" className="academic-report-back" onClick={() => setReport(null)}><ArrowLeft size={16} /> All reports</button>}</div>{error && <div className="academic-report-error">{error}</div>}{!report ? <section className="academic-report-card"><div className="academic-report-card-title"><h2>Received Reports</h2><span>{reports.length} reports</span></div><div className="academic-report-table-wrap"><table className="academic-report-table"><thead><tr><th>Batch</th><th>Batch ID</th><th>Course</th><th>Faculty</th><th>Tests</th><th>Test Progress</th><th>Sent At</th><th>Action</th></tr></thead><tbody>{reports.length ? reports.map((item) => <tr key={item.id}><td>{item.batch?.batchName || '-'}</td><td>{item.batch?.batchId || '-'}</td><td>{item.batch?.courseName || item.course?.name || '-'}</td><td>{item.faculty?.fullName || '-'}</td><td>{getReportTestIds(item).length}</td><td><AcademicReportProgressCell progress={reportProgressByKey.get(getBatchReportKey(item)) || { total: 0, completed: 0, percentage: 0 }} /></td><td>{item.sentAt ? new Date(item.sentAt).toLocaleDateString() : '-'}</td><td><button type="button" className="academic-report-primary" onClick={() => openReport(item.id)}>View Students</button></td></tr>) : <tr><td colSpan="8">No Academic Test reports received.</td></tr>}</tbody></table></div></section> : <section className="academic-report-card"><div className="academic-report-card-title"><div><h2>{report.batch?.batchName || '-'}</h2><p>{report.batch?.batchId || '-'} · {report.course?.name || report.batch?.courseName || '-'}</p></div><span>{report.students?.length || 0} students</span></div><div className="academic-report-table-wrap"><table className="academic-report-table academic-report-student-table"><thead><tr><th>Student</th><th>Student ID</th>{tests.map((test) => <th key={test.testNumber}>Test {test.testNumber}</th>)}{hasProject && <th>Project</th>}<th>Overall Test %</th>{hasProject && <th>Overall Project %</th>}</tr></thead><tbody>{loading ? <tr><td colSpan={tests.length + 4}>Loading...</td></tr> : visibleStudents.length ? visibleStudents.map((row) => <tr key={row.student.id}><td><strong>{row.student.studentName}</strong><small>{row.student.emailAddress}</small></td><td>{row.student.studentId}</td>{row.tests.map((test) => <td key={test.testNumber}><TestCell test={test} /></td>)}{hasProject && <td>{row.project?.marksAwarded == null ? '-' : `${row.project.marksAwarded}/${row.project.totalMarks}`}</td>}<td className="academic-report-percent">{row.overallTestPercentage == null ? '-' : `${row.overallTestPercentage}%`}</td>{hasProject && <td className="academic-report-percent">{row.overallProjectPercentage == null ? '-' : `${row.overallProjectPercentage}%`}</td>}</tr>) : <tr><td colSpan={tests.length + 4}>No students found.</td></tr>}</tbody></table></div></section>}</section>
 }
