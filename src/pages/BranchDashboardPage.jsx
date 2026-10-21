@@ -511,6 +511,45 @@ function isCourseCompletionComplete(student = {}, courseId = '', courseName = ''
     && hasRequiredProjects
 }
 
+function isCompletedStudentReportRecord(student = {}) {
+  const importMarker = [
+    student?.isCompletedStudentImport,
+    student?.completedStudentImport,
+    student?.isHistoricalStudent,
+    student?.historicalImport,
+  ].some((value) => value === true)
+
+  const sourceMarker = [
+    student?.source,
+    student?.sourceType,
+    student?.recordType,
+    student?.importSource,
+    student?.lifecycleSource,
+  ].some((value) => String(value || '').trim().toUpperCase().replace(/[\s-]+/g, '_')
+    .includes('COMPLETED_STUDENT'))
+
+  if (importMarker || sourceMarker) return true
+
+  const lifecycleStatus = String(
+    student?.lifecycleStatus
+      || student?.studentLifecycleStatus
+      || student?.recordStatus
+      || student?.studentStatus
+      || student?.currentStatus
+      || '',
+  ).trim().toUpperCase()
+  const hasCompletedDate = Boolean(student?.courseCompletedAt || student?.completedAt)
+  const enrollments = Array.isArray(student?.courseEnrollments) ? student.courseEnrollments : []
+  const hasActiveEnrollment = enrollments.some((entry) => {
+    const status = String(entry?.status || entry?.recordStatus || '').trim().toUpperCase()
+    return status === 'ACTIVE' && !entry?.courseCompletedAt && !entry?.completedAt
+  })
+
+  // Imported report rows are historical completed records. Keep a student
+  // with an active enrollment visible if it also has an older completed course.
+  return (hasCompletedDate && !hasActiveEnrollment) || lifecycleStatus === 'COMPLETED'
+}
+
 function getBranchEntityPrefix(branchCode, entityPrefix) {
   const compact = String(branchCode || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '')
   const branchPrefix = compact.replace(/\d{3}$/, '')
@@ -9563,6 +9602,7 @@ useEffect(() => {
     if (!isBranchAcademicProgressLoaded) return []
     const q = appliedStudentSearchTerm.trim().toLowerCase()
     return branchStudentsForDisplay
+      .filter((student) => !isCompletedStudentReportRecord(student))
       .filter((student) => {
         if (!q) return true
         return [student?.studentId, student?.studentName, student?.email, student?.phone]
