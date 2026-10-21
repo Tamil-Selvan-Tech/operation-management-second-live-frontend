@@ -240,8 +240,23 @@ function getStudentIdentityKey(student = {}) {
   )
 }
 
+function getCurrentCycleStudents(students = [], batch = {}) {
+  const currentCycleId = normalizeMatchKey(batch?.currentCycleId || batch?.activeCycleId)
+  if (!currentCycleId) return Array.isArray(students) ? students : []
+
+  const courseId = normalizeMatchKey(batch?.courseId || batch?.branchCourseId)
+  return (Array.isArray(students) ? students : []).filter((student) => {
+    const enrollments = Array.isArray(student?.courseEnrollments) ? student.courseEnrollments : []
+    return enrollments.some((enrollment) => (
+      normalizeMatchKey(enrollment?.batchCycleId) === currentCycleId &&
+      String(enrollment?.status || '').toUpperCase() === 'ACTIVE' &&
+      (!courseId || normalizeMatchKey(enrollment?.courseId) === courseId)
+    ))
+  })
+}
+
 function getBatchSeatSummary(batch = {}, students = []) {
-  const matchingStudents = getMatchingStudents(students, {
+  const matchingStudents = getCurrentCycleStudents(getMatchingStudents(students, {
     facultyId: batch?.facultyId || '',
     facultyName: batch?.facultyName || '',
     courseId: batch?.courseId || '',
@@ -250,7 +265,7 @@ function getBatchSeatSummary(batch = {}, students = []) {
     batchId: batch?.batchId || batch?.id || '',
     batchName: batch?.batchName || '',
     batchTiming: batch?.batchTiming || '',
-  })
+  }), batch)
 
   const uniqueStudents = new Set()
   matchingStudents.forEach((student) => {
@@ -862,6 +877,13 @@ function getPrimaryBatchForGroup(group = {}) {
     batchTiming: normalizeText(primaryBatch?.batchTiming || group?.batchTiming || ''),
     totalSeats: Number(primaryBatch?.totalSeats || group?.totalSeats || 0) || 0,
     status: normalizeStatus(primaryBatch?.status || group?.status || 'Active'),
+    currentCycleId: primaryBatch?.currentCycleId || group?.currentCycleId || null,
+    currentCycleNumber: primaryBatch?.currentCycleNumber || group?.currentCycleNumber || null,
+    currentCycleName: primaryBatch?.currentCycleName || group?.currentCycleName || null,
+    currentCycleStatus: primaryBatch?.currentCycleStatus || group?.currentCycleStatus || 'ACTIVE',
+    completionStatus: primaryBatch?.completionStatus || group?.completionStatus || '',
+    activeStudentCount: primaryBatch?.activeStudentCount ?? group?.activeStudentCount ?? 0,
+    completedStudentCount: primaryBatch?.completedStudentCount ?? group?.completedStudentCount ?? 0,
   }
 }
 
@@ -1053,6 +1075,7 @@ export function BranchBatchManagementSection({
   const [academicTestReports, setAcademicTestReports] = useState([])
   const [studentAcademicTestProgress, setStudentAcademicTestProgress] = useState({})
   const actionMenuCloseTimerRef = useRef(null)
+  const completionNoticeShownRef = useRef(new Set())
 
   useEffect(() => {
     let active = true
@@ -1079,7 +1102,7 @@ export function BranchBatchManagementSection({
       return undefined
     }
     const detailBatch = getPrimaryBatchForGroup(detailGroup)
-    const students = getMatchingStudents(branchStudents, {
+    const students = getCurrentCycleStudents(getMatchingStudents(branchStudents, {
       facultyId: detailGroup?.facultyId || detailGroup?.branchFacultyId || '',
       facultyName: detailGroup?.facultyName || '',
       courseId: detailGroup?.courseId || detailGroup?.branchCourseId || '',
@@ -1088,7 +1111,7 @@ export function BranchBatchManagementSection({
       batchId: detailBatch?.batchId || detailBatch?.id || '',
       batchName: detailBatch?.batchName || '',
       batchTiming: detailBatch?.batchTiming || '',
-    })
+    }), { ...detailGroup, ...detailBatch })
     const total = getAcademicTestCountForBatch(academicTestRows, detailGroup, detailBatch)
     const progressScopeKey = getBatchSeatMapKey(detailBatch, detailGroup)
     let active = true
@@ -1489,7 +1512,7 @@ export function BranchBatchManagementSection({
 
   const loadDetailAttendance = useCallback(async (group) => {
     const detailBatch = getPrimaryBatchForGroup(group)
-    const detailStudents = getMatchingStudents(branchStudents, {
+    const detailStudents = getCurrentCycleStudents(getMatchingStudents(branchStudents, {
       facultyId: group?.facultyId || group?.branchFacultyId || '',
       facultyName: group?.facultyName || '',
       courseId: group?.courseId || group?.branchCourseId || '',
@@ -1498,7 +1521,7 @@ export function BranchBatchManagementSection({
       batchId: detailBatch?.batchId || detailBatch?.id || '',
       batchName: detailBatch?.batchName || '',
       batchTiming: detailBatch?.batchTiming || '',
-    })
+    }), { ...group, ...detailBatch })
     const localStatuses = {}
     const todayKey = getAttendanceDateKey()
 
@@ -2034,7 +2057,7 @@ export function BranchBatchManagementSection({
   const getComputedBatchStatus = (group = {}) => {
     const primaryBatch = getPrimaryBatchForGroup(group)
     if (String(primaryBatch?.completionStatus || '').toUpperCase() === 'COMPLETED' || String(primaryBatch?.currentCycleStatus || '').toUpperCase() === 'COMPLETED') return 'completed'
-    const students = getMatchingStudents(branchStudents, {
+    const students = getCurrentCycleStudents(getMatchingStudents(branchStudents, {
       facultyId: group?.facultyId || group?.branchFacultyId || '',
       facultyName: group?.facultyName || '',
       courseId: group?.courseId || group?.branchCourseId || '',
@@ -2043,7 +2066,7 @@ export function BranchBatchManagementSection({
       batchId: primaryBatch?.batchId || primaryBatch?.id || '',
       batchName: primaryBatch?.batchName || '',
       batchTiming: primaryBatch?.batchTiming || '',
-    })
+    }), { ...group, ...primaryBatch })
     const total = getAcademicTestCountForBatch(academicTestRows, group, primaryBatch)
     const scopeKey = getBatchSeatMapKey(primaryBatch, group)
     const completed = students.length > 0 && students.every((student) => isStudentBatchCourseCompleted(
@@ -2126,6 +2149,23 @@ export function BranchBatchManagementSection({
     displayGroups.push(displayGroup)
   })
 
+  useEffect(() => {
+    for (const group of displayGroups) {
+      if (getComputedBatchStatus(group) !== 'completed') continue
+      const batch = getPrimaryBatchForGroup(group)
+      const noticeKey = `${getBatchDisplayKey(group)}|${batch?.currentCycleId || batch?.currentCycleNumber || 'completed'}`
+      if (completionNoticeShownRef.current.has(noticeKey)) continue
+      completionNoticeShownRef.current.add(noticeKey)
+      setSaveSuccessPopup({
+        title: 'Batch Cycle Completed',
+        message: `${batch?.batchName || group?.batchName || 'This batch'} is completed. Click Edit to add the new cycle Course Start Date before adding new students.`,
+        group,
+        actionLabel: 'Edit Batch',
+      })
+      break
+    }
+  }, [displayGroups, getComputedBatchStatus])
+
   const displayGroupAcademicKey = displayGroups.map((group) => getBatchDisplayKey(group)).join('|')
 
   useEffect(() => {
@@ -2134,7 +2174,7 @@ export function BranchBatchManagementSection({
     const scopedStudents = new Map()
     displayGroups.forEach((group) => {
       const batch = getPrimaryBatchForGroup(group)
-      const students = getMatchingStudents(branchStudents, {
+      const students = getCurrentCycleStudents(getMatchingStudents(branchStudents, {
         facultyId: group?.facultyId || group?.branchFacultyId || '',
         facultyName: group?.facultyName || '',
         courseId: group?.courseId || group?.branchCourseId || '',
@@ -2143,7 +2183,7 @@ export function BranchBatchManagementSection({
         batchId: batch?.batchId || batch?.id || '',
         batchName: batch?.batchName || '',
         batchTiming: batch?.batchTiming || '',
-      })
+      }), { ...group, ...batch })
       students.forEach((student) => {
         const studentId = String(student?.studentId || student?.id || student?._id || '').trim()
         if (studentId) scopedStudents.set(normalizeMatchKey(studentId), student)
@@ -2163,7 +2203,7 @@ export function BranchBatchManagementSection({
         const batch = getPrimaryBatchForGroup(group)
         const total = getAcademicTestCountForBatch(academicTestRows, group, batch)
         const scopeKey = getBatchSeatMapKey(batch, group)
-        const students = getMatchingStudents(branchStudents, {
+        const students = getCurrentCycleStudents(getMatchingStudents(branchStudents, {
           facultyId: group?.facultyId || group?.branchFacultyId || '',
           facultyName: group?.facultyName || '',
           courseId: group?.courseId || group?.branchCourseId || '',
@@ -2172,7 +2212,7 @@ export function BranchBatchManagementSection({
           batchId: batch?.batchId || batch?.id || '',
           batchName: batch?.batchName || '',
           batchTiming: batch?.batchTiming || '',
-        })
+        }), { ...group, ...batch })
         students.forEach((student) => {
           const studentId = String(student?.studentId || student?.id || student?._id || '').trim()
           const response = studentResponses.find(([key]) => key === normalizeMatchKey(studentId))?.[1]
@@ -2571,7 +2611,7 @@ export function BranchBatchManagementSection({
     if (!detailGroup || typeof document === 'undefined') return null
     const detailBatch = getPrimaryBatchForGroup(detailGroup)
     const detailBatchKey = getBatchSeatMapKey(detailBatch, detailGroup)
-    const detailStudents = getMatchingStudents(branchStudents, {
+    const detailStudents = getCurrentCycleStudents(getMatchingStudents(branchStudents, {
       facultyId: detailGroup?.facultyId || detailGroup?.branchFacultyId || '',
       facultyName: detailGroup?.facultyName || '',
       courseId: detailGroup?.courseId || detailGroup?.branchCourseId || '',
@@ -2580,7 +2620,7 @@ export function BranchBatchManagementSection({
       batchId: detailBatch?.batchId || detailBatch?.id || '',
       batchName: detailBatch?.batchName || '',
       batchTiming: detailBatch?.batchTiming || '',
-    })
+    }), { ...detailGroup, ...detailBatch })
     const detailCourseProgress = getBatchCourseProgress(
       { ...detailGroup, ...detailBatch },
       detailStudents,
@@ -2595,7 +2635,7 @@ export function BranchBatchManagementSection({
     })
     const batchAcademicCompleted = studentAcademicProgressValues.length
       ? Math.min(...studentAcademicProgressValues.map((progress) => Math.min(detailAcademicTestCount, Number(progress.completed) || 0)))
-      : getAcademicTestProgressForBatch(academicTestRows, academicTestReports, detailGroup, detailBatch).completed
+      : 0
     const academicTestProgress = {
       total: detailAcademicTestCount,
       completed: batchAcademicCompleted,
@@ -2758,7 +2798,7 @@ export function BranchBatchManagementSection({
       totalSeats: batchTotalSeats,
       remainingSeats: Math.max(batchTotalSeats - rawSeatSummary.usedSeats, 0),
     }
-    const batchStudents = getMatchingStudents(branchStudents, {
+    const batchStudents = getCurrentCycleStudents(getMatchingStudents(branchStudents, {
       facultyId: group?.facultyId || group?.branchFacultyId || '',
       facultyName: group?.facultyName || '',
       courseId: group?.courseId || group?.branchCourseId || '',
@@ -2767,7 +2807,7 @@ export function BranchBatchManagementSection({
       batchId: primaryBatch?.batchId || primaryBatch?.id || '',
       batchName: primaryBatch?.batchName || '',
       batchTiming: primaryBatch?.batchTiming || '',
-    })
+    }), { ...group, ...primaryBatch })
     const seatSummary = {
       ...baseSeatSummary,
       usedSeats: batchStudents.length,
@@ -2912,8 +2952,16 @@ export function BranchBatchManagementSection({
             <button type="button" className="batch-success-secondary" onClick={() => setSaveSuccessPopup(null)}>
               Close
             </button>
-            <button type="button" className="batch-success-primary" onClick={() => setSaveSuccessPopup(null)}>
-              OK
+            <button
+              type="button"
+              className="batch-success-primary"
+              onClick={() => {
+                const completedGroup = saveSuccessPopup.group
+                setSaveSuccessPopup(null)
+                if (completedGroup) openEditModal(completedGroup)
+              }}
+            >
+              {saveSuccessPopup.actionLabel || 'OK'}
             </button>
           </div>
         </div>

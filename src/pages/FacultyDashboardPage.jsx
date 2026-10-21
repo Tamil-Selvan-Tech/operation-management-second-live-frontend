@@ -1407,6 +1407,19 @@ function getFacultyBatchProgressStudents(batch = {}, course = {}, students = [],
   const batchName = normalizeCourseKey(batch?.batchName || batch?.code || '')
   const courseId = String(course?.id || course?.courseId || '').trim().toLowerCase()
   const courseName = normalizeCourseKey(course?.name || course?.courseName || '')
+  let currentCycleId = String(batch?.currentCycleId || batch?.activeCycleId || '').trim().toLowerCase()
+  if (!includeCompleted && !currentCycleId) {
+    const currentCycleEnrollment = (Array.isArray(students) ? students : []).map((student) => (
+      getCourseEnrollmentForStudent(student, course, batch)
+    )).find((enrollment) => (
+      enrollment &&
+      String(enrollment?.status || '').toUpperCase() === 'ACTIVE' &&
+      enrollment?.batchCycleId &&
+      !enrollment?.courseCompletedAt &&
+      Number(enrollment?.courseProgress || 0) < 100
+    ))
+    currentCycleId = String(currentCycleEnrollment?.batchCycleId || '').trim().toLowerCase()
+  }
 
   const scopedStudents = (Array.isArray(students) ? students : []).filter((student) => {
     // Lifecycle rows already include the authoritative batch-report result.
@@ -1416,6 +1429,10 @@ function getFacultyBatchProgressStudents(batch = {}, course = {}, students = [],
     if (!includeCompleted && !student?._facultyLifecycle && isFacultyStudentCourseComplete(student, course, batch)) return false
     const enrollment = getCourseEnrollmentForStudent(student, course, batch)
     const context = resolveFacultyBatchContextForStudent(student, backfillRecords)
+    if (!includeCompleted && currentCycleId) {
+      if (!enrollment || String(enrollment?.batchCycleId || '').trim().toLowerCase() !== currentCycleId
+        || String(enrollment?.status || '').toUpperCase() !== 'ACTIVE') return false
+    }
     // Direct assignment fields on the student are authoritative. Profile
     // context is only a legacy fallback and must not move a student to a
     // different batch or course.
@@ -4109,7 +4126,6 @@ export function FacultyDashboardPage() {
         selectedStudentsCourse,
         facultyScopedStudents,
         facultyBackfillRecords,
-        { includeCompleted: true },
       )
       const progressValues = batchStudents.map((student) => {
         // Resolve work against the current batch row, not only the global

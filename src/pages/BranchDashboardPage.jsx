@@ -376,11 +376,22 @@ function getAcademicProgressIndex(response = null) {
   })
 
   const buildProgress = (items = [], totalOverride = null) => {
+    const isProjectEvaluation = (evaluation = {}) => {
+      const value = String(evaluation?.type || evaluation?.testType || evaluation?.evaluationType || evaluation?.name || evaluation?.title || evaluation?.testName || '').trim().toUpperCase()
+      return value.includes('PROJECT')
+    }
+    const projectEvaluations = items.filter(isProjectEvaluation)
     const completedTests = items.filter((evaluation) => {
       const status = String(evaluation?.status || '').trim().toUpperCase()
       return status === 'SUBMITTED'
         || status === 'EVALUATED'
         || Number.isFinite(Number(evaluation?.percentage))
+    }).length
+    const completedProjects = projectEvaluations.filter((evaluation) => {
+      const status = String(evaluation?.status || evaluation?.result || '').trim().toUpperCase()
+      return ['SUBMITTED', 'EVALUATED', 'GRADED', 'COMPLETED', 'PROJECT_SUBMITTED', 'PROJECT_GRADED', 'PASS', 'FAIL'].includes(status)
+        || Number(evaluation?.projectPercentage) > 0
+        || Number(evaluation?.projectMarks ?? evaluation?.marksObtained ?? evaluation?.marksAwarded) > 0
     }).length
     const totalTests = Math.max(
       items.length,
@@ -394,6 +405,10 @@ function getAcademicProgressIndex(response = null) {
       completedTests,
       pendingTests,
       percentage: totalTests ? Math.round((completedTests / totalTests) * 100) : 0,
+      totalProjects: projectEvaluations.length,
+      completedProjects,
+      pendingProjects: Math.max(0, projectEvaluations.length - completedProjects),
+      projectsComplete: projectEvaluations.length === 0 || completedProjects >= projectEvaluations.length,
     }
   }
 
@@ -432,6 +447,14 @@ function getCourseAcademicProgress(student = {}, courseId = '', courseName = '',
   // enrollment snapshot (especially after a project is graded). Prefer the
   // course-scoped progress snapshot when it already confirms completion, so
   // a completed course is not shown as In Progress because of an older share.
+  // Conversely, preserve a live pending-project result when a shared report
+  // snapshot does not contain project fields at all.
+  if (persisted
+    && Number(persisted?.totalProjects) > 0
+    && Number(persisted?.pendingProjects) > 0
+    && !(fetchedProgress && Number(fetchedProgress?.totalProjects) > 0)) {
+    return persisted
+  }
   if (persisted && isAcademicTestProgressComplete(persisted) && !isAcademicTestProgressComplete(fetchedProgress)) {
     return persisted
   }
@@ -439,12 +462,6 @@ function getCourseAcademicProgress(student = {}, courseId = '', courseName = '',
 }
 
 function isCourseCompletionComplete(student = {}, courseId = '', courseName = '', progress = 0, fetchedByStudent = new Map(), course = null) {
-  // The branch-student API calculates completion from the current enrollment,
-  // academic tests, and projects. Never let an older report-share snapshot
-  // mark a course completed when the live enrollment explicitly says it is
-  // still in progress.
-  const liveCompletionStatus = String(student?.courseCompletionStatus || student?.courseCompletion || '').trim().toUpperCase()
-  if (liveCompletionStatus === 'IN_PROGRESS') return false
   const configuredTotal = Number(course?.academicTestCount)
   const academicProgress = getCourseAcademicProgress(student, courseId, courseName, fetchedByStudent)
   const reportedTotal = Number(academicProgress?.totalEvaluations ?? academicProgress?.totalTests)
@@ -452,9 +469,22 @@ function isCourseCompletionComplete(student = {}, courseId = '', courseName = ''
   const hasConfiguredAcademicCount = Number.isFinite(configuredTotal) && configuredTotal > 0
   const hasEnoughAcademicEvaluations = !hasConfiguredAcademicCount
     || (Number.isFinite(reportedTotal) && reportedTotal >= configuredTotal && Number.isFinite(reportedCompleted) && reportedCompleted >= configuredTotal)
+  const hasReportedTestsComplete = Number.isFinite(reportedTotal)
+    && reportedTotal > 0
+    && Number.isFinite(reportedCompleted)
+    && reportedCompleted >= reportedTotal
+  const totalProjects = Number(academicProgress?.totalProjects)
+  const completedProjects = Number(academicProgress?.completedProjects)
+  const pendingProjects = Number(academicProgress?.pendingProjects)
+  const hasRequiredProjects = !Number.isFinite(totalProjects) || totalProjects <= 0
+    || (Number.isFinite(completedProjects) && completedProjects >= totalProjects
+      && (!Number.isFinite(pendingProjects) || pendingProjects === 0))
+  const hasRequiredAcademicResult = hasConfiguredAcademicCount
+    ? hasEnoughAcademicEvaluations
+    : hasReportedTestsComplete || isAcademicTestProgressComplete(academicProgress)
   return Number(progress) >= 100
-    && hasEnoughAcademicEvaluations
-    && isAcademicTestProgressComplete(academicProgress)
+    && hasRequiredAcademicResult
+    && hasRequiredProjects
 }
 
 function getBranchEntityPrefix(branchCode, entityPrefix) {
@@ -759,8 +789,22 @@ function getBatchStudentIdentityKey(student = {}) {
   )
 }
 
+function getCurrentCycleBatchStudents(students = [], batch = {}) {
+  const currentCycleId = normalizeSeatKey(batch?.currentCycleId || batch?.activeCycleId)
+  if (!currentCycleId) return Array.isArray(students) ? students : []
+
+  const courseId = normalizeSeatKey(batch?.courseId || batch?.branchCourseId)
+  return (Array.isArray(students) ? students : []).filter((student) => (
+    Array.isArray(student?.courseEnrollments) && student.courseEnrollments.some((enrollment) => (
+      normalizeSeatKey(enrollment?.batchCycleId) === currentCycleId &&
+      String(enrollment?.status || '').toUpperCase() === 'ACTIVE' &&
+      (!courseId || normalizeSeatKey(enrollment?.courseId) === courseId)
+    ))
+  ))
+}
+
 function getBatchSeatSummary(batch = {}, students = [], excludedStudentKeys = []) {
-  const matchingStudents = getMatchingStudents(students, {
+  const matchingStudents = getCurrentCycleBatchStudents(getMatchingStudents(students, {
     facultyId: batch?.facultyId || '',
     facultyName: batch?.facultyName || '',
     courseId: batch?.courseId || '',
@@ -769,7 +813,7 @@ function getBatchSeatSummary(batch = {}, students = [], excludedStudentKeys = []
     batchId: batch?.batchId || '',
     batchName: batch?.batchName || '',
     batchTiming: batch?.batchTiming || '',
-  })
+  }), batch)
 
   const excludedKeys = new Set((Array.isArray(excludedStudentKeys) ? excludedStudentKeys : [])
     .map(normalizeSeatKey)
@@ -7763,6 +7807,8 @@ const studentCourseOptions = useMemo(() => {
               batchTiming,
               batchGroupId: String(group?.batchGroupId || group?.id || '').trim(),
               totalSeats: batch?.totalSeats || 0,
+              currentCycleId: batch?.currentCycleId || group?.currentCycleId || '',
+              activeStudentCount: batch?.activeStudentCount ?? group?.activeStudentCount ?? 0,
               courseId: String(group?.courseId || group?.branchCourseId || '').trim(),
               courseName: String(group?.courseName || '').trim(),
               facultyId: String(group?.facultyId || group?.branchFacultyId || '').trim(),
@@ -7791,6 +7837,7 @@ const studentCourseOptions = useMemo(() => {
               availableSeats: seatSummary.availableSeats,
               isFull: seatSummary.isFull,
               isSelectable: seatSummary.availableSeats > 0,
+              currentCycleId: batch?.currentCycleId || group?.currentCycleId || '',
               courseStartDate: batch?.courseStartDate || '',
               courseEndDate: batch?.courseEndDate || '',
               weekType: batch?.weekType || '',
@@ -11037,7 +11084,8 @@ useEffect(() => {
       facultyName: batch?.facultyName || group?.facultyName || '',
       weekType: batch?.weekType || '',
       mode: batch?.mode || '',
-      isFull: getBatchSeatSummary({ batchId: batch?.batchId || batch?.id, batchName: batch?.batchName, batchTiming: formatStudentBatchTiming(batch), courseId: draft.courseId, totalSeats: batch?.totalSeats || 0 }, branchStudents, currentStudentSeatKeys).isFull,
+      currentCycleId: batch?.currentCycleId || group?.currentCycleId || '',
+      isFull: getBatchSeatSummary({ batchId: batch?.batchId || batch?.id, batchName: batch?.batchName, batchTiming: formatStudentBatchTiming(batch), courseId: draft.courseId, totalSeats: batch?.totalSeats || 0, currentCycleId: batch?.currentCycleId || group?.currentCycleId || '' }, branchStudents, currentStudentSeatKeys).isFull,
     })).filter((batch) => batch.batchId && (!draft.classSchedule || String(batch.weekType).toUpperCase() === String(draft.classSchedule).toUpperCase()) && (!draft.courseMode || String(batch.mode).toUpperCase() === String(draft.courseMode).toUpperCase())))
   const amountCourseIds = studentArrangementType === 'SEQUENTIAL' && studentFirstCourseId
     ? [studentFirstCourseId]
