@@ -1181,6 +1181,37 @@
   font-weight: 800;
 }
 
+.branch-student-monthly-report-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 40px;
+  padding: 0 14px;
+  border: 1px solid #2563eb;
+  border-radius: 8px;
+  background: #eff6ff;
+  color: #1d4ed8;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 750;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color 160ms ease, border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+}
+
+.branch-student-monthly-report-button:hover {
+  border-color: #1d4ed8;
+  background: #dbeafe;
+  box-shadow: 0 5px 14px rgba(37, 99, 235, .14);
+  transform: translateY(-1px);
+}
+
+.branch-student-monthly-report-button:focus-visible {
+  outline: 3px solid rgba(37, 99, 235, .2);
+  outline-offset: 2px;
+}
+
 .branch-dashboard-info-card {
   display: grid;
   gap: 8px;
