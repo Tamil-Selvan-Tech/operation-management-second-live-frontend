@@ -28,6 +28,26 @@ function attendanceLabel(row) {
   return value === null || value === undefined || value === '' ? 'N/A' : `${value}%`
 }
 
+function academicTestValue(evaluation = {}) {
+  const status = String(evaluation.status || evaluation.validationStatus || '').trim().toUpperCase()
+  const completed = ['EVALUATED', 'SUBMITTED', 'COMPLETED', 'GRADED'].includes(status)
+  const result = String(evaluation.resultStatus || evaluation.result || '').trim().toUpperCase()
+  const obtained = Number(evaluation.obtainedMarks ?? evaluation.marksObtained ?? evaluation.marksAwarded)
+  const total = Number(evaluation.totalMarks ?? evaluation.projectTotalMarks)
+  const rawPercentage = Number(evaluation.percentage ?? evaluation.projectPercentage)
+  const percentage = Number.isFinite(rawPercentage)
+    ? rawPercentage
+    : Number.isFinite(obtained) && Number.isFinite(total) && total > 0
+      ? (obtained / total) * 100
+      : null
+  if (!completed && !Number.isFinite(percentage) && !(Number.isFinite(obtained) && obtained > 0)) return 'Pending'
+  const parts = [completed ? 'Completed' : 'Pending']
+  if (result) parts.push(result)
+  if (Number.isFinite(obtained) && Number.isFinite(total) && total > 0) parts.push(`(${obtained}/${total})`)
+  if (Number.isFinite(percentage) && (completed || obtained > 0)) parts.push(`- ${Number(percentage.toFixed(2)).toString()}%`)
+  return parts.join(' ')
+}
+
 function hasValue(value) {
   return value !== null && value !== undefined && value !== '' && String(value).trim().toUpperCase() !== 'N/A'
 }
@@ -181,7 +201,7 @@ function getAcademicTestsForRow(academicProgressByStudent, studentId, courseId, 
     const percentage = Number(evaluation?.percentage)
     const evaluationType = String(evaluation?.type || evaluation?.testType || evaluation?.evaluationType || '').trim().toUpperCase()
     const projectPercentage = projectEvaluations.length ? Number(projectEvaluations[0]?.percentage) : Number.NaN
-    const testValue = Number.isFinite(percentage) ? `${percentage}%` : (String(evaluation?.status || '').trim() || 'Not Evaluated')
+    const testValue = academicTestValue({ ...evaluation, percentage })
     const value = evaluationType.includes('TEST') && evaluationType.includes('PROJECT') && Number.isFinite(projectPercentage)
       ? `Test: ${testValue} · Project: ${projectPercentage}%`
       : testValue
@@ -227,7 +247,7 @@ function buildFields(row) {
     ]),
     ['Paid Amount', formatMoney(row.paidAmount)], ['Pending Amount', formatMoney(row.pendingAmount)],
     ['Student Status', row.studentStatus], ...(hasValue(row.remarks) ? [['Remarks', row.remarks]] : []),
-    ...(Array.isArray(row.academicTests) ? row.academicTests.map((test) => [test.label, test.value]) : []),
+    ...(Array.isArray(row.academicTests) ? row.academicTests.map((test, index) => [test.label || `Academic Test ${index + 1}`, hasValue(test.value) ? test.value : academicTestValue(test)]) : []),
   ]
 }
 
