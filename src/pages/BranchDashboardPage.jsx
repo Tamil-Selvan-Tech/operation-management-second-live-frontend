@@ -518,7 +518,7 @@ function isCompletedStudentReportRecord(student = {}) {
     student?.completedStudentImport,
     student?.isHistoricalStudent,
     student?.historicalImport,
-  ].some((value) => value === true)
+  ].some((value) => value === true || String(value || '').trim().toLowerCase() === 'true')
 
   const sourceMarker = [
     student?.source,
@@ -538,6 +538,11 @@ function isCompletedStudentReportRecord(student = {}) {
     student?.academicProject,
     student?.placement,
   ].some((value) => value !== undefined && value !== null && String(value).trim() !== '')
+  const importedLifecycleValues = [
+    student.importedLifecycleStatus,
+    ...(Array.isArray(student.courseEnrollments) ? student.courseEnrollments.map((entry) => entry?.importedLifecycleStatus) : []),
+  ]
+  const importedLifecycleMarker = importedLifecycleValues.some((value) => ['COMPLETED', 'DISCONTINUED'].includes(String(value || '').trim().toUpperCase()))
 
   if (importMarker || sourceMarker || reportFieldMarker) return true
 
@@ -1793,7 +1798,7 @@ function isUploadedCompletedStudentReportRecord(student = {}) {
     student.completedStudentImport,
     student.isHistoricalStudent,
     student.historicalImport,
-  ].some((value) => value === true)
+  ].some((value) => value === true || String(value || '').trim().toLowerCase() === 'true')
   const sourceMarker = [
     student.source,
     student.sourceType,
@@ -1801,10 +1806,24 @@ function isUploadedCompletedStudentReportRecord(student = {}) {
     student.importSource,
     student.lifecycleSource,
   ].some((value) => String(value || '').trim().toUpperCase().replace(/[\s-]+/g, '_').includes('COMPLETED_STUDENT'))
+  const reportFieldMarker = [
+    student.databaseSource,
+    student.courseStartingDate,
+    student.courseEndingDate,
+    student.certificationStatus,
+    student.certificateIssuedDate,
+    student.academicProject,
+    student.placement,
+  ].some((value) => value !== undefined && value !== null && String(value).trim() !== '')
+  const importedLifecycleValues = [
+    student.importedLifecycleStatus,
+    ...(Array.isArray(student.courseEnrollments) ? student.courseEnrollments.map((entry) => entry?.importedLifecycleStatus) : []),
+  ]
+  const importedLifecycleMarker = importedLifecycleValues.some((value) => ['COMPLETED', 'DISCONTINUED'].includes(String(value || '').trim().toUpperCase()))
   // A normal student can have a completed course/enrollment and still be a
   // valid admission for the month in which they joined. Do not classify that
   // student as a historical report row based only on enrollment status.
-  return explicitMarker || sourceMarker
+  return explicitMarker || sourceMarker || reportFieldMarker || importedLifecycleMarker
 }
 
 function isSuccessfulDashboardPayment(payment = {}) {

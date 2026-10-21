@@ -245,6 +245,11 @@ export function SuperAdminOverallDashboard({ branches, userKey = 'super-admin', 
   const correctedThisMonthAdmissions = useMemo(() => {
     if (!allStudentsLoaded) return null
     const now = new Date()
+    const selectedBranchKeys = selectedBranch
+      ? new Set([selectedBranch.id, selectedBranch.branchId, selectedBranch.branchCode]
+        .map((value) => String(value || '').trim().toLowerCase())
+        .filter(Boolean))
+      : null
     const toDateKey = (value) => {
       const text = String(value || '').trim()
       if (!text) return ''
@@ -256,10 +261,25 @@ export function SuperAdminOverallDashboard({ branches, userKey = 'super-admin', 
     const endDate = appliedDateRange?.endDate || today
     return allStudents.filter((student) => {
       if (isCompletedStudentReportRecord(student)) return false
+      if (selectedBranchKeys) {
+        const studentBranchKeys = [
+          student.branchId,
+          student.branchCode,
+          student.branch?.id,
+          student.branch?.branchId,
+          student.branch?.branchCode,
+          student.branchRecord?.id,
+          student.branchRecord?.branchId,
+          student.branchRecord?.branchCode,
+        ]
+          .map((value) => String(value || '').trim().toLowerCase())
+          .filter(Boolean)
+        if (!studentBranchKeys.some((key) => selectedBranchKeys.has(key))) return false
+      }
       const admissionDate = toDateKey(student.admissionDate || student.createdAt)
       return admissionDate && admissionDate >= startDate && admissionDate <= endDate
     }).length
-  }, [allStudents, allStudentsLoaded, appliedDateRange])
+  }, [allStudents, allStudentsLoaded, appliedDateRange, selectedBranch])
 
   const displayOverview = useMemo(() => {
     if (!overview || correctedThisMonthAdmissions === null) return overview
@@ -330,9 +350,13 @@ export function SuperAdminOverallDashboard({ branches, userKey = 'super-admin', 
   }
   const metric = (label, value, icon, tone, currency = true, variant = '', comparison = null) => {
     const baseHref = metricLinks[label]
-    const href = baseHref && appliedDateRange
-      ? `${baseHref}&startDate=${encodeURIComponent(appliedDateRange.startDate || '')}&endDate=${encodeURIComponent(appliedDateRange.endDate || '')}`
-      : baseHref
+    const detailParams = new URLSearchParams()
+    if (selectedBranch?.branchId || selectedBranch?.id) detailParams.set('branchId', selectedBranch.branchId || selectedBranch.id)
+    if (appliedDateRange) {
+      detailParams.set('startDate', appliedDateRange.startDate || '')
+      detailParams.set('endDate', appliedDateRange.endDate || '')
+    }
+    const href = baseHref && detailParams.toString() ? `${baseHref}&${detailParams.toString()}` : baseHref
     const discontinuedTooltip = label === 'Total outstanding'
       ? (overview?.discontinuedOutstandingDetails || []).map((item) => `Student name: ${item.studentName}\nBranch name: ${item.branchName}\nAmount: ${formatOverviewCurrency(item.amount)} not included in Outstanding`).join('\n\n')
       : ''

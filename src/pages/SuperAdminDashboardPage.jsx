@@ -2517,6 +2517,7 @@ const filteredBranches = useMemo(() => {
                 metric={activeSection.replace('metric-', '')}
                 students={allBranchStudents}
                 branches={branches}
+                branchId={new URLSearchParams(location.search).get('branchId') || ''}
                 startDate={new URLSearchParams(location.search).get('startDate') || ''}
                 endDate={new URLSearchParams(location.search).get('endDate') || ''}
                 isLoading={isGlobalStudentsLoading || isGlobalManagementLoading}

@@ -4,7 +4,7 @@ export function isCompletedStudentReportRecord(student = {}) {
     student?.completedStudentImport,
     student?.isHistoricalStudent,
     student?.historicalImport,
-  ].some((value) => value === true)
+  ].some((value) => value === true || String(value || '').trim().toLowerCase() === 'true')
 
   const sourceMarker = [
     student?.source,
@@ -24,59 +24,14 @@ export function isCompletedStudentReportRecord(student = {}) {
     student?.placement,
   ].some((value) => value !== undefined && value !== null && String(value).trim() !== '')
 
-  if (importMarker || sourceMarker || reportFieldMarker) return true
+  const importedLifecycleValues = [
+    student?.importedLifecycleStatus,
+    ...(Array.isArray(student?.courseEnrollments) ? student.courseEnrollments.map((entry) => entry?.importedLifecycleStatus) : []),
+  ]
+  const importedLifecycleMarker = importedLifecycleValues.some((value) => ['COMPLETED', 'DISCONTINUED'].includes(String(value || '').trim().toUpperCase()))
 
-  const lifecycleValues = [
-    student?.lifecycleStatus,
-    student?.studentLifecycleStatus,
-    student?.recordStatus,
-    student?.studentStatus,
-    student?.currentStatus,
-    student?.status,
-  ].map((value) => String(value || '').trim().toUpperCase().replace(/[\s-]+/g, '_'))
-  const hasCompletedLifecycleStatus = lifecycleValues.some((value) => value.includes('COMPLETED') && !value.includes('NOT_COMPLETED'))
-  const hasDiscontinuedLifecycleStatus = lifecycleValues.some((value) => value === 'DISCONTINUED')
-  const hasCompletedDate = Boolean(student?.courseCompletedAt || student?.completedAt)
-
-  const enrollments = Array.isArray(student?.courseEnrollments) ? student.courseEnrollments : []
-  const hasActiveEnrollment = enrollments.some((entry) => {
-    const status = String(entry?.status || entry?.recordStatus || '').trim().toUpperCase()
-    return status === 'ACTIVE' && !entry?.courseCompletedAt && !entry?.completedAt
-  })
-  const hasVisibleEnrollment = enrollments.some((entry) => {
-    const status = String(entry?.status || entry?.recordStatus || entry?.studentStatus || '').trim().toUpperCase()
-    return !['COMPLETED', 'DISCONTINUED'].includes(status) && !entry?.courseCompletedAt && !entry?.completedAt
-  })
-
-  if (enrollments.length) return !hasVisibleEnrollment
-
-  const hasOperationalData = [
-    student?.finalFee,
-    student?.courseAmount,
-    student?.totalAmount,
-    student?.afterDiscount,
-    student?.paidAmount,
-    student?.totalPaid,
-    student?.amountPaid,
-    student?.courseProgress,
-    student?.courseCompletionPercentage,
-    student?.progress,
-    student?.admissionDate,
-    student?.courseStartDate,
-    student?.courseEndDate,
-    student?.batchId,
-    student?.batchName,
-    student?.facultyId,
-    student?.facultyName,
-  ].some((value) => value !== undefined && value !== null && String(value).trim() !== '')
-    || (Array.isArray(student?.installmentSchedule) && student.installmentSchedule.length > 0)
-
-  if (!hasOperationalData) return true
-  return Boolean(
-    student?.isDiscontinued
-      || String(student?.discontinuationStatus || '').trim().toUpperCase() === 'APPROVED'
-      || hasDiscontinuedLifecycleStatus
-      || (hasCompletedDate && !hasActiveEnrollment)
-      || hasCompletedLifecycleStatus,
-  )
+  // Course completion belongs to the normal Students workflow and must not
+  // turn an operational student into a historical upload row. Only explicit
+  // import/source markers or report-only fields identify an uploaded report.
+  return importMarker || sourceMarker || reportFieldMarker || importedLifecycleMarker
 }

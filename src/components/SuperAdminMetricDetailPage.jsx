@@ -33,12 +33,19 @@ function buildRows(metric, students, branches, period = {}) {
   const periodStart = period.startDate || `${monthKey(now)}-01`
   const periodEnd = period.endDate || today
   const inPeriod = (value) => { const key = dateKey(value); return key && key >= periodStart && key <= periodEnd }
+  const selectedBranch = branches.find((branch) => [branch.id, branch.branchId, branch.branchCode].some((value) => text(value).toLowerCase() === text(period.branchId).toLowerCase()))
+  const selectedBranchKeys = period.branchId
+    ? new Set([period.branchId, selectedBranch?.id, selectedBranch?.branchId, selectedBranch?.branchCode].map((value) => text(value).toLowerCase()).filter(Boolean))
+    : null
+  const scopedStudents = selectedBranchKeys
+    ? students.filter((student) => [student.branchId, student.branchCode, student.branch?.id, student.branch?.branchId, student.branch?.branchCode, student.branchRecord?.id, student.branchRecord?.branchId, student.branchRecord?.branchCode].some((value) => selectedBranchKeys.has(text(value).toLowerCase())))
+    : students
   if (metric === 'branches') return branches.map((branch) => {
-    const rows = students.filter((student) => String(student.branchId || '').toLowerCase() === String(branch.id || branch.branchId || '').toLowerCase())
+    const rows = scopedStudents.filter((student) => String(student.branchId || '').toLowerCase() === String(branch.id || branch.branchId || '').toLowerCase())
     return { id: branch.id || branch.branchId, branch: branch.branchName || branch.name || '-', students: rows.length, collected: money(rows.reduce((sum, item) => sum + studentPaid(item), 0)), outstanding: money(rows.reduce((sum, item) => sum + Math.max(studentTotal(item) - studentPaid(item), 0), 0)), status: branch.status || 'Active' }
   })
-  if (metric === 'students') return students.map((student) => ({ id: student.id || student.studentId, student: student.studentName || student.name || '-', studentId: student.studentId || '-', branch: studentBranch(student), course: student.courseName || '-', batch: student.batchName || '-', status: student.recordStatus || student.currentStatus || 'Active' }))
-  if (metric === 'admissions') return students.filter((student) => inPeriod(student.admissionDate || student.createdAt)).map((student) => {
+  if (metric === 'students') return scopedStudents.map((student) => ({ id: student.id || student.studentId, student: student.studentName || student.name || '-', studentId: student.studentId || '-', branch: studentBranch(student), course: student.courseName || '-', batch: student.batchName || '-', status: student.recordStatus || student.currentStatus || 'Active' }))
+  if (metric === 'admissions') return scopedStudents.filter((student) => inPeriod(student.admissionDate || student.createdAt)).map((student) => {
     const enrollmentRecords = Array.isArray(student.courseEnrollments) ? student.courseEnrollments : []
     const enrollmentCount = enrollmentRecords.length
     const enrollmentArrangement = enrollmentRecords.find((entry) => entry?.arrangementType)?.arrangementType
@@ -49,10 +56,10 @@ function buildRows(metric, students, branches, period = {}) {
     return { id: student.id, student: [student.studentName || '-', student.studentId || '-'], studentId: student.studentId || '-', branch: studentBranch(student), course: courseNames.length ? courseNames : [student.courseName || '-'], faculty: facultyNames.length ? facultyNames : [student.facultyName || '-'], enrollmentType: text(arrangement).toUpperCase(), admissionDate: dateKey(student.admissionDate || student.createdAt) }
   })
   if (['total-payment', 'month-payment', 'today-collection'].includes(metric)) {
-    const paymentRows = students.flatMap((student) => (student.payments || []).filter((payment) => metric === 'total-payment' || (metric === 'today-collection' ? dateKey(payment.paymentDate) === today : inPeriod(payment.paymentDate))).map((payment) => ({ id: payment.id || `${student.id}-${payment.paymentDate}`, student: student.studentName || '-', studentId: student.studentId || '-', branch: studentBranch(student), amount: money(payment.amount), date: dateKey(payment.paymentDate), mode: payment.paymentMode || '-', receipt: payment.receiptNumber || '-' })))
+    const paymentRows = scopedStudents.flatMap((student) => (student.payments || []).filter((payment) => metric === 'total-payment' || (metric === 'today-collection' ? dateKey(payment.paymentDate) === today : inPeriod(payment.paymentDate))).map((payment) => ({ id: payment.id || `${student.id}-${payment.paymentDate}`, student: student.studentName || '-', studentId: student.studentId || '-', branch: studentBranch(student), amount: money(payment.amount), date: dateKey(payment.paymentDate), mode: payment.paymentMode || '-', receipt: payment.receiptNumber || '-' })))
     return [...new Map(paymentRows.map((row) => [`${row.studentId}|${row.date}|${row.amount}|${row.mode}`, row])).values()]
   }
-  const installmentRows = students.flatMap((student) => (student.installmentSchedule || student.installments || []).map((installment) => ({ id: installment.id || `${student.id}-${installment.installmentNumber}`, student: student.studentName || '-', studentId: student.studentId || '-', branch: studentBranch(student), installment: installment.installmentNumber || '-', dueDate: dateKey(installment.dueDate), amount: Number(installment.amount || 0), paid: Number(installment.amountPaid || 0), pending: Math.max(Number(installment.amount || 0) - Number(installment.amountPaid || 0), 0) })))
+  const installmentRows = scopedStudents.flatMap((student) => (student.installmentSchedule || student.installments || []).map((installment) => ({ id: installment.id || `${student.id}-${installment.installmentNumber}`, student: student.studentName || '-', studentId: student.studentId || '-', branch: studentBranch(student), installment: installment.installmentNumber || '-', dueDate: dateKey(installment.dueDate), amount: Number(installment.amount || 0), paid: Number(installment.amountPaid || 0), pending: Math.max(Number(installment.amount || 0) - Number(installment.amountPaid || 0), 0) })))
   if (metric === 'outstanding') return students.map((student) => ({ id: student.id, student: student.studentName || '-', studentId: student.studentId || '-', branch: studentBranch(student), total: money(studentTotal(student)), paid: money(studentPaid(student)), outstanding: money(Math.max(studentTotal(student) - studentPaid(student), 0)) })).filter((row) => row.outstanding !== '₹0')
   const dueRows = installmentRows.filter((row) => row.pending > 0)
   if (metric === 'month-due') return dueRows.filter((row) => inPeriod(row.dueDate))
@@ -79,13 +86,13 @@ function rowMatchesSearch(row, query) {
     .some((value) => text(value).toLowerCase().includes(needle))
 }
 
-export function SuperAdminMetricDetailPage({ metric, students = [], branches = [], isLoading = false, onBack, startDate = '', endDate = '' }) {
+export function SuperAdminMetricDetailPage({ metric, students = [], branches = [], isLoading = false, onBack, startDate = '', endDate = '', branchId = '' }) {
   const [query, setQuery] = useState('')
   const [status, setStatus] = useState('all')
   const [branchFilter, setBranchFilter] = useState('all')
   const [page, setPage] = useState(1)
   const [title, columns] = configs[metric] || configs.students
-  const rows = useMemo(() => buildRows(metric, students, branches, { startDate, endDate }), [metric, students, branches, startDate, endDate])
+  const rows = useMemo(() => buildRows(metric, students, branches, { startDate, endDate, branchId }), [metric, students, branches, startDate, endDate, branchId])
   const filtered = rows.filter((row) => rowMatchesSearch(row, query) && (status === 'all' || text(row.status).toLowerCase() === status) && (branchFilter === 'all' || text(row.branch).toLowerCase() === text(branchFilter).toLowerCase()))
   const filteredAmount = filtered.reduce((sum, row) => sum + (Number(String(row.amount || '').replace(/[^0-9.-]/g, '')) || 0), 0)
   const filteredOutstanding = filtered.reduce((sum, row) => sum + (Number(String(row.outstanding || '').replace(/[^0-9.-]/g, '')) || 0), 0)
