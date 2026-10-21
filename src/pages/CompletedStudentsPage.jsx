@@ -534,6 +534,16 @@ export function CompletedStudentsPage({ academicProgressByStudent = new Map(), b
   const selectedSection = (title) => selectedSections.find((section) => section.title === title)
   const selectedValue = (label) => buildFields(selected || {}).find(([field]) => field === label)?.[1]
 
+  if (isUploadOpen) {
+    return (
+      <CompletedStudentUploadModal
+        isOpen
+        onClose={() => setIsUploadOpen(false)}
+        onImported={async () => { await onDeleted?.() }}
+      />
+    )
+  }
+
   return (
     <section className="completed-students-page">
       <header className="completed-students-header">
@@ -563,7 +573,6 @@ export function CompletedStudentsPage({ academicProgressByStudent = new Map(), b
       {deleteTarget ? <div className="completed-students-modal-backdrop" role="presentation"><section className="completed-students-modal completed-students-delete-modal" role="dialog" aria-modal="true" aria-labelledby="completed-student-delete-title"><header className="completed-students-modal-header"><div className="completed-students-profile"><div className="completed-students-delete-icon"><Trash2 size={20} /></div><div><p className="completed-students-kicker">PERMANENT ACTION</p><h2 id="completed-student-delete-title">Delete student?</h2><span>{valueOf(deleteTarget.studentName)} · {valueOf(deleteTarget.studentId)}</span></div></div><button type="button" className="completed-students-modal-close" onClick={() => setDeleteTarget(null)} disabled={deleteState.busy} aria-label="Close"><X size={18} /></button></header><div className="completed-students-delete-body"><p>This will permanently delete this student and all related course records, payments, installments, attendance, academic tests/projects, exam attempts, and discontinuation data.</p><strong>This action cannot be undone.</strong>{deleteState.error ? <div className="completed-students-error" role="alert">{deleteState.error}</div> : null}</div><footer className="completed-students-delete-actions"><button type="button" className="completed-students-delete-cancel" onClick={() => setDeleteTarget(null)} disabled={deleteState.busy}>Cancel</button><button type="button" className="completed-students-delete-confirm" onClick={() => void confirmDelete()} disabled={deleteState.busy}>{deleteState.busy ? 'Deleting…' : 'Delete permanently'}</button></footer></section></div> : null}
 
       <BranchMonthlyReportModal isOpen={isReportOpen} onClose={() => setIsReportOpen(false)} />
-      <CompletedStudentUploadModal isOpen={isUploadOpen} onClose={() => setIsUploadOpen(false)} onImported={async () => { await onDeleted?.() }} />
     </section>
   )
 }
