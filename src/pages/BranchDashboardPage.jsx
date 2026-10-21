@@ -11198,7 +11198,7 @@ useEffect(() => {
                 />
               ) : null}
               {activeSection === 'completed-students' ? <CompletedStudentsPage academicProgressByStudent={branchAcademicProgressByStudent} branchAdminName={branchAdminDisplay} completedStudents={completedStudentsForLifecycle} completedStudentsLoading={!isBranchAcademicProgressLoaded} courseCatalog={branchCourseCards} onDeleted={reloadBranchStudents} paymentHistoryRecords={allPaymentHistoryRecords} students={branchStudentsForDisplay} /> : null}
-              <BranchMonthlyReportModal isOpen={isStudentMonthlyReportOpen} onClose={() => setIsStudentMonthlyReportOpen(false)} />
+              <BranchMonthlyReportModal isOpen={isStudentMonthlyReportOpen} onClose={() => setIsStudentMonthlyReportOpen(false)} reportVariant="monthly" />
               {activeSection === 'faculty-skills' ? <FacultySkillsUpgradePage embedded branchId={branchData?.id || branchData?.branchId || branchProfile?.id || branchProfile?.branchId || ''} /> : null}
               {activeSection === 'dashboard' ? (
                 <>
