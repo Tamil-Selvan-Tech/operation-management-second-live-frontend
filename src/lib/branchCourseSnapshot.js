@@ -132,9 +132,9 @@ export function mergeBranchCoursesWithSnapshot(records, branchId = '') {
       ...snapshotCourse,
       ...course,
       id: course?.id || snapshotCourse?.id || '',
-      models: snapshotModels.length ? snapshotModels : primaryModels,
-      courseModels: snapshotModels.length ? snapshotModels : primaryModels,
-      modules: snapshotModels.length ? snapshotModels : primaryModels,
+      models: primaryModels.length ? primaryModels : snapshotModels,
+      courseModels: primaryModels.length ? primaryModels : snapshotModels,
+      modules: primaryModels.length ? primaryModels : snapshotModels,
       assignedFaculty: primaryAssignedFaculty.length ? primaryAssignedFaculty : snapshotAssignedFaculty,
     })
   })

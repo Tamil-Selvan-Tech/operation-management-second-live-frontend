@@ -15267,3 +15267,8 @@ body.branch-notification-menu-open .main-area {
 .student-combined-payment-plan-field select { min-height: 36px; padding: 0 9px; border: 1px solid #b9d6f4; border-radius: 8px; background: #fff; color: #17345f; }
 @media (max-width: 760px) { .student-course-card-grid { grid-template-columns: 1fr; } .student-course-total-summary { align-items: stretch; flex-direction: column; } }
 .notification-copy>span{white-space:pre-line}
+
+
+/* Let the course-import page start directly beneath the dashboard header. */
+.branch-dashboard-app-shell.is-course-import-page .super-admin-content { padding-top:0;padding-left:0;padding-right:0 }
+.branch-dashboard-app-shell.is-course-import-page .branch-dashboard-content { padding-top:0 }
