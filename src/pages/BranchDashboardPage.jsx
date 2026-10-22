@@ -8898,15 +8898,8 @@ const studentCourseOptions = useMemo(() => {
     const dueSoon = dueThisWeek.filter((item) => getDashboardDateValue(item.dueDate) > todayValue)
     const overdue = dueItems.filter((item) => getDashboardDateValue(item.dueDate) < todayValue)
     const currentMonthStudents = branchStudents.filter((student) => {
-      // Students imported through the Completed Students report belong to the
-      // completed-history screen and must not affect the admissions KPI.
-      if (isUploadedCompletedStudentReportRecord(student)) return false
       if (!matchesBaseStudentFilters(student)) return false
-      const addedDate = getDashboardDateValue(
-        isUploadedCompletedStudentReportRecord(student)
-          ? (student.updatedAt || student.createdAt || student.admissionDate || student.courseStartDate)
-          : (student.admissionDate || student.courseStartDate || student.createdAt),
-      )
+      const addedDate = getDashboardDateValue(student.admissionDate) || getDashboardDateValue(student.courseStartDate) || getDashboardDateValue(student.courseStartingDate)
       return addedDate.slice(0, 7) === todayValue.slice(0, 7)
     }).length
     const totalFee = rows.reduce((sum, row) => sum + row.totalFee, 0)

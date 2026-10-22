@@ -7,7 +7,6 @@ import { request } from '../services/apiClient'
 import { TrendingCourses } from './TrendingCourses'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { formatSuperAdminDateRange, getSuperAdminDateRange, SUPER_ADMIN_DATE_PRESETS } from '../lib/superAdminDateRange'
-import { isCompletedStudentReportRecord } from '../lib/studentRecordClassification'
 
 const emptyValue = '—'
 const DASHBOARD_LAYOUT_STORAGE_KEY = 'cispro:super-admin-dashboard-layout'
@@ -90,7 +89,6 @@ export function SuperAdminOverallDashboard({ branches, userKey = 'super-admin', 
   const [branchQuery, setBranchQuery] = useState('')
   const [isBranchSearchOpen, setIsBranchSearchOpen] = useState(false)
   const [allStudents, setAllStudents] = useState([])
-  const [allStudentsLoaded, setAllStudentsLoaded] = useState(false)
   const [overview, setOverview] = useState(null)
   const [branchPerformance, setBranchPerformance] = useState([])
   const [branchPerformanceHasData, setBranchPerformanceHasData] = useState(true)
@@ -186,12 +184,10 @@ export function SuperAdminOverallDashboard({ branches, userKey = 'super-admin', 
   useEffect(() => {
     if (!Array.isArray(branches) || !branches.length) {
       setAllStudents([])
-      setAllStudentsLoaded(true)
       return undefined
     }
 
     let cancelled = false
-    setAllStudentsLoaded(false)
     const loadStudents = async () => {
       try {
         const rows = []
@@ -226,12 +222,10 @@ export function SuperAdminOverallDashboard({ branches, userKey = 'super-admin', 
 
         if (!cancelled) {
           setAllStudents(normalizedRows)
-          setAllStudentsLoaded(true)
         }
       } catch {
         if (!cancelled) {
           setAllStudents([])
-          setAllStudentsLoaded(false)
         }
       }
     }
@@ -241,50 +235,6 @@ export function SuperAdminOverallDashboard({ branches, userKey = 'super-admin', 
       cancelled = true
     }
   }, [branches])
-
-  const correctedThisMonthAdmissions = useMemo(() => {
-    if (!allStudentsLoaded) return null
-    const now = new Date()
-    const selectedBranchKeys = selectedBranch
-      ? new Set([selectedBranch.id, selectedBranch.branchId, selectedBranch.branchCode]
-        .map((value) => String(value || '').trim().toLowerCase())
-        .filter(Boolean))
-      : null
-    const toDateKey = (value) => {
-      const text = String(value || '').trim()
-      if (!text) return ''
-      const date = new Date(text.length <= 10 ? `${text.slice(0, 10)}T00:00:00` : text)
-      return Number.isNaN(date.getTime()) ? '' : `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
-    }
-    const today = toDateKey(now)
-    const startDate = appliedDateRange?.startDate || `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`
-    const endDate = appliedDateRange?.endDate || today
-    return allStudents.filter((student) => {
-      if (isCompletedStudentReportRecord(student)) return false
-      if (selectedBranchKeys) {
-        const studentBranchKeys = [
-          student.branchId,
-          student.branchCode,
-          student.branch?.id,
-          student.branch?.branchId,
-          student.branch?.branchCode,
-          student.branchRecord?.id,
-          student.branchRecord?.branchId,
-          student.branchRecord?.branchCode,
-        ]
-          .map((value) => String(value || '').trim().toLowerCase())
-          .filter(Boolean)
-        if (!studentBranchKeys.some((key) => selectedBranchKeys.has(key))) return false
-      }
-      const admissionDate = toDateKey(student.admissionDate || student.createdAt)
-      return admissionDate && admissionDate >= startDate && admissionDate <= endDate
-    }).length
-  }, [allStudents, allStudentsLoaded, appliedDateRange, selectedBranch])
-
-  const displayOverview = useMemo(() => {
-    if (!overview || correctedThisMonthAdmissions === null) return overview
-    return { ...overview, thisMonthAdmissions: correctedThisMonthAdmissions }
-  }, [correctedThisMonthAdmissions, overview])
 
   useEffect(() => {
     const handlePaymentHistoryChange = () => { void load() }
@@ -312,7 +262,7 @@ export function SuperAdminOverallDashboard({ branches, userKey = 'super-admin', 
     }
   }
 
-  const admissionsComparison = getMonthComparison(displayOverview?.admissionsByMonth)
+  const admissionsComparison = getMonthComparison(overview?.admissionsByMonth)
   const paymentComparison = getMonthComparison((overview?.monthlyPaymentData || []).map((item) => ({ ...item, value: item.actual ?? item.value })))
   const getDayComparison = (current, previous) => {
     if (isLoading || previous === undefined || previous === null) return null
@@ -366,7 +316,7 @@ export function SuperAdminOverallDashboard({ branches, userKey = 'super-admin', 
   const metricDefinitions = {
     totalBranches: { label: 'Total branches', description: 'Total number of active branches on the dashboard', icon: Building2, tone: 'blue', node: metric('Total branches', overview?.totalBranches, Building2, 'blue', false) },
     totalStudents: { label: 'Total students', description: 'Total number of registered students on the dashboard', icon: Users, tone: 'purple', node: metric('Total students', overview?.totalStudents, Users, 'purple', false) },
-    thisMonthAdmissions: { label: `${metricPeriodLabel} admissions`, description: 'Admissions recorded in the selected period', icon: CalendarDays, tone: 'orange', node: metric(`${metricPeriodLabel} admissions`, displayOverview?.thisMonthAdmissions, CalendarDays, 'orange', false, '', admissionsComparison) },
+    thisMonthAdmissions: { label: `${metricPeriodLabel} admissions`, description: 'Admissions recorded in the selected period', icon: CalendarDays, tone: 'orange', node: metric(`${metricPeriodLabel} admissions`, overview?.thisMonthAdmissions, CalendarDays, 'orange', false, '', admissionsComparison) },
     totalPayment: { label: 'Total payment collected', description: 'Total amount collected across branches', icon: Wallet, tone: 'blue', node: metric('Total payment collected', overview?.totalPayment, Wallet, 'blue') },
     thisMonthPayment: { label: `${metricPeriodLabel} payment`, description: 'Total payment received in the selected period', icon: IndianRupee, tone: 'green', node: metric(`${metricPeriodLabel} payment`, overview?.thisMonthPayment, IndianRupee, 'green', true, '', paymentComparison) },
     totalOutstanding: { label: 'Total outstanding', description: 'Total pending amount from students', icon: Clock3, tone: 'orange', node: metric('Total outstanding', overview?.totalOutstanding, Clock3, 'orange') },

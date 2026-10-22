@@ -126,7 +126,7 @@ function buildFallbackOverview(branches, studentsByBranch, backendPaymentHistory
 
   const trendingCourseMap = new Map()
   students.forEach((student) => {
-    const admissionDate = dateValue(student.admissionDate || student.createdAt || student.firstInstallmentDate)
+    const admissionDate = dateValue(student.admissionDate) || dateValue(student.courseStartDate) || dateValue(student.courseStartingDate)
     if (!admissionDate || admissionDate.slice(0, 7) !== today.slice(0, 7)) return
     const courseName = String(student.courseName || student.courseInterested || student.course?.name || student.course?.title || '').trim()
     if (!courseName) return
@@ -196,7 +196,7 @@ function buildFallbackOverview(branches, studentsByBranch, backendPaymentHistory
   })
 
   students.forEach((student) => {
-    const admissionDate = dateValue(student.admissionDate || student.createdAt || student.firstInstallmentDate)
+    const admissionDate = dateValue(student.admissionDate) || dateValue(student.courseStartDate) || dateValue(student.courseStartingDate)
     const admission = admissionDate ? new Date(`${admissionDate}T00:00:00`) : null
     if (admission && admission.getFullYear() === now.getFullYear() && admission.getMonth() === now.getMonth()) result.thisMonthAdmissions += 1
     const admissionBucket = admissionBuckets.find((item) => item.key === `${admission?.getFullYear()}-${admission?.getMonth()}`)
