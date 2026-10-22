@@ -358,7 +358,9 @@
 .course-import-sheet-panel .course-import-edit-table td .course-import-cell-display { display:block;min-width:0;color:#243c60;font-size:.77rem;line-height:1.45;white-space:normal;overflow-wrap:anywhere }
 .course-import-sheet-panel .course-import-edit-table td.has-cell-error .course-import-cell-display { color:#9e2e24;font-weight:650 }
 .course-import-sheet-panel .course-import-edit-table th[data-column="Course Code"],
-.course-import-sheet-panel .course-import-edit-table td[data-column="Course Code"] { width:118px;min-width:118px;max-width:118px }
+.course-import-sheet-panel .course-import-edit-table td[data-column="Course Code"] { width:170px;min-width:170px;max-width:170px;white-space:nowrap;overflow-wrap:normal }
+.course-import-sheet-panel .course-import-edit-table td[data-column="Course Code"] .course-import-cell-display { white-space:nowrap;overflow-wrap:normal }
+.course-import-sheet-panel .course-import-edit-wrap { margin-top:12px }
 .course-import-sheet-panel .course-import-edit-table th[data-column="Course Type"],
 .course-import-sheet-panel .course-import-edit-table td[data-column="Course Type"] { width:132px;min-width:132px;max-width:132px }
 .course-import-sheet-panel .course-import-edit-table th[data-column="Course Name"],
