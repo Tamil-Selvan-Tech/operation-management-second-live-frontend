@@ -373,10 +373,10 @@
 }
 .completed-upload-filter-bar {
   margin: 16px 0 12px;
-  padding: 4px;
-  border: 1px solid #dbe7f4;
-  border-radius: 11px;
-  background: rgba(255, 255, 255, .74);
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
 }
 .completed-upload-filter-bar button {
   border-color: transparent;
@@ -386,6 +386,60 @@
   border-color: #93c5fd;
   background: #eff6ff;
   box-shadow: 0 2px 7px rgba(37, 99, 235, .08);
+}
+.completed-upload-filter-bar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 10px;
+  min-height: 48px;
+  box-sizing: border-box;
+}
+.completed-upload-filter-label {
+  display: none;
+  color: #64748b;
+  font-size: .72rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+.completed-upload-filter-bar select {
+  min-width: 190px;
+  height: 34px;
+  padding: 0 34px 0 11px;
+  border: 1px solid #bfdbfe;
+  border-radius: 8px;
+  outline: none;
+  background: #f8fbff;
+  color: #1d4ed8;
+  font: inherit;
+  font-size: .72rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+.completed-upload-filter-bar select:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, .12);
+}
+.completed-upload-student-search {
+  width: min(280px, 34vw);
+  height: 34px;
+  padding: 0 11px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  outline: none;
+  background: #fff;
+  color: #334155;
+  font: inherit;
+  font-size: .72rem;
+}
+.completed-upload-student-search::placeholder {
+  color: #94a3b8;
+}
+.completed-upload-page .completed-upload-student-search:focus,
+.completed-upload-page .completed-upload-student-search:focus-visible {
+  border-color: #cbd5e1 !important;
+  outline: 0 !important;
+  box-shadow: none !important;
 }
 .completed-upload-table-shell {
   height: min(56vh, 560px);
@@ -1081,6 +1135,19 @@ body[data-completed-upload-invalid-fields~="studentStatus"] [data-edit-field="st
 .completed-upload-table-shell .completed-upload-full-table tbody td.completed-upload-action-column {
   transform: none !important;
   opacity: 0;
+  pointer-events: none;
+}
+
+/* Status is rendered by the fixed result rail; keep the scrolling table's copy hidden. */
+.completed-upload-table-shell .completed-upload-full-table .completed-upload-background-status-cell {
+  color: transparent !important;
+  opacity: 0 !important;
+  pointer-events: none;
+}
+
+.completed-upload-table-shell .completed-upload-full-table thead th:nth-last-child(3) {
+  color: transparent !important;
+  opacity: 0 !important;
   pointer-events: none;
 }
 
