@@ -5,10 +5,19 @@ import '../styles/BranchMonthlyReportModal.css'
 
 const pad = (value) => String(value).padStart(2, '0')
 const today = new Date()
-const todayValue = today.toISOString().slice(0, 10)
+const toDateInputValue = (date) => `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
+const todayValue = toDateInputValue(today)
+const currentWeekRange = (referenceDate = new Date()) => {
+  const start = new Date(referenceDate)
+  const day = start.getDay()
+  start.setDate(start.getDate() + (day === 0 ? -6 : 1 - day))
+  const end = new Date(start)
+  end.setDate(start.getDate() + 6)
+  return { fromDate: toDateInputValue(start), toDate: toDateInputValue(end) }
+}
 const REPORT_FIELD_GROUPS = [
-  { label: 'Student details', fields: [['studentId', 'Student ID'], ['studentName', 'Student Name'], ['contactNumber', 'Contact Number'], ['emailId', 'Email ID'], ['parentGuardian', 'Parent / Guardian'], ['qualification', 'Qualification'], ['educationLevel', 'Education Level'], ['educationStatus', 'Education Status'], ['passedOutYear', 'Passed Out Year'], ['currentStatus', 'Current Status'], ['studentStatus', 'Student Status']] },
-  { label: 'Course & schedule', fields: [['course', 'Course'], ['databaseSource', 'Database Source'], ['branchAdminName', 'Branch Admin Name'], ['courseStartingDate', 'Course Starting Date'], ['courseEndingDate', 'Course Ending Date'], ['scheduleMode', 'Schedule Mode'], ['batchTiming', 'Batch Timing'], ['facultyName', 'Faculty Name'], ['attendance', 'Attendance']] },
+  { label: 'Student details', fields: [['studentId', 'Student ID'], ['studentName', 'Student Name'], ['contactNumber', 'Contact Number'], ['emailId', 'Email ID'], ['parentGuardian', 'Parent / Guardian'], ['parentSpouseNumber', 'Parent / Spouse Number'], ['qualification', 'Qualification'], ['educationLevel', 'Education Level'], ['educationStatus', 'Education Status'], ['passedOutYear', 'Passed Out Year'], ['currentStatus', 'Current Status'], ['studentStatus', 'Student Status']] },
+  { label: 'Course & schedule', fields: [['course', 'Course'], ['batchName', 'Batch Name'], ['databaseSource', 'Database Source'], ['branchAdminName', 'Branch Admin Name'], ['courseStartingDate', 'Course Starting Date'], ['courseEndingDate', 'Course Ending Date'], ['scheduleMode', 'Schedule Mode'], ['batchTiming', 'Batch Timing'], ['facultyName', 'Faculty Name'], ['attendance', 'Attendance']] },
   { label: 'Fees & payment', fields: [['courseFees', 'Course Fees'], ['registrationFees', 'Registration Fees'], ['totalFees', 'Total Fees'], ['paidAmount', 'Paid Amount'], ['pendingAmount', 'Pending Amount']] },
   { label: 'Academic & outcome', fields: [['remarks', 'Remarks'], ['academicProject', 'Academic Project'], ['assessment01', 'Assessment-01'], ['assessment02', 'Assessment-02'], ['assessment03', 'Assessment-03'], ['placement', 'Placement'], ['certificationStatus', 'Certification Status'], ['certificateIssuedDate', 'Certificate Issued Date']] },
   { label: 'Installments', fields: [1, 2, 3].flatMap((number) => [['installment' + number + '.paidAmount', `Installment ${number} - Paid Amount`], ['installment' + number + '.pendingAmount', `Installment ${number} - Pending Amount`], ['installment' + number + '.paymentDate', `Installment ${number} - Payment Date`], ['installment' + number + '.mode', `Installment ${number} - Mode of Collection`], ['installment' + number + '.receiptNumber', `Installment ${number} - Receipt Number`]]) },
@@ -61,6 +70,15 @@ export function BranchMonthlyReportModal({ isOpen, onClose, reportVariant = 'mon
   const installmentGroup = REPORT_FIELD_GROUPS.find((group) => group.label === 'Installments')
   const installmentFieldKeys = installmentGroup?.fields.map(([key]) => key) || []
   const allInstallmentsSelected = installmentFieldKeys.length > 0 && installmentFieldKeys.every((key) => selectedFieldSet.has(key))
+  useEffect(() => {
+    if (!isOpen) return
+    setSelectedFields(DEFAULT_REPORT_FIELDS)
+    if (mode === 'week') {
+      const week = currentWeekRange()
+      setFromDate(week.fromDate)
+      setToDate(week.toDate)
+    }
+  }, [isOpen, mode])
   if (!isOpen) return null
   const submit = async (event) => {
     event.preventDefault(); setError('')
@@ -76,7 +94,11 @@ export function BranchMonthlyReportModal({ isOpen, onClose, reportVariant = 'mon
       const monthlyFileName = mode === 'month' ? `${statusLabel}_monthly-${year}-${pad(month)}.xlsx` : `${statusLabel}_${periodName}.xlsx`
       await downloadBranchMonthlyStudentReport(query, isMonthlyReport ? monthlyFileName : statusName + '_' + periodName + '.xlsx')
       onClose()
-    } catch (downloadError) { setError(downloadError?.message || 'Unable to generate the report. Please try again.') } finally { setIsDownloading(false) }
+    } catch (downloadError) {
+      const message = String(downloadError?.message || '')
+      const noRecords = downloadError?.status === 404 || /no students found|no records found/i.test(message)
+      setError(noRecords ? 'No records found for the selected period and student status.' : (message || 'Unable to generate the report. Please try again.'))
+    } finally { setIsDownloading(false) }
   }
   return <div className="branch-monthly-report-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !isDownloading) onClose() }}>
     <section className="branch-monthly-report-modal" role="dialog" aria-modal="true" aria-labelledby="branch-monthly-report-title">
