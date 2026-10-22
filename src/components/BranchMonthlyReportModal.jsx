@@ -87,7 +87,12 @@ export function BranchMonthlyReportModal({ isOpen, onClose, reportVariant = 'mon
       const monthlyFileName = mode === 'month' ? `${statusLabel}_monthly-${year}-${pad(month)}.xlsx` : `${statusLabel}_${periodName}.xlsx`
       await downloadBranchMonthlyStudentReport(query, isMonthlyReport ? monthlyFileName : statusName + '_' + periodName + '.xlsx')
       onClose()
-    } catch (downloadError) { setError(downloadError?.body?.message || downloadError?.message || 'Unable to generate the report. Please try again.') } finally { setIsDownloading(false) }
+    } catch (downloadError) {
+      const responseMessage = String(downloadError?.body?.message || '').trim()
+      const message = responseMessage || String(downloadError?.message || '')
+      const noRecords = /no data found|no students found|no records found/i.test(message)
+      setError(noRecords ? 'No data found for the selected period and student status.' : (message || 'Unable to generate the report. Please try again.'))
+    } finally { setIsDownloading(false) }
   }
   return <div className="branch-monthly-report-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !isDownloading) onClose() }}>
     <section className="branch-monthly-report-modal" role="dialog" aria-modal="true" aria-labelledby="branch-monthly-report-title">
