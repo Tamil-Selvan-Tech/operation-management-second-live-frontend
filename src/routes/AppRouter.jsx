@@ -71,6 +71,7 @@ const SuperAdminNotificationsPage = lazyNamed(
 )
 const SalesAdminManagementPage = lazyNamed(() => import('../pages/SalesAdminManagementPage'), 'SalesAdminManagementPage')
 const SalesAdminDashboardPage = lazyNamed(() => import('../pages/SalesAdminDashboardPage'), 'SalesAdminDashboardPage')
+const LeadManagementPage = lazyNamed(() => import('../pages/LeadManagementPage'), 'LeadManagementPage')
 const StudentNewDashboardPage = lazyNamed(
   () => import('../pages/StudentNewDashboardPage'),
   'StudentNewDashboardPage',
@@ -125,6 +126,7 @@ const routeChunks = [
   SuperAdminNotificationsPage,
   SalesAdminManagementPage,
   SalesAdminDashboardPage,
+  LeadManagementPage,
   StudentNewDashboardPage,
   BranchNotificationsPage,
   BranchDashboardPage,
@@ -486,6 +488,7 @@ export function AppRouter() {
           </Route>
           <Route element={<ProtectedRoute allowedRoles={['sales-admin']} />}>
             <Route path="/dashboard/sales-admin" element={<SalesAdminDashboardPage />} />
+            <Route path="/dashboard/sales-admin/leads" element={<SalesAdminDashboardPage />} />
           </Route>
 
           <Route path="*" element={<NotFoundRoute />} />

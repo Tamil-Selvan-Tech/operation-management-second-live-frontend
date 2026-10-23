@@ -1,0 +1,531 @@
+.lead-management-page { padding: 4px 0 24px; color: #334155; }
+.lead-management-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; margin-bottom: 22px; }
+.lead-management-heading h1 { margin: 6px 0 4px; color: #17345f; font-size: 28px; }
+.lead-management-heading p:last-child { margin: 0; color: #64748b; }
+.lead-primary-button, .lead-secondary-button, .lead-clear-button { border-radius: 9px; padding: 11px 18px; font-weight: 700; cursor: pointer; }
+.lead-primary-button { border: 1px solid #2563eb; background: #2563eb; color: #fff; box-shadow: 0 8px 18px rgba(37,99,235,.16); }
+.lead-primary-button:disabled { opacity: .65; cursor: not-allowed; }
+.lead-secondary-button, .lead-clear-button { border: 1px solid #dbe4f0; background: #fff; color: #475569; }
+.lead-notice { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 0 0 14px; padding: 11px 14px; border-radius: 9px; font-size: 13px; }
+.lead-notice.is-success { position: fixed; z-index: 1200; top: 50%; left: 50%; transform: translate(-50%, -50%); min-width: min(420px, calc(100vw - 40px)); flex-direction: column; justify-content: center; gap: 14px; color: #294b78; background: #fff; border: 0; box-shadow: 0 20px 55px rgba(15, 23, 42, .2); padding: 32px 28px; border-radius: 16px; font-size: 16px; font-weight: 600; text-align: center; white-space: pre-line; }
+.lead-notice.is-success::before { content: '✓'; display: grid; place-items: center; width: 48px; height: 48px; border-radius: 50%; color: #13945c; background: #ecfdf3; font-size: 30px; font-weight: 500; }
+.lead-notice.is-success button { margin: 2px 0 0; min-width: 90px; padding: 11px 20px; border-radius: 8px; background: #2563eb; color: #fff; font-size: 0; font-weight: 700; box-shadow: 0 6px 14px rgba(37, 99, 235, .2); }
+.lead-notice.is-success button::after { content: 'OK'; font-size: 13px; }
+.lead-notice.is-error { color: #b42318; background: #fef2f2; }
+.lead-notice button { border: 0; background: transparent; color: inherit; font-size: 18px; cursor: pointer; }
+.lead-actions { position: relative; display: inline-flex; align-items: center; justify-content: center; min-width: 38px; }
+.lead-menu-toggle { width: 34px; height: 34px; border: 1px solid #d7e1ef; border-radius: 8px; background: #fff; color: #315276; font-size: 22px; line-height: 1; cursor: pointer; }
+.lead-actions > button:not(.lead-menu-toggle) { display: none; position: absolute; right: 0; z-index: 20; width: 100px; margin: 0; padding: 9px 12px; border: 0; background: #fff; color: #294b78; text-align: left; box-shadow: 0 8px 22px rgba(15, 23, 42, .12); cursor: pointer; }
+.lead-actions > button:nth-child(2) { top: 38px; border-radius: 8px 8px 0 0; }
+.lead-actions > button:nth-child(3) { top: 76px; border-radius: 0; }
+.lead-actions > button:nth-child(4) { top: 114px; border-radius: 0 0 8px 8px; color: #dc2626; }
+.lead-actions.is-open > button:not(.lead-menu-toggle) { display: block; }
+.lead-filter-toolbar { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 14px; }
+.lead-filter-toolbar input, .lead-filter-toolbar select { min-height: 40px; box-sizing: border-box; border: 1px solid #dbe4f0; border-radius: 8px; background: #fff; color: #334155; padding: 9px 11px; }
+.lead-filter-toolbar input { flex: 1 1 270px; min-width: 220px; }
+.lead-filter-toolbar select { flex: 0 1 150px; }
+.lead-table-card { overflow: hidden; border: 1px solid #dbe4f0; border-radius: 14px; background: #fff; box-shadow: 0 8px 20px rgba(15,23,42,.04); }
+.lead-table-scroll { overflow-x: auto; }
+.lead-table { width: 100%; min-width: 1250px; border-collapse: collapse; font-size: 13px; }
+.lead-table th { padding: 13px 12px; border-bottom: 1px solid #e2e8f0; background: #f8fafc; color: #475569; font-size: 11px; letter-spacing: .04em; text-align: left; text-transform: uppercase; white-space: nowrap; }
+.lead-table td { padding: 14px 12px; border-bottom: 1px solid #eef2f7; vertical-align: middle; }
+.lead-table tbody tr:last-child td { border-bottom: 0; }
+.lead-table tbody tr:hover { background: #f8fbff; }
+.lead-table tbody tr { cursor: pointer; }
+.lead-table tbody tr .lead-actions,
+.lead-table tbody tr .lead-actions button { cursor: pointer; }
+.lead-state-cell { padding: 42px 16px !important; color: #64748b; text-align: center; }
+.lead-badge { display: inline-flex; padding: 5px 9px; border-radius: 999px; font-size: 11px; font-weight: 700; }
+.stage-cold { color: #475569; background: #f1f5f9; }.stage-warm { color: #a16207; background: #fef9c3; }.stage-hot { color: #b42318; background: #fee2e2; }.stage-closed { color: #64748b; background: #e2e8f0; }
+.lead-actions { display: flex; gap: 5px; }
+.lead-actions button { border: 1px solid #dbe4f0; border-radius: 6px; padding: 6px 8px; background: #fff; color: #2563eb; font-size: 11px; cursor: pointer; }
+.lead-actions button.is-danger { color: #b42318; }
+.lead-pagination { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 13px 14px; color: #64748b; font-size: 12px; }
+.lead-pagination > div { display: flex; gap: 7px; }.lead-pagination button { border: 1px solid #dbe4f0; border-radius: 7px; padding: 7px 10px; background: #fff; color: #334155; cursor: pointer; }.lead-pagination button:disabled { cursor: not-allowed; opacity: .45; }
+.lead-modal-backdrop { position: fixed; inset: 0; z-index: 1200; display: grid; place-items: center; padding: 20px; background: rgba(15,23,42,.5); }
+.lead-modal { position: relative; width: min(920px, 100%); max-height: 92vh; overflow-y: auto; padding: 28px; border-radius: 16px; background: #fff; box-shadow: 0 24px 70px rgba(15,23,42,.25); }
+.lead-modal h2 { margin: 6px 0 20px; color: #17345f; }.lead-modal-close { position: absolute; top: 14px; right: 17px; border: 0; background: transparent; color: #64748b; font-size: 27px; cursor: pointer; }
+.lead-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 15px; }.lead-form-grid label { display: grid; gap: 6px; color: #475569; font-size: 13px; font-weight: 700; }.lead-form-grid input, .lead-form-grid select { width: 100%; box-sizing: border-box; min-height: 42px; border: 1px solid #dbe4f0; border-radius: 8px; padding: 10px 11px; background: #fff; color: #1e293b; font: inherit; font-weight: 400; }.lead-form-grid input:focus, .lead-form-grid select:focus, .lead-filter-toolbar input:focus, .lead-filter-toolbar select:focus { border-color: #2563eb; outline: none; box-shadow: 0 0 0 3px rgba(37,99,235,.12); }
+.lead-form-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 22px; }.lead-detail-modal { width: min(600px, 100%); }.lead-detail-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); border: 1px solid #e2e8f0; border-radius: 10px; overflow: hidden; }.lead-detail-grid div { display: grid; gap: 5px; padding: 13px; border-bottom: 1px solid #eef2f7; }.lead-detail-grid span { color: #64748b; font-size: 12px; }.lead-detail-grid strong { color: #1e293b; font-size: 13px; }
+@media (max-width: 720px) { .lead-management-heading { flex-direction: column; }.lead-primary-button { width: 100%; }.lead-form-grid, .lead-detail-grid { grid-template-columns: 1fr; }.lead-modal { padding: 22px 16px; }.lead-pagination { align-items: flex-start; flex-direction: column; } }
+.lead-wizard-modal { max-width: 760px; }
+.lead-field-error { display: block; margin-top: 5px; color: #dc2626; font-size: 12px; font-weight: 600; }
+.lead-form-grid input.has-error, .lead-form-grid select.has-error { border-color: #dc2626; box-shadow: 0 0 0 2px rgba(220, 38, 38, .08); }
+.lead-form-grid label:has(input[type="date"]:invalid)::after { content: 'This field is required'; display: block; margin-top: 5px; color: #dc2626; font-size: 12px; font-weight: 600; }
+.lead-form-grid label:has(select:invalid) > select:not(.has-error) { border-color: #dc2626; box-shadow: 0 0 0 2px rgba(220, 38, 38, .08); }
+.lead-form-grid label:has(select:invalid):not(:has(.lead-field-error))::after { content: 'This field is required'; display: block; margin-top: 5px; color: #dc2626; font-size: 12px; font-weight: 600; }
+.lead-step-indicator { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 18px 0 22px; }
+.lead-step-indicator > div { display: flex; align-items: center; gap: 8px; color: #94a3b8; font-size: 12px; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px; cursor: pointer; }
+.lead-step-indicator span { display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; background: #e2e8f0; color: #64748b; font-weight: 700; }
+.lead-step-indicator .is-active, .lead-step-indicator .is-complete { color: #2563eb; border-color: #2563eb; }
+.lead-step-indicator .is-active span, .lead-step-indicator .is-complete span { background: #2563eb; color: #fff; }
+.lead-actions { position: relative; display: inline-flex; gap: 0; min-width: 38px; }
+.lead-actions .lead-menu-toggle { width: 34px; height: 34px; padding: 0; border: 1px solid #d7e1ef; border-radius: 8px; background: #fff; color: #315276; font-size: 22px; line-height: 1; }
+.lead-actions > button:not(.lead-menu-toggle) { display: none; position: absolute; right: 0; z-index: 20; width: 100px; margin: 0; padding: 9px 12px; border: 0; border-radius: 0; background: #fff; color: #294b78; text-align: left; box-shadow: 0 8px 22px rgba(15, 23, 42, .12); }
+.lead-actions > button:nth-child(2) { top: 38px; border-radius: 8px 8px 0 0; }
+.lead-actions > button:nth-child(3) { top: 76px; }
+.lead-actions > button:nth-child(4) { top: 114px; border-radius: 0 0 8px 8px; color: #dc2626; }
+.lead-actions.is-open > button:not(.lead-menu-toggle) { display: block; }
+.lead-table-card, .lead-table-scroll { overflow: visible !important; }
+.lead-table td:last-child { position: relative; overflow: visible !important; }
+.lead-actions .lead-menu-toggle { font-size: 28px; }
+.lead-actions.is-open { z-index: 100; }
+.lead-actions.is-open > button:not(.lead-menu-toggle) { display: block !important; visibility: visible !important; opacity: 1 !important; }
+.lead-actions:hover > button:not(.lead-menu-toggle) { display: block !important; visibility: visible !important; opacity: 1 !important; }
+.lead-actions:focus-within > button:not(.lead-menu-toggle) { display: block !important; visibility: visible !important; opacity: 1 !important; }
+.lead-actions > button:nth-child(2) { top: auto; bottom: 38px; border-radius: 8px 8px 0 0; }
+.lead-actions > button:nth-child(3) { top: auto; bottom: 76px; }
+.lead-actions > button:nth-child(4) { top: auto; bottom: 114px; border-radius: 0 0 8px 8px; }
+.lead-table td:last-child { min-width: 78px; }
+.lead-actions.is-open { position: absolute; right: 8px; top: calc(100% + 8px); bottom: auto !important; z-index: 200; display: flex; flex-direction: column; align-items: stretch; width: 116px; padding: 8px; gap: 2px; border: 1px solid #e2e8f0; border-radius: 10px; background: #fff; box-shadow: 0 12px 28px rgba(15, 23, 42, .18); }
+.lead-actions.is-open .lead-menu-toggle { align-self: flex-end; margin-bottom: 4px; }
+.lead-actions.is-open > button:not(.lead-menu-toggle) { position: static; display: block !important; width: 100%; padding: 8px 10px; border: 0; border-radius: 6px !important; box-shadow: none; text-align: left; }
+
+/* Keep the actions trigger visible and let its menu escape the table card. */
+.lead-table-card,
+.lead-table-scroll,
+.lead-table,
+.lead-table tbody,
+.lead-table tr,
+.lead-table td:last-child {
+  overflow: visible !important;
+}
+
+.lead-actions {
+  position: relative !important;
+  display: inline-flex !important;
+  min-width: 38px !important;
+  min-height: 36px;
+  overflow: visible !important;
+  z-index: 30;
+}
+
+.lead-actions .lead-menu-toggle {
+  display: inline-flex !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  align-items: center;
+  justify-content: center;
+  width: 36px !important;
+  height: 36px !important;
+  padding: 0 !important;
+  color: transparent !important;
+  font-size: 0 !important;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.lead-actions .lead-menu-toggle::after {
+  content: '\22ee';
+  color: #315276;
+  font-size: 28px;
+  line-height: 1;
+}
+
+.lead-actions.is-open {
+  position: absolute !important;
+  right: 10px;
+  top: calc(100% + 8px) !important;
+  bottom: auto !important;
+  display: flex !important;
+  flex-direction: column;
+  align-items: stretch;
+  width: 126px !important;
+  min-height: 0;
+  padding: 8px !important;
+  gap: 2px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 12px 28px rgba(15, 23, 42, .18);
+  z-index: 1000 !important;
+}
+
+.lead-actions.is-open .lead-menu-toggle {
+  align-self: flex-end;
+  margin-bottom: 3px;
+}
+
+.lead-actions.is-open > button:not(.lead-menu-toggle) {
+  position: static !important;
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  width: 100% !important;
+  padding: 9px 10px !important;
+  border: 0 !important;
+  border-radius: 6px !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  color: #294b78 !important;
+  text-align: left;
+}
+
+.lead-actions.is-open > button:not(.lead-menu-toggle):hover {
+  background: #eef5ff !important;
+}
+
+.lead-actions.is-open > button.is-danger {
+  color: #dc2626 !important;
+}
+
+/* Final menu surface: one clean box containing all three actions. */
+.lead-actions.is-open {
+  box-sizing: border-box !important;
+  width: 132px !important;
+  min-width: 132px !important;
+  height: auto !important;
+  overflow: visible !important;
+  background: #fff !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 10px !important;
+  box-shadow: 0 12px 28px rgba(15, 23, 42, .18) !important;
+}
+
+.lead-actions.is-open > button:not(.lead-menu-toggle) {
+  box-sizing: border-box !important;
+  height: 34px !important;
+  margin: 0 !important;
+  background: #fff !important;
+  box-shadow: none !important;
+}
+
+.lead-actions.is-open > button:not(.lead-menu-toggle):first-of-type {
+  border-radius: 6px !important;
+}
+
+.lead-actions.is-open > button:not(.lead-menu-toggle) + button:not(.lead-menu-toggle) {
+  border-radius: 6px !important;
+}
+
+/* Hovering the three-dot trigger must use the same single menu surface. */
+.lead-actions:hover {
+  position: absolute !important;
+  right: 10px;
+  top: calc(100% + 8px) !important;
+  bottom: auto !important;
+  display: flex !important;
+  flex-direction: column;
+  align-items: stretch;
+  width: 132px !important;
+  min-width: 132px !important;
+  min-height: 0;
+  height: auto !important;
+  padding: 8px !important;
+  gap: 2px;
+  box-sizing: border-box !important;
+  overflow: visible !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 10px !important;
+  background: #fff !important;
+  box-shadow: 0 12px 28px rgba(15, 23, 42, .18) !important;
+  z-index: 1000 !important;
+}
+
+.lead-actions:hover > button:not(.lead-menu-toggle) {
+  position: static !important;
+  display: block !important;
+  width: 100% !important;
+  height: 34px !important;
+  margin: 0 !important;
+  padding: 9px 10px !important;
+  border: 0 !important;
+  border-radius: 6px !important;
+  background: #fff !important;
+  box-shadow: none !important;
+  color: #294b78 !important;
+  text-align: left;
+}
+
+.lead-actions:hover > button:not(.lead-menu-toggle):hover {
+  background: #eef5ff !important;
+}
+
+.lead-actions:hover > button.is-danger {
+  color: #dc2626 !important;
+}
+
+/* Do not move the trigger while hovering; render the hover menu below it. */
+.lead-actions:hover:not(.is-open) {
+  position: relative !important;
+  right: auto !important;
+  top: auto !important;
+  width: 36px !important;
+  min-width: 36px !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.lead-actions:hover:not(.is-open)::before {
+  content: '';
+  position: absolute;
+  top: 44px;
+  right: -96px;
+  width: 132px;
+  height: 118px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 12px 28px rgba(15, 23, 42, .18);
+  z-index: 999;
+}
+
+.lead-actions:hover:not(.is-open) > button:not(.lead-menu-toggle) {
+  position: absolute !important;
+  right: -88px !important;
+  z-index: 1000 !important;
+  width: 116px !important;
+  height: 34px !important;
+  padding: 9px 10px !important;
+}
+
+.lead-actions:hover:not(.is-open) > button:nth-child(2) { top: 48px !important; }
+.lead-actions:hover:not(.is-open) > button:nth-child(3) { top: 82px !important; }
+.lead-actions:hover:not(.is-open) > button:nth-child(4) { top: 116px !important; }
+
+.lead-actions:hover:not(.is-open) > button:not(.lead-menu-toggle) {
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  color: #294b78 !important;
+  background: #fff !important;
+  z-index: 1001 !important;
+}
+
+.lead-actions:hover:not(.is-open) > button.is-danger {
+  color: #dc2626 !important;
+}
+
+/* The actions are grouped in a real menu container so the hover state cannot render blank. */
+.lead-actions,
+.lead-actions:hover,
+.lead-actions.is-open {
+  position: relative !important;
+  top: auto !important;
+  right: auto !important;
+  bottom: auto !important;
+  width: 38px !important;
+  min-width: 38px !important;
+  height: 36px !important;
+  min-height: 36px !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  overflow: visible !important;
+  z-index: 100 !important;
+}
+
+.lead-actions-menu {
+  display: none;
+  position: absolute;
+  top: -128px;
+  left: -56px;
+  right: auto;
+  z-index: 1001;
+  width: 132px;
+  box-sizing: border-box;
+  padding: 8px;
+  gap: 2px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 12px 28px rgba(15, 23, 42, .18);
+}
+
+.lead-table-card,
+.lead-table-scroll,
+.lead-table,
+.lead-table tbody,
+.lead-table tr,
+.lead-table td,
+.lead-table td:last-child {
+  overflow: visible !important;
+}
+
+.lead-actions:hover .lead-actions-menu,
+.lead-actions.is-open .lead-actions-menu {
+  display: grid !important;
+}
+
+.lead-actions-menu > button {
+  position: static !important;
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  width: 100% !important;
+  height: 34px !important;
+  margin: 0 !important;
+  padding: 8px 10px !important;
+  border: 0 !important;
+  border-radius: 6px !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: #294b78 !important;
+  text-align: left;
+  cursor: pointer;
+}
+
+.lead-actions-menu > button:hover {
+  background: #eef5ff !important;
+}
+
+.lead-actions-menu > button.is-danger {
+  color: #dc2626 !important;
+}
+
+.lead-delete-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1400;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(15, 23, 42, .48);
+}
+
+.lead-delete-dialog {
+  position: relative;
+  width: min(440px, calc(100vw - 40px));
+  padding: 28px;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 20px 55px rgba(15, 23, 42, .24);
+  text-align: center;
+}
+
+.lead-delete-dialog::after {
+  content: 'X';
+  position: absolute;
+  top: 14px;
+  right: 18px;
+  z-index: 3;
+  color: #64748b;
+  font-size: 18px;
+  font-weight: 700;
+  pointer-events: none;
+}
+
+.lead-delete-close {
+  position: absolute !important;
+  top: 12px !important;
+  right: 12px !important;
+  z-index: 20 !important;
+  display: grid !important;
+  place-items: center !important;
+  width: 34px !important;
+  height: 34px !important;
+  border: 0;
+  background: transparent;
+  color: #64748b;
+  color: transparent;
+  font-size: 0;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.lead-delete-close::before {
+  content: 'X';
+  color: #64748b;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.lead-delete-close:hover {
+  color: #17243b;
+}
+
+.lead-delete-dialog h2 {
+  margin: 0;
+  color: #17243b;
+  font-size: 20px;
+}
+
+.lead-delete-dialog p {
+  margin: 10px 0 22px;
+  color: #64748b;
+  font-size: 14px;
+}
+
+.lead-delete-actions {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+}
+
+.lead-delete-actions button {
+  min-width: 110px;
+}
+
+.lead-delete-actions .is-delete {
+  border-color: #dc2626;
+  background: #dc2626;
+}
+
+/* Keep only branch and stage filters in the lead toolbar. */
+.lead-filter-toolbar select:nth-of-type(2),
+.lead-filter-toolbar select:nth-of-type(4),
+.lead-filter-toolbar select:nth-of-type(5) {
+  display: none !important;
+}
+
+.lead-filter-toolbar .lead-clear-button {
+  display: none !important;
+}
+
+.lead-filter-toolbar input[type='search'] {
+  flex: 0 1 220px;
+  min-width: 180px;
+  max-width: 220px;
+}
+
+/* Keep pagination visually outside the table container. */
+.lead-table-card {
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.lead-table-scroll {
+  border: 1px solid #dbe4f0;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, .04);
+}
+
+.lead-pagination {
+  margin-top: 14px;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+/* Lead Status and Lead Source are not shown in the lead table. */
+.lead-table th:nth-child(7),
+.lead-table td:nth-child(7),
+.lead-table th:nth-child(8),
+.lead-table td:nth-child(8) {
+  display: none !important;
+}
+
+/* Remove the legacy pseudo-menu so click opens only one actions box. */
+.lead-actions::before,
+.lead-actions::after,
+.lead-actions:hover::before,
+.lead-actions.is-open::before {
+  content: none !important;
+  display: none !important;
+}
+
+.lead-actions.is-open {
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+@media (max-width: 640px) { .lead-step-indicator { gap: 6px; } .lead-step-indicator strong { display: none; } .lead-step-indicator > div { justify-content: center; } }
