@@ -1,11 +1,17 @@
 import { useEffect, useState } from 'react'
+import { Bell, Home, LayoutGrid, LogOut, PanelLeftClose, PanelLeftOpen, UserRound, X } from 'lucide-react'
 import { request } from '../services/apiClient'
 import { useAuth } from '../auth/useAuth'
+import '../styles/SuperAdminDashboardPage.css'
+import '../styles/SalesAdminDashboardPage.css'
 
 export function SalesAdminDashboardPage() {
-  const { user } = useAuth()
+  const { user, signOut } = useAuth()
   const [dashboard, setDashboard] = useState(null)
   const [error, setError] = useState('')
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false)
+  const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false)
 
   useEffect(() => {
     let active = true
@@ -16,16 +22,42 @@ export function SalesAdminDashboardPage() {
   }, [])
 
   const cards = dashboard?.cards || {}
+  const closeMobileSidebar = () => setIsMobileSidebarOpen(false)
+
   return (
-    <main className="page-shell" style={{ padding: '32px' }}>
-      <p className="eyebrow">SALES ADMIN</p>
-      <h1>Welcome, {user?.name || 'Sales Admin'}</h1>
-      <p>Dashboard data is scoped to your assigned branches.</p>
-      {error ? <p role="alert">{error}</p> : null}
-      <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '16px', marginTop: '24px' }}>
-        {[["New leads", cards.newLeads], ["Total leads", cards.totalLeads], ["HOT leads", cards.hotLeads], ["WARM leads", cards.warmLeads], ["COLD leads", cards.coldLeads], ["Admissions", cards.admissionsCompleted]].map(([label, value]) => <article className="panel-card" key={label} style={{ padding: '20px' }}><span>{label}</span><strong style={{ display: 'block', fontSize: '28px', marginTop: '8px' }}>{value == null ? 'Unavailable' : value}</strong></article>)}
-      </section>
-      <section className="panel-card" style={{ marginTop: '24px', padding: '20px' }}><h2>Lead Management</h2><p>Lead management workspace is ready for the next implementation phase.</p></section>
-    </main>
+    <section className={`super-admin-page ${isSidebarCollapsed ? 'is-sidebar-collapsed' : ''}`}>
+      <div className="super-admin-shell">
+        {isMobileSidebarOpen ? <button type="button" className="super-admin-sidebar-backdrop" aria-label="Close navigation menu" onClick={closeMobileSidebar} /> : null}
+        <aside className={`super-admin-sidebar ${isSidebarCollapsed ? 'is-sidebar-collapsed' : ''} ${isMobileSidebarOpen ? 'is-open' : ''}`} aria-label="Sales admin navigation">
+          <div className="super-admin-sidebar-brand">
+            <img className="super-admin-sidebar-brand-logo" src="/logo1.png" alt="Cispro logo" />
+            <button type="button" className="super-admin-sidebar-collapse-toggle" aria-label={isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'} onClick={() => setIsSidebarCollapsed((current) => !current)}>
+              {isSidebarCollapsed ? <PanelLeftOpen size={19} /> : <PanelLeftClose size={19} />}
+            </button>
+            <button type="button" className="super-admin-sidebar-close" aria-label="Close navigation menu" onClick={closeMobileSidebar}><X size={18} /></button>
+          </div>
+          <nav className="super-admin-sidebar-nav">
+            <div className="super-admin-sidebar-section"><button type="button" className="super-admin-sidebar-item is-active" data-tooltip="Dashboard" onClick={closeMobileSidebar}><span className="super-admin-sidebar-icon"><Home size={18} /></span><span>Dashboard</span></button></div>
+            <div className="super-admin-sidebar-section"><button type="button" className="super-admin-sidebar-item" data-tooltip="Notifications" onClick={closeMobileSidebar}><span className="super-admin-sidebar-icon"><Bell size={18} /></span><span>Notifications</span></button></div>
+          </nav>
+          <div className="sales-admin-sidebar-account"><span className="sales-admin-sidebar-account-avatar"><UserRound size={18} /></span><span className="sales-admin-sidebar-account-copy"><strong>{user?.name || 'Sales Admin'}</strong><small>{user?.email || 'salesadmin@cispro.com'}</small></span><button type="button" className="sales-admin-sidebar-account-logout" aria-label="Logout" onClick={() => setIsLogoutConfirmOpen(true)}><LogOut size={20} /></button></div>
+        </aside>
+
+        <div className="super-admin-main">
+          <header className="super-admin-topbar">
+            <div className="super-admin-topbar-left"><button type="button" className="super-admin-sidebar-toggle" aria-label="Open navigation menu" onClick={() => setIsMobileSidebarOpen(true)}><LayoutGrid size={19} /></button><h1 className="super-admin-header-title">Sales Admin Dashboard</h1></div>
+            <div className="super-admin-topbar-right"><button type="button" className="super-admin-notification-button" aria-label="Notifications"><Bell size={21} /><span className="super-admin-notification-badge">0</span></button><div className="super-admin-profile"><span className="super-admin-avatar"><span className="super-admin-avatar-mark"><UserRound size={19} /></span></span><div className="super-admin-profile-copy"><strong>{user?.name || 'Sales Admin'}</strong><span>{user?.email || 'salesadmin@cispro.com'}</span></div></div></div>
+          </header>
+
+          <main className="super-admin-content">
+            <header className="sales-admin-dashboard-header"><div><p className="eyebrow">SALES ADMIN WORKSPACE</p><h1>Sales Admin Dashboard</h1><p>Manage sales activity across your assigned branches.</p></div></header>
+            {error ? <p role="alert">{error}</p> : null}
+            <section className="sales-admin-dashboard-cards">{[['New leads', cards.newLeads], ['Total leads', cards.totalLeads], ['HOT leads', cards.hotLeads], ['WARM leads', cards.warmLeads], ['COLD leads', cards.coldLeads], ['Admissions', cards.admissionsCompleted]].map(([label, value]) => <article className="panel-card" key={label}><span>{label}</span><strong>{value == null ? 'Unavailable' : value}</strong></article>)}</section>
+            <section className="panel-card sales-admin-dashboard-lead-card"><h2>Lead Management</h2><p>Lead management workspace is ready for the next implementation phase.</p></section>
+          </main>
+        </div>
+      </div>
+      {isLogoutConfirmOpen ? <div className="sales-admin-modal-backdrop"><div className="sales-admin-confirm-modal sales-admin-logout-confirm-modal" role="dialog" aria-modal="true" aria-labelledby="sales-admin-logout-title"><button type="button" className="sales-admin-logout-confirm-close" aria-label="Close logout confirmation" onClick={() => setIsLogoutConfirmOpen(false)}>&times;</button><h2 id="sales-admin-logout-title">Are you sure you want to logout?</h2><div><button type="button" onClick={() => setIsLogoutConfirmOpen(false)}>Cancel</button><button type="button" className="is-logout-confirm" onClick={() => void signOut()}>Logout</button></div></div></div> : null}
+    </section>
   )
 }

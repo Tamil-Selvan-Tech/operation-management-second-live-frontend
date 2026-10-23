@@ -485,9 +485,7 @@ export function AppRouter() {
             </Route>
           </Route>
           <Route element={<ProtectedRoute allowedRoles={['sales-admin']} />}>
-            <Route element={<AppLayout />}>
-              <Route path="/dashboard/sales-admin" element={<SalesAdminDashboardPage />} />
-            </Route>
+            <Route path="/dashboard/sales-admin" element={<SalesAdminDashboardPage />} />
           </Route>
 
           <Route path="*" element={<NotFoundRoute />} />

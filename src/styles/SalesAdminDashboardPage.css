@@ -1,0 +1,247 @@
+.sales-admin-dashboard-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 24px 28px;
+  border: 1px solid #dbe4f0;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #ffffff 0%, #f6f9ff 100%);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, .05);
+}
+
+.sales-admin-sidebar-account {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-top: auto;
+  padding: 10px 8px;
+  border: 1px solid #dbe4f0;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 6px 16px rgba(15, 23, 42, .05);
+}
+
+.sales-admin-sidebar-account-avatar {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  flex: 0 0 34px;
+  place-items: center;
+  border-radius: 50%;
+  color: #fff;
+  background: linear-gradient(135deg, #2583f7, #0d5ed7);
+}
+
+.sales-admin-sidebar-account-copy {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.sales-admin-sidebar-account-copy strong,
+.sales-admin-sidebar-account-copy small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sales-admin-sidebar-account-copy strong {
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.sales-admin-sidebar-account-copy small {
+  color: #94a3b8;
+  font-size: 10px;
+}
+
+.sales-admin-sidebar-account-logout {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  flex: 0 0 30px;
+  place-items: center;
+  border: 0;
+  background: transparent;
+  color: #ef4444;
+  cursor: pointer;
+}
+
+.sales-admin-sidebar-account-logout:hover,
+.sales-admin-sidebar-account-logout:focus-visible {
+  border-radius: 8px;
+  background: #fff1f2;
+  outline: none;
+}
+
+.sales-admin-logout-confirm-modal {
+  width: min(480px, 100%);
+  padding: 58px 28px 24px;
+  border-radius: 28px;
+  text-align: center;
+}
+
+.sales-admin-logout-confirm-modal h2 {
+  margin: 0 0 26px;
+  color: #172033;
+  font-size: 19px;
+  font-weight: 800;
+}
+
+.sales-admin-confirm-modal .sales-admin-logout-confirm-close {
+  position: absolute;
+  top: 14px;
+  right: 20px;
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border: 0;
+  border-radius: 8px;
+  padding: 0;
+  min-width: 0;
+  background: transparent;
+  box-shadow: none;
+  color: #64748b;
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.sales-admin-logout-confirm-close:hover {
+  color: #0f172a;
+}
+
+.sales-admin-logout-confirm-modal > div {
+  justify-content: center;
+  margin-top: 0;
+}
+
+.sales-admin-logout-confirm-modal > div button {
+  min-width: 132px;
+  padding: 11px 24px;
+  border: 1px solid #d9e3f2;
+  border-radius: 14px;
+  background: #fff;
+  color: #52627c;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.sales-admin-logout-confirm-modal > div button.is-logout-confirm {
+  border-color: #2563eb;
+  background: #2563eb;
+  color: #fff;
+  box-shadow: 0 8px 18px rgba(37, 99, 235, .22);
+}
+
+.sales-admin-logout-confirm-modal > div button:hover {
+  transform: translateY(-1px);
+}
+
+.sales-admin-dashboard-cards {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+  margin-top: 24px;
+}
+
+.sales-admin-dashboard-cards .panel-card {
+  min-height: 112px;
+  padding: 20px;
+  border: 1px solid #dbe4f0;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 8px 18px rgba(15, 23, 42, .04);
+}
+
+.sales-admin-dashboard-cards .panel-card span {
+  color: #64748b;
+  font-size: 14px;
+}
+
+.sales-admin-dashboard-cards .panel-card strong {
+  display: block;
+  margin-top: 14px;
+  color: #0f172a;
+  font-size: 28px;
+}
+
+.sales-admin-dashboard-lead-card {
+  margin-top: 24px;
+  padding: 20px;
+}
+
+.sales-admin-dashboard-lead-card h2 {
+  margin: 0 0 8px;
+  color: #17345f;
+}
+
+.sales-admin-dashboard-lead-card p {
+  margin: 0;
+  color: #64748b;
+}
+
+.sales-admin-dashboard-header h1 {
+  margin: 6px 0 4px;
+  color: #17345f;
+  font-size: clamp(24px, 3vw, 32px);
+}
+
+.sales-admin-dashboard-header p:last-child {
+  margin: 0;
+  color: #64748b;
+}
+
+.sales-admin-dashboard-user {
+  display: flex;
+  min-width: 190px;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 16px;
+  border-left: 3px solid #2563eb;
+  background: #eff6ff;
+  color: #64748b;
+}
+
+.sales-admin-dashboard-user strong {
+  color: #17345f;
+  font-size: 15px;
+}
+
+.sales-admin-dashboard-user small {
+  overflow: hidden;
+  color: #64748b;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 640px) {
+  .sales-admin-dashboard-header {
+    flex-direction: column;
+    padding: 20px;
+  }
+
+  .sales-admin-dashboard-user {
+    width: 100%;
+    box-sizing: border-box;
+  }
+}
+
+@media (max-width: 900px) {
+  .sales-admin-dashboard-cards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 560px) {
+  .sales-admin-dashboard-cards {
+    grid-template-columns: 1fr;
+  }
+}
