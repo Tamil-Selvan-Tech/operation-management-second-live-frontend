@@ -48,6 +48,7 @@ import { SuperAdminOverallDashboard } from '../components/SuperAdminOverallDashb
 import { SuperAdminMetricDetailPage } from '../components/SuperAdminMetricDetailPage'
 import { SuperAdminSidebarNav } from '../components/SuperAdminSidebarNav'
 import { SuperAdminDiscontinuationPage } from './SuperAdminDiscontinuationPage'
+import { SalesAdminManagementPage } from './SalesAdminManagementPage'
 import { loadBranchStudents } from '../lib/branchStudentStore'
 import { loadBranchPaymentHistoryEntries } from '../lib/branchPaymentHistoryStore'
 import { buildModernPaymentReceiptHtml } from '../components/payments/RecordPayment'
@@ -563,7 +564,7 @@ function validateBranchForm(form, existingBranches = [], ignoreBranchId = null) 
 function getInitialSuperAdminSection(search = '') {
   const params = new URLSearchParams(search)
   const section = params.get('section')
-  return ['branches', 'branch-admin', 'faculty', 'students', 'leave-management', 'faculty-leave', 'discontinuations', 'metric-branches', 'metric-students', 'metric-admissions', 'metric-total-payment', 'metric-month-payment', 'metric-outstanding', 'metric-month-due', 'metric-today-due', 'metric-overdue', 'metric-due-students', 'metric-today-collection'].includes(section) ? section : 'dashboard'
+  return ['branches', 'branch-admin', 'faculty', 'sales-admin', 'students', 'leave-management', 'faculty-leave', 'discontinuations', 'metric-branches', 'metric-students', 'metric-admissions', 'metric-total-payment', 'metric-month-payment', 'metric-outstanding', 'metric-month-due', 'metric-today-due', 'metric-overdue', 'metric-due-students', 'metric-today-collection'].includes(section) ? section : 'dashboard'
 }
 
 export function SuperAdminDashboardPage() {
@@ -2902,6 +2903,8 @@ const filteredBranches = useMemo(() => {
                   </div>
                 </div>
               </section>
+            ) : activeSection === 'sales-admin' ? (
+              <SalesAdminManagementPage />
             ) : activeSection === 'branch-admin' ? (
               <section className="super-admin-global-panel">
                 <div className="super-admin-global-header">
@@ -3467,6 +3470,8 @@ const filteredBranches = useMemo(() => {
               </button>
               <button type="button" className="branch-status-confirm-button" onClick={handleStatusChangeConfirm} disabled={isStatusChanging}>
                 {isStatusChanging ? 'Updating...' : getNormalizedBranchStatus(statusChangeTarget) === 'Active' ? 'Make Inactive' : 'Activate'}
+
+
               </button>
             </div>
           </div>

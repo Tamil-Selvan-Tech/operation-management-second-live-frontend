@@ -8,6 +8,7 @@ export const roleLabels = {
   hr: 'HR',
   faculty: 'Faculty',
   student: 'Student',
+  'sales-admin': 'Sales Admin',
 }
 
 export const roleDashboards = {
@@ -60,6 +61,13 @@ export const roleDashboards = {
     color: '#64748b',
     cards: ['Courses', 'Submissions', 'Timetable'],
   },
+  'sales-admin': {
+    title: 'Sales Admin Dashboard',
+    summary: 'Sales activity scoped to your assigned branches.',
+    accent: 'Violet',
+    color: '#7c3aed',
+    cards: ['Leads', 'Admissions', 'Branch activity'],
+  },
 }
 
 export const dashboardPathByRole = {
@@ -70,6 +78,7 @@ export const dashboardPathByRole = {
   hr: '/dashboard/hr',
   faculty: '/dashboard/faculty/dashboard',
   student: '/student-new-dashboard',
+  'sales-admin': '/dashboard/sales-admin',
 }
 
 export const courseAccessRoles = ['business-owner', 'operation-manager', 'branch-admin']

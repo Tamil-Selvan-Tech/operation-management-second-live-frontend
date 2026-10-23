@@ -80,6 +80,7 @@ const roleFromBackend = (role) => {
     HR: 'hr',
     FACULTY: 'faculty',
     STUDENT: 'student',
+    SALES_ADMIN: 'sales-admin',
   }
 
   return roleMap[normalized] || String(role || '').trim().toLowerCase()
