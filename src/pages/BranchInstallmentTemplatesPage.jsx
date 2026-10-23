@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   CalendarDays,
   CirclePlus,
@@ -826,6 +826,7 @@ export function BranchInstallmentTemplatesPage() {
         onPageChange={(nextPage) => setPage(nextPage)}
         className="installment-pagination"
         label="Installment templates pagination"
+        visiblePageCount={2}
         showSummary={false}
       />
     </div>

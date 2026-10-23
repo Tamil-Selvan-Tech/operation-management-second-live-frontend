@@ -16,6 +16,7 @@ import {
   UsersRound,
 } from 'lucide-react'
 import { useNavigate, useParams } from 'react-router-dom'
+import { useAuth } from '../auth/useAuth'
 import { AppLoadingState } from '../components/AppLoadingState'
 import { Button } from '../components/Button'
 import { SearchBar } from '../components/SearchBar'
@@ -166,6 +167,7 @@ function getBatchStudentDetailItems(selectedStudent, selectedStudentCourse, sele
 }
 
 export function BatchStudentsPage() {
+  const { role } = useAuth()
   const { facultyId = '', courseId = '', batchId = '' } = useParams()
   const navigate = useNavigate()
   const openMenu = useMobileMenu()
@@ -495,6 +497,7 @@ export function BatchStudentsPage() {
               totalPages={totalPages}
               onPageChange={setCurrentPage}
               label="Batch student pagination"
+              visiblePageCount={role === 'branch-admin' ? 2 : 7}
             />
           ) : null}
         </article>

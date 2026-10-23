@@ -1,4 +1,5 @@
-import { request } from './apiClient'
+import { request, impersonateBranchId as currentImpersonateBranchId } from './apiClient'
+import { shareInFlightRequest } from '../lib/inFlightRequests'
 
 function normalizeText(value = '') {
   return String(value ?? '').trim()
@@ -95,21 +96,24 @@ function buildQueryString(query = {}) {
   return params.toString()
 }
 
-export async function listBranchBatches(query = {}) {
-  const { impersonateBranchId, ...queryParams } = query || {}
+export function listBranchBatches(query = {}) {
+  const { impersonateBranchId: requestBranchId, ...queryParams } = query || {}
   const search = buildQueryString(queryParams)
-  const response = await request(`/branch-batches${search ? `?${search}` : ''}`, {
-    method: 'GET',
-    ...(impersonateBranchId ? { impersonateBranchId } : {}),
+  const activeImpersonationScope = String(requestBranchId || currentImpersonateBranchId || "")
+  const branchScope = String(activeImpersonationScope || queryParams.branchId || "")
+  return shareInFlightRequest("branch-batches:" + branchScope + ":" + search, async () => {
+    const response = await request("/branch-batches" + (search ? "?" + search : ""), {
+      method: "GET",
+      ...(activeImpersonationScope ? { impersonateBranchId: activeImpersonationScope } : {}),
+    })
+
+    const payload = unwrapData(response)
+    const groups = Array.isArray(payload?.data) ? payload.data : Array.isArray(payload) ? payload : []
+    return {
+      data: groups.map(normalizeBranchBatchGroup),
+      meta: payload?.meta || null,
+    }
   })
-
-  const payload = unwrapData(response)
-  const groups = Array.isArray(payload?.data) ? payload.data : Array.isArray(payload) ? payload : []
-
-  return {
-    data: groups.map(normalizeBranchBatchGroup),
-    meta: payload?.meta || null,
-  }
 }
 
 export async function getBranchBatch(batchGroupId) {

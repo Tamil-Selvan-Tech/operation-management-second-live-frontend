@@ -6,7 +6,7 @@ import { roleDashboards } from '../data/authData'
 import { OperationManagerHeader } from '../components/OperationManagerHeader'
 import { OperationManagerWorkspaceHeader } from '../components/OperationManagerWorkspaceHeader'
 import { SearchBar } from '../components/SearchBar'
-import { PaginationBar } from '../components/PaginationBar'
+import { PaginationBar, getPageNumberWindow } from '../components/PaginationBar'
 import { createCourse, findDuplicateCourse, listCourses, peekCourseList, updateCourse } from '../services/courseService'
 import { saveCourseRecords } from '../data/courseRecords'
 import { useMobileMenu } from '../layouts/mobileMenuContext'
@@ -396,6 +396,8 @@ export function CoursesPage() {
   }, [isModalOpen])
 
   const pageList = useMemo(() => {
+    if (role === 'branch-admin') return getPageNumberWindow(totalPages, safeCurrentPage, 2)
+
     if (totalPages <= 8) {
       return Array.from({ length: totalPages }, (_, index) => index + 1)
     }
@@ -416,7 +418,7 @@ export function CoursesPage() {
     pages.push('right-ellipsis')
     pages.push(totalPages)
     return pages
-  }, [safeCurrentPage, totalPages])
+  }, [role, safeCurrentPage, totalPages])
 
   const updateField = (field, value) => {
     if (saveError) setSaveError('')

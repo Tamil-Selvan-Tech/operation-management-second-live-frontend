@@ -1,13 +1,19 @@
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 
+export function getPageNumberWindow(totalPages, currentPage, visiblePageCount = 2) {
+  const safeTotalPages = Math.max(1, Number(totalPages) || 1)
+  const safeCurrentPage = Math.min(Math.max(1, Number(currentPage) || 1), safeTotalPages)
+  const pageCount = Math.max(1, Math.min(safeTotalPages, Math.floor(Number(visiblePageCount) || 2)))
+  const start = Math.min(
+    Math.max(1, safeCurrentPage - Math.floor((pageCount - 1) / 2)),
+    Math.max(1, safeTotalPages - pageCount + 1),
+  )
+  return Array.from({ length: pageCount }, (_, index) => start + index)
+}
+
 function buildPageList(totalPages, currentPage, visiblePageCount = 7) {
   if (visiblePageCount < 7) {
-    const pageCount = Math.max(1, Math.min(visiblePageCount, totalPages))
-    const start = Math.min(
-      Math.max(1, currentPage - Math.floor((pageCount - 1) / 2)),
-      Math.max(1, totalPages - pageCount + 1),
-    )
-    return Array.from({ length: pageCount }, (_, index) => start + index)
+    return getPageNumberWindow(totalPages, currentPage, visiblePageCount)
   }
 
   if (totalPages <= 7) {
@@ -35,6 +41,7 @@ export function PaginationBar({
   previousLabel = 'Back',
   nextLabel = 'Next',
   showSummary = true,
+  summaryText,
   visiblePageCount = 7,
 }) {
   const safeTotalPages = Math.max(1, Number(totalPages) || 1)
@@ -89,7 +96,7 @@ export function PaginationBar({
 
       {showSummary ? (
         <div className="pagination-bar-summary" aria-hidden="true">
-          {safeCurrentPage} of {safeTotalPages}
+          {summaryText || [safeCurrentPage, 'of', safeTotalPages].join(' ')}
         </div>
       ) : null}
     </div>

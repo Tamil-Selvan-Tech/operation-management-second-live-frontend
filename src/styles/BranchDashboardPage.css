@@ -15272,3 +15272,68 @@ body.branch-notification-menu-open .main-area {
 /* Let the course-import page start directly beneath the dashboard header. */
 .branch-dashboard-app-shell.is-course-import-page .super-admin-content { padding-top:0;padding-left:0;padding-right:0 }
 .branch-dashboard-app-shell.is-course-import-page .branch-dashboard-content { padding-top:0 }
+
+/* Branch Admin overview skeletons follow the Super Admin shimmer treatment. */
+.branch-dashboard-stat-card.is-loading { cursor: progress; }
+.branch-dashboard-metric-skeleton-value { width: 84px; max-width: 100%; height: 25px; }
+.branch-dashboard-metric-skeleton-note { width: min(132px, 100%); height: 10px; }
+.branch-dashboard-batch-skeleton { display: grid; gap: 14px; }
+.branch-dashboard-batch-skeleton-row { display: grid; grid-template-columns: minmax(110px, .9fr) minmax(90px, 2fr) auto minmax(125px, .8fr); gap: 16px; align-items: center; min-height: 72px; padding: 12px 18px 12px 24px; border: 1px solid #dbe7f5; border-left: 6px solid #dbe5f0; border-radius: 12px; background: #fff; }
+.branch-dashboard-batch-skeleton-row > span,
+.branch-dashboard-batch-skeleton-row > i,
+.branch-dashboard-batch-skeleton-row > b,
+.branch-dashboard-batch-skeleton-row > em,
+.branch-dashboard-trending-skeleton-rank,
+.branch-dashboard-trending-skeleton .trending-course-copy strong,
+.branch-dashboard-trending-skeleton .trending-course-copy span,
+.branch-dashboard-target-value-skeleton,
+.branch-dashboard-chart-skeleton > span,
+.branch-dashboard-fee-skeleton-donut,
+.branch-dashboard-fee-skeleton-row > i,
+.branch-dashboard-fee-skeleton-row > b,
+.branch-dashboard-mini-skeleton-avatar,
+.branch-dashboard-mini-skeleton-copy > i,
+.branch-dashboard-mini-skeleton-meta > i {
+  display: block;
+  background: linear-gradient(90deg, #eef3f8 25%, #e3eaf2 37%, #eef3f8 63%);
+  background-size: 400% 100%;
+  animation: sa-shimmer 1.2s ease-in-out infinite;
+}
+.branch-dashboard-batch-skeleton-row > span { width: 72%; height: 13px; border-radius: 5px; }
+.branch-dashboard-batch-skeleton-row > i { height: 14px; border-radius: 999px; }
+.branch-dashboard-batch-skeleton-row > b { width: 58px; height: 20px; border-radius: 5px; }
+.branch-dashboard-batch-skeleton-row > em { width: 84px; height: 32px; border-radius: 999px; }
+.branch-dashboard-trending-skeleton { background: linear-gradient(90deg, #f2f5f8 25%, #e9eef4 37%, #f2f5f8 63%); background-size: 400% 100%; animation: sa-shimmer 1.2s ease-in-out infinite; }
+.branch-dashboard-trending-skeleton-rank { width: 30px; height: 30px; border-radius: 9px; background: #dfe6ee; }
+.branch-dashboard-trending-skeleton .trending-course-copy strong { width: min(190px, 90%); height: 12px; border-radius: 999px; background: #dfe6ee; }
+.branch-dashboard-trending-skeleton .trending-course-copy span { width: 90px; height: 9px; border-radius: 999px; background: #dfe6ee; }
+.branch-dashboard-target-value-skeleton { width: 48px; height: 22px; margin: 4px 0; border-radius: 5px; }
+.branch-dashboard-target-value-skeleton.is-wide { width: 118px; }
+.branch-dashboard-chart-skeleton { display: flex; align-items: flex-end; justify-content: space-around; gap: 12px; height: 180px; margin-top: 0; padding: 10px 4px 0; border-bottom: 1px solid #e2e8f0; border-radius: 0; background: transparent; }
+.branch-dashboard-chart-skeleton > span { width: min(28px, 12%); min-height: 16px; border-radius: 8px 8px 2px 2px; }
+.branch-dashboard-fee-skeleton { display: grid; grid-template-columns: minmax(130px, .9fr) minmax(150px, 1fr); align-items: center; justify-items: center; gap: 20px; min-height: 180px; }
+.branch-dashboard-fee-skeleton-donut { width: 142px; height: 142px; border-radius: 50%; }
+.branch-dashboard-fee-skeleton > div { display: grid; gap: 14px; width: 100%; }
+.branch-dashboard-fee-skeleton-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.branch-dashboard-fee-skeleton-row > i { width: 74px; height: 10px; border-radius: 999px; }
+.branch-dashboard-fee-skeleton-row > b { width: 64px; height: 10px; border-radius: 999px; }
+.branch-dashboard-mini-list-skeleton { display: grid; gap: 2px; width: 100%; }
+.branch-dashboard-mini-skeleton-row { display: flex; align-items: center; gap: 12px; min-height: 58px; padding: 8px 0; border-bottom: 1px solid #eef2f7; }
+.branch-dashboard-mini-skeleton-avatar { width: 34px; height: 34px; flex: 0 0 34px; border-radius: 50%; }
+.branch-dashboard-mini-skeleton-copy { display: grid; flex: 1 1 auto; gap: 8px; min-width: 0; }
+.branch-dashboard-mini-skeleton-copy > i { width: 62%; height: 10px; border-radius: 999px; }
+.branch-dashboard-mini-skeleton-copy > i:last-child { width: 42%; height: 8px; }
+.branch-dashboard-mini-skeleton-meta { display: grid; justify-items: end; gap: 8px; width: 104px; flex: 0 0 104px; }
+.branch-dashboard-mini-skeleton-meta > i { width: 80px; height: 10px; border-radius: 999px; }
+.branch-dashboard-mini-skeleton-meta > i:last-child { width: 54px; height: 8px; }
+@media (max-width: 800px) {
+  .branch-dashboard-batch-skeleton-row { grid-template-columns: minmax(0, 1fr) auto; gap: 10px 14px; padding: 14px; }
+  .branch-dashboard-batch-skeleton-row > i { grid-column: 1 / -1; grid-row: 2; }
+  .branch-dashboard-batch-skeleton-row > b { justify-self: end; }
+  .branch-dashboard-batch-skeleton-row > em { grid-column: 1 / -1; width: 78px; }
+}
+@media (max-width: 560px) {
+  .branch-dashboard-fee-skeleton { grid-template-columns: 1fr; gap: 16px; padding: 8px 0; }
+  .branch-dashboard-fee-skeleton > div { width: min(100%, 270px); }
+  .branch-dashboard-mini-skeleton-meta { width: 78px; flex-basis: 78px; }
+}

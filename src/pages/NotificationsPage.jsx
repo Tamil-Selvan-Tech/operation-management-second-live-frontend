@@ -7,6 +7,7 @@ import { getNotificationSections } from '../data/notificationsData'
 import { OperationManagerHeader } from '../components/OperationManagerHeader'
 import { OperationManagerWorkspaceHeader } from '../components/OperationManagerWorkspaceHeader'
 import { useMobileMenu } from '../layouts/mobileMenuContext'
+import { PaginationBar } from '../components/PaginationBar'
 
 function NotificationGroup({ label, items }) {
   return (
@@ -56,6 +57,7 @@ export function NotificationsPage() {
   const filterMenuRef = useRef(null)
   const [activeFilter, setActiveFilter] = useState('all')
   const [isFilterMenuOpen, setIsFilterMenuOpen] = useState(false)
+  const [notificationPage, setNotificationPage] = useState(1)
   const sections = useMemo(() => getNotificationSections(role), [role])
   const visibleSections = useMemo(() => {
     if (activeFilter === 'all') return sections
@@ -71,6 +73,33 @@ export function NotificationsPage() {
       }))
       .filter((section) => section.items.length)
   }, [activeFilter, sections])
+  const notificationRows = useMemo(
+    () => visibleSections.flatMap((section) => section.items.map((item) => ({
+      sectionLabel: section.label,
+      item,
+    }))),
+    [visibleSections],
+  )
+  const notificationsPerPage = 10
+  const notificationTotalPages = Math.max(1, Math.ceil(notificationRows.length / notificationsPerPage))
+  const safeNotificationPage = Math.min(notificationPage, notificationTotalPages)
+  const paginatedNotificationRows = useMemo(
+    () => notificationRows.slice(
+      (safeNotificationPage - 1) * notificationsPerPage,
+      safeNotificationPage * notificationsPerPage,
+    ),
+    [notificationRows, safeNotificationPage],
+  )
+  const paginatedSections = useMemo(() => {
+    const groups = new Map()
+    paginatedNotificationRows.forEach(({ sectionLabel, item }) => {
+      if (!groups.has(sectionLabel)) groups.set(sectionLabel, [])
+      groups.get(sectionLabel).push(item)
+    })
+    return [...groups.entries()].map(([label, items]) => ({ label, items }))
+  }, [paginatedNotificationRows])
+
+
   const totalCount = useMemo(
     () => sections.reduce((count, section) => count + section.items.length, 0),
     [sections],
@@ -201,6 +230,7 @@ export function NotificationsPage() {
                       type="button"
                       className={`notifications-filter-option ${activeFilter === option.key ? 'is-active' : ''}`.trim()}
                       onClick={() => {
+                        setNotificationPage(1)
                         setActiveFilter(option.key)
                         setIsFilterMenuOpen(false)
                       }}
@@ -218,10 +248,22 @@ export function NotificationsPage() {
       </header>
 
       <div className="notifications-feed">
-        {visibleSections.map((section) => (
+        {paginatedSections.map((section) => (
           <NotificationGroup key={section.label} label={section.label} items={section.items} />
         ))}
       </div>
+      {notificationRows.length > notificationsPerPage ? (
+        <PaginationBar
+          className="notifications-page-pagination"
+          currentPage={safeNotificationPage}
+          totalPages={notificationTotalPages}
+          onPageChange={setNotificationPage}
+          label="Notification pagination"
+          previousLabel="Previous"
+          nextLabel="Next"
+          summaryText={['Showing', (safeNotificationPage - 1) * notificationsPerPage + 1, '-', Math.min(safeNotificationPage * notificationsPerPage, notificationRows.length), 'of', notificationRows.length].join(' ')}
+        />
+      ) : null}
     </section>
   )
 }

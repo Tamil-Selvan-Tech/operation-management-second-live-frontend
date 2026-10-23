@@ -1,4 +1,4 @@
-import { loadNotifications, saveNotifications } from './notificationStore'
+import { loadNotifications, saveNotifications } from './notificationStore.js'
 
 const PROGRESS_STATUS_CONFIG = {
   courseAhead: {
@@ -99,12 +99,11 @@ export function buildProgressComparisonNotification({
   const normalizedCourseProgress = normalizeProgressValue(courseProgress)
   const normalizedPaidProgress = normalizeProgressValue(paidProgress)
 
-  // A student with no course progress and no paid progress does not need a
-  // progress comparison notification. Keep this guard at the creation point
-  // so it applies consistently to Faculty and Branch Admin notifications.
-  if (normalizedCourseProgress === 0 && normalizedPaidProgress === 0) {
-    return null
-  }
+  // Endpoint matches do not need a progress alert. Keep this at the shared
+  // creation point so Faculty and Branch Admin behave consistently.
+  const isMatchedEndpoint = normalizedCourseProgress === normalizedPaidProgress
+    && (normalizedCourseProgress === 0 || normalizedCourseProgress === 100)
+  if (isMatchedEndpoint) return null
 
   const state = getProgressComparisonState(courseProgress, paidProgress)
   if (!state) return null
@@ -159,7 +158,15 @@ export function syncProgressComparisonNotifications(notifications = [], audience
     }))
     .filter(Boolean)
 
-  const existingNotifications = loadNotifications()
+  const storedNotifications = loadNotifications()
+  const existingNotifications = storedNotifications.filter((notification) => {
+    const kind = String(notification?.kind || '').trim().toLowerCase()
+    if (!kind.startsWith('faculty-progress-status') && !kind.startsWith('branch-progress-status')) return true
+    const courseProgress = normalizeProgressValue(notification?.courseProgress)
+    const paidProgress = normalizeProgressValue(notification?.paidProgress)
+    const isMatchedEndpoint = courseProgress === paidProgress && (courseProgress === 0 || courseProgress === 100)
+    return !isMatchedEndpoint
+  })
   const nextNotifications = [...existingNotifications]
   const existingIndexById = new Map(
     existingNotifications.map((notification, index) => [String(notification.id || '').trim(), index]),
@@ -187,7 +194,7 @@ export function syncProgressComparisonNotifications(notifications = [], audience
   })
 
   const shouldWrite =
-    nextNotifications.length !== existingNotifications.length ||
+    nextNotifications.length !== storedNotifications.length ||
     nextNotifications.some((notification, index) => {
       const previous = existingNotifications[index]
       if (!previous) return true
