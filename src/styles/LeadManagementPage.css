@@ -466,6 +466,165 @@
   background: #dc2626;
 }
 
+/* Full-page CRM lead profile */
+.lead-modal-backdrop:has(.lead-profile-modal) {
+  position: static;
+  inset: auto;
+  display: block;
+  min-height: 100%;
+  overflow: visible;
+  padding: 0;
+  background: transparent;
+}
+
+.lead-profile-modal {
+  width: 100% !important;
+  max-width: none !important;
+  margin-top: -20px;
+  min-height: calc(100vh - 80px);
+  max-height: none !important;
+  overflow: visible !important;
+  box-sizing: border-box;
+  padding: 20px 16px 48px !important;
+  border-radius: 0 !important;
+  background: #fff !important;
+  box-shadow: none !important;
+}
+
+.lead-management-page.is-profile-view > .lead-management-heading,
+.lead-management-page.is-profile-view > .lead-notice,
+.lead-management-page.is-profile-view > .lead-filter-toolbar,
+.lead-management-page.is-profile-view > .lead-table-card {
+  display: none !important;
+}
+
+.lead-management-page.is-profile-view {
+  padding: 0;
+}
+
+.lead-profile-modal > .lead-modal-close {
+  top: 28px;
+  right: clamp(20px, 5vw, 72px);
+  z-index: 5;
+  width: 38px;
+  height: 38px;
+  border: 1px solid #dbe4f0;
+  border-radius: 10px;
+  background: #fff;
+  font-size: 22px;
+}
+
+.lead-profile-modal > h2 {
+  margin: 4px 0 18px;
+  color: #17345f;
+  font-size: 28px;
+  font-weight: 800;
+}
+
+.lead-profile-id {
+  display: block;
+  margin-top: 6px;
+  color: #718096;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.lead-profile-header-actions {
+  position: absolute;
+  top: 28px;
+  right: clamp(70px, 10vw, 150px);
+  display: flex;
+  gap: 10px;
+}
+
+.lead-profile-header-actions button:disabled { opacity: .55; cursor: not-allowed; }
+.lead-profile-summary,
+.lead-profile-card,
+.lead-profile-panel {
+  border: 1px solid #dbe4f0;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 8px 22px rgba(15, 23, 42, .04);
+}
+
+.lead-profile-summary {
+  display: none !important;
+}
+
+.lead-profile-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0;
+  margin: 18px 0 22px;
+}
+
+.lead-profile-summary div {
+  display: grid;
+  gap: 7px;
+  padding: 17px 19px;
+  border-right: 1px solid #eef2f7;
+}
+
+.lead-profile-summary div:nth-child(4n) { border-right: 0; }
+.lead-profile-summary span, .lead-profile-list small, .lead-profile-timeline small { color: #718096; font-size: 12px; }
+.lead-profile-summary strong { color: #1e3a68; font-size: 14px; overflow-wrap: anywhere; }
+
+.lead-profile-tabs {
+  display: flex;
+  gap: 26px;
+  margin: 6px 0 14px;
+  border-bottom: 1px solid #dbe4f0;
+}
+
+.lead-profile-tabs button {
+  padding: 12px 2px;
+  border: 0;
+  border-bottom: 3px solid transparent;
+  background: transparent;
+  color: #718096;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.lead-profile-tabs button.is-active { border-color: #2563eb; color: #2563eb; }
+.lead-profile-panel { padding: 24px; }
+.lead-profile-panel h3 { margin: 0 0 18px; color: #17345f; font-size: 18px; }
+.lead-profile-overview-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border: 0; border-radius: 0; box-shadow: none; }
+.lead-profile-overview-grid div { min-height: 76px; border: 0; border-bottom: 1px solid #eef2f7; padding: 14px 16px; }
+.lead-profile-overview-grid span { color: #718096; font-size: 12px; }
+.lead-profile-overview-grid strong { color: #1e293b; font-size: 14px; overflow-wrap: anywhere; }
+.lead-profile-list { display: grid; gap: 10px; }
+.lead-profile-list > div { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 15px; border: 1px solid #e8eef6; border-radius: 10px; }
+.lead-profile-list strong { color: #1e3a68; }
+.lead-recording-controls { display: flex; gap: 8px; }
+.lead-recording-controls button { border: 1px solid #dbe4f0; border-radius: 7px; padding: 7px 10px; background: #fff; color: #2563eb; font-size: 12px; font-weight: 700; cursor: pointer; }
+.lead-recording-controls button:hover { background: #eef5ff; }
+.lead-profile-list span { flex: 1; color: #475569; }
+.lead-profile-timeline { display: grid; gap: 0; }
+.lead-profile-timeline > div { position: relative; display: flex; gap: 14px; min-height: 70px; padding: 0 0 24px 4px; }
+.lead-profile-timeline > div::before { content: ''; position: absolute; top: 14px; bottom: 0; left: 8px; width: 1px; background: #dbe4f0; }
+.lead-profile-timeline-dot { position: relative; z-index: 1; width: 10px; height: 10px; margin-top: 5px; border-radius: 50%; background: #2563eb; box-shadow: 0 0 0 4px #eaf2ff; }
+.lead-profile-timeline > div > div { display: grid; gap: 6px; }
+
+@media (max-width: 800px) {
+  .lead-profile-header-actions { position: static; margin: 0 0 18px; flex-wrap: wrap; }
+  .lead-profile-modal > .lead-modal-close { top: 18px; right: 18px; }
+  .lead-profile-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .lead-profile-summary div:nth-child(4n) { border-right: 1px solid #eef2f7; }
+  .lead-profile-summary div:nth-child(2n) { border-right: 0; }
+  .lead-profile-overview-grid { grid-template-columns: 1fr; }
+  .lead-profile-tabs { gap: 14px; overflow-x: auto; }
+  .lead-profile-tabs button { white-space: nowrap; }
+}
+
+@media (max-width: 520px) {
+  .lead-profile-modal { padding: 24px 14px 32px !important; }
+  .lead-profile-summary { grid-template-columns: 1fr; }
+  .lead-profile-summary div, .lead-profile-summary div:nth-child(2n) { border-right: 0; }
+  .lead-profile-list > div { align-items: flex-start; flex-direction: column; gap: 6px; }
+}
+
 /* Keep only branch and stage filters in the lead toolbar. */
 .lead-filter-toolbar select:nth-of-type(2),
 .lead-filter-toolbar select:nth-of-type(4),
