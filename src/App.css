@@ -9883,6 +9883,11 @@ td .faculty-my-batches-empty {
   padding: 0;
 }
 
+.notification-dropdown .notification-mark-read:disabled {
+  color: #94a3b8;
+  cursor: default;
+}
+
 .notification-dropdown-close {
   display: inline-grid;
   place-items: center;

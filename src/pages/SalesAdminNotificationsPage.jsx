@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Bell, CheckCheck, CircleAlert, ExternalLink } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { request } from '../services/apiClient'
+import { unwrapNotifications } from '../services/notificationService'
 
 export function SalesAdminNotificationsPage() {
   const navigate = useNavigate()
@@ -9,7 +10,7 @@ export function SalesAdminNotificationsPage() {
   const [filter, setFilter] = useState('all')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const load = async () => { try { const response = await request('/notifications?limit=100&page=1'); setItems(response?.data || []); setError('') } catch (reason) { setError(reason?.message || 'Unable to load notifications') } finally { setLoading(false) } }
+  const load = async () => { try { const response = await request('/notifications?limit=100&page=1'); setItems(unwrapNotifications(response).data); setError('') } catch (reason) { setError(reason?.message || 'Unable to load notifications') } finally { setLoading(false) } }
   useEffect(() => { const initial = window.setTimeout(() => void load(), 0); const timer = window.setInterval(() => void load(), 30000); return () => { window.clearTimeout(initial); window.clearInterval(timer) } }, [])
   const visible = useMemo(() => items.filter((item) => filter === 'all' || (filter === 'unread' ? !item.read : item.read)), [items, filter])
   const unread = items.filter((item) => !item.read).length

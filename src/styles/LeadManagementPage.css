@@ -78,6 +78,14 @@
 .lead-recording-download:hover, .lead-recording-download:focus-visible { background: #eef5ff; }
 .next-follow-up-date-field { display: grid; gap: 6px; color: #475569; font-weight: 600; font-size: 13px; }
 .next-follow-up-date-field input { width: 100%; box-sizing: border-box; padding: 11px 12px; border: 1px solid #d7e1ef; border-radius: 9px; color: #334155; background: #fff; }
+.next-follow-up-time-field, .lead-followup-time-field { display: grid; gap: 6px; color: #475569; font-size: 13px; font-weight: 600; }
+.lead-followup-time-field input { width: 100%; box-sizing: border-box; min-height: 42px; padding: 10px 12px; border: 1px solid #d7e1ef; border-radius: 9px; color: #334155; background: #fff; font: inherit; }
+.crm-native-time-input { position: absolute !important; width: 1px !important; height: 1px !important; padding: 0 !important; opacity: 0 !important; pointer-events: none !important; }
+.crm-ampm-time-picker { display: inline-flex; align-items: center; justify-self: start; gap: 6px; width: max-content; max-width: 100%; min-height: 42px; box-sizing: border-box; padding: 5px 9px; border: 1px solid #d7e1ef; border-radius: 9px; background: #fff; color: #334155; }
+.crm-ampm-time-picker:focus-within { border-color: #2875f0; box-shadow: 0 0 0 3px rgb(40 117 240 / 12%); }
+.crm-ampm-time-picker select { flex: 0 0 auto; min-width: 0; height: 30px; border: 0; outline: 0; background: transparent; color: #334155; font: inherit; cursor: pointer; }
+.crm-ampm-time-picker select[data-time-part='hour'], .crm-ampm-time-picker select[data-time-part='minute'] { width: 68px; text-align: center; font-weight: 600; }
+.crm-ampm-time-picker select[data-time-part='period'] { width: 72px; padding: 0 3px; border-left: 1px solid #e5edf7; color: #1769ed; font-weight: 700; }
 .lead-recordings-step input[type='file'] { width: 100%; box-sizing: border-box; padding: 12px; border: 1px dashed #8bb5ef; border-radius: 10px; background: #f8fbff; color: #334155; }
 .lead-recordings-pending { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
 .lead-recording-pending-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 11px 12px; border: 1px solid #e2e8f0; border-radius: 9px; background: #fff; }
@@ -98,6 +106,8 @@
 .lead-followup-summary { margin: 0 0 20px; color: #647b9b; font-size: 13px; }
 .lead-followup-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
 .lead-followup-grid label { display: grid; gap: 6px; color: #475569; font-size: 13px; font-weight: 600; }
+.lead-followup-date-time-stack { display: grid; align-content: start; gap: 14px; min-width: 0; }
+.lead-followup-date-time-stack > label { display: grid; gap: 6px; color: #475569; font-size: 13px; font-weight: 600; }
 .lead-followup-grid label:nth-child(4), .lead-followup-grid label:nth-child(7) { grid-column: 1 / -1; }
 .lead-followup-grid label:nth-child(4) { order: 6; }
 .lead-followup-grid label:nth-child(5) { order: 4; }

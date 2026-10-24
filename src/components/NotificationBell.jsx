@@ -20,7 +20,7 @@ export function NotificationBell() {
   const isRemoteNotifications = roleKey === 'STUDENT' || isSalesAdmin
   const isStudent = roleKey === 'STUDENT'
   const notificationItems = isRemoteNotifications ? remoteItems : getNotificationItems(role)
-  const visibleItems = notificationItems.slice(0, isRemoteNotifications ? 3 : 2)
+  const visibleItems = (isSalesAdmin ? notificationItems.filter(item => !item.read) : notificationItems).slice(0, isRemoteNotifications ? 3 : 2)
   const unreadCount = isRemoteNotifications ? remoteCount : getUnreadNotificationCount(role)
 
   useEffect(() => {
@@ -37,15 +37,20 @@ export function NotificationBell() {
       } catch (err) { if (active) setError(err.message) }
     }
     void load()
-    const timer = setInterval(load, 30000)
+    const timer = setInterval(load, 10000)
     window.addEventListener('focus', load)
     window.addEventListener('institute-leave-updated', load)
     return () => { active = false; clearInterval(timer); window.removeEventListener('focus', load); window.removeEventListener('institute-leave-updated', load) }
   }, [isRemoteNotifications])
   const markRead = async () => {
     if (!isRemoteNotifications) return
+    const unreadIds = remoteItems.filter(item => !item.read).map(item => item.id)
+    if (!unreadIds.length) return
     try {
-      await request('/notifications/mark-read', { method: 'PATCH', body: JSON.stringify({ notificationIds: remoteItems.map(item => item.id) }) })
+      await request('/notifications/mark-read', { method: 'PATCH', body: JSON.stringify({ notificationIds: unreadIds }) })
+      setRemoteItems(current => current.map(item => unreadIds.includes(item.id) ? { ...item, read: true, featured: false } : item))
+      setRemoteCount(0)
+      setError('')
       window.dispatchEvent(new Event('institute-leave-updated'))
     } catch (err) { setError(err.message) }
   }
@@ -127,8 +132,8 @@ export function NotificationBell() {
           <div className="notification-dropdown-head">
             <strong>Notifications</strong>
             <div className="notification-dropdown-head-actions">
-              <button type="button" className="notification-mark-read" onClick={markRead}>
-                Mark all as read
+              <button type="button" className="notification-mark-read" onClick={markRead} disabled={isRemoteNotifications && unreadCount === 0}>
+                {isRemoteNotifications && unreadCount === 0 ? 'All caught up' : 'Mark all as read'}
               </button>
               <button type="button" className="notification-dropdown-close" aria-label="Close notifications" onClick={() => setIsOpen(false)}>
                 <X size={17} strokeWidth={2.4} aria-hidden="true" />
@@ -138,7 +143,7 @@ export function NotificationBell() {
 
           <div className="notification-dropdown-list">
             {error ? <p role="alert">{error}</p> : null}
-            {isStudent && !visibleItems.length ? <p>No notifications yet.</p> : null}
+            {isRemoteNotifications && !visibleItems.length ? <p>{isSalesAdmin ? 'No unread notifications.' : 'No notifications yet.'}</p> : null}
             {visibleItems.map((item) => {
               const Icon = item.icon
               return (
