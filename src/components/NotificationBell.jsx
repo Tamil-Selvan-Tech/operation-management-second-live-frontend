@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth/useAuth'
 import { getNotificationItems, getUnreadNotificationCount } from '../data/notificationsData'
 import { request } from '../services/apiClient'
-import { unwrapNotifications } from '../services/notificationService'
+import { filterNotificationsForDisplay, isNotificationAvailable, unwrapNotifications } from '../services/notificationService'
 
 export function NotificationBell() {
   const { role } = useAuth()
@@ -19,9 +19,11 @@ export function NotificationBell() {
   const isSalesAdmin = ['SALES_ADMIN', 'SALESADMIN'].includes(roleKey)
   const isRemoteNotifications = roleKey === 'STUDENT' || isSalesAdmin
   const isStudent = roleKey === 'STUDENT'
-  const notificationItems = isRemoteNotifications ? remoteItems : getNotificationItems(role)
+  const availableRemoteItems = isRemoteNotifications ? filterNotificationsForDisplay(remoteItems) : []
+  const notificationItems = isRemoteNotifications ? availableRemoteItems : getNotificationItems(role)
   const visibleItems = (isSalesAdmin ? notificationItems.filter(item => !item.read) : notificationItems).slice(0, isRemoteNotifications ? 3 : 2)
-  const unreadCount = isRemoteNotifications ? remoteCount : getUnreadNotificationCount(role)
+  const deferredUnreadCount = isRemoteNotifications ? remoteItems.filter(item => !item.read && !isNotificationAvailable(item)).length : 0
+  const unreadCount = isRemoteNotifications ? Math.max(0, remoteCount - deferredUnreadCount) : getUnreadNotificationCount(role)
 
   useEffect(() => {
     if (!isRemoteNotifications) return undefined
@@ -44,7 +46,7 @@ export function NotificationBell() {
   }, [isRemoteNotifications])
   const markRead = async () => {
     if (!isRemoteNotifications) return
-    const unreadIds = remoteItems.filter(item => !item.read).map(item => item.id)
+    const unreadIds = availableRemoteItems.filter(item => !item.read).map(item => item.id)
     if (!unreadIds.length) return
     try {
       await request('/notifications/mark-read', { method: 'PATCH', body: JSON.stringify({ notificationIds: unreadIds }) })

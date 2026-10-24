@@ -13,6 +13,36 @@ function normalizeFollowUpReminderTime(item) {
   return { ...item, message: message.replace(/\bat\s+\d{1,2}:\d{2}\s*(?:am|pm)\b/i, `at ${displayTime}`) }
 }
 
+export function isNotificationAvailable(item, now = new Date()) {
+  if (String(item?.kind || '').toUpperCase() !== 'LEAD_FOLLOW_UP_OVERDUE') return true
+  const scheduledDate = String(item?.requestDescription || '').match(/^LEAD_FOLLOW_UP_OVERDUE:[^:]+:(\d{4})-(\d{2})-(\d{2})(?::([^:]+))?$/i)
+  if (!scheduledDate) return true
+  const [, year, month, day, encodedTimezone] = scheduledDate
+  const timezone = encodedTimezone ? decodeURIComponent(encodedTimezone) : 'Asia/Kolkata'
+  const nextDate = new Date(Date.UTC(Number(year), Number(month) - 1, Number(day) + 1))
+  const target = Date.UTC(nextDate.getUTCFullYear(), nextDate.getUTCMonth(), nextDate.getUTCDate(), 9)
+  const parts = Object.fromEntries(new Intl.DateTimeFormat('en-US', { timeZone: timezone, hourCycle: 'h23', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' }).formatToParts(new Date(target)).filter(part => part.type !== 'literal').map(part => [part.type, Number(part.value)]))
+  const localAtTarget = Date.UTC(parts.year, parts.month - 1, parts.day, parts.hour === 24 ? 0 : parts.hour, parts.minute, parts.second)
+  const availableAt = target - (localAtTarget - target)
+  return now.getTime() >= availableAt
+}
+
+export function filterNotificationsForDisplay(items, now = new Date()) {
+  const dailyOccurrences = new Set((items || []).map((item) => {
+    const match = String(item?.requestDescription || '').match(/^LEAD_FOLLOW_UP_DAILY:([^:]+):(\d{4}-\d{2}-\d{2})$/i)
+    return match ? `${match[1]}:${match[2]}` : ''
+  }).filter(Boolean))
+  return (items || []).filter((item) => {
+    if (!isNotificationAvailable(item, now)) return false
+    if (String(item?.kind || '').toUpperCase() !== 'LEAD_FOLLOW_UP_OVERDUE') return true
+    const match = String(item?.requestDescription || '').match(/^LEAD_FOLLOW_UP_OVERDUE:([^:]+):(\d{4})-(\d{2})-(\d{2})(?::[^:]+)?$/i)
+    if (!match) return true
+    const [, leadId, year, month, day] = match
+    const nextDay = new Date(Date.UTC(Number(year), Number(month) - 1, Number(day) + 1)).toISOString().slice(0, 10)
+    return !dailyOccurrences.has(`${leadId}:${nextDay}`)
+  })
+}
+
 // Support both flat and paginated notification responses used by the API.
 export function unwrapNotifications(response) {
   const candidates = [

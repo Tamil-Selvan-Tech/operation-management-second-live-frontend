@@ -79,6 +79,7 @@
 .next-follow-up-date-field { display: grid; gap: 6px; color: #475569; font-weight: 600; font-size: 13px; }
 .next-follow-up-date-field input { width: 100%; box-sizing: border-box; padding: 11px 12px; border: 1px solid #d7e1ef; border-radius: 9px; color: #334155; background: #fff; }
 .next-follow-up-time-field, .lead-followup-time-field { display: grid; gap: 6px; color: #475569; font-size: 13px; font-weight: 600; }
+.lead-followup-time-field[hidden] { display: none !important; }
 .lead-followup-time-field input { width: 100%; box-sizing: border-box; min-height: 42px; padding: 10px 12px; border: 1px solid #d7e1ef; border-radius: 9px; color: #334155; background: #fff; font: inherit; }
 .crm-native-time-input { position: absolute !important; width: 1px !important; height: 1px !important; padding: 0 !important; opacity: 0 !important; pointer-events: none !important; }
 .crm-ampm-time-picker { display: inline-flex; align-items: center; justify-self: start; gap: 6px; width: max-content; max-width: 100%; min-height: 42px; box-sizing: border-box; padding: 5px 9px; border: 1px solid #d7e1ef; border-radius: 9px; background: #fff; color: #334155; }
@@ -106,8 +107,13 @@
 .lead-followup-summary { margin: 0 0 20px; color: #647b9b; font-size: 13px; }
 .lead-followup-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
 .lead-followup-grid label { display: grid; gap: 6px; color: #475569; font-size: 13px; font-weight: 600; }
-.lead-followup-date-time-stack { display: grid; align-content: start; gap: 14px; min-width: 0; }
+.lead-followup-date-time-stack { display: contents; }
 .lead-followup-date-time-stack > label { display: grid; gap: 6px; color: #475569; font-size: 13px; font-weight: 600; }
+.lead-followup-grid > .lead-followup-date-time-stack .lead-followup-time-field { grid-column: 1 / -1; }
+.lead-followup-reminder-info { grid-column: 1 / -1; display: grid; gap: 3px; padding: 9px 11px; border: 1px solid #dbeafe; border-radius: 9px; background: #f8fbff; color: #475569; font-size: 12px; }
+.lead-followup-reminder-info strong { color: #1d4ed8; }
+.lead-reminder-overview-card { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px 20px; margin-top: 14px; padding: 11px 13px; border: 1px solid #dbeafe; border-radius: 10px; background: #f8fbff; color: #475569; font-size: 12px; }
+.lead-reminder-overview-card strong { color: #1d4ed8; }
 .lead-followup-grid label:nth-child(4), .lead-followup-grid label:nth-child(7) { grid-column: 1 / -1; }
 .lead-followup-grid label:nth-child(4) { order: 6; }
 .lead-followup-grid label:nth-child(5) { order: 4; }
