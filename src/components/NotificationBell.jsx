@@ -15,13 +15,16 @@ export function NotificationBell() {
   const [remoteItems, setRemoteItems] = useState([])
   const [remoteCount, setRemoteCount] = useState(0)
   const [error, setError] = useState('')
-  const isStudent = String(role).toUpperCase() === 'STUDENT'
-  const notificationItems = isStudent ? remoteItems : getNotificationItems(role)
-  const visibleItems = notificationItems.slice(0, isStudent ? 3 : 2)
-  const unreadCount = isStudent ? remoteCount : getUnreadNotificationCount(role)
+  const roleKey = String(role).toUpperCase().replace(/[^A-Z0-9]+/g, '_')
+  const isSalesAdmin = ['SALES_ADMIN', 'SALESADMIN'].includes(roleKey)
+  const isRemoteNotifications = roleKey === 'STUDENT' || isSalesAdmin
+  const isStudent = roleKey === 'STUDENT'
+  const notificationItems = isRemoteNotifications ? remoteItems : getNotificationItems(role)
+  const visibleItems = notificationItems.slice(0, isRemoteNotifications ? 3 : 2)
+  const unreadCount = isRemoteNotifications ? remoteCount : getUnreadNotificationCount(role)
 
   useEffect(() => {
-    if (!isStudent) return undefined
+    if (!isRemoteNotifications) return undefined
     let active = true
     const load = async () => {
       try {
@@ -38,9 +41,9 @@ export function NotificationBell() {
     window.addEventListener('focus', load)
     window.addEventListener('institute-leave-updated', load)
     return () => { active = false; clearInterval(timer); window.removeEventListener('focus', load); window.removeEventListener('institute-leave-updated', load) }
-  }, [isStudent])
+  }, [isRemoteNotifications])
   const markRead = async () => {
-    if (!isStudent) return
+    if (!isRemoteNotifications) return
     try {
       await request('/notifications/mark-read', { method: 'PATCH', body: JSON.stringify({ notificationIds: remoteItems.map(item => item.id) }) })
       window.dispatchEvent(new Event('institute-leave-updated'))
@@ -52,6 +55,15 @@ export function NotificationBell() {
     const description = String(item?.requestDescription || '').toUpperCase()
     if (isStudent && (kind === 'STUDENT_DISCONTINUATION' || description.startsWith('DISCONTINUATION_'))) {
       navigate('/student-new-dashboard?section=profile&open=discontinuation')
+      return true
+    }
+    if (isSalesAdmin && ['LEAD_FOLLOW_UP_DUE', 'LEAD_FOLLOW_UP_OVERDUE'].includes(kind)) {
+      const leadId = description.split(':')[1]
+      if (leadId) navigate('/dashboard/sales-admin/leads', { state: { leadId } })
+      return true
+    }
+    if (isSalesAdmin && kind === 'SALES_CRM_MONTHLY_REPORT') {
+      navigate('/dashboard/sales-admin/reports')
       return true
     }
     return false
@@ -136,10 +148,10 @@ export function NotificationBell() {
                   className={`notification-dropdown-item ${item.featured ? 'is-highlighted' : ''}`.trim()}
                   onClick={() => {
                     setIsOpen(false)
-                    if (isStudent) {
+                    if (isRemoteNotifications) {
                       void markRead()
                       openStudentNotification(item)
-                    } else navigate('/notifications')
+                    } else navigate(isSalesAdmin ? '/dashboard/sales-admin/notifications' : '/notifications')
                   }}
                 >
                   <span className={`notification-badge ${item.tone}`} aria-hidden="true">
@@ -160,7 +172,7 @@ export function NotificationBell() {
             type="button"
             onClick={() => {
               setIsOpen(false)
-              navigate(isStudent ? '/student-new-dashboard/notifications' : '/notifications')
+              navigate(isStudent ? '/student-new-dashboard/notifications' : isSalesAdmin ? '/dashboard/sales-admin/notifications' : '/notifications')
             }}
           >
             View all notifications

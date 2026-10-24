@@ -4,6 +4,9 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { request } from '../services/apiClient'
 import { useAuth } from '../auth/useAuth'
 import { LeadManagementPage } from './LeadManagementPage'
+import { SalesCrmReportPage } from './SalesCrmReportPage'
+import { NotificationBell } from '../components/NotificationBell'
+import { SalesAdminNotificationsPage } from './SalesAdminNotificationsPage'
 import '../styles/SuperAdminDashboardPage.css'
 import '../styles/SalesAdminDashboardPage.css'
 
@@ -12,6 +15,8 @@ export function SalesAdminDashboardPage() {
   const navigate = useNavigate()
   const location = useLocation()
   const isLeadManagement = location.pathname.endsWith('/leads')
+  const isReports = location.pathname.endsWith('/reports')
+  const isNotifications = location.pathname.endsWith('/notifications')
   const [dashboard, setDashboard] = useState(null)
   const [error, setError] = useState('')
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
@@ -44,19 +49,20 @@ export function SalesAdminDashboardPage() {
           <nav className="super-admin-sidebar-nav">
             <div className="super-admin-sidebar-section"><button type="button" className={`super-admin-sidebar-item ${!isLeadManagement ? 'is-active' : ''}`} data-tooltip="Dashboard" onClick={() => { navigate('/dashboard/sales-admin'); closeMobileSidebar() }}><span className="super-admin-sidebar-icon"><Home size={18} /></span><span>Dashboard</span></button></div>
             <div className="super-admin-sidebar-section"><button type="button" className={`super-admin-sidebar-item ${isLeadManagement ? 'is-active' : ''}`} data-tooltip="Lead Management" onClick={() => { navigate('/dashboard/sales-admin/leads'); closeMobileSidebar() }}><span className="super-admin-sidebar-icon"><LayoutGrid size={18} /></span><span>Lead Management</span></button></div>
-            <div className="super-admin-sidebar-section"><button type="button" className="super-admin-sidebar-item" data-tooltip="Notifications" onClick={closeMobileSidebar}><span className="super-admin-sidebar-icon"><Bell size={18} /></span><span>Notifications</span></button></div>
+            <div className="super-admin-sidebar-section"><button type="button" className={`super-admin-sidebar-item ${isReports ? 'is-active' : ''}`} data-tooltip="Monthly Reports" onClick={() => { navigate('/dashboard/sales-admin/reports'); closeMobileSidebar() }}><span className="super-admin-sidebar-icon"><LayoutGrid size={18} /></span><span>Monthly Reports</span></button></div>
+            <div className="super-admin-sidebar-section"><button type="button" className={`super-admin-sidebar-item ${isNotifications ? 'is-active' : ''}`} data-tooltip="Notifications" onClick={() => { navigate('/dashboard/sales-admin/notifications'); closeMobileSidebar() }}><span className="super-admin-sidebar-icon"><Bell size={18} /></span><span>Notifications</span></button></div>
           </nav>
           <div className="sales-admin-sidebar-account"><span className="sales-admin-sidebar-account-avatar"><UserRound size={18} /></span><span className="sales-admin-sidebar-account-copy"><strong>{user?.name || 'Sales Admin'}</strong><small>{user?.email || 'salesadmin@cispro.com'}</small></span><button type="button" className="sales-admin-sidebar-account-logout" aria-label="Logout" onClick={() => setIsLogoutConfirmOpen(true)}><LogOut size={20} /></button></div>
         </aside>
 
         <div className="super-admin-main">
           <header className="super-admin-topbar">
-            <div className="super-admin-topbar-left"><button type="button" className="super-admin-sidebar-toggle" aria-label="Open navigation menu" onClick={() => setIsMobileSidebarOpen(true)}><LayoutGrid size={19} /></button><h1 className="super-admin-header-title">{isLeadManagement ? 'Lead Management' : 'Sales Admin Dashboard'}</h1></div>
-            <div className="super-admin-topbar-right"><button type="button" className="super-admin-notification-button" aria-label="Notifications"><Bell size={21} /><span className="super-admin-notification-badge">0</span></button><div className="super-admin-profile"><span className="super-admin-avatar"><span className="super-admin-avatar-mark"><UserRound size={19} /></span></span><div className="super-admin-profile-copy"><strong>{user?.name || 'Sales Admin'}</strong><span>{user?.email || 'salesadmin@cispro.com'}</span></div></div></div>
+            <div className="super-admin-topbar-left"><button type="button" className="super-admin-sidebar-toggle" aria-label="Open navigation menu" onClick={() => setIsMobileSidebarOpen(true)}><LayoutGrid size={19} /></button><h1 className="super-admin-header-title">{isLeadManagement ? 'Lead Management' : isReports ? 'Monthly Reports' : isNotifications ? 'Notifications' : 'Sales Admin Dashboard'}</h1></div>
+            <div className="super-admin-topbar-right"><NotificationBell /><div className="super-admin-profile"><span className="super-admin-avatar"><span className="super-admin-avatar-mark"><UserRound size={19} /></span></span><div className="super-admin-profile-copy"><strong>{user?.name || 'Sales Admin'}</strong><span>{user?.email || 'salesadmin@cispro.com'}</span></div></div></div>
           </header>
 
           <main className="super-admin-content">
-            {isLeadManagement ? <LeadManagementPage /> : <><header className="sales-admin-dashboard-header"><div><p className="eyebrow">SALES ADMIN WORKSPACE</p><h1>Sales Admin Dashboard</h1><p>Manage sales activity across your assigned branches.</p></div></header>{error ? <p role="alert">{error}</p> : null}<section className="sales-admin-dashboard-cards">{[['New leads', cards.newLeads], ['Total leads', cards.totalLeads], ['HOT leads', cards.hotLeads], ['WARM leads', cards.warmLeads], ['COLD leads', cards.coldLeads], ['Admissions', cards.admissionsCompleted]].map(([label, value]) => <article className="panel-card" key={label}><span>{label}</span><strong>{value == null ? 'Unavailable' : value}</strong></article>)}</section><section className="panel-card sales-admin-dashboard-lead-card"><h2>Lead Management</h2><p>Open Lead Management from the sidebar to manage enquiries and follow-ups.</p></section></>}
+            {isLeadManagement ? <LeadManagementPage /> : isReports ? <SalesCrmReportPage /> : isNotifications ? <SalesAdminNotificationsPage /> : <><header className="sales-admin-dashboard-header"><div><p className="eyebrow">SALES ADMIN WORKSPACE</p><h1>Sales Admin Dashboard</h1><p>Manage sales activity across your assigned branches.</p></div></header>{error ? <p role="alert">{error}</p> : null}<section className="sales-admin-dashboard-cards">{[['New leads', cards.newLeads], ['Total leads', cards.totalLeads], ['HOT leads', cards.hotLeads], ['WARM leads', cards.warmLeads], ['COLD leads', cards.coldLeads], ['Admissions', cards.admissionsCompleted]].map(([label, value]) => <article className="panel-card" key={label}><span>{label}</span><strong>{value == null ? 'Unavailable' : value}</strong></article>)}</section><section className="panel-card sales-admin-dashboard-lead-card"><h2>Lead Management</h2><p>Open Lead Management from the sidebar to manage enquiries and follow-ups.</p></section></>}
           </main>
         </div>
       </div>

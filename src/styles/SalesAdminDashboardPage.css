@@ -245,3 +245,41 @@
     grid-template-columns: 1fr;
   }
 }
+.sales-crm-report-page { padding: 28px; background: #fff; min-height: 100%; }
+.sales-crm-report-header { margin-bottom: 24px; }
+.sales-crm-report-header h1 { margin: 6px 0; color: #132b52; }
+.sales-crm-report-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 14px; margin-bottom: 20px; }
+.sales-crm-report-cards .panel-card { min-height: 96px; }
+.sales-crm-report-cards .panel-card strong { display: block; margin-top: 10px; color: #1769e0; font-size: 24px; }
+.sales-crm-report-stage-card, .sales-crm-report-table-card { margin-bottom: 20px; padding: 20px; }
+.sales-crm-report-stage-card h2, .sales-crm-report-table-card h2 { margin: 0 0 16px; color: #17345f; }
+.sales-crm-report-stage-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+.sales-crm-report-stage-grid div { padding: 14px; border: 1px solid #dce7f5; border-radius: 10px; background: #f8fbff; }
+.sales-crm-report-stage-grid span, .sales-crm-report-stage-grid strong { display: block; }
+.sales-crm-report-stage-grid strong { margin-top: 6px; font-size: 20px; color: #1769e0; }
+@media (max-width: 720px) { .sales-crm-report-page { padding: 18px; } .sales-crm-report-stage-grid { grid-template-columns: repeat(2, 1fr); } }
+.sales-admin-notifications-page { min-height: 100%; padding: 28px; background: #f8fbff; }
+.sales-admin-notifications-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; margin-bottom: 24px; }
+.sales-admin-notifications-header h1 { margin: 6px 0; color: #132b52; }
+.sales-admin-notifications-header p:not(.eyebrow) { margin: 0; color: #6b7f9c; }
+.sales-admin-notification-summary { display: flex; gap: 10px; align-items: center; color: #667a97; font-size: 13px; }
+.sales-admin-notification-summary strong { padding: 9px 12px; border-radius: 999px; color: #1769e0; background: #eaf2ff; }
+.sales-admin-notification-toolbar { display: flex; justify-content: space-between; align-items: center; gap: 14px; margin-bottom: 18px; }
+.sales-admin-notification-filters { display: flex; gap: 8px; }
+.sales-admin-notification-filters button { display: inline-flex; align-items: center; gap: 7px; padding: 9px 13px; border: 1px solid #dce7f5; border-radius: 8px; color: #58708f; background: #fff; cursor: pointer; }
+.sales-admin-notification-filters button.is-active { color: #1769e0; border-color: #8bb5f8; background: #edf5ff; font-weight: 700; }
+.sales-admin-notification-list { display: grid; gap: 12px; max-width: 980px; }
+.sales-admin-notification-card { position: relative; display: flex; gap: 14px; padding: 18px; border: 1px solid #dce7f5; border-radius: 12px; background: #fff; box-shadow: 0 5px 18px rgba(33, 74, 125, .05); }
+.sales-admin-notification-card.is-unread { border-left: 4px solid #1769e0; background: #fbfdff; }
+.sales-admin-notification-icon { display: grid; flex: 0 0 40px; place-items: center; width: 40px; height: 40px; border-radius: 12px; color: #1769e0; background: #eaf2ff; }
+.sales-admin-notification-icon.amber { color: #b77908; background: #fff6df; }
+.sales-admin-notification-icon.green { color: #16835a; background: #e6f8ef; }
+.sales-admin-notification-copy { flex: 1; min-width: 0; }
+.sales-admin-notification-copy > div { display: flex; justify-content: space-between; gap: 12px; }
+.sales-admin-notification-copy h3 { margin: 0; color: #17345f; font-size: 15px; }
+.sales-admin-notification-copy time { color: #8292a9; font-size: 12px; white-space: nowrap; }
+.sales-admin-notification-copy p { margin: 7px 0 12px; color: #607593; line-height: 1.5; }
+.sales-admin-notification-copy button { display: inline-flex; align-items: center; gap: 6px; padding: 0; border: 0; color: #1769e0; background: transparent; font-weight: 700; cursor: pointer; }
+.sales-admin-notification-dot { width: 8px; height: 8px; border-radius: 50%; background: #1769e0; }
+.sales-admin-notification-empty { display: grid; place-items: center; gap: 8px; min-height: 220px; color: #7b8da7; border: 1px dashed #c9d9ee; border-radius: 12px; background: #fff; }
+@media (max-width: 720px) { .sales-admin-notifications-page { padding: 18px; } .sales-admin-notifications-header, .sales-admin-notification-toolbar { align-items: stretch; flex-direction: column; } .sales-admin-notification-copy > div { flex-direction: column; gap: 5px; } }
