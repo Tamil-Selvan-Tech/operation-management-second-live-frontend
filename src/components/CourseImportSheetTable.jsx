@@ -1,12 +1,12 @@
 import { useState } from 'react'
-import { Check, Pencil, X } from 'lucide-react'
+import { Check, Pencil, Trash2, X } from 'lucide-react'
 import { friendlyCourseImportMessage } from '../lib/courseImportMessages'
 
 const NUMBER_COLUMNS = new Set(['Duration in Months','Total Course Hours','Standard Course Fee','Registration Fee','Discount','Academic Test Count'])
 const normalizePlanName = (value) => String(value ?? '').trim().replace(/\s+/g, ' ').toLocaleLowerCase()
 const duplicateIssue = (message) => /duplicate|already exists|matches multiple active branch templates/i.test(message)
 
-export default function CourseImportSheetTable({ sheetName, sheet, panelId, rows, errors, edits, busy, availablePaymentPlans = [], ambiguousPaymentPlanNames = [], invalidRows = [], duplicateRows = [], emptyMessage = 'No rows in this sheet.', onEditRow }) {
+export default function CourseImportSheetTable({ sheetName, sheet, panelId, rows, errors, edits, busy, availablePaymentPlans = [], ambiguousPaymentPlanNames = [], invalidRows = [], duplicateRows = [], emptyMessage = 'No rows in this sheet.', onEditRow, onDeleteRow }) {
   const headers = sheet?.headers || []
   const rowSerialNumbers = new Map((sheet?.rows || []).map((sheetRow, index) => [sheetRow.row, index + 1]))
   const [editingRow, setEditingRow] = useState(null)
@@ -49,10 +49,9 @@ export default function CourseImportSheetTable({ sheetName, sheet, panelId, rows
             const rowIssues = errorsByRow.get(row.row) || []
             const duplicate = duplicateRowSet.has(row.row) || rowIssues.some((item) => duplicateIssue(item.message))
             const invalid = invalidRowSet.has(row.row) || duplicateRowSet.has(row.row) || rowIssues.length > 0
-            const alreadyExists = rowIssues.some((item) => /already exists in this branch/i.test(item.message))
-            const statusDetail = alreadyExists ? 'Already exists' : duplicate ? 'Duplicate row' : invalid ? (rowIssues.length === 1 ? '1 issue to fix' : rowIssues.length + ' issues to fix') : ''
-            const statusLabel = invalid ? 'Invalid' : 'Valid'
-            const statusClass = invalid ? 'is-invalid' : 'is-valid'
+            const statusDetail = duplicate ? (sheetName === 'Courses' ? 'Duplicate course' : 'Duplicate row') : invalid ? (rowIssues.length === 1 ? '1 issue to fix' : rowIssues.length + ' issues to fix') : ''
+            const statusLabel = duplicate ? 'Duplicate' : invalid ? 'Invalid' : 'Valid'
+            const statusClass = duplicate ? 'is-duplicate' : invalid ? 'is-invalid' : 'is-valid'
             const isEditing = editingRow?.sheetName === sheetName && editingRow?.row === row.row
             const rowValues = isEditing ? editingRow.values : {}
             const savedValues = edits[sheetName]?.[row.row] || {}
@@ -112,8 +111,8 @@ export default function CourseImportSheetTable({ sheetName, sheet, panelId, rows
                 })}
                 <td className="course-import-row-actions" data-column="Actions"><label className="course-import-mobile-label">Action</label><div className="course-import-row-action-buttons">
                   {isEditing ? <><button type="button" className="course-import-row-action is-save" disabled={Boolean(busy)} onClick={saveRow} aria-label={'Save edits for Excel row ' + row.row}><Check size={14} aria-hidden="true" /><span>Save</span></button><button type="button" className="course-import-row-action is-cancel" disabled={Boolean(busy)} onClick={() => setEditingRow(null)} aria-label={'Cancel edits for Excel row ' + row.row}><X size={14} aria-hidden="true" /><span className="sr-only">Cancel</span></button></>
-                    : <button type="button" className="course-import-row-action is-edit" disabled={Boolean(busy) || Boolean(otherRowEditing)} onClick={beginEdit} aria-label={'Edit Excel row ' + row.row}><Pencil size={14} aria-hidden="true" /><span>Edit</span></button>}
-                </div></td>
+                    : duplicate && sheetName === 'Courses' ? <button type="button" className="course-import-row-action is-delete" disabled={Boolean(busy)} onClick={() => void onDeleteRow?.(sheetName, row.row)} aria-label={'Delete duplicate course at Excel row ' + row.row}><Trash2 size={14} aria-hidden="true" /><span>Delete</span></button>
+                    : <button type="button" className="course-import-row-action is-edit" disabled={Boolean(busy) || Boolean(otherRowEditing)} onClick={beginEdit} aria-label={'Edit Excel row ' + row.row}><Pencil size={14} aria-hidden="true" /><span>Edit</span></button>}                </div></td>
                 <td className="course-import-row-state" data-column="Row status" title={statusDetail || statusLabel}><label className="course-import-mobile-label">Status</label><span className="course-import-row-state-content">{invalid ? <span className={'course-import-row-badge ' + statusClass}>{statusLabel}</span> : <span className="course-import-row-state-label is-valid">{statusLabel}</span>}{statusDetail ? <small>{statusDetail}</small> : null}</span></td>
               </tr>
             )

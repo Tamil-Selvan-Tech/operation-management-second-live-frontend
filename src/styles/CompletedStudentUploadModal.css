@@ -1161,3 +1161,27 @@ body[data-completed-upload-invalid-fields~="studentStatus"] [data-edit-field="st
     width: 250px;
   }
 }
+/* Highlight only the field that produced the validation error. */
+.completed-upload-table-shell .completed-upload-full-table tbody td.completed-upload-error-cell {
+  background: #fff1f2 !important;
+  color: #9f1239;
+  box-shadow: inset 0 0 0 1px #fecdd3;
+  font-weight: 700;
+}
+.completed-upload-table-shell .completed-upload-full-table tbody td.completed-upload-error-cell::after {
+  display: block;
+  width: 7px;
+  height: 7px;
+  margin-top: 4px;
+  border-radius: 50%;
+  background: #dc2626;
+  content: '';
+}
+.completed-upload-table-shell .completed-upload-full-table tbody tr:has(.completed-upload-inline-input.is-focused-error) td {
+  background: #fff !important;
+  border-bottom-color: #e2e8f0;
+}
+.completed-upload-table-shell .completed-upload-full-table tbody tr:has(.completed-upload-inline-input.is-focused-error) td.completed-upload-error-cell {
+  background: #fff1f2 !important;
+  border-bottom-color: #fecdd3;
+}

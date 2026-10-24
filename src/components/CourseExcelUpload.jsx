@@ -10,6 +10,7 @@ const money = (value) => new Intl.NumberFormat('en-IN', { style: 'currency', cur
 const percent = (value) => Number(value || 0).toFixed(2) + '%'
 const PAGE_SIZE = 10
 const isDuplicateIssue = (message) => /duplicate|already exists|matches multiple active branch templates/i.test(message)
+const normalizeCourseImportCode = (value) => String(value ?? '').trim().toLocaleLowerCase().replace(/[^a-z0-9]/g, '')
 const SHEET_NAMES = ['Courses', 'Course Modules', 'Course Submodules', 'Payment Plans']
 
 function CourseImportRowFilter({ value, onChange, disabled }) {
@@ -276,6 +277,54 @@ export function CourseExcelUpload({ onImported, onView, onStart, onClose, pageMo
       setErrorPage(1)
     })
   }
+  async function removeDuplicateCourse(sheetName, rowNumber) {
+    if (sheetName !== 'Courses' || !preview || !file) return
+    const courseSheet = preview.sheets?.Courses
+    const courseRow = courseSheet?.rows?.find((item) => item.row === rowNumber)
+    if (!courseRow) return
+    const editedCourseValues = editsRef.current.Courses?.[rowNumber] || {}
+    const enteredCode = editedCourseValues['Course Code'] ?? courseRow.values?.['Course Code'] ?? ''
+    const normalizedCode = normalizeCourseImportCode(enteredCode)
+    if (!normalizedCode) return
+    const sameCodeCourseRows = (courseSheet.rows || []).filter((item) => {
+      const editedValues = editsRef.current.Courses?.[item.row] || {}
+      const rowCode = editedValues['Course Code'] ?? item.values?.['Course Code'] ?? ''
+      return normalizeCourseImportCode(rowCode) === normalizedCode
+    })
+    const clearRelatedRows = sameCodeCourseRows.length <= 1
+
+    const next = Object.fromEntries(Object.entries(editsRef.current).map(([sheet, rows]) => [sheet, { ...rows }]))
+    for (const sheetNameToClear of SHEET_NAMES) {
+      const sheet = preview.sheets?.[sheetNameToClear]
+      if (!sheet) continue
+      const rowsToClear = sheet.rows.filter((item) => {
+        if (sheetNameToClear === 'Courses') return item.row === rowNumber
+        if (!clearRelatedRows) return false
+        const editedValues = editsRef.current[sheetNameToClear]?.[item.row] || {}
+        const rowCode = editedValues['Course Code'] ?? item.values?.['Course Code'] ?? ''
+        return normalizeCourseImportCode(rowCode) === normalizedCode
+      })
+      if (!rowsToClear.length) continue
+      next[sheetNameToClear] = { ...(next[sheetNameToClear] || {}) }
+      for (const item of rowsToClear) {
+        next[sheetNameToClear][item.row] = Object.fromEntries((sheet.headers || []).map((header) => [header, '']))
+      }
+    }
+
+    editsRef.current = next
+    setEdits(next)
+    setEditsPending(true)
+    await run('preview', async () => {
+      const validatedPreview = await previewCourseWorkbook(file, next)
+      setPreview(validatedPreview)
+      setEditsPending(false)
+      setPage(1)
+      setCoursePage(1)
+      setSheetSearch('')
+      setSheetFilter('all')
+      setErrorPage(1)
+    })
+  }
   async function validateFile(targetFile = file) {
     if (!targetFile) return
     await run('preview', async () => {
@@ -291,15 +340,15 @@ export function CourseExcelUpload({ onImported, onView, onStart, onClose, pageMo
   const courseTotalCount = Number(preview?.validationCounts?.Courses?.total ?? preview?.totals?.courses ?? preview?.sheets?.Courses?.rows?.length ?? 0)
   const courseInvalidRows = new Set(preview?.invalidRowsBySheet?.Courses ?? errors.filter((item) => item.sheet === 'Courses' && item.row >= 2).map((item) => item.row))
   const courseDuplicateRows = new Set(preview?.duplicateRowsBySheet?.Courses ?? errors.filter((item) => item.sheet === 'Courses' && item.row >= 2 && isDuplicateIssue(item.message)).map((item) => item.row))
-  const invalidCourseCount = Math.min(courseTotalCount, Number(preview?.validationCounts?.Courses?.invalid ?? courseInvalidRows.size))
-  const validCourseCount = Math.max(0, Number(preview?.validationCounts?.Courses?.valid ?? courseTotalCount - invalidCourseCount))
+  const invalidCourseCount = [...courseInvalidRows].filter((row) => !courseDuplicateRows.has(row)).length
+  const validCourseCount = Math.max(0, courseTotalCount - courseInvalidRows.size)
   const duplicateCourseCount = Math.min(courseTotalCount, courseDuplicateRows.size)
   const sheetFilterLabel = ({ all: 'All rows', valid: 'Valid', invalid: 'Invalid', duplicates: 'Duplicates' })[sheetFilter] || 'All rows'
   const sheetSearchLabel = sheetSearch.trim()
   const emptySheetMessage = 'No rows found for ' + sheetFilterLabel + (sheetSearchLabel ? ' matching ' + sheetSearchLabel : '') + '.'
   const filteredSheetRows = sheetRows.filter((row) => {
     if (sheetFilter === 'valid' && invalidRows.has(row.row)) return false
-    if (sheetFilter === 'invalid' && !invalidRows.has(row.row)) return false
+    if (sheetFilter === 'invalid' && (!invalidRows.has(row.row) || duplicateRows.has(row.row))) return false
     if (sheetFilter === 'duplicates' && !duplicateRows.has(row.row)) return false
     const search = sheetSearch.trim().toLocaleLowerCase()
     if (!search) return true
@@ -333,15 +382,15 @@ export function CourseExcelUpload({ onImported, onView, onStart, onClose, pageMo
                 </div>
               ) : (
                 <>
-                  {(!preview || !pageMode || busy === 'preview') ? <div className={'course-import-upload-options' + (preview && busy !== 'preview' ? ' has-preview' : '')}>
+                  {(!preview || (!pageMode && busy !== 'preview')) ? <div className={'course-import-upload-options' + (preview && busy !== 'preview' ? ' has-preview' : '')}>
                     {(!preview || (pageMode && busy === 'preview')) ? <div className="course-import-instructions"><strong>Before you upload</strong><p>Complete all four template sheets, then upload the .xlsx file.</p><button type="button" className="button button-ghost" disabled={Boolean(busy)} onClick={() => void run('template', downloadCourseTemplate)}><Download size={15} /> Download template</button></div> : null}
                     <label className={"course-import-file" + (file ? " has-file" : "") + (busy === 'preview' ? " is-loading" : "")} aria-busy={busy === 'preview'}><>{busy === 'preview' ? <div className="course-import-file-progress" role="status" aria-live="polite"><Loader2 size={23} className="course-import-spinner" aria-hidden="true" /><strong>Uploading course workbook...</strong><span>{file?.name || 'Please wait while we validate the workbook.'}</span></div> : <><Upload size={23} /><strong>{file?.name || 'Choose an Excel workbook'}</strong><span>{file ? (file.size / 1024).toFixed(1) + ' KB | .xlsx' : '.xlsx only | up to 8 MB | 100 courses per upload'}</span></>}</><input aria-label="Choose course Excel workbook" type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" disabled={Boolean(busy)} onChange={(event) => { if (event.target.files?.[0]) choose(event.target.files[0]); event.target.value = '' }} /></label>
                   </div> : null}
-                  {preview && busy !== 'preview' ? (
+                  {preview ? (
                     <>
                       <div ref={summaryCards} className="course-import-stats" role="group" aria-label="Course validation summary"><div className="is-total"><strong>{courseTotalCount}</strong><span>Total Courses</span></div><div className="is-valid"><strong>{validCourseCount}</strong><span>Valid Courses</span></div><div className="is-invalid"><strong>{invalidCourseCount}</strong><span>Invalid Courses</span></div><div className="is-duplicate"><strong>{duplicateCourseCount}</strong><span>Duplicate Courses</span></div></div>
 <>
-                      {editsPending || !preview.valid ? <div className={'course-import-alert ' + (editsPending ? 'is-pending' : 'is-error')} role="status">{editsPending ? 'Edited values have not been validated yet. Revalidate before import.' : 'Fix all errors shown by sheet, row and column. No courses have been saved.'}</div> : null}
+                      {editsPending ? <div className="course-import-alert is-pending" role="status">Edited values have not been validated yet. Revalidate before import.</div> : null}
                       {(!pageMode || !showImportReview) && errors.length ? (
                         <details className="course-import-error-details">
                           <summary><strong>Validation errors</strong><span>{errors.length} row and column issues</span></summary>
@@ -365,8 +414,11 @@ export function CourseExcelUpload({ onImported, onView, onStart, onClose, pageMo
                           <label className="course-import-grid-search"><Search size={16} aria-hidden="true" /><span className="sr-only">Search {activeSheet}</span><input type="search" value={sheetSearch} placeholder={'Search ' + activeSheet.toLowerCase() + '...'} onChange={(event) => { setSheetSearch(event.target.value); setPage(1) }} disabled={Boolean(busy)} /></label>
                           <CourseImportRowFilter value={sheetFilter} onChange={(value) => { setSheetFilter(value); setPage(1) }} disabled={Boolean(busy)} />
                         </div>
-                        <CourseImportSheetTable sheetName={activeSheet} sheet={preview.sheets?.[activeSheet]} panelId={'course-import-panel-' + activeSheet.toLowerCase().replace(/[^a-z0-9]+/g, '-')} rows={filteredSheetRows.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)} errors={errors} edits={edits} invalidRows={[...invalidRows]} duplicateRows={[...duplicateRows]} emptyMessage={emptySheetMessage} availablePaymentPlans={preview.availablePaymentPlans || []} ambiguousPaymentPlanNames={preview.ambiguousPaymentPlanNames || []} busy={Boolean(busy)} onEditRow={updateSheetEdit} />
-                        {filteredSheetRows.length > 0 ? <div className="course-import-pagination"><button type="button" disabled={Boolean(busy) || page <= 1} onClick={() => setPage(page - 1)}>Previous</button><span>Showing {Math.min((page - 1) * PAGE_SIZE + 1, filteredSheetRows.length)}-{Math.min(page * PAGE_SIZE, filteredSheetRows.length)} of {filteredSheetRows.length} rows &middot; page {page} of {pages}</span><button type="button" disabled={Boolean(busy) || page >= pages} onClick={() => setPage(page + 1)}>Next</button></div> : null}
+                        <div className="course-import-table-review-area" aria-busy={busy === 'preview'}>
+                          {busy === 'preview' ? <div className="course-import-table-loading" role="status" aria-live="polite"><Loader2 size={17} className="course-import-spinner" aria-hidden="true" /><span>Updating validation...</span></div> : null}
+                          <CourseImportSheetTable sheetName={activeSheet} sheet={preview.sheets?.[activeSheet]} panelId={'course-import-panel-' + activeSheet.toLowerCase().replace(/[^a-z0-9]+/g, '-')} rows={filteredSheetRows.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)} errors={errors} edits={edits} invalidRows={[...invalidRows]} duplicateRows={[...duplicateRows]} emptyMessage={emptySheetMessage} availablePaymentPlans={preview.availablePaymentPlans || []} ambiguousPaymentPlanNames={preview.ambiguousPaymentPlanNames || []} busy={Boolean(busy)} onEditRow={updateSheetEdit} onDeleteRow={removeDuplicateCourse} />
+                          {filteredSheetRows.length > 0 ? <div className="course-import-pagination"><button type="button" disabled={Boolean(busy) || page <= 1} onClick={() => setPage(page - 1)}>Previous</button><span>Showing {Math.min((page - 1) * PAGE_SIZE + 1, filteredSheetRows.length)}-{Math.min(page * PAGE_SIZE, filteredSheetRows.length)} of {filteredSheetRows.length} rows &middot; page {page} of {pages}</span><button type="button" disabled={Boolean(busy) || page >= pages} onClick={() => setPage(page + 1)}>Next</button></div> : null}
+                        </div>
                       </section>
                       {pageMode && !showImportReview ? <div className="course-import-page-actions course-import-page-next"><button type="button" className="button button-solid" disabled={Boolean(busy) || !preview?.valid || editsPending || courseTotalCount === 0} onClick={() => { setShowImportReview(true); window.requestAnimationFrame(() => importReviewSection.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })) }}>Next Import results</button></div> : null}
 {(pageMode ? showImportReview : activeSheet === 'Courses') ? <section ref={pageMode ? importReviewSection : undefined} className={pageMode ? 'course-import-import-review' : undefined} aria-label={pageMode ? 'Import results review' : 'Calculated course payment and weights preview'}><div className="course-import-section-title"><h3>{pageMode ? 'Import results' : 'Modules and payment details'}</h3><span>{pageMode ? 'Select a course to review its details, modules, submodules and payment plans.' : editsPending ? 'Details below use the last validated values; validate changes to refresh them.' : 'Select a course to review hierarchy and installment amounts.'}</span></div>

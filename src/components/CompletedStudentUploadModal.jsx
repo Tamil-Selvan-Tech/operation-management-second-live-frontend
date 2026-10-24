@@ -13,28 +13,75 @@ function columnLabel(field) { const match = field.match(/^assessment(\d+)$/); if
 function isDuplicateRow(row) { return row.errors?.some((error) => /duplicate/i.test(error)) }
 function isWarningRow(row) { return row.warnings?.length > 0 || row.errors?.some((error) => /^warning/i.test(error)) }
 function displayCellValue(value) { return value === null || value === undefined || value === '' ? '-' : String(value) }
-function invalidFieldFromMessage(message = '') {
-  const matchers = [
-    [/Student ID/i, 'studentId'], [/Student Name/i, 'studentName'], [/Contact Number/i, 'contactNumber'], [/Email ID/i, 'emailId'], [/Parent \/ Guardian/i, 'parentGuardian'], [/Qualification/i, 'qualification'], [/Education Level/i, 'educationLevel'], [/Education Status/i, 'educationStatus'], [/Passed Out Year/i, 'passedOutYear'], [/Current Status/i, 'currentStatus'], [/Designation/i, 'designation'], [/Company Name/i, 'companyName'], [/Admission Date/i, 'admissionDate'], [/Course Starting Date/i, 'courseStartingDate'], [/Course Ending Date/i, 'courseEndingDate'], [/Course/i, 'course'], [/Attendance/i, 'attendance'], [/Registration Fees/i, 'registrationFees'], [/Course Fees/i, 'courseFees'], [/Total Fees/i, 'totalFees'], [/Academic Project/i, 'academicProject'], [/Assessment-(\d+)/i, (_, number) => `assessment${String(Number(number)).padStart(2, '0')}`], [/Installment (\d+).*Paid Amount/i, (_, number) => `installment${number}paidamount`], [/Installment (\d+).*Pending Amount/i, (_, number) => `installment${number}pendingamount`], [/Installment (\d+).*Payment Date/i, (_, number) => `installment${number}paymentdate`], [/Installment (\d+).*Mode/i, (_, number) => `installment${number}modeofcollection`], [/Installment (\d+).*Receipt/i, (_, number) => `installment${number}receiptnumber`],
+function normalizeComparable(value) { return String(value ?? '').trim().toLowerCase().replace(/\s+/g, ' ') }
+function invalidFieldFromMessage(message = '', rowData = {}) {
+  const text = String(message || '')
+  const installmentMatchers = [
+    [/Installment[\s-]*(\d+).*?Paid Amount/i, (_, number) => 'installment' + Number(number) + 'paidamount'],
+    [/Installment[\s-]*(\d+).*?Pending Amount/i, (_, number) => 'installment' + Number(number) + 'pendingamount'],
+    [/Installment[\s-]*(\d+).*?Payment Date/i, (_, number) => 'installment' + Number(number) + 'paymentdate'],
+    [/Installment[\s-]*(\d+).*?Mode(?: of Collection)?/i, (_, number) => 'installment' + Number(number) + 'modeofcollection'],
+    [/Installment[\s-]*(\d+).*?Receipt/i, (_, number) => 'installment' + Number(number) + 'receiptnumber'],
+    [/Installment[\s-]*(\d+).*?amount is required/i, (_, number) => 'installment' + Number(number) + 'paidamount'],
   ]
-  const found = matchers.find(([pattern]) => pattern.test(message))
-  if (!found) return ''
-  const match = message.match(found[0])
-  return typeof found[1] === 'function' ? found[1](...match) : found[1]
+  const fieldMatchers = [
+    [/Assessment[\s-]*(\d+)/i, (_, number) => 'assessment' + String(Number(number)).padStart(2, '0')],
+    [/Student ID/i, 'studentId'], [/Student Name/i, 'studentName'], [/Contact Number/i, 'contactNumber'], [/Email ID/i, 'emailId'], [/Parent \/ Guardian/i, 'parentGuardian'], [/Parent \/ Spouse Number/i, 'parentSpouseNumber'], [/Qualification/i, 'qualification'], [/Education Level/i, 'educationLevel'], [/Education Status/i, 'educationStatus'], [/Passed Out Year/i, 'passedOutYear'], [/Current Status/i, 'currentStatus'], [/Student Status/i, 'studentStatus'], [/Designation/i, 'designation'], [/Company Name/i, 'companyName'], [/Admission Date/i, 'admissionDate'], [/Course Starting Date/i, 'courseStartingDate'], [/Course Ending Date/i, 'courseEndingDate'], [/Certificate Issued Date/i, 'certificateIssuedDate'], [/Attendance/i, 'attendance'], [/Registration Fees/i, 'registrationFees'], [/Course Fees/i, 'courseFees'], [/Total Fees/i, 'totalFees'], [/Academic Project/i, 'academicProject'], [/^\s*Course\b/i, 'course'],
+  ]
+  const installmentMatch = installmentMatchers.find(([pattern]) => pattern.test(text))
+  if (installmentMatch) {
+    const match = text.match(installmentMatch[0])
+    return typeof installmentMatch[1] === 'function' ? installmentMatch[1](...match) : installmentMatch[1]
+  }
+  // Duplicate receipt errors do not include the installment number. Resolve
+  // the exact receipt column before generic messages such as "course" are parsed.
+  const duplicateReceipt = text.match(/Receipt Number\s*:?\s*(.+?)\s+already belongs/i)
+  if (duplicateReceipt) {
+    const receipt = normalizeComparable(duplicateReceipt[1])
+    const receiptFields = Object.keys(rowData || {}).filter((field) => /^installment\d+.*receipt/i.test(field))
+    const receiptField = receiptFields.find((field) => normalizeComparable(rowData[field]) === receipt)
+    if (receiptField) return receiptField
+    // The message contains the word "course", but that does not make the
+    // Course column invalid. Do not fall through to the generic Course matcher.
+    return ''
+  }
+  const fieldMatch = fieldMatchers.find(([pattern]) => pattern.test(text))
+  if (fieldMatch) {
+    const match = text.match(fieldMatch[0])
+    return typeof fieldMatch[1] === 'function' ? fieldMatch[1](...match) : fieldMatch[1]
+  }
+  if (/At least one installment payment is required/i.test(text)) return 'installment1paidamount'
+  return ''
 }
-function firstInvalidField(row) { return (row.errors || []).map(invalidFieldFromMessage).find(Boolean) || 'studentId' }
+function resolveFieldForRow(row = {}, field = '') {
+  const data = row.data || {}
+  if (Object.prototype.hasOwnProperty.call(data, field)) return field
+  if (/receiptnumber$/i.test(field)) {
+    const alias = field.replace(/receiptnumber$/i, 'receiptno')
+    if (Object.prototype.hasOwnProperty.call(data, alias)) return alias
+  }
+  if (/modeofcollection$/i.test(field)) {
+    const alias = field.replace(/modeofcollection$/i, 'mode')
+    if (Object.prototype.hasOwnProperty.call(data, alias)) return alias
+  }
+  return field
+}
+function invalidFieldsForRow(row = {}) {
+  return [...new Set((row.errors || []).map((error) => resolveFieldForRow(row, invalidFieldFromMessage(error, row.data))).filter(Boolean))]
+}
+function fieldErrorsForRow(row = {}, field = '') {
+  return (row.errors || []).filter((error) => resolveFieldForRow(row, invalidFieldFromMessage(error, row.data)) === field)
+}
+
 function isMissingContactError(error = '') { return /^(Contact Number|Email ID) is missing\./i.test(error) }
 function hasOnlyMissingContactErrors(row) { return Boolean(row.errors?.length) && row.errors.every(isMissingContactError) }
 function markEditingInvalidFields(row) {
   if (typeof document === 'undefined') return
-  const fields = [...new Set([
-    ...(row.errors || []).map(invalidFieldFromMessage).filter(Boolean),
-    ...(row.errors || []).some((error) => /Student Status/i.test(error)) ? ['studentStatus'] : [],
-  ])]
+  const fields = invalidFieldsForRow(row)
   document.body.dataset.completedUploadInvalidFields = fields.join(' ')
   window.requestAnimationFrame(() => {
     document.querySelectorAll('.completed-upload-inline-input.is-invalid-field').forEach((input) => input.classList.remove('is-invalid-field'))
-    fields.forEach((field) => document.querySelector(`[data-edit-field="${field}"]`)?.classList.add('is-invalid-field'))
+    fields.forEach((field) => document.querySelector('[data-edit-field="' + field + '"]')?.classList.add('is-invalid-field'))
   })
 }
 function normalizeCompletedStudentImportPreview(preview) {
@@ -183,7 +230,8 @@ export function CompletedStudentUploadModal({ isOpen, onClose, onImported }) {
       }
       setResult(importedResult)
       if (importedResult?.importedRows) {
-        await new Promise((resolve) => window.setTimeout(resolve, 900))
+        window.clearInterval(progressTimer)
+        setBusy(false)
         await onImported?.()
       }
     } catch (requestError) { setError(errorMessage(requestError)); setImportProgress(0) } finally { window.clearInterval(progressTimer); setBusy(false) }
@@ -218,7 +266,8 @@ export function CompletedStudentUploadModal({ isOpen, onClose, onImported }) {
       }
       setResult(importedResult)
       if (importedResult?.importedRows) {
-        await new Promise((resolve) => window.setTimeout(resolve, 900))
+        window.clearInterval(progressTimer)
+        setBusy(false)
         await onImported?.()
       }
     } catch (requestError) { setError(errorMessage(requestError)); setImportProgress(0) } finally { window.clearInterval(progressTimer); setBusy(false) }
@@ -232,8 +281,9 @@ export function CompletedStudentUploadModal({ isOpen, onClose, onImported }) {
   }
   const beginEditing = (row) => {
     setShowPreview(true)
+    const invalidFields = invalidFieldsForRow(row)
     markEditingInvalidFields(row)
-    setEditingRow({ ...row, focusField: firstInvalidField(row), data: { ...row.data } })
+    setEditingRow({ ...row, focusField: invalidFields[0] || null, data: { ...row.data } })
   }
   const saveEditedRow = async () => {
     if (!editingRow || !preview) return
@@ -273,9 +323,13 @@ export function CompletedStudentUploadModal({ isOpen, onClose, onImported }) {
           {preview ? <div className="completed-upload-summary"><div><strong>{preview.totalRows}</strong><span>Total rows</span></div><div className="is-valid"><strong>{preview.validRows}</strong><span>Valid</span></div><div className="is-invalid"><strong>{needsFixingRows.length}</strong><span>Needs fixing</span></div>{duplicateRows.length ? <div className="is-duplicate"><strong>{duplicateRows.length}</strong><span>Duplicate</span></div> : null}{preview.warningRows ? <div className="is-warning"><strong>{preview.warningRows}</strong><span>Warnings</span></div> : null}{preview.invalidRows > 0 ? <button type="button" className="completed-upload-error-download" onClick={() => void downloadCompletedStudentFailedRows(preview.rows)} disabled={busy}><Download size={15} /> Download Errors</button> : null}</div> : null}
           {busy && importProgress > 0 && !result ? <div className="completed-upload-progress completed-upload-page-progress"><div><span>Uploading records...</span><strong>{importProgress}%</strong></div><div className="completed-upload-progress-track"><span style={{ width: `${importProgress}%` }} /></div></div> : null}
           {preview?.rows?.length && !showPreview ? <button type="button" className="completed-upload-preview-card" onClick={() => setShowPreview(true)}><span className="completed-upload-preview-icon"><Table2 size={20} /></span><span><strong>Preview validated data</strong><small>Open the full table to review every uploaded field, duplicate, invalid row and inline edit option.</small></span><span className="completed-upload-preview-arrow">Open preview</span></button> : null}
-          {preview?.rows?.length && showPreview ? <><div className="completed-upload-preview-heading"><div><p>VALIDATION PREVIEW</p><h3>Uploaded student data</h3><span>Review all fields below. Use filters and inline edit before importing.</span></div><button type="button" className="completed-upload-preview-back" onClick={() => setShowPreview(false)}><ArrowLeft size={15} /> Back to summary</button></div><label className="completed-upload-filter-bar" aria-label="Filter validation rows"><span className="completed-upload-filter-label">Filter rows</span><input className="completed-upload-student-search" type="search" value={studentSearch} onChange={(event) => { setStudentSearch(event.target.value); setTablePage(1) }} placeholder="Search student name or ID" aria-label="Search student name or ID" /><select value={tableFilter} onChange={(event) => setFilter(event.target.value)} aria-label="Filter validation rows"><option value="all">All ({preview.totalRows})</option><option value="valid">Valid ({preview.validRows})</option><option value="invalid">Invalid ({preview.invalidRows - preview.rows.filter(isDuplicateRow).length})</option><option value="duplicate">Duplicate ({preview.rows.filter(isDuplicateRow).length})</option><option value="warning">Warning ({preview.warningRows ?? preview.rows.filter(isWarningRow).length})</option></select></label><div className={`completed-upload-table-shell${visibleRows.length <= 4 ? ' is-compact' : ''}`} ref={previewTableRef}><div className="completed-upload-table-wrap" ref={previewTableWrapRef}><table className="completed-upload-full-table"><thead><tr><th className="completed-upload-sticky-column">S.No</th>{tableColumns.map((field) => <th key={field}>{columnLabel(field)}</th>)}<th>Status</th><th>Validation</th><th className="completed-upload-action-column">Action</th></tr></thead><tbody>{visibleRows.map((row, visibleIndex) => { const isEditing = editingRow?.rowNumber === row.rowNumber; const warning = isWarningRow(row); const serialNumber = ((tablePage - 1) * PAGE_SIZE) + visibleIndex + 1; return <tr key={row.rowNumber}>
+          {preview?.rows?.length && showPreview ? <><div className="completed-upload-preview-heading"><div><p>VALIDATION PREVIEW</p><h3>Uploaded student data</h3><span>Review all fields below. Use filters and inline edit before importing.</span></div><button type="button" className="completed-upload-preview-back" onClick={() => setShowPreview(false)}><ArrowLeft size={15} /> Back to summary</button></div><label className="completed-upload-filter-bar" aria-label="Filter validation rows"><span className="completed-upload-filter-label">Filter rows</span><input className="completed-upload-student-search" type="search" value={studentSearch} onChange={(event) => { setStudentSearch(event.target.value); setTablePage(1) }} placeholder="Search student name or ID" aria-label="Search student name or ID" /><select value={tableFilter} onChange={(event) => setFilter(event.target.value)} aria-label="Filter validation rows"><option value="all">All ({preview.totalRows})</option><option value="valid">Valid ({preview.validRows})</option><option value="invalid">Invalid ({preview.invalidRows - preview.rows.filter(isDuplicateRow).length})</option><option value="duplicate">Duplicate ({preview.rows.filter(isDuplicateRow).length})</option><option value="warning">Warning ({preview.warningRows ?? preview.rows.filter(isWarningRow).length})</option></select></label><div className={`completed-upload-table-shell${visibleRows.length <= 4 ? ' is-compact' : ''}`} ref={previewTableRef}><div className="completed-upload-table-wrap" ref={previewTableWrapRef}><table className="completed-upload-full-table"><thead><tr><th className="completed-upload-sticky-column">S.No</th>{tableColumns.map((field) => <th key={field}>{columnLabel(field)}</th>)}<th>Status</th><th>Validation</th><th className="completed-upload-action-column">Action</th></tr></thead><tbody>{visibleRows.map((row, visibleIndex) => { const isEditing = editingRow?.rowNumber === row.rowNumber; const warning = isWarningRow(row); const serialNumber = ((tablePage - 1) * PAGE_SIZE) + visibleIndex + 1; const invalidFields = invalidFieldsForRow(row); return <tr key={row.rowNumber}>
   <td className="completed-upload-sticky-column">{serialNumber}</td>
-  {tableColumns.map((field) => <td key={`${row.rowNumber}-${field}`}>{isEditing ? <input ref={field === editingRow.focusField ? invalidInputRef : undefined} autoFocus={field === editingRow.focusField} data-edit-field={field} type={['admissionDate', 'courseStartingDate', 'courseEndingDate'].includes(field) ? 'date' : 'text'} className={`completed-upload-inline-input${field === editingRow.focusField ? ' is-focused-error' : ''}`} value={editingRow.data?.[field] ?? ''} onChange={(event) => updateEditedRow(field, event.target.value)} /> : displayCellValue(row.data?.[field])}</td>)}
+  {tableColumns.map((field) => {
+    const fieldHasError = invalidFields.includes(field)
+    const fieldErrors = fieldErrorsForRow(row, field)
+    return <td key={row.rowNumber + '-' + field} className={fieldHasError ? 'completed-upload-error-cell' : ''} title={fieldErrors.join(' ')}>{isEditing ? <input ref={field === editingRow.focusField ? invalidInputRef : undefined} autoFocus={field === editingRow.focusField} data-edit-field={field} type={['admissionDate', 'courseStartingDate', 'courseEndingDate'].includes(field) ? 'date' : 'text'} className={'completed-upload-inline-input' + (fieldHasError ? ' is-invalid-field' : '') + (field === editingRow.focusField ? ' is-focused-error' : '')} value={editingRow.data?.[field] ?? ''} onChange={(event) => updateEditedRow(field, event.target.value)} /> : displayCellValue(row.data?.[field])}</td>
+  })}
   <td className="completed-upload-background-status-cell"><span className={`completed-upload-pill ${isDuplicateRow(row) ? 'is-duplicate' : row.valid ? warning ? 'is-warning' : 'is-valid' : 'is-invalid'}`}>{isDuplicateRow(row) ? 'Duplicate' : row.valid ? warning ? 'Warning' : 'Valid' : 'Invalid'}</span></td>
   <td className="completed-upload-validation-cell">{row.errors?.length ? row.errors.join(' ') : row.warnings?.length ? row.warnings.join(' ') : 'Ready to import'}</td>
   <td className="completed-upload-action-column">{isDuplicateRow(row) ? <button type="button" className="completed-upload-row-action is-remove" onClick={() => removePreviewRow(row.rowNumber)} disabled={busy}><Trash2 size={14} /> Remove</button> : isEditing ? <button type="button" className="completed-upload-row-action is-save" onClick={() => void saveEditedRow()} disabled={busy}><Save size={14} /> Save</button> : <button type="button" className="completed-upload-row-action" onClick={() => beginEditing(row)} disabled={busy}><Edit3 size={14} /> Edit</button>}</td>
