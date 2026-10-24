@@ -153,6 +153,33 @@ import {
 import '../styles/SuperAdminDashboardPage.css'
 import '../styles/BranchDashboardPage.css'
 
+// Several dashboard lifecycle signals can arrive together (initial mount,
+// React StrictMode replay, focus, visibility and section changes). Keep a
+// short recent-result window in addition to the in-flight lock so those
+// signals cannot issue the same live request repeatedly.
+const BRANCH_LIVE_REFRESH_DEDUPE_MS = 2000
+const recentBranchDashboardRequests = new Map()
+
+function shareRecentBranchDashboardRequest(key, loader, ttl = BRANCH_LIVE_REFRESH_DEDUPE_MS) {
+  const normalizedKey = String(key || '').trim()
+  const now = Date.now()
+  const existing = normalizedKey ? recentBranchDashboardRequests.get(normalizedKey) : null
+  if (existing && existing.expiresAt > now) return existing.promise
+
+  const promise = Promise.resolve().then(loader)
+  if (normalizedKey) {
+    recentBranchDashboardRequests.set(normalizedKey, {
+      promise,
+      expiresAt: now + ttl,
+    })
+    promise.catch(() => {
+      const current = recentBranchDashboardRequests.get(normalizedKey)
+      if (current?.promise === promise) recentBranchDashboardRequests.delete(normalizedKey)
+    })
+  }
+  return promise
+}
+
 function BranchDashboardMiniListSkeleton({ label = 'Loading dashboard records', rows = 4 }) {
   return <div className="branch-dashboard-mini-list-skeleton" role="status" aria-label={label}>
     {Array.from({ length: rows }, (_, index) => <div className="branch-dashboard-mini-skeleton-row" key={index}>
@@ -4359,6 +4386,7 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
   const [branchStudents, setBranchStudents] = useState([])
   const [isBranchStudentsLoading, setIsBranchStudentsLoading] = useState(true)
   const [approvedDiscontinuationRequests, setApprovedDiscontinuationRequests] = useState([])
+  const approvedDiscontinuationLastLoadedAtRef = useRef(0)
   const branchStudentReloadRequestRef = useRef(0)
   const [attendanceReportTarget, setAttendanceReportTarget] = useState(null)
   const [dashboardWidgets, setDashboardWidgets] = useState([])
@@ -4375,21 +4403,33 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
       : (user?.id || user?.email || ""),
   ).trim()
 
-  const loadApprovedDiscontinuationRequests = useCallback(() => {
+  const loadApprovedDiscontinuationRequests = useCallback((options = {}) => {
     if ((!embeddedMode && role !== "branch-admin") || !embeddedBranchProfileReady) return Promise.resolve([])
 
-    return shareInFlightRequest(
-      "approved-discontinuation:" + approvedDiscontinuationScope,
-      async () => {
-        const response = await request("/student-discontinuation?status=APPROVED", {
-          ...(embeddedMode && approvedDiscontinuationScope ? { impersonateBranchId: approvedDiscontinuationScope } : {}),
-        })
-        return Array.isArray(response?.data) ? response.data : []
-      },
+    const force = options?.force === true
+    const requestKey = "approved-discontinuation:" + approvedDiscontinuationScope
+    const now = Date.now()
+    if (!force && now - approvedDiscontinuationLastLoadedAtRef.current < BRANCH_LIVE_REFRESH_DEDUPE_MS) {
+      return Promise.resolve([])
+    }
+    approvedDiscontinuationLastLoadedAtRef.current = now
+
+    return shareRecentBranchDashboardRequest(
+      requestKey,
+      () => shareInFlightRequest(
+        requestKey,
+        async () => {
+          const response = await request("/student-discontinuation?status=APPROVED", {
+            ...(embeddedMode && approvedDiscontinuationScope ? { impersonateBranchId: approvedDiscontinuationScope } : {}),
+          })
+          return Array.isArray(response?.data) ? response.data : []
+        },
+      ),
     ).then((rows) => {
       setApprovedDiscontinuationRequests(rows)
       return rows
     }).catch((error) => {
+      approvedDiscontinuationLastLoadedAtRef.current = 0
       console.error("Failed to load approved discontinuation financials:", error)
       setApprovedDiscontinuationRequests([])
       return []
@@ -4799,6 +4839,8 @@ const BRANCH_PAYMENT_HISTORY_PER_PAGE = 5
   const courseActionCloseTimer = useRef(null)
   const branchNotificationsRequestRef = useRef(null)
   const branchNotificationsRefreshTimerRef = useRef(null)
+  const branchNotificationsLastLoadedAtRef = useRef(0)
+  const branchNotificationsInitialScopeRef = useRef('')
 
   const loadBranchCourses = useCallback(async (fallbackCourses = null, branchScopeId = '') => {
     setIsBranchCoursesLoading(true)
@@ -4963,70 +5005,95 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
   return requestPromise
 }, [])
 
-  const loadBranchNotifications = useCallback(async () => {
-    if (branchNotificationsRequestRef.current) {
-      return branchNotificationsRequestRef.current
+  const loadBranchNotifications = useCallback((options = {}) => {
+    const force = options?.force === true
+    // A branch-admin session is already scoped by the authenticated user. Do
+    // not let the later /branches/me response change the request key and issue
+    // the same notification request a second time during dashboard startup.
+    const authenticatedScope = String(user?.id || user?.email || '').trim().toLowerCase()
+    const branchScopeKey = [
+      embeddedMode
+        ? (branchData?.id || branchData?.branchId || branchProfile?.id || branchProfile?.branchId || '')
+        : authenticatedScope,
+      embeddedMode
+        ? (branchProfile?.branchEmail || branchData?.branchEmail || user?.email || '')
+        : authenticatedScope,
+    ].join(':')
+    const requestKey = "branch-notifications:" + branchScopeKey
+    const now = Date.now()
+    if (!force && now - branchNotificationsLastLoadedAtRef.current < BRANCH_LIVE_REFRESH_DEDUPE_MS) {
+      return Promise.resolve()
     }
+    branchNotificationsLastLoadedAtRef.current = now
 
-    const requestPromise = (async () => {
-      const controller = new AbortController()
-      const timeoutId = window.setTimeout(() => controller.abort(), BRANCH_NOTIFICATIONS_TIMEOUT_MS)
-      try {
-        const response = await request('/notifications?limit=100&page=1', {
-          method: 'GET',
-          signal: controller.signal,
-        })
-
-        const { data: responseData } = unwrapNotifications(response)
-
-        const activeBranchScope = {
-          id: String(branchProfile?.id || branchData?.id || branchProfile?.branchId || branchData?.branchId || '').trim(),
-          branchId: String(branchProfile?.branchId || branchData?.branchId || branchProfile?.id || branchData?.id || '').trim(),
-          branchEmail: String(branchProfile?.branchEmail || user?.email || '').trim().toLowerCase(),
-        }
-        const storedProgressNotifications = loadNotifications().filter(
-          (notification) =>
-            String(notification.kind || '').trim() === 'branch-progress-status' &&
-            doesBranchNotificationBelongToBranch(notification, activeBranchScope),
-        )
-        const remoteNotifications = mergeNotificationsWithStoredState(responseData)
-        const remoteIds = new Set(remoteNotifications.map((notification) => String(notification.id || '').trim()))
-        const nextNotifications = [
-          ...remoteNotifications,
-          ...storedProgressNotifications.filter((notification) => !remoteIds.has(String(notification.id || '').trim())),
-        ]
-
-        setBranchNotificationRecords(nextNotifications)
-      } catch (error) {
-        if (error?.name !== 'AbortError' && error?.status !== 408) {
-          console.error('Failed to load branch notifications:', error)
-        }
-        const activeBranchScope = {
-          id: String(branchProfile?.id || branchData?.id || branchProfile?.branchId || branchData?.branchId || '').trim(),
-          branchId: String(branchProfile?.branchId || branchData?.branchId || branchProfile?.id || branchData?.id || '').trim(),
-          branchEmail: String(branchProfile?.branchEmail || user?.email || '').trim().toLowerCase(),
-        }
-        const fallbackProgressNotifications = loadNotifications().filter(
-          (notification) =>
-            String(notification.kind || '').trim() === 'branch-progress-status' &&
-            doesBranchNotificationBelongToBranch(notification, activeBranchScope),
-        )
-        setBranchNotificationRecords(fallbackProgressNotifications)
-      } finally {
-        window.clearTimeout(timeoutId)
-        branchNotificationsRequestRef.current = null
+    return shareRecentBranchDashboardRequest(requestKey, () => {
+      if (branchNotificationsRequestRef.current) {
+        return branchNotificationsRequestRef.current
       }
-    })()
 
-    branchNotificationsRequestRef.current = requestPromise
-    return requestPromise
+      const requestPromise = (async () => {
+        const controller = new AbortController()
+        const timeoutId = window.setTimeout(() => controller.abort(), BRANCH_NOTIFICATIONS_TIMEOUT_MS)
+        try {
+          const response = await request('/notifications?limit=100&page=1', {
+            method: 'GET',
+            signal: controller.signal,
+          })
+
+          const { data: responseData } = unwrapNotifications(response)
+
+          const activeBranchScope = {
+            id: String(branchProfile?.id || branchData?.id || branchProfile?.branchId || branchData?.branchId || '').trim(),
+            branchId: String(branchProfile?.branchId || branchData?.branchId || branchProfile?.id || branchData?.id || '').trim(),
+            branchEmail: String(branchProfile?.branchEmail || user?.email || '').trim().toLowerCase(),
+          }
+          const storedProgressNotifications = loadNotifications().filter(
+            (notification) =>
+              String(notification.kind || '').trim() === 'branch-progress-status' &&
+              doesBranchNotificationBelongToBranch(notification, activeBranchScope),
+          )
+          const remoteNotifications = mergeNotificationsWithStoredState(responseData)
+          const remoteIds = new Set(remoteNotifications.map((notification) => String(notification.id || '').trim()))
+          const nextNotifications = [
+            ...remoteNotifications,
+            ...storedProgressNotifications.filter((notification) => !remoteIds.has(String(notification.id || '').trim())),
+          ]
+
+          setBranchNotificationRecords(nextNotifications)
+        } catch (error) {
+          branchNotificationsLastLoadedAtRef.current = 0
+          if (error?.name !== 'AbortError' && error?.status !== 408) {
+            console.error('Failed to load branch notifications:', error)
+          }
+          const activeBranchScope = {
+            id: String(branchProfile?.id || branchData?.id || branchProfile?.branchId || branchData?.branchId || '').trim(),
+            branchId: String(branchProfile?.branchId || branchData?.branchId || branchProfile?.id || branchData?.id || '').trim(),
+            branchEmail: String(branchProfile?.branchEmail || user?.email || '').trim().toLowerCase(),
+          }
+          const fallbackProgressNotifications = loadNotifications().filter(
+            (notification) =>
+              String(notification.kind || '').trim() === 'branch-progress-status' &&
+              doesBranchNotificationBelongToBranch(notification, activeBranchScope),
+          )
+          setBranchNotificationRecords(fallbackProgressNotifications)
+        } finally {
+          window.clearTimeout(timeoutId)
+          branchNotificationsRequestRef.current = null
+        }
+      })()
+
+      branchNotificationsRequestRef.current = requestPromise
+      return requestPromise
+    })
   }, [
     branchData?.branchId,
     branchData?.id,
     branchProfile?.branchEmail,
     branchProfile?.branchId,
     branchProfile?.id,
+    embeddedMode,
     user?.email,
+    user?.id,
   ])
 
   const loadFacultyTodayWorkEntries = useCallback(async () => {
@@ -5270,11 +5337,27 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
 
   useEffect(() => {
     const unsubscribe = subscribeNotifications(() => {
-      void loadBranchNotifications()
+      // Local progress notifications are already in browser storage. Refresh
+      // the local branch items here instead of re-fetching the full remote
+      // notification list for every local sync event.
+      const activeBranchScope = {
+        id: String(branchProfile?.id || branchData?.id || branchProfile?.branchId || branchData?.branchId || '').trim(),
+        branchId: String(branchProfile?.branchId || branchData?.branchId || branchProfile?.id || branchData?.id || '').trim(),
+        branchEmail: String(branchProfile?.branchEmail || user?.email || '').trim().toLowerCase(),
+      }
+      const localProgressNotifications = loadNotifications().filter(
+        (notification) =>
+          String(notification.kind || '').trim() === 'branch-progress-status' &&
+          doesBranchNotificationBelongToBranch(notification, activeBranchScope),
+      )
+      setBranchNotificationRecords((current) => [
+        ...current.filter((notification) => String(notification.kind || '').trim() !== 'branch-progress-status'),
+        ...localProgressNotifications,
+      ])
     })
 
     return unsubscribe
-  }, [loadBranchNotifications])
+  }, [branchData?.branchId, branchData?.id, branchProfile?.branchEmail, branchProfile?.branchId, branchProfile?.id, user?.email])
 
   useEffect(() => {
     const unsubscribe = subscribeBranchCourseSnapshot(() => {
@@ -5317,7 +5400,13 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
       }, 250)
     }
 
-    void loadBranchNotifications()
+    const initialScope = embeddedMode
+      ? String(branchData?.id || branchData?.branchId || branchProfile?.id || branchProfile?.branchId || '').trim().toLowerCase()
+      : String(user?.id || user?.email || '').trim().toLowerCase()
+    if (initialScope && branchNotificationsInitialScopeRef.current !== initialScope) {
+      branchNotificationsInitialScopeRef.current = initialScope
+      void loadBranchNotifications()
+    }
 
     const handleFocus = () => {
       scheduleNotificationRefresh()
@@ -5339,7 +5428,7 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
         branchNotificationsRefreshTimerRef.current = null
       }
     }
-  }, [loadBranchNotifications])
+  }, [branchData?.branchId, branchData?.id, branchProfile?.branchId, branchProfile?.id, embeddedMode, loadBranchNotifications, user?.email, user?.id])
 
   // The branch dashboard and notifications page share this component. When
   // navigation changes only the section, the component is not remounted, so
@@ -6022,8 +6111,8 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
       })
       setDiscontinuationReview(null)
       await Promise.allSettled([
-        loadApprovedDiscontinuationRequests(),
-        loadBranchNotifications(),
+        loadApprovedDiscontinuationRequests({ force: true }),
+        loadBranchNotifications({ force: true }),
       ])
     } catch (error) {
       console.error('Failed to review student discontinuation request:', error)
@@ -7842,7 +7931,7 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
 
     setIsBranchStudentsLoading(true)
     try {
-      const freshRecords = await refreshBranchStudents(branchStudentScope)
+      const freshRecords = await refreshBranchStudents(branchStudentScope, { includeProgress: false })
       if (requestId === branchStudentReloadRequestRef.current) {
         setBranchStudents(freshRecords)
       }
@@ -7872,7 +7961,7 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
 
       await Promise.allSettled([
         reloadBranchStudents(),
-        loadApprovedDiscontinuationRequests(),
+        loadApprovedDiscontinuationRequests({ force: true }),
         loadBranchCourses(),
         loadBranchBatches(scopeId),
         loadFacultyList(),
@@ -9871,6 +9960,20 @@ useEffect(() => {
   }, [filteredBranchStudents, isCourseCompletedFilter, safeStudentPage])
 
   useEffect(() => {
+    // Academic completion reports are expensive: the backend loads both the
+    // academic and syllabus report for every requested student. They are only
+    // needed by the Completed Students view (or the explicit Course Completed
+    // filter), so keep them out of the initial dashboard load.
+    const shouldLoadAcademicProgress =
+      activeSection === 'completed-students'
+      || (activeSection === 'students' && isCourseCompletedFilter)
+
+    if (!shouldLoadAcademicProgress) {
+      setBranchAcademicProgressByStudent(new Map())
+      setIsBranchAcademicProgressLoaded(true)
+      return undefined
+    }
+
     if (!branchStudentsForDisplay.length) {
       setBranchAcademicProgressByStudent(new Map())
       setIsBranchAcademicProgressLoaded(true)
@@ -9967,7 +10070,7 @@ useEffect(() => {
       })
 
     return () => { active = false }
-  }, [branchCourseCards, branchStudentScope.branchCode, branchStudentScope.id, branchStudentsForDisplay, facultyTodayWorkEntries])
+  }, [activeSection, branchCourseCards, branchStudentScope.branchCode, branchStudentScope.id, branchStudentsForDisplay, facultyTodayWorkEntries, isCourseCompletedFilter])
 
   const branchStudentCourseProgressByKey = useMemo(() => {
     const progressByStudentKey = new Map()

@@ -373,14 +373,24 @@ function removeStudentFromLocalCache(studentOrId, deletedStudentId = '') {
   dispatchChange()
 }
 
-export async function refreshBranchStudents(branchId) {
+export async function refreshBranchStudents(branchId, options = {}) {
   const branchScopeKeys = normalizeBranchScope(branchId)
   if (branchScopeKeys.length === 0) return []
+
+  const includeProgress = options?.includeProgress !== false
 
   let records
 
   try {
-    const response = await request(`/branch-students?page=1&limit=100&sortBy=createdAt&sortOrder=desc&branchId=${encodeURIComponent(branchScopeKeys[0])}`, {
+    const params = new URLSearchParams({
+      page: '1',
+      limit: '100',
+      sortBy: 'createdAt',
+      sortOrder: 'desc',
+      branchId: branchScopeKeys[0],
+    })
+    if (!includeProgress) params.set('includeProgress', 'false')
+    const response = await request('/branch-students?' + params.toString(), {
       method: 'GET',
     })
     const payload = response?.data ?? response
