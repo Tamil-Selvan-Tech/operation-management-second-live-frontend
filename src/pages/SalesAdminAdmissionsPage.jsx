@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useEffect, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import { AlertCircle, ArrowLeft, BookOpen, Building2, CalendarDays, Clock3, CreditCard, GraduationCap, IndianRupee, Layers3, RefreshCw, Search, Send, UserRound, UserRoundCheck, Users, Wallet, X } from 'lucide-react'
 import { useLocation } from 'react-router-dom'
 import { request } from '../services/apiClient'
@@ -146,6 +146,7 @@ export function SalesAdminAdmissionsPage() {
   const [requestingLead, setRequestingLead] = useState(null)
   const [requestSaving, setRequestSaving] = useState(false)
   const [requestError, setRequestError] = useState('')
+  const loadInFlightRef = useRef(false)
   const isStudentModalOpen = Boolean(viewStudent)
 
   useEffect(() => {
@@ -156,6 +157,8 @@ export function SalesAdminAdmissionsPage() {
   }, [isStudentModalOpen])
 
   const load = useCallback(async () => {
+    if (loadInFlightRef.current) return
+    loadInFlightRef.current = true
     setLoading(true)
     setError('')
     try {
@@ -165,7 +168,10 @@ export function SalesAdminAdmissionsPage() {
       if (search.trim()) params.set('search', search.trim())
       const [result, requests] = await Promise.all([
         request(`/sales-admins/admissions?${params}`),
-        listSalesAdminBatchRequests(),
+        listSalesAdminBatchRequests().catch((reason) => {
+          console.warn('Unable to load admission batch requests:', reason?.message || reason)
+          return []
+        }),
       ])
       setRows(Array.isArray(result.data) ? result.data : [])
       setMeta(result.meta || { page: 1, totalPages: 1, total: 0 })
@@ -176,21 +182,21 @@ export function SalesAdminAdmissionsPage() {
     } catch (reason) {
       setError(reason?.message || 'Unable to load student admissions.')
     } finally {
+      loadInFlightRef.current = false
       setLoading(false)
     }
   }, [branchId, courseId, page, search, status])
-
   useEffect(() => {
     const timer = window.setTimeout(() => { void load() }, 0)
     return () => window.clearTimeout(timer)
   }, [load])
 
   useEffect(() => {
-    const timer = window.setInterval(() => { void load() }, 30000)
-    window.addEventListener('focus', load)
-    return () => { window.clearInterval(timer); window.removeEventListener('focus', load) }
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === 'visible') void load()
+    }, 30000)
+    return () => window.clearInterval(timer)
   }, [load])
-
   useEffect(() => {
     let active = true
     request('/sales-admins/admissions/pending-reminder')

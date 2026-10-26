@@ -401,3 +401,316 @@
 @media (max-width: 900px) { .sales-admin-notification-card { grid-template-columns: 38px minmax(0, 1fr); }.sales-admin-notification-created { grid-column: 2; justify-self: start; grid-row: 2; }.sales-admin-notification-dot { right: 14px; }.sales-admin-notification-title-row { padding-right: 12px; } }
 @media (max-width: 720px) { .sales-admin-notifications-page { padding: 19px 16px 27px; }.sales-admin-notifications-header { align-items: flex-start; flex-direction: column; }.sales-admin-notification-date-toolbar, .sales-admin-notification-toolbar { align-items: flex-start; flex-direction: column; }.sales-admin-notification-date-range { flex-wrap: wrap; }.sales-admin-notification-toolbar-actions { width: 100%; justify-content: space-between; }.sales-admin-notification-copy > p { font-size: 12px; } }
 @media (max-width: 480px) { .sales-admin-notifications-page { padding: 16px 11px 23px; }.sales-admin-notification-date-filters { width: 100%; overflow-x: auto; flex-wrap: nowrap; padding-bottom: 3px; }.sales-admin-notification-date-filters button { flex: 0 0 auto; }.sales-admin-notification-card { grid-template-columns: 32px minmax(0, 1fr); gap: 9px; padding: 11px; }.sales-admin-notification-icon { width: 32px; height: 32px; }.sales-admin-notification-created { grid-column: 2; }.sales-admin-notification-card-footer { align-items: flex-start; flex-direction: column; }.sales-admin-notification-card-footer > div { flex-wrap: wrap; }.sales-admin-notification-summary { width: 100%; }.sales-admin-notification-summary > span { flex: 1; }.sales-admin-notification-pagination { align-items: flex-start; flex-direction: column; } }
+
+/* Sales Admin dashboard home */
+.sales-admin-dashboard-home {
+  min-height: 100%;
+  box-sizing: border-box;
+  padding: 30px 30px 38px;
+  color: #142e52;
+  background: linear-gradient(180deg, #f8fbff 0%, #ffffff 54%);
+}
+
+.sales-admin-dashboard-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 25px;
+}
+
+.sales-admin-dashboard-intro .eyebrow {
+  margin: 0 0 7px;
+  color: #2875e8;
+  font-size: 10px;
+  font-weight: 850;
+  letter-spacing: .17em;
+}
+
+.sales-admin-dashboard-intro h2 {
+  margin: 0;
+  color: #142e52;
+  font-size: clamp(27px, 3vw, 36px);
+  font-weight: 780;
+  line-height: 1.12;
+  letter-spacing: -.045em;
+}
+
+.sales-admin-dashboard-intro p:not(.eyebrow) {
+  max-width: 640px;
+  margin: 8px 0 0;
+  color: #71829b;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.sales-admin-dashboard-refresh {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 39px;
+  padding: 9px 14px;
+  border: 1px solid #cfe0fa;
+  border-radius: 10px;
+  color: #1d5fbd;
+  background: #ffffff;
+  box-shadow: 0 5px 14px rgb(34 86 150 / 7%);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: background .16s ease, border-color .16s ease, box-shadow .16s ease, transform .16s ease;
+}
+
+.sales-admin-dashboard-refresh:hover:not(:disabled) {
+  border-color: #a9c9f6;
+  background: #f5f9ff;
+  box-shadow: 0 8px 18px rgb(34 86 150 / 11%);
+  transform: translateY(-1px);
+}
+
+.sales-admin-dashboard-refresh:focus-visible,
+.sales-admin-dashboard-lead-card button:focus-visible,
+.sales-admin-dashboard-error button:focus-visible {
+  outline: 3px solid rgb(37 99 235 / 19%);
+  outline-offset: 2px;
+}
+
+.sales-admin-dashboard-refresh:disabled {
+  opacity: .72;
+  cursor: wait;
+}
+
+.sales-admin-dashboard-refresh .is-spinning {
+  animation: sales-admin-dashboard-spin .85s linear infinite;
+}
+
+.sales-admin-dashboard-error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 0 15px;
+  padding: 11px 13px;
+  border: 1px solid #fecaca;
+  border-radius: 11px;
+  color: #b4232d;
+  background: #fff7f7;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.sales-admin-dashboard-error button {
+  flex: 0 0 auto;
+  padding: 6px 9px;
+  border: 1px solid #f3b1b7;
+  border-radius: 7px;
+  color: #b4232d;
+  background: #ffffff;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.sales-admin-dashboard-error button:hover { background: #fff0f1; }
+
+.sales-admin-dashboard-cards {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 0;
+}
+
+.sales-admin-dashboard-metric {
+  --metric-accent: #2875e8;
+  --metric-soft: #edf5ff;
+  --metric-border: #d9e7fb;
+  position: relative;
+  min-height: 151px;
+  box-sizing: border-box;
+  padding: 17px 17px 16px;
+  overflow: hidden;
+  border: 1px solid var(--metric-border);
+  border-radius: 16px;
+  background: #ffffff;
+  box-shadow: 0 8px 22px rgb(30 69 120 / 5%);
+  transition: border-color .16s ease, box-shadow .16s ease, transform .16s ease;
+}
+
+.sales-admin-dashboard-metric::after {
+  position: absolute;
+  right: -28px;
+  bottom: -41px;
+  width: 110px;
+  height: 110px;
+  border-radius: 50%;
+  background: var(--metric-soft);
+  content: '';
+  opacity: .72;
+}
+
+.sales-admin-dashboard-metric:hover {
+  border-color: color-mix(in srgb, var(--metric-accent) 32%, #d9e7fb);
+  box-shadow: 0 12px 26px rgb(30 69 120 / 9%);
+  transform: translateY(-2px);
+}
+
+.sales-admin-dashboard-metric.is-blue { --metric-accent: #2875e8; --metric-soft: #edf5ff; --metric-border: #d9e7fb; }
+.sales-admin-dashboard-metric.is-slate { --metric-accent: #536780; --metric-soft: #f0f4f8; --metric-border: #dce5ee; }
+.sales-admin-dashboard-metric.is-orange { --metric-accent: #e3742d; --metric-soft: #fff3e9; --metric-border: #f5dfca; }
+.sales-admin-dashboard-metric.is-amber { --metric-accent: #bc830d; --metric-soft: #fff8e5; --metric-border: #f0e4bd; }
+.sales-admin-dashboard-metric.is-violet { --metric-accent: #7156c9; --metric-soft: #f3efff; --metric-border: #e2daf9; }
+.sales-admin-dashboard-metric.is-green { --metric-accent: #16835a; --metric-soft: #eaf8f1; --metric-border: #d1eee0; }
+
+.sales-admin-dashboard-metric-top {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 17px;
+}
+
+.sales-admin-dashboard-metric-icon {
+  display: grid;
+  place-items: center;
+  width: 37px;
+  height: 37px;
+  border-radius: 11px;
+  color: var(--metric-accent);
+  background: var(--metric-soft);
+}
+
+.sales-admin-dashboard-metric-trend {
+  display: grid;
+  place-items: center;
+  width: 25px;
+  height: 25px;
+  border-radius: 50%;
+  color: var(--metric-accent);
+  background: var(--metric-soft);
+}
+
+.sales-admin-dashboard-metric-label,
+.sales-admin-dashboard-metric strong,
+.sales-admin-dashboard-metric small {
+  position: relative;
+  z-index: 1;
+  display: block;
+}
+
+.sales-admin-dashboard-metric-label {
+  color: #6b7d95;
+  font-size: 12px;
+  font-weight: 750;
+  letter-spacing: .01em;
+}
+
+.sales-admin-dashboard-metric strong {
+  min-height: 32px;
+  margin-top: 5px;
+  color: #142e52;
+  font-size: 28px;
+  font-weight: 800;
+  line-height: 1.14;
+  letter-spacing: -.04em;
+}
+
+.sales-admin-dashboard-metric small {
+  margin-top: 5px;
+  color: #91a0b4;
+  font-size: 10px;
+  font-weight: 650;
+}
+
+.sales-admin-dashboard-value-skeleton {
+  display: block;
+  width: 55px;
+  height: 29px;
+  border-radius: 8px;
+  background: linear-gradient(90deg, #e9eef5 25%, #f8fafc 45%, #e9eef5 65%);
+  background-size: 220% 100%;
+  animation: sales-admin-dashboard-shimmer 1.25s infinite linear;
+}
+
+.sales-admin-dashboard-lead-card {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  margin-top: 17px;
+  padding: 18px 20px;
+  border: 1px solid #d7e4f5;
+  border-radius: 16px;
+  background: linear-gradient(105deg, #f7fbff 0%, #ffffff 72%);
+  box-shadow: 0 8px 22px rgb(30 69 120 / 4%);
+}
+
+.sales-admin-dashboard-lead-card-icon {
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  color: #2875e8;
+  background: #eaf3ff;
+}
+
+.sales-admin-dashboard-lead-card-copy { min-width: 0; }
+.sales-admin-dashboard-card-kicker { margin: 0 0 4px; color: #2875e8; font-size: 9px; font-weight: 850; letter-spacing: .14em; }
+.sales-admin-dashboard-lead-card h2 { margin: 0; color: #19385f; font-size: 16px; font-weight: 800; }
+.sales-admin-dashboard-lead-card p:not(.sales-admin-dashboard-card-kicker) { margin: 5px 0 0; color: #71829b; font-size: 12px; line-height: 1.45; }
+
+.sales-admin-dashboard-lead-card button {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 7px;
+  min-height: 36px;
+  margin-left: auto;
+  padding: 8px 12px;
+  border: 1px solid #cfe0fa;
+  border-radius: 9px;
+  color: #1d5fbd;
+  background: #ffffff;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: background .16s ease, border-color .16s ease;
+}
+
+.sales-admin-dashboard-lead-card button:hover { border-color: #a9c9f6; background: #f3f8ff; }
+
+@keyframes sales-admin-dashboard-spin { to { transform: rotate(360deg); } }
+@keyframes sales-admin-dashboard-shimmer { to { background-position: -220% 0; } }
+
+@media (max-width: 900px) {
+  .sales-admin-dashboard-home { padding: 24px 20px 32px; }
+  .sales-admin-dashboard-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 560px) {
+  .sales-admin-dashboard-home { padding: 20px 15px 28px; }
+  .sales-admin-dashboard-header { align-items: stretch; flex-direction: column; gap: 16px; }
+  .sales-admin-dashboard-refresh { width: 100%; }
+  .sales-admin-dashboard-cards { grid-template-columns: minmax(0, 1fr); }
+  .sales-admin-dashboard-lead-card { align-items: flex-start; flex-wrap: wrap; }
+  .sales-admin-dashboard-lead-card button { width: 100%; justify-content: center; margin-left: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sales-admin-dashboard-refresh .is-spinning,
+  .sales-admin-dashboard-value-skeleton { animation: none; }
+  .sales-admin-dashboard-metric,
+  .sales-admin-dashboard-refresh { transition: none; }
+}
+
+.sales-admin-dashboard-metric-label,
+.sales-admin-dashboard-metric strong,
+.sales-admin-dashboard-metric small {
+  text-align: center;
+}
