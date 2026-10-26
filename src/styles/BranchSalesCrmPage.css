@@ -5,3 +5,18 @@
 @media(max-width:600px){.branch-sales-crm-heading{flex-wrap:wrap}.branch-sales-crm-heading-actions{width:100%;justify-content:flex-end}.branch-sales-crm-summary{width:max-content}}
 .branch-sales-crm-search{display:flex;align-items:center;gap:9px;width:min(340px,100%);height:42px;box-sizing:border-box;padding:0 12px;border:1px solid #dce6f4;border-radius:9px;background:#fff;color:#8a9ab1}.branch-sales-crm-search:focus-within{border-color:#3978e9;box-shadow:0 0 0 3px #3978e91f}.branch-sales-crm-search input{flex:1;min-width:0;height:100%;border:0!important;outline:0;background:transparent!important;box-shadow:none!important;color:#223b5b;font:inherit}.branch-sales-crm-search input::placeholder{color:#8a9ab1}
 .branch-sales-crm-status{display:inline-flex;padding:5px 9px;border-radius:999px;font-size:10px;font-weight:750;text-transform:uppercase}.branch-sales-crm-status.is-active{background:#e8f8f0;color:#078456}.branch-sales-crm-status.is-inactive{background:#f1f5fa;color:#64748b}
+.branch-sales-crm-admissions-table{min-width:1450px!important}
+.branch-sales-crm-toolbar{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap}
+.branch-sales-crm-filters{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.branch-sales-crm-filters select{min-width:170px;height:42px;padding:0 34px 0 12px;border:1px solid #dce6f4;border-radius:9px;background:#fff;color:#385271;font:inherit;font-size:12px;outline:none}
+.branch-sales-crm-filters select:focus{border-color:#3978e9;box-shadow:0 0 0 3px #3978e91f}
+.branch-sales-crm-student-cell{display:grid;gap:4px;white-space:nowrap}
+.branch-sales-crm-student-cell small{color:#71829d;font-size:11px}
+.branch-sales-crm-admin-cell{display:grid;gap:3px;white-space:nowrap}
+.branch-sales-crm-admin-cell strong{color:#29415f;font-size:12px}
+.branch-sales-crm-admin-cell small{color:#8191a7;font-size:10px}
+.branch-sales-crm-admission-status{display:inline-flex;padding:5px 9px;border-radius:999px;background:#eef4ff;color:#2864e8;font-size:10px;font-weight:750;white-space:nowrap}
+.branch-sales-crm-admission-status.is-pending{background:#fff5df;color:#a96a00}
+.branch-sales-crm-admission-status.is-in-progress{background:#eef4ff;color:#2864e8}
+.branch-sales-crm-admission-status.is-admitted{background:#e8f8f0;color:#078456}
+@media(max-width:720px){.branch-sales-crm-toolbar{align-items:stretch}.branch-sales-crm-search{width:100%}.branch-sales-crm-filters{width:100%}.branch-sales-crm-filters select{flex:1;min-width:140px}}

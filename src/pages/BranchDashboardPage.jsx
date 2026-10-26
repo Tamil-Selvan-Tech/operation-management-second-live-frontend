@@ -142,6 +142,7 @@ import {
 import {
   loadNotifications,
   mergeNotificationsWithStoredState,
+  saveNotifications,
   markNotificationsAsDropdownViewed,
   markNotificationsAsRead,
   subscribeNotifications,
@@ -2861,6 +2862,7 @@ function getBranchDashboardSectionFromPath(pathname = '', search = '') {
   if (section === 'installments') return 'installments'
   if (section === 'faculty') return 'faculty'
   if (section === 'sales-crm') return 'sales-crm'
+  if (section === 'sales-crm-admissions') return 'sales-crm-admissions'
   if (section === 'batches') return 'batches'
   if (section === 'payments') return 'payments'
   if (section === 'profile') return 'profile'
@@ -4196,7 +4198,7 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
   const [expandedSidebarGroups, setExpandedSidebarGroups] = useState(() => ({
     courses: false,
     academic: ['courses', 'course-import'].includes(activeSection),
-    faculty: ['faculty', 'sales-crm', 'batches'].includes(activeSection),
+    faculty: ['faculty', 'sales-crm', 'sales-crm-admissions', 'batches'].includes(activeSection),
     students: ['students', 'student-management', 'completed-students', 'courses', 'batches', 'installments', 'progress-notifications', 'institute-leave', 'faculty-leave', 'discontinuations'].includes(activeSection),
     management: ['institute-leave', 'faculty-leave', 'progress-notifications', 'faculty-edit-requests', 'discontinuations'].includes(activeSection),
   }))
@@ -4268,13 +4270,16 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
   }, [isSidebarFlyoutMode, openSidebarFlyout])
 
   useEffect(() => {
-    const parentByChild = { faculty: 'faculty', students: 'academic', 'student-management': 'academic', 'completed-students': 'academic', courses: 'academic', batches: 'academic', installments: 'academic', payments: 'payments', 'exams-results': 'academic', 'academic-tests': 'academic', 'institute-leave': 'academic', 'faculty-leave': 'academic', 'progress-notifications': 'academic', 'faculty-edit-requests': 'academic', discontinuations: 'academic' }
+    const parentByChild = { faculty: 'faculty', 'sales-crm-admissions': 'faculty', students: 'academic', 'student-management': 'academic', 'completed-students': 'academic', courses: 'academic', batches: 'academic', installments: 'academic', payments: 'payments', 'exams-results': 'academic', 'academic-tests': 'academic', 'institute-leave': 'academic', 'faculty-leave': 'academic', 'progress-notifications': 'academic', 'faculty-edit-requests': 'academic', discontinuations: 'academic' }
     const parent = parentByChild[activeSection]
     if (!parent) return
     setExpandedSidebarGroups((current) => current[parent] ? current : { ...current, [parent]: true })
   }, [activeSection])
 
   useEffect(() => {
+    if (activeSection === 'sales-crm' || activeSection === 'sales-crm-admissions') {
+      setExpandedSidebarNestedGroups((current) => ({ ...current, 'sales-crm': true }))
+    }
     if (activeSection === 'progress-notifications') {
       setExpandedSidebarNestedGroups((current) => ({ ...current, 'leave-management': true }))
     }
@@ -11194,7 +11199,9 @@ useEffect(() => {
           { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
           { id: 'faculty', label: 'User & Role Management', icon: Shield, children: [
             { id: 'faculty', label: 'Faculty Management', icon: UserRound },
-            { id: 'sales-crm', label: 'Sales & CRM', icon: BriefcaseBusiness },
+            { id: 'sales-crm', label: 'Sales & CRM', icon: BriefcaseBusiness, children: [
+              { id: 'sales-crm-admissions', label: 'Admissions', icon: GraduationCap },
+            ] },
           ] },
           { id: 'academic', label: 'Academic Operation', icon: LayoutGrid, children: [
             { id: 'installments', label: 'Installment Templates', icon: Wallet },
@@ -11242,7 +11249,11 @@ useEffect(() => {
                     type="button"
                     className={`super-admin-sidebar-subitem branch-sidebar-nested-heading ${hasActiveEntry(entry) ? 'is-active' : ''}`.trim()}
                     aria-expanded={isNestedExpanded}
-                    onClick={() => { setExpandedSidebarNestedGroups((current) => ({ ...current, [entry.id]: !current[entry.id] })); if (entry.id === 'academic-tests') goToBranchSection('academic-tests') }}
+                    onClick={() => {
+                      setExpandedSidebarNestedGroups((current) => ({ ...current, [entry.id]: !current[entry.id] }))
+                      if (entry.id === 'academic-tests') goToBranchSection('academic-tests')
+                      if (entry.id === 'sales-crm') goToBranchSection('sales-crm')
+                    }}
                   >
                     <span className="super-admin-sidebar-subitem-icon" aria-hidden="true"><ChildIcon size={15} strokeWidth={2.1} /></span>
                     <span>{entry.label}</span>
@@ -15145,7 +15156,9 @@ else {
                   branchStudents={branchStudents}
                 />
               ) : null}
-              {activeSection === 'sales-crm' ? <BranchSalesCrmPage /> : null}
+              {activeSection === 'sales-crm' || activeSection === 'sales-crm-admissions' ? (
+                <BranchSalesCrmPage key={activeSection} view={activeSection === 'sales-crm-admissions' ? 'admissions' : 'admins'} />
+              ) : null}
             </div>
           </main>
         </div>
