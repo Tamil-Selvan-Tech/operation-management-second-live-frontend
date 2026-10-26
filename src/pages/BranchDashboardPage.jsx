@@ -5679,6 +5679,7 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
               String(notification.kind || '').startsWith('faculty-') ||
               String(notification.kind || '').startsWith('course-edit-') ||
               String(notification.kind || '').trim() === 'sales-crm-admission' ||
+              String(notification.kind || '').trim() === 'sales-crm-batch-request' ||
               (String(notification.kind || '') === 'sequential-course-scheduling-required' ||
                 String(notification.kind || '').startsWith('student-'))
             ),
@@ -5912,6 +5913,10 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
       goToBranchSection('students')
       const student = branchStudents.find((record) => [record.studentId, record.id, record._id].some((value) => String(value || '').trim().toLowerCase() === studentKey))
       if (student) window.setTimeout(() => { void openViewStudentForm(student) }, 0)
+      return
+    }
+    if (notificationKind === 'sales-crm-batch-request') {
+      goToBranchSection('batches')
       return
     }
     if (notificationKind === 'student-discontinuation' || requestDescription.startsWith('DISCONTINUATION_') || requestDescription.startsWith('MOTIVATION_')) {

@@ -44,14 +44,14 @@ export function NotificationBell() {
     window.addEventListener('institute-leave-updated', load)
     return () => { active = false; clearInterval(timer); window.removeEventListener('focus', load); window.removeEventListener('institute-leave-updated', load) }
   }, [isRemoteNotifications])
-  const markRead = async () => {
+  const markRead = async (notificationIds = null) => {
     if (!isRemoteNotifications) return
-    const unreadIds = availableRemoteItems.filter(item => !item.read).map(item => item.id)
+    const unreadIds = notificationIds?.length ? notificationIds : availableRemoteItems.filter(item => !item.read).map(item => item.id)
     if (!unreadIds.length) return
     try {
       await request('/notifications/mark-read', { method: 'PATCH', body: JSON.stringify({ notificationIds: unreadIds }) })
       setRemoteItems(current => current.map(item => unreadIds.includes(item.id) ? { ...item, read: true, featured: false } : item))
-      setRemoteCount(0)
+      setRemoteCount(current => Math.max(0, current - unreadIds.length))
       setError('')
       window.dispatchEvent(new Event('institute-leave-updated'))
     } catch (err) { setError(err.message) }
@@ -71,6 +71,14 @@ export function NotificationBell() {
     }
     if (isSalesAdmin && kind === 'SALES_CRM_MONTHLY_REPORT') {
       navigate('/dashboard/sales-admin/reports')
+      return true
+    }
+    if (isSalesAdmin && kind === 'PENDING_STUDENT_ADMISSION_REMINDER') {
+      navigate('/dashboard/sales-admin/admissions?status=PENDING_HOT')
+      return true
+    }
+    if (isSalesAdmin && kind === 'SALES_CRM_BATCH_REQUEST_UPDATE') {
+      navigate('/dashboard/sales-admin/admissions')
       return true
     }
     return false
@@ -156,7 +164,7 @@ export function NotificationBell() {
                   onClick={() => {
                     setIsOpen(false)
                     if (isRemoteNotifications) {
-                      void markRead()
+                      void markRead([item.id])
                       openStudentNotification(item)
                     } else navigate(isSalesAdmin ? '/dashboard/sales-admin/notifications' : '/notifications')
                   }}
@@ -167,6 +175,8 @@ export function NotificationBell() {
                   <div className="notification-copy">
                     <p>{item.title}</p>
                     <span>{item.message}</span>
+                    {String(item.kind || '').toUpperCase() === 'PENDING_STUDENT_ADMISSION_REMINDER' ? <small className="notification-dropdown-action">{item.actionLabel || 'View Pending Admissions'}</small> : null}
+                    {String(item.kind || '').toUpperCase() === 'SALES_CRM_BATCH_REQUEST_UPDATE' ? <small className="notification-dropdown-action">{item.actionLabel || 'View Request Status'}</small> : null}
                     <small>{item.time}</small>
                   </div>
                 </button>
