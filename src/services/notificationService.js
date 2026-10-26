@@ -28,19 +28,9 @@ export function isNotificationAvailable(item, now = new Date()) {
 }
 
 export function filterNotificationsForDisplay(items, now = new Date()) {
-  const dailyOccurrences = new Set((items || []).map((item) => {
-    const match = String(item?.requestDescription || '').match(/^LEAD_FOLLOW_UP_DAILY:([^:]+):(\d{4}-\d{2}-\d{2})$/i)
-    return match ? `${match[1]}:${match[2]}` : ''
-  }).filter(Boolean))
-  return (items || []).filter((item) => {
-    if (!isNotificationAvailable(item, now)) return false
-    if (String(item?.kind || '').toUpperCase() !== 'LEAD_FOLLOW_UP_OVERDUE') return true
-    const match = String(item?.requestDescription || '').match(/^LEAD_FOLLOW_UP_OVERDUE:([^:]+):(\d{4})-(\d{2})-(\d{2})(?::[^:]+)?$/i)
-    if (!match) return true
-    const [, leadId, year, month, day] = match
-    const nextDay = new Date(Date.UTC(Number(year), Number(month) - 1, Number(day) + 1)).toISOString().slice(0, 10)
-    return !dailyOccurrences.has(`${leadId}:${nextDay}`)
-  })
+  // Daily and overdue are separate reminders with different purposes. Keep both
+  // visible when they coexist; overdue remains scheduled for the next morning.
+  return (items || []).filter((item) => isNotificationAvailable(item, now))
 }
 
 // Support both flat and paginated notification responses used by the API.
