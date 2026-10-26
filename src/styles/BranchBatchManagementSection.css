@@ -2498,6 +2498,148 @@
   .batch-management-identifiers-grid { grid-template-columns: 1fr; }
 }
 
+/* Keep the create/edit form aligned at desktop widths. The timing controls
+   used to force the details row wider than the modal, which made the upper
+   fields appear clipped or overlap the batch details section. */
+.batch-management-modal {
+  box-sizing: border-box;
+  width: min(1280px, calc(100vw - 32px));
+  max-width: calc(100vw - 32px);
+  padding: 26px 28px 24px;
+  overflow-x: hidden;
+}
+
+.batch-management-modal .batch-management-form-shell,
+.batch-management-modal .batch-management-form-grid,
+.batch-management-modal .batch-management-details,
+.batch-management-modal .batch-management-details-grid {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.batch-management-modal .batch-management-form-shell {
+  display: block !important;
+}
+
+.batch-management-modal .batch-management-details {
+  display: block !important;
+  clear: both;
+  margin-top: 18px;
+}
+
+.batch-management-modal .batch-management-error,
+.batch-management-modal .batch-management-footer {
+  display: flex !important;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.batch-management-modal .batch-management-footer {
+  align-items: center;
+  justify-content: flex-end;
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid #e5edf7;
+}
+
+.batch-management-modal .batch-management-footer > button {
+  min-width: 128px;
+  min-height: 48px;
+}
+
+.batch-management-modal .batch-management-form-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: 16px;
+  row-gap: 14px;
+}
+
+.batch-management-modal .batch-management-field,
+.batch-management-modal .batch-management-field > div,
+.batch-management-modal .batch-management-field input,
+.batch-management-modal .batch-management-field select {
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.batch-management-modal .batch-management-details-grid-head,
+.batch-management-modal .batch-management-row {
+  grid-template-columns: minmax(160px, 1.05fr) minmax(300px, 1.85fr) minmax(100px, 0.7fr) minmax(112px, 0.75fr);
+  gap: 12px;
+}
+
+.batch-management-modal .batch-management-row-timing {
+  min-width: 0;
+  grid-template-columns: minmax(0, 1fr) 12px minmax(0, 1fr);
+  gap: 6px;
+}
+
+.batch-management-modal .batch-management-row-timing > .batch-management-time-group:first-child {
+  transform: none;
+}
+
+.batch-management-modal .batch-management-time-controls {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 5px;
+}
+
+.batch-management-modal .batch-management-time-select select {
+  padding-left: 7px;
+  padding-right: 22px;
+  font-size: 0.88rem;
+}
+
+@media (max-width: 860px) {
+  .batch-management-modal {
+    width: min(720px, calc(100vw - 24px));
+    max-width: calc(100vw - 24px);
+    padding: 22px 18px 20px;
+  }
+
+  .batch-management-modal .batch-management-details-grid-head,
+  .batch-management-modal .batch-management-row {
+    grid-template-columns: minmax(140px, 1fr) minmax(250px, 1.5fr);
+  }
+
+  .batch-management-modal .batch-management-details-grid-head span:nth-child(3),
+  .batch-management-modal .batch-management-details-grid-head span:nth-child(4) {
+    display: none;
+  }
+
+  .batch-management-modal .batch-management-row-seats-wrap,
+  .batch-management-modal .batch-management-row-status-wrap {
+    grid-column: span 1;
+  }
+}
+
+@media (max-width: 640px) {
+  .batch-management-modal {
+    width: calc(100vw - 20px);
+    max-width: calc(100vw - 20px);
+    padding: 20px 14px 18px;
+  }
+
+  .batch-management-modal .batch-management-form-grid,
+  .batch-management-modal .batch-management-details-grid-head,
+  .batch-management-modal .batch-management-row {
+    grid-template-columns: 1fr;
+  }
+
+  .batch-management-modal .batch-management-details-grid-head span:nth-child(3),
+  .batch-management-modal .batch-management-details-grid-head span:nth-child(4) {
+    display: block;
+  }
+
+  .batch-management-modal .batch-management-row-timing {
+    grid-template-columns: 1fr;
+  }
+
+  .batch-management-modal .batch-management-row-timing > span {
+    display: none;
+  }
+}
+
 .branch-batch-skeleton-row td { height: 62px; }
 .branch-batch-skeleton-row td span { display: block; width: 74%; height: 13px; border-radius: 5px; background: linear-gradient(90deg, #edf2f7 25%, #f8fafc 50%, #edf2f7 75%); background-size: 200% 100%; animation: branch-batch-table-shimmer 1.2s ease-in-out infinite; }
 .branch-batch-skeleton-row td:nth-child(2) span,

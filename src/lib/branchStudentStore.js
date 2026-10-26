@@ -233,6 +233,15 @@ async function syncBranchStudentToBackend(student) {
   delete payload._recordId
   delete payload.recordId
 
+  if (payload.sourceLeadId) {
+    const leadId = String(payload.sourceLeadId).trim()
+    const response = await request(`/sales-admins/admissions/leads/${encodeURIComponent(leadId)}/convert`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    })
+    return response?.data ?? response
+  }
+
   if (student._isExistingRecord) {
     const pathStudentKey = String(
       student._recordId

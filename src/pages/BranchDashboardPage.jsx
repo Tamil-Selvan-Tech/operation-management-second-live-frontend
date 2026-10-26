@@ -1033,6 +1033,28 @@ function createInitialStudentForm(branchId) {
   }
 }
 
+function applyAdmissionLeadToStudentForm(baseForm, lead) {
+  if (!lead) return baseForm
+  const leadCourseId = String(lead.courseId || '').trim()
+  return {
+    ...baseForm,
+    studentName: lead.studentName || '',
+    mobileNumber: lead.phoneNumber || '',
+    parentSpouseNumber: lead.alternativeNumber || '',
+    emailAddress: lead.email || '',
+    qualification: lead.qualification || '',
+    city: lead.location || '',
+    courseId: leadCourseId,
+    courseName: lead.course?.name || lead.courseName || '',
+    courseMode: /ONLINE/i.test(lead.courseMode || lead.trainingMode || '') ? 'Online' : /OFFLINE/i.test(lead.courseMode || lead.trainingMode || '') ? 'Offline' : '',
+    classSchedule: /WEEKEND/i.test(lead.classSchedule || '') ? 'Weekend' : /WEEKDAY/i.test(lead.classSchedule || '') ? 'Weekday' : '',
+    source: lead.leadSource || '',
+    remarks: `Source Lead: ${lead.leadId || ''}`,
+    admissionDate: getTodayValue(),
+    courseStartDate: getTodayValue(),
+  }
+}
+
 function buildStudentFormFromRecord(student = {}) {
   const storedStudentId = String(student.studentId || '').trim()
   const studentIdSuffixMatch = storedStudentId.match(/(\d+)$/)
@@ -4093,7 +4115,7 @@ function writeBranchCourseDraft(identifier = '', draft = null) {
   }
 }
 
-export function BranchDashboardPage({ embeddedMode = false, branchData = null, initialSection = 'dashboard', initialStudentEditId = '', initialStudent360Id = '', onInitialStudentEditSaved, onEmbeddedStudentSaved, onEmbeddedStudent360Back }) {
+export function BranchDashboardPage({ embeddedMode = false, branchData = null, initialSection = 'dashboard', initialStudentEditId = '', initialStudent360Id = '', onInitialStudentEditSaved, onEmbeddedStudentSaved, onEmbeddedStudent360Back, admissionOnlyMode = false, admissionLead = null, onAdmissionCancel, onAdmissionComplete }) {
   const location = useLocation()
   const navigate = useNavigate()
   const routeParams = useParams()
@@ -4352,6 +4374,7 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
   const [savedDashboardWidgets, setSavedDashboardWidgets] = useState([])
 
   const loadApprovedDiscontinuationRequests = useCallback(async () => {
+    if (admissionOnlyMode) return []
     if ((!embeddedMode && role !== 'branch-admin') || (embeddedMode && !branchProfile)) return []
     try {
       const response = await request('/student-discontinuation?status=APPROVED')
@@ -4363,7 +4386,7 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
       setApprovedDiscontinuationRequests([])
       return []
     }
-  }, [branchProfile, embeddedMode, role])
+  }, [admissionOnlyMode, branchProfile, embeddedMode, role])
 
   useEffect(() => {
     void loadApprovedDiscontinuationRequests()
@@ -4419,6 +4442,7 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
   }, [approvedDiscontinuationRequests])
 
   useEffect(() => {
+    if (admissionOnlyMode) return undefined
     if (!embeddedMode && role !== 'branch-admin') return undefined
     if (embeddedMode && !branchProfile) return undefined
     let active = true
@@ -4434,7 +4458,7 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
         if (active) { setDashboardWidgets(defaultDashboardWidgets); setSavedDashboardWidgets(defaultDashboardWidgets) }
       })
     return () => { active = false }
-  }, [branchProfile, embeddedMode, role])
+  }, [admissionOnlyMode, branchProfile, embeddedMode, role])
 
   const dashboardWidgetKeyByLabel = {
     'This Month Admissions': 'this_month_admissions', 'Batch Availability': 'batch_availability',
@@ -4560,23 +4584,31 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
   const [studentSortBy, setStudentSortBy] = useState('createdAt')
   const [studentSortOrder, setStudentSortOrder] = useState('desc')
   const [studentPage, setStudentPage] = useState(1)
-  const [isStudentFormOpen, setIsStudentFormOpen] = useState(false)
+  const [isStudentFormOpen, setIsStudentFormOpen] = useState(() => Boolean(admissionOnlyMode && admissionLead))
   const [studentFormMode, setStudentFormMode] = useState('add') // 'add' | 'view' | 'edit'
+  const admissionFormOpenedRef = useRef('')
   const studentFormModalRef = useRef(null)
   const initialStudentEditOpenedRef = useRef('')
   const [studentFormStep, setStudentFormStep] = useState(1)
-  const [studentForm, setStudentForm] = useState(() => createInitialStudentForm(''))
+  const [studentForm, setStudentForm] = useState(() => {
+    const initialForm = createInitialStudentForm(admissionLead?.branchId || admissionLead?.branch?.id || '')
+    return admissionOnlyMode ? applyAdmissionLeadToStudentForm(initialForm, admissionLead) : initialForm
+  })
   // Step 3 edits one course at a time. Keep the other course drafts here so a
   // student can be enrolled into multiple courses without losing per-course
   // batch, schedule, mode, date and fee values.
-  const [studentSelectedCourseIds, setStudentSelectedCourseIds] = useState([])
+  const [studentSelectedCourseIds, setStudentSelectedCourseIds] = useState(() => (
+    admissionOnlyMode && admissionLead?.courseId ? [String(admissionLead.courseId)] : []
+  ))
   const [studentCourseDrafts, setStudentCourseDrafts] = useState({})
   const [studentArrangementType, setStudentArrangementType] = useState('SINGLE')
   const [studentCommonDiscount, setStudentCommonDiscount] = useState({ type: 'FIXED', value: '' })
   const [studentFirstCourseId, setStudentFirstCourseId] = useState('')
   const [studentCombinedPaymentPlanId, setStudentCombinedPaymentPlanId] = useState('')
   const [studentCombinedPaymentPlan, setStudentCombinedPaymentPlan] = useState('')
-  const [studentCourseSearch, setStudentCourseSearch] = useState('')
+  const [studentCourseSearch, setStudentCourseSearch] = useState(() => (
+    admissionOnlyMode ? String(admissionLead?.course?.name || admissionLead?.courseName || '').trim() : ''
+  ))
   const [studentCourseSearchFocused, setStudentCourseSearchFocused] = useState(false)
   const [isStudentBatchDropdownOpen, setIsStudentBatchDropdownOpen] = useState(false)
   const studentBatchDropdownRef = useRef(null)
@@ -4902,6 +4934,7 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
 }, [])
 
   const loadBranchNotifications = useCallback(async () => {
+    if (admissionOnlyMode) return []
     if (branchNotificationsRequestRef.current) {
       return branchNotificationsRequestRef.current
     }
@@ -4963,9 +4996,10 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
 
     branchNotificationsRequestRef.current = requestPromise
     return requestPromise
-  }, [loadApprovedDiscontinuationRequests])
+  }, [admissionOnlyMode, loadApprovedDiscontinuationRequests])
 
   const loadFacultyTodayWorkEntries = useCallback(async () => {
+    if (admissionOnlyMode) return []
     try {
       const entries = await listFacultyTodayWorkEntries()
       setFacultyTodayWorkEntries(Array.isArray(entries) ? entries : [])
@@ -4975,7 +5009,7 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
       setFacultyTodayWorkEntries([])
       return []
     }
-  }, [])
+  }, [admissionOnlyMode])
 
   useEffect(() => {
     if (!embeddedMode && (!isAuthenticated || role !== 'branch-admin')) {
@@ -4990,6 +5024,16 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
       const embeddedBranchId = branchData.id || branchData.branchId || null
       setImpersonateBranchId(embeddedBranchId)
       setBranchProfile(branchData)
+      if (admissionOnlyMode) {
+        const context = admissionLead?.admissionContext
+        setBranchCourseCards(mergeBranchCoursesWithSnapshot(Array.isArray(context?.courses) ? context.courses : [], embeddedBranchId || ''))
+        setBranchBatchGroups((Array.isArray(context?.batches) ? context.batches : []).map((batch) => ({ ...batch, batches: Array.isArray(batch.batches) ? batch.batches : [batch] })))
+        setBranchFacultyRecords(Array.isArray(context?.faculty) ? context.faculty : [])
+        setFacultyList((Array.isArray(context?.faculty) ? context.faculty : []).map((faculty) => ({ id: faculty.facultyId || faculty.id, name: faculty.name, email: faculty.email, phone: faculty.phone, status: faculty.status })))
+        setBranchInstallmentTemplates(Array.isArray(context?.installmentTemplates) ? context.installmentTemplates : [])
+        setIsBranchCoursesLoading(false)
+        return () => { isMounted = false }
+      }
       Promise.allSettled([loadBranchCourses(), loadFacultyList()]).then(([coursesResult]) => {
         if (!isMounted) return
         if (coursesResult.status === 'fulfilled' || coursesResult.value?.data) {
@@ -5032,15 +5076,16 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
     return () => {
       isMounted = false
     }
-  }, [isAuthenticated, loadBranchCourses, loadFacultyList, navigate, role, session, user])
+  }, [admissionLead?.admissionContext, admissionLead?.id, admissionOnlyMode, branchData?.branchId, branchData?.id, isAuthenticated, loadBranchCourses, loadFacultyList, navigate, role, session, user])
 
   useEffect(() => {
+    if (admissionOnlyMode) return undefined
     const scopeId = branchProfile?.id || branchProfile?.branchId || branchData?.id || branchData?.branchId || ''
     if (!scopeId) return undefined
 
     void loadBranchBatches(scopeId)
     return undefined
-  }, [branchData?.branchId, branchData?.id, branchProfile?.branchId, branchProfile?.id, loadBranchBatches])
+  }, [admissionOnlyMode, branchData?.branchId, branchData?.id, branchProfile?.branchId, branchProfile?.id, loadBranchBatches])
 
   useEffect(() => {
     const handleBranchBatchGroupsChanged = () => {
@@ -5861,6 +5906,13 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
     setIsNotificationMenuOpen(false)
     const requestDescription = String(notification?.requestDescription || '').trim()
     const notificationKind = String(notification?.kind || '').trim()
+    if (notificationKind === 'sales-crm-admission' || requestDescription.startsWith('BRANCH_STUDENT:')) {
+      const studentKey = requestDescription.replace(/^BRANCH_STUDENT:/, '').trim().toLowerCase()
+      goToBranchSection('students')
+      const student = branchStudents.find((record) => [record.studentId, record.id, record._id].some((value) => String(value || '').trim().toLowerCase() === studentKey))
+      if (student) window.setTimeout(() => { void openViewStudentForm(student) }, 0)
+      return
+    }
     if (notificationKind === 'student-discontinuation' || requestDescription.startsWith('DISCONTINUATION_') || requestDescription.startsWith('MOTIVATION_')) {
       goToBranchSection('discontinuations')
       return
@@ -7701,6 +7753,10 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
   }, [branchStudentScope, branchStudents])
 
   const reloadBranchStudents = useCallback(async () => {
+    if (admissionOnlyMode) {
+      setBranchStudents([])
+      return []
+    }
     const requestId = branchStudentReloadRequestRef.current + 1
     branchStudentReloadRequestRef.current = requestId
 
@@ -7731,7 +7787,7 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
         setLoadedBranchStudentScopeKey(branchStudentScopeKey)
       }
     }
-  }, [branchStudentScope, branchStudentScopeKey])
+  }, [admissionOnlyMode, branchStudentScope, branchStudentScopeKey])
 
   const refreshBranchDashboard = useCallback(async () => {
     if (isDashboardRefreshing) return
@@ -7768,6 +7824,7 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
   ])
 
   useEffect(() => {
+    if (admissionOnlyMode) return undefined
     void loadFacultyTodayWorkEntries()
 
     const handleTodayWorkChanged = () => {
@@ -7788,7 +7845,7 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
       window.removeEventListener(FACULTY_TODAY_WORK_SYNC_EVENT, handleTodayWorkChanged)
       window.removeEventListener('storage', handleStorageChanged)
     }
-  }, [loadFacultyTodayWorkEntries, reloadBranchStudents])
+  }, [admissionOnlyMode, loadFacultyTodayWorkEntries, reloadBranchStudents])
 
 const studentCourseOptions = useMemo(() => {
   return branchCourseCards
@@ -8010,14 +8067,14 @@ const studentCourseOptions = useMemo(() => {
   )
 
   useEffect(() => {
-    if (!isStudentFormOpen || studentFormMode === 'view') return undefined
+    if (admissionOnlyMode || !isStudentFormOpen || studentFormMode === 'view') return undefined
     let active = true
     request('/institute-leaves').then((response) => {
       if (!active) return
       setInstituteLeaves(response?.data?.leaves || response?.leaves || [])
     }).catch(() => { if (active) setInstituteLeaves([]) })
     return () => { active = false }
-  }, [isStudentFormOpen, studentFormMode])
+  }, [admissionOnlyMode, isStudentFormOpen, studentFormMode])
 
   useEffect(() => {
     if (!isStudentFormOpen || studentFormMode === 'view' || !selectedStudentBatchOption) return
@@ -8231,6 +8288,7 @@ const studentCourseOptions = useMemo(() => {
           courseAmount: studentScheduleAmount,
           feeScheduleMode: mode,
           feeFirstPaymentDate: studentForm.feeFirstPaymentDate || studentForm.admissionDate,
+          ...(admissionOnlyMode && admissionLead ? { sourceLeadId: admissionLead.id } : {}),
           installmentSchedule: studentInstallmentAmounts.map((amount, index) => ({
             installmentNumber: index + 1,
             amount,
@@ -10219,7 +10277,7 @@ useEffect(() => {
   }
 
   const openAddStudentForm = async () => {
-    if (!hasStudentCreationSetup) {
+    if (!hasStudentCreationSetup && !admissionOnlyMode) {
       setIsStudentSetupRequiredOpen(true)
       return
     }
@@ -10241,14 +10299,32 @@ useEffect(() => {
     setStudentInstallmentDatesCustomized(false)
     setStudentInstallmentDueDates([])
     studentFeePreviewKeyRef.current = ''
-    const nextStudentForm = await resolveStudentLocationForm(createInitialStudentForm(branchStudentScope))
-    setStudentForm({
-      ...nextStudentForm,
-      courseStartDate: nextStudentForm.courseStartDate || getTodayValue(),
-    })
+    const initialStudentForm = createInitialStudentForm(branchStudentScope)
+    const nextStudentForm = admissionOnlyMode ? initialStudentForm : await resolveStudentLocationForm(initialStudentForm)
+    const leadCourseId = String(admissionLead?.courseId || '').trim()
+    const selectedLeadCourse = studentCourseOptions.find((course) => String(course.id || '').trim() === leadCourseId)
+    if (admissionOnlyMode && admissionLead) {
+      const nextForm = applyAdmissionLeadToStudentForm(nextStudentForm, admissionLead)
+      nextForm.courseId = selectedLeadCourse?.id || leadCourseId
+      nextForm.courseName = selectedLeadCourse?.name || nextForm.courseName
+      setStudentSelectedCourseIds(leadCourseId ? [leadCourseId] : [])
+      setStudentCourseSearch(selectedLeadCourse?.name || nextForm.courseName)
+      setStudentForm(nextForm)
+    } else {
+      setStudentForm({
+        ...nextStudentForm,
+        courseStartDate: nextStudentForm.courseStartDate || getTodayValue(),
+      })
+    }
     setStudentFormTouched({})
     setIsStudentFormOpen(true)
   }
+
+  useEffect(() => {
+    if (!admissionOnlyMode || !admissionLead || admissionFormOpenedRef.current === admissionLead.id) return
+    admissionFormOpenedRef.current = admissionLead.id
+    void openAddStudentForm()
+  }, [admissionOnlyMode, admissionLead, branchProfile, isBranchCoursesLoading, openAddStudentForm])
 
   const closeStudentSetupRequiredPopup = useCallback(() => {
     setIsStudentSetupRequiredOpen(false)
@@ -10576,6 +10652,7 @@ useEffect(() => {
       passedOutYear: studentForm.passedOutYear === 'Custom' ? studentForm.passedOutYearCustom : studentForm.passedOutYear,
       yearOfPassing: studentForm.passedOutYear === 'Custom' ? studentForm.passedOutYearCustom : studentForm.passedOutYear,
       source: studentForm.source === 'Others' ? studentForm.sourceOther : studentForm.source,
+      ...(admissionOnlyMode && admissionLead ? { sourceLeadId: admissionLead.id, admissionSource: 'SALES_CRM' } : {}),
       courseId: selectedCourse?.id || String(studentForm.courseId || '').trim(),
       courseName: selectedCourse?.name || String(studentForm.courseName || '').trim(),
       batchId: selectedBatch?.batchId || String(studentForm.batchId || '').trim(),
@@ -10627,8 +10704,13 @@ useEffect(() => {
     setIsStudentSaving(true)
     try {
       const savedRecord = await saveBranchStudent(record)
-      await reloadBranchStudents()
+      if (!admissionOnlyMode) await reloadBranchStudents()
       setIsStudentFormOpen(false)
+
+      if (admissionOnlyMode && studentFormMode === 'add') {
+        onAdmissionComplete?.(savedRecord || record)
+        return
+      }
 
       if (studentFormMode === 'edit' && ((embeddedMode && onEmbeddedStudentSaved) || (initialStudentEditId && onInitialStudentEditSaved))) {
         setStudentSuccessPopup({
@@ -11261,7 +11343,7 @@ useEffect(() => {
     ])).values()]
 
   return (
-    <section className={`super-admin-page branch-dashboard-app-shell ${isSidebarCollapsed ? 'is-sidebar-collapsed' : ''} ${activeSection === 'course-import' ? 'is-course-import-page' : ''}`.trim()} onClickCapture={handleInactiveBranchActionClick}>
+    <section className={`super-admin-page branch-dashboard-app-shell ${isSidebarCollapsed ? 'is-sidebar-collapsed' : ''} ${activeSection === 'course-import' ? 'is-course-import-page' : ''} ${admissionOnlyMode ? 'is-sales-admission-only' : ''}`.trim()} onClickCapture={handleInactiveBranchActionClick}>
       <div className="super-admin-shell">
         {isMobileSidebarOpen ? <button type="button" className="super-admin-sidebar-backdrop" aria-label="Close navigation menu" onClick={() => setIsMobileSidebarOpen(false)} /> : null}
         {renderSidebar()}
@@ -17710,6 +17792,12 @@ else {
                 </span>
               </div>
 
+              {admissionOnlyMode && !hasStudentCreationSetup ? (
+                <div className="course-validation-note course-validation-error" role="alert">
+                  <span>This branch needs an active course, assigned faculty, and an available batch before this admission can be completed. Set up the missing branch items or choose an available batch below.</span>
+                </div>
+              ) : null}
+
               <div className={`student-stepper ${studentFormMode === 'view' ? 'is-view-mode' : ''}`.trim()}>
                 {[
                   { step: 1, title: 'Personal & Education' },
@@ -19046,8 +19134,9 @@ else {
                     type="button"
                     className="button button-ghost"
                     onClick={() => {
-                      setIsStudentFormOpen(false)
+                  setIsStudentFormOpen(false)
                       setStudentFormStep(1)
+                  if (admissionOnlyMode) onAdmissionCancel?.()
                     }}
                   >
                     Close
