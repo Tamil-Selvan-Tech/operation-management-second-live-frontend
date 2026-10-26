@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth/useAuth'
 import { request } from '../services/apiClient'
 import { NotificationBell } from '../components/NotificationBell'
+import { PaginationBar } from '../components/PaginationBar'
 import { unwrapNotifications } from '../services/notificationService'
 import '../styles/StudentNewDashboardPage.css'
 import '../styles/StudentNotificationsPage.css'
@@ -22,6 +23,7 @@ export function StudentNotificationsPage() {
   const [unreadCount, setUnreadCount] = useState(0)
   const [query, setQuery] = useState('')
   const [filter, setFilter] = useState('all')
+  const [notificationPage, setNotificationPage] = useState(1)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false)
@@ -76,6 +78,18 @@ export function StudentNotificationsPage() {
     return (!query || text.includes(query.toLowerCase()))
       && (filter === 'all' || (filter === 'unread' ? !item.read : item.read))
   }), [filter, items, query])
+
+  const notificationsPerPage = 10
+  const notificationTotalPages = Math.max(1, Math.ceil(visibleItems.length / notificationsPerPage))
+  const safeNotificationPage = Math.min(notificationPage, notificationTotalPages)
+  const paginatedItems = useMemo(
+    () => visibleItems.slice(
+      (safeNotificationPage - 1) * notificationsPerPage,
+      safeNotificationPage * notificationsPerPage,
+    ),
+    [safeNotificationPage, visibleItems],
+  )
+
 
   const markAllRead = async () => {
     try {
@@ -143,13 +157,25 @@ export function StudentNotificationsPage() {
       <div><h1>Notifications</h1><p>You have <strong>{items.length}</strong> notifications{unreadCount ? <> and <strong>{unreadCount}</strong> unread items</> : null}.</p></div>
       <div className="student-notifications-actions"><button type="button" onClick={() => navigate('/student-new-dashboard')}><ArrowLeft size={16} /> Back to dashboard</button><button type="button" onClick={markAllRead} disabled={!unreadCount}><CheckCheck size={16} /> Mark all as read</button></div>
     </header>
-    <div className="student-notifications-filters"><label><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search notifications" aria-label="Search notifications" /></label><select value={filter} onChange={(event) => setFilter(event.target.value)} aria-label="Filter notification status"><option value="all">All status</option><option value="unread">Unread only</option><option value="read">Read only</option></select></div>
+    <div className="student-notifications-filters"><label><input value={query} onChange={(event) => { setNotificationPage(1); setQuery(event.target.value) }} placeholder="Search notifications" aria-label="Search notifications" /></label><select value={filter} onChange={(event) => { setNotificationPage(1); setFilter(event.target.value) }} aria-label="Filter notification status"><option value="all">All status</option><option value="unread">Unread only</option><option value="read">Read only</option></select></div>
     {error ? <p className="student-notifications-error" role="alert">{error}</p> : null}
     <section className="student-notifications-list" aria-label="All notifications">
       {loading ? <p className="student-notifications-empty">Loading notifications…</p> : null}
       {!loading && !visibleItems.length ? <p className="student-notifications-empty">No notifications found.</p> : null}
-      {visibleItems.map((item) => <button type="button" key={item.id} className={`student-notification-card ${item.read ? '' : 'is-unread'}`.trim()} onClick={() => void openNotification(item)}><span className="student-notification-icon"><Bell size={20} /></span><div><div className="student-notification-title"><h2>{item.title}</h2><time>{new Date(item.createdAt).toLocaleString()}</time></div><p>{formatAcademicNotification(item.message)}</p><small className="student-notification-action-label">{String(item.kind || '').toUpperCase() === 'STUDENT_DISCONTINUATION' ? 'Open discontinuation request' : 'View notification'}</small></div>{!item.read ? <span className="student-notification-unread"><CircleAlert size={14} /> Unread</span> : null}</button>)}
+      {paginatedItems.map((item) => <button type="button" key={item.id} className={`student-notification-card ${item.read ? '' : 'is-unread'}`.trim()} onClick={() => void openNotification(item)}><span className="student-notification-icon"><Bell size={20} /></span><div><div className="student-notification-title"><h2>{item.title}</h2><time>{new Date(item.createdAt).toLocaleString()}</time></div><p>{formatAcademicNotification(item.message)}</p><small className="student-notification-action-label">{String(item.kind || '').toUpperCase() === 'STUDENT_DISCONTINUATION' ? 'Open discontinuation request' : 'View notification'}</small></div>{!item.read ? <span className="student-notification-unread"><CircleAlert size={14} /> Unread</span> : null}</button>)}
     </section>
+    {visibleItems.length > notificationsPerPage ? (
+      <PaginationBar
+        className="notifications-page-pagination"
+        currentPage={safeNotificationPage}
+        totalPages={notificationTotalPages}
+        onPageChange={setNotificationPage}
+        label="Notification pagination"
+        previousLabel="Previous"
+        nextLabel="Next"
+        summaryText={['Showing', (safeNotificationPage - 1) * notificationsPerPage + 1, '–', Math.min(safeNotificationPage * notificationsPerPage, visibleItems.length), 'of', visibleItems.length].join(' ')}
+      />
+    ) : null}
     </main>
     {isLogoutModalOpen ? <div className="student-new-logout-overlay" role="presentation">
       <div className="student-new-logout-modal" role="dialog" aria-modal="true" aria-labelledby="student-notifications-logout-title" onClick={(event) => event.stopPropagation()}>

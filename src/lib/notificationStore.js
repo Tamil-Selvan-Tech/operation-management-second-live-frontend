@@ -9,6 +9,21 @@ const isFacultyLoginNotification = (notification = {}) => {
   return kind === 'faculty-login'
 }
 
+const isSuppressedProgressEndpointMatch = (notification = {}) => {
+  const kind = String(notification.kind || '').trim().toLowerCase()
+  if (!kind.startsWith('faculty-progress-status') && !kind.startsWith('branch-progress-status')) return false
+
+  const courseValue = String(notification.courseProgress ?? '').trim().replace(/%$/, '')
+  const paidValue = String(notification.paidProgress ?? '').trim().replace(/%$/, '')
+  if (!courseValue || !paidValue) return false
+
+  const courseProgress = Number(courseValue)
+  const paidProgress = Number(paidValue)
+  return Number.isFinite(courseProgress)
+    && Number.isFinite(paidProgress)
+    && courseProgress === paidProgress
+    && (courseProgress === 0 || courseProgress === 100)
+}
 const isBrowser = () => typeof window !== 'undefined' && Boolean(window.localStorage)
 
 const readJSON = (key) => {
@@ -155,8 +170,9 @@ export function loadNotifications() {
 
       return normalizedNotification
     })
-    .filter((notification) =>
+        .filter((notification) =>
       !isFacultyLoginNotification(notification) &&
+      !isSuppressedProgressEndpointMatch(notification) &&
       (
         String(notification.kind || '').startsWith('branch-') ||
         String(notification.kind || '').startsWith('faculty-') ||
@@ -204,11 +220,20 @@ export function mergeNotificationsWithStoredState(notifications = []) {
     const normalizedNotification = normalizeNotification(notification)
     const storedReadState = readStateById.get(String(normalizedNotification.id))
     const storedViewedState = viewedStateById.get(String(normalizedNotification.id))
+    const hasPersistedReadState =
+      typeof notification?.read === 'boolean' || notification?.readAt != null
+    const persistedReadState = Boolean(normalizedNotification.read || notification?.readAt)
 
     return {
       ...normalizedNotification,
-      read: Boolean(storedReadState ?? normalizedNotification.read),
-      dropdownViewed: Boolean(storedViewedState ?? normalizedNotification.dropdownViewed),
+      // The API/database owns read state. Browser cache may only fill it for
+      // client-generated notices that do not have persisted state.
+      read: hasPersistedReadState
+        ? persistedReadState
+        : Boolean(storedReadState ?? normalizedNotification.read),
+      dropdownViewed: hasPersistedReadState
+        ? Boolean(notification?.dropdownViewed || persistedReadState)
+        : Boolean(storedViewedState ?? normalizedNotification.dropdownViewed),
     }
     })
 }

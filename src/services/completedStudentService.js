@@ -10,6 +10,9 @@ export async function listCompletedStudentCourses(query = {}) {
   params.set('page', String(query.page || 1))
   params.set('limit', String(query.limit || 20))
   if (query.search) params.set('search', query.search)
+  if (query.studentId) params.set('studentId', query.studentId)
+  if (query.courseId) params.set('courseId', query.courseId)
+  if (query.includeDetails) params.set('includeDetails', 'true')
   if (query.sortBy) params.set('sortBy', query.sortBy)
   if (query.sortOrder) params.set('sortOrder', query.sortOrder)
 

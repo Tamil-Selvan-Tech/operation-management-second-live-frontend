@@ -3099,6 +3099,7 @@ export function BranchBatchManagementSection({
         label="Batch table pagination"
         previousLabel="Previous"
         nextLabel="Next"
+        visiblePageCount={2}
       />
 
       {renderActionMenu()}

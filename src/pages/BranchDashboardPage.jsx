@@ -60,6 +60,7 @@ import { useCourseCalculations } from '../lib/useCourseCalculations'
 import { useAuth } from '../auth/useAuth'
 import { Button } from '../components/Button'
 import { request, setImpersonateBranchId } from '../services/apiClient'
+import { shareInFlightRequest } from '../lib/inFlightRequests'
 import { unwrapNotifications } from '../services/notificationService'
 import { getCurrentBranchProfile } from '../services/branchService'
 import BranchExamResultsPage from './BranchExamResultsPage'
@@ -116,13 +117,13 @@ import { BranchStudentAttendance } from '../components/BranchStudentAttendance'
 import { getBranchDashboardWidgets, saveBranchDashboardWidgets } from '../services/branchDashboardWidgetService'
 import { BranchBatchManagementSection } from './BranchBatchManagementSection'
 import { BranchAttendanceReportModal } from '../components/BranchAttendanceReportModal'
+import { PaginationBar, getPageNumberWindow } from '../components/PaginationBar'
 import { InstituteLeavePage } from './InstituteLeavePage'
 import { FacultyEditRequestsView, ProgressNotificationsView } from '../components/BranchManagementViews'
 import { BranchInstallmentTemplatesPage } from './BranchInstallmentTemplatesPage'
 import { BranchDiscontinuationManagementPage } from './BranchDiscontinuationManagementPage'
 import { Student360Page } from './Student360Page'
-import { getBranchStudentAcademicReports } from '../services/academicTestService'
-import { getBranchStudentSyllabusReports } from '../services/examService'
+import { getBranchStudentReportCompletionSummaries } from '../services/branchStudentReportSummaryService'
 import { calculateBatchCourseEndDate, getBatchAvailability } from '../lib/batchAllocation'
 import { StudentCalendarPage } from './StudentCalendarPage'
 import CompletedStudentsPage from './CompletedStudentsPage'
@@ -141,7 +142,6 @@ import {
   mergeNotificationsWithStoredState,
   markNotificationsAsDropdownViewed,
   markNotificationsAsRead,
-  saveNotifications,
   subscribeNotifications,
 } from '../lib/notificationStore'
 import { loadBranchPaymentHistoryEntries } from '../lib/branchPaymentHistoryStore'
@@ -153,6 +153,49 @@ import {
 import '../styles/SuperAdminDashboardPage.css'
 import '../styles/BranchDashboardPage.css'
 
+// Several dashboard lifecycle signals can arrive together (initial mount,
+// React StrictMode replay, focus, visibility and section changes). Keep a
+// short recent-result window in addition to the in-flight lock so those
+// signals cannot issue the same live request repeatedly.
+const BRANCH_LIVE_REFRESH_DEDUPE_MS = 2000
+const recentBranchDashboardRequests = new Map()
+
+function shareRecentBranchDashboardRequest(key, loader, ttl = BRANCH_LIVE_REFRESH_DEDUPE_MS) {
+  const normalizedKey = String(key || '').trim()
+  const now = Date.now()
+  const existing = normalizedKey ? recentBranchDashboardRequests.get(normalizedKey) : null
+  if (existing && existing.expiresAt > now) return existing.promise
+
+  const promise = Promise.resolve().then(loader)
+  if (normalizedKey) {
+    recentBranchDashboardRequests.set(normalizedKey, {
+      promise,
+      expiresAt: now + ttl,
+    })
+    promise.catch(() => {
+      const current = recentBranchDashboardRequests.get(normalizedKey)
+      if (current?.promise === promise) recentBranchDashboardRequests.delete(normalizedKey)
+    })
+  }
+  return promise
+}
+
+function BranchDashboardMiniListSkeleton({ label = 'Loading dashboard records', rows = 4 }) {
+  return <div className="branch-dashboard-mini-list-skeleton" role="status" aria-label={label}>
+    {Array.from({ length: rows }, (_, index) => <div className="branch-dashboard-mini-skeleton-row" key={index}>
+      <span className="branch-dashboard-mini-skeleton-avatar" />
+      <div className="branch-dashboard-mini-skeleton-copy"><i /><i /></div>
+      <div className="branch-dashboard-mini-skeleton-meta"><i /><i /></div>
+    </div>)}
+  </div>
+}
+
+function BranchDashboardFeeStatusSkeleton() {
+  return <div className="branch-dashboard-fee-skeleton" role="status" aria-label="Loading fee status">
+    <span className="branch-dashboard-fee-skeleton-donut" />
+    <div>{[1, 2, 3, 4].map((item) => <span className="branch-dashboard-fee-skeleton-row" key={item}><i /><b /></span>)}</div>
+  </div>
+}
 function FeeStatusDonut({ values = [] }) {
   const segments = values.map(([label, value, tone]) => ({ label, value: Math.max(Number(value) || 0, 0), tone }))
   const total = segments.reduce((sum, item) => sum + item.value, 0)
@@ -2322,7 +2365,7 @@ function getBranchPaymentModePriority(record = {}) {
 function getBranchPaymentHistoryDisplayText(...values) {
   const text = values
     .map((value) => String(value || '').trim())
-    .find((value) => value && value !== '-' && value !== 'â€”' && value !== 'â€“')
+    .find((value) => value && value !== '-' && value !== 'â€”' && value !== '-')
 
   return text || ''
 }
@@ -4313,6 +4356,7 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
   const [branchCourseCards, setBranchCourseCards] = useState([])
   const [isBranchCoursesLoading, setIsBranchCoursesLoading] = useState(true)
   const [branchBatchGroups, setBranchBatchGroups] = useState([])
+  const [isBranchBatchesLoading, setIsBranchBatchesLoading] = useState(false)
   const [courseSearchTerm, setCourseSearchTerm] = useState('')
   const [appliedCourseSearchTerm, setAppliedCourseSearchTerm] = useState('')
   const [courseStatusFilter, setCourseStatusFilter] = useState('all')
@@ -4364,6 +4408,7 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
   const [branchStudents, setBranchStudents] = useState([])
   const [isBranchStudentsLoading, setIsBranchStudentsLoading] = useState(true)
   const [approvedDiscontinuationRequests, setApprovedDiscontinuationRequests] = useState([])
+  const approvedDiscontinuationLastLoadedAtRef = useRef(0)
   const branchStudentReloadRequestRef = useRef(0)
   const [attendanceReportTarget, setAttendanceReportTarget] = useState(null)
   const [dashboardWidgets, setDashboardWidgets] = useState([])
@@ -4373,23 +4418,69 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
   const [draggedDashboardWidget, setDraggedDashboardWidget] = useState(null)
   const [savedDashboardWidgets, setSavedDashboardWidgets] = useState([])
 
-  const loadApprovedDiscontinuationRequests = useCallback(async () => {
-    if (admissionOnlyMode) return []
-    if ((!embeddedMode && role !== 'branch-admin') || (embeddedMode && !branchProfile)) return []
-    try {
-      const response = await request('/student-discontinuation?status=APPROVED')
-      const rows = Array.isArray(response?.data) ? response.data : []
+  const embeddedBranchProfileReady = !embeddedMode || Boolean(branchProfile)
+  const approvedDiscontinuationScope = String(
+    embeddedMode
+      ? (branchProfile?.id || branchProfile?.branchId || branchData?.id || branchData?.branchId || "")
+      : (user?.id || user?.email || ""),
+  ).trim()
+
+  const loadApprovedDiscontinuationRequests = useCallback((options = {}) => {
+    if (admissionOnlyMode) return Promise.resolve([])
+    if ((!embeddedMode && role !== "branch-admin") || !embeddedBranchProfileReady) return Promise.resolve([])
+
+    const force = options?.force === true
+    const requestKey = "approved-discontinuation:" + approvedDiscontinuationScope
+    const now = Date.now()
+    if (!force && now - approvedDiscontinuationLastLoadedAtRef.current < BRANCH_LIVE_REFRESH_DEDUPE_MS) {
+      return Promise.resolve([])
+    }
+    approvedDiscontinuationLastLoadedAtRef.current = now
+
+    return shareRecentBranchDashboardRequest(
+      requestKey,
+      () => shareInFlightRequest(
+        requestKey,
+        async () => {
+          const response = await request("/student-discontinuation?status=APPROVED", {
+            ...(embeddedMode && approvedDiscontinuationScope ? { impersonateBranchId: approvedDiscontinuationScope } : {}),
+          })
+          return Array.isArray(response?.data) ? response.data : []
+        },
+      ),
+    ).then((rows) => {
       setApprovedDiscontinuationRequests(rows)
       return rows
-    } catch (error) {
-      console.error('Failed to load approved discontinuation financials:', error)
+    }).catch((error) => {
+      approvedDiscontinuationLastLoadedAtRef.current = 0
+      console.error("Failed to load approved discontinuation financials:", error)
       setApprovedDiscontinuationRequests([])
       return []
-    }
-  }, [admissionOnlyMode, branchProfile, embeddedMode, role])
-
+    })
+  }, [admissionOnlyMode, approvedDiscontinuationScope, embeddedBranchProfileReady, embeddedMode, role])
   useEffect(() => {
     void loadApprovedDiscontinuationRequests()
+  }, [loadApprovedDiscontinuationRequests])
+  useEffect(() => {
+    let refreshTimer = null
+    const scheduleRefresh = () => {
+      if (document.visibilityState === 'hidden' || refreshTimer !== null) return
+      refreshTimer = window.setTimeout(() => {
+        refreshTimer = null
+        void loadApprovedDiscontinuationRequests()
+      }, 250)
+    }
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') scheduleRefresh()
+    }
+
+    window.addEventListener('focus', scheduleRefresh)
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    return () => {
+      window.removeEventListener('focus', scheduleRefresh)
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+      if (refreshTimer !== null) window.clearTimeout(refreshTimer)
+    }
   }, [loadApprovedDiscontinuationRequests])
 
   const discontinuedFinancialSummary = useMemo(() => {
@@ -4441,10 +4532,14 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
     }
   }, [approvedDiscontinuationRequests])
 
+  const dashboardWidgetScope = embeddedMode
+    ? String(branchData?.id || branchData?.branchId || branchProfile?.id || branchProfile?.branchId || "")
+    : "self"
+  const canLoadDashboardWidgets = !embeddedMode || Boolean(dashboardWidgetScope)
+
   useEffect(() => {
     if (admissionOnlyMode) return undefined
-    if (!embeddedMode && role !== 'branch-admin') return undefined
-    if (embeddedMode && !branchProfile) return undefined
+    if ((!embeddedMode && role !== 'branch-admin') || !canLoadDashboardWidgets) return undefined
     let active = true
     getBranchDashboardWidgets()
       .then((widgets) => {
@@ -4454,12 +4549,11 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
         setSavedDashboardWidgets(normalizedWidgets)
       })
       .catch((error) => {
-        console.error('Failed to load dashboard widget configuration:', error)
+        console.error("Failed to load dashboard widget configuration:", error)
         if (active) { setDashboardWidgets(defaultDashboardWidgets); setSavedDashboardWidgets(defaultDashboardWidgets) }
       })
     return () => { active = false }
-  }, [admissionOnlyMode, branchProfile, embeddedMode, role])
-
+  }, [admissionOnlyMode, canLoadDashboardWidgets, dashboardWidgetScope, embeddedMode, role])
   const dashboardWidgetKeyByLabel = {
     'This Month Admissions': 'this_month_admissions', 'Batch Availability': 'batch_availability',
     'Total Revenue': 'total_revenue', 'Total Collected': 'total_collected',
@@ -4665,13 +4759,14 @@ const BRANCH_PAYMENT_HISTORY_PER_PAGE = 5
   const [discontinuationNote, setDiscontinuationNote] = useState('')
   const [discontinuationFollowUpDate, setDiscontinuationFollowUpDate] = useState('')
   const [isDiscontinuationReviewSaving, setIsDiscontinuationReviewSaving] = useState(false)
-  const [branchNotificationRecords, setBranchNotificationRecords] = useState(() => loadNotifications())
+  const [branchNotificationRecords, setBranchNotificationRecords] = useState([])
   const [branchNotificationSearch, setBranchNotificationSearch] = useState('')
   const [branchNotificationMonthFilter, setBranchNotificationMonthFilter] = useState(() => {
     const today = new Date()
     return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`
   })
   const [branchNotificationStatusFilter, setBranchNotificationStatusFilter] = useState('all')
+  const [branchNotificationPage, setBranchNotificationPage] = useState(1)
   const [facultyTodayWorkEntries, setFacultyTodayWorkEntries] = useState([])
   const [branchAcademicProgressByStudent, setBranchAcademicProgressByStudent] = useState(() => new Map())
   const [isBranchAcademicProgressLoaded, setIsBranchAcademicProgressLoaded] = useState(false)
@@ -4774,6 +4869,8 @@ const BRANCH_PAYMENT_HISTORY_PER_PAGE = 5
   const courseActionCloseTimer = useRef(null)
   const branchNotificationsRequestRef = useRef(null)
   const branchNotificationsRefreshTimerRef = useRef(null)
+  const branchNotificationsLastLoadedAtRef = useRef(0)
+  const branchNotificationsInitialScopeRef = useRef('')
 
   const loadBranchCourses = useCallback(async (fallbackCourses = null, branchScopeId = '') => {
     setIsBranchCoursesLoading(true)
@@ -4828,19 +4925,24 @@ const BRANCH_PAYMENT_HISTORY_PER_PAGE = 5
 
   const loadBranchBatches = useCallback(async (branchScopeId = '') => {
     const scopeId = String(branchScopeId || branchProfile?.id || branchProfile?.branchId || branchData?.id || branchData?.branchId || '').trim()
-    if (scopeId) {
-      setImpersonateBranchId(scopeId)
-    }
-    const result = await listBranchBatches({
-      page: 1,
-      limit: 100,
-      sortBy: 'createdAt',
-      sortOrder: 'desc',
-      ...(scopeId ? { branchId: scopeId } : {}),
-    })
+    setIsBranchBatchesLoading(true)
+    try {
+      if (scopeId) {
+        setImpersonateBranchId(scopeId)
+      }
+      const result = await listBranchBatches({
+        page: 1,
+        limit: 100,
+        sortBy: 'createdAt',
+        sortOrder: 'desc',
+        ...(scopeId ? { branchId: scopeId } : {}),
+      })
 
-    setBranchBatchGroups(Array.isArray(result?.data) ? result.data : [])
-    return result
+      setBranchBatchGroups(Array.isArray(result?.data) ? result.data : [])
+      return result
+    } finally {
+      setIsBranchBatchesLoading(false)
+    }
   }, [branchData?.branchId, branchData?.id, branchProfile?.branchId, branchProfile?.id])
 
   const loadFacultyList = useCallback(async () => {
@@ -4933,70 +5035,123 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
   return requestPromise
 }, [])
 
-  const loadBranchNotifications = useCallback(async () => {
-    if (admissionOnlyMode) return []
-    if (branchNotificationsRequestRef.current) {
-      return branchNotificationsRequestRef.current
+  const loadBranchNotifications = useCallback((options = {}) => {
+    if (admissionOnlyMode) return Promise.resolve([])
+
+    const force = options?.force === true
+    // Keep one request per authenticated/embedded branch scope while the
+    // dashboard mounts, replays effects, or regains focus.
+    const authenticatedScope = String(user?.id || user?.email || '').trim().toLowerCase()
+    const branchScopeKey = [
+      embeddedMode
+        ? (branchData?.id || branchData?.branchId || branchProfile?.id || branchProfile?.branchId || '')
+        : authenticatedScope,
+      embeddedMode
+        ? (branchProfile?.branchEmail || branchData?.branchEmail || user?.email || '')
+        : authenticatedScope,
+    ].join(':')
+    const requestKey = "branch-notifications:" + branchScopeKey
+    const now = Date.now()
+    if (!force && now - branchNotificationsLastLoadedAtRef.current < BRANCH_LIVE_REFRESH_DEDUPE_MS) {
+      return branchNotificationsRequestRef.current || Promise.resolve([])
     }
+    branchNotificationsLastLoadedAtRef.current = now
 
-    const requestPromise = (async () => {
-      const controller = new AbortController()
-      const timeoutId = window.setTimeout(() => controller.abort(), BRANCH_NOTIFICATIONS_TIMEOUT_MS)
-      try {
-        const response = await request('/notifications?limit=100&page=1', {
-          method: 'GET',
-          signal: controller.signal,
-        })
-
-        const { data: responseData } = unwrapNotifications(response)
-
-        const storedNotifications = loadNotifications()
-        const storedById = new Map(
-          storedNotifications.map((notification) => [String(notification.id || '').trim(), notification]),
-        )
-        const storedAcceptedByRequestId = new Map(
-          storedNotifications
-            .filter((notification) => String(notification.requestStatus || '').trim().toLowerCase() === 'accepted')
-            .map((notification) => [String(notification.requestId || '').trim(), notification]),
-        )
-        const mergedNotifications = mergeNotificationsWithStoredState(responseData).map((notification) => {
-          const storedNotification = storedById.get(String(notification.id || '').trim())
-          const storedAcceptedNotification = storedAcceptedByRequestId.get(String(notification.requestId || '').trim())
-          const storedNotificationStatus = String(storedNotification?.requestStatus || '').trim().toLowerCase()
-          const storedAcceptedStatus = String(storedAcceptedNotification?.requestStatus || '').trim().toLowerCase()
-
-          if (storedNotificationStatus === 'accepted') {
-            return { ...notification, ...storedNotification }
-          }
-
-          if (storedAcceptedStatus === 'accepted') {
-            return { ...notification, ...storedAcceptedNotification }
-          }
-
-          return notification
-        })
-        const mergedIds = new Set(mergedNotifications.map((notification) => String(notification.id || '').trim()))
-        const preservedNotifications = storedNotifications.filter((notification) => !mergedIds.has(String(notification.id || '').trim()))
-        const nextNotifications = [...mergedNotifications, ...preservedNotifications]
-
-        setBranchNotificationRecords(nextNotifications)
-        saveNotifications(nextNotifications, { emit: false })
-        void loadApprovedDiscontinuationRequests()
-      } catch (error) {
-        if (error?.name !== 'AbortError' && error?.status !== 408) {
-          console.error('Failed to load branch notifications:', error)
-        }
-        const fallbackNotifications = mergeNotificationsWithStoredState(loadNotifications())
-        setBranchNotificationRecords(fallbackNotifications)
-      } finally {
-        window.clearTimeout(timeoutId)
-        branchNotificationsRequestRef.current = null
+    return shareRecentBranchDashboardRequest(requestKey, () => {
+      if (branchNotificationsRequestRef.current) {
+        return branchNotificationsRequestRef.current
       }
-    })()
 
-    branchNotificationsRequestRef.current = requestPromise
-    return requestPromise
-  }, [admissionOnlyMode, loadApprovedDiscontinuationRequests])
+      const requestPromise = (async () => {
+        const controller = new AbortController()
+        const timeoutId = window.setTimeout(() => controller.abort(), BRANCH_NOTIFICATIONS_TIMEOUT_MS)
+        try {
+          const response = await request('/notifications?limit=100&page=1', {
+            method: 'GET',
+            signal: controller.signal,
+          })
+
+          const { data: responseData } = unwrapNotifications(response)
+          const activeBranchScope = {
+            id: String(branchProfile?.id || branchData?.id || branchProfile?.branchId || branchData?.branchId || '').trim(),
+            branchId: String(branchProfile?.branchId || branchData?.branchId || branchProfile?.id || branchData?.id || '').trim(),
+            branchEmail: String(branchProfile?.branchEmail || branchData?.branchEmail || user?.email || '').trim().toLowerCase(),
+          }
+          const storedNotifications = loadNotifications()
+          const storedById = new Map(
+            storedNotifications.map((notification) => [String(notification.id || '').trim(), notification]),
+          )
+          const storedAcceptedByRequestId = new Map(
+            storedNotifications
+              .filter((notification) => String(notification.requestStatus || '').trim().toLowerCase() === 'accepted')
+              .map((notification) => [String(notification.requestId || '').trim(), notification]),
+          )
+          const mergedNotifications = mergeNotificationsWithStoredState(responseData).map((notification) => {
+            const storedNotification = storedById.get(String(notification.id || '').trim())
+            const storedAcceptedNotification = storedAcceptedByRequestId.get(String(notification.requestId || '').trim())
+            const storedNotificationStatus = String(storedNotification?.requestStatus || '').trim().toLowerCase()
+            const storedAcceptedStatus = String(storedAcceptedNotification?.requestStatus || '').trim().toLowerCase()
+
+            if (storedNotificationStatus === 'accepted') return { ...notification, ...storedNotification }
+            if (storedAcceptedStatus === 'accepted') return { ...notification, ...storedAcceptedNotification }
+            return notification
+          })
+          const mergedIds = new Set(mergedNotifications.map((notification) => String(notification.id || '').trim()))
+          const storedProgressNotifications = storedNotifications.filter(
+            (notification) =>
+              String(notification.kind || '').trim() === 'branch-progress-status' &&
+              doesBranchNotificationBelongToBranch(notification, activeBranchScope),
+          )
+          const preservedNotifications = storedNotifications.filter((notification) => {
+            const notificationId = String(notification.id || '').trim()
+            if (mergedIds.has(notificationId)) return false
+            if (String(notification.kind || '').trim() === 'branch-progress-status') {
+              return storedProgressNotifications.includes(notification)
+            }
+            return true
+          })
+          const nextNotifications = [...mergedNotifications, ...preservedNotifications]
+
+          setBranchNotificationRecords(nextNotifications)
+          saveNotifications(nextNotifications, { emit: false })
+          void loadApprovedDiscontinuationRequests()
+        } catch (error) {
+          branchNotificationsLastLoadedAtRef.current = 0
+          if (error?.name !== 'AbortError' && error?.status !== 408) {
+            console.error('Failed to load branch notifications:', error)
+          }
+          const activeBranchScope = {
+            id: String(branchProfile?.id || branchData?.id || branchProfile?.branchId || branchData?.branchId || '').trim(),
+            branchId: String(branchProfile?.branchId || branchData?.branchId || branchProfile?.id || branchData?.id || '').trim(),
+            branchEmail: String(branchProfile?.branchEmail || branchData?.branchEmail || user?.email || '').trim().toLowerCase(),
+          }
+          const fallbackNotifications = mergeNotificationsWithStoredState(loadNotifications()).filter((notification) => (
+            String(notification.kind || '').trim() !== 'branch-progress-status' ||
+            doesBranchNotificationBelongToBranch(notification, activeBranchScope)
+          ))
+          setBranchNotificationRecords(fallbackNotifications)
+        } finally {
+          window.clearTimeout(timeoutId)
+          branchNotificationsRequestRef.current = null
+        }
+      })()
+
+      branchNotificationsRequestRef.current = requestPromise
+      return requestPromise
+    })
+  }, [
+    admissionOnlyMode,
+    branchData?.branchEmail,
+    branchData?.branchId,
+    branchData?.id,
+    branchProfile?.branchEmail,
+    branchProfile?.branchId,
+    branchProfile?.id,
+    embeddedMode,
+    loadApprovedDiscontinuationRequests,
+    user?.email,
+    user?.id,
+  ])
 
   const loadFacultyTodayWorkEntries = useCallback(async () => {
     if (admissionOnlyMode) return []
@@ -5251,11 +5406,27 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
 
   useEffect(() => {
     const unsubscribe = subscribeNotifications(() => {
-      void loadBranchNotifications()
+      // Local progress notifications are already in browser storage. Refresh
+      // the local branch items here instead of re-fetching the full remote
+      // notification list for every local sync event.
+      const activeBranchScope = {
+        id: String(branchProfile?.id || branchData?.id || branchProfile?.branchId || branchData?.branchId || '').trim(),
+        branchId: String(branchProfile?.branchId || branchData?.branchId || branchProfile?.id || branchData?.id || '').trim(),
+        branchEmail: String(branchProfile?.branchEmail || user?.email || '').trim().toLowerCase(),
+      }
+      const localProgressNotifications = loadNotifications().filter(
+        (notification) =>
+          String(notification.kind || '').trim() === 'branch-progress-status' &&
+          doesBranchNotificationBelongToBranch(notification, activeBranchScope),
+      )
+      setBranchNotificationRecords((current) => [
+        ...current.filter((notification) => String(notification.kind || '').trim() !== 'branch-progress-status'),
+        ...localProgressNotifications,
+      ])
     })
 
     return unsubscribe
-  }, [loadBranchNotifications])
+  }, [branchData?.branchId, branchData?.id, branchProfile?.branchEmail, branchProfile?.branchId, branchProfile?.id, user?.email])
 
   useEffect(() => {
     const unsubscribe = subscribeBranchCourseSnapshot(() => {
@@ -5298,7 +5469,13 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
       }, 250)
     }
 
-    void loadBranchNotifications()
+    const initialScope = embeddedMode
+      ? String(branchData?.id || branchData?.branchId || branchProfile?.id || branchProfile?.branchId || '').trim().toLowerCase()
+      : String(user?.id || user?.email || '').trim().toLowerCase()
+    if (initialScope && branchNotificationsInitialScopeRef.current !== initialScope) {
+      branchNotificationsInitialScopeRef.current = initialScope
+      void loadBranchNotifications()
+    }
 
     const handleFocus = () => {
       scheduleNotificationRefresh()
@@ -5320,7 +5497,7 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
         branchNotificationsRefreshTimerRef.current = null
       }
     }
-  }, [loadBranchNotifications])
+  }, [branchData?.branchId, branchData?.id, branchProfile?.branchId, branchProfile?.id, embeddedMode, loadBranchNotifications, user?.email, user?.id])
 
   // The branch dashboard and notifications page share this component. When
   // navigation changes only the section, the component is not remounted, so
@@ -5655,9 +5832,9 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
     () => ({
       id: String(branchProfile?.id || branchProfile?.branchId || '').trim(),
       branchId: String(branchProfile?.branchId || branchProfile?.id || '').trim(),
-      branchEmail: String(branchProfile?.branchEmail || '').trim().toLowerCase(),
+      branchEmail: String(branchProfile?.branchEmail || user?.email || '').trim().toLowerCase(),
     }),
-    [branchProfile?.branchEmail, branchProfile?.branchId, branchProfile?.id],
+    [branchProfile?.branchEmail, branchProfile?.branchId, branchProfile?.id, user?.email],
   )
   const branchLocation = branchProfile?.branchAddress || 'Assigned location'
   const mustResetPassword = Boolean(
@@ -5790,6 +5967,33 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
       normalizedBranchNotifications,
     ],
   )
+  const branchNotificationPageSize = 10
+  const branchNotificationRows = useMemo(
+    () => branchNotificationSections.flatMap((section) => section.items.map((item) => ({
+      sectionLabel: section.label,
+      item,
+    }))),
+    [branchNotificationSections],
+  )
+  const branchNotificationTotalPages = Math.max(1, Math.ceil(branchNotificationRows.length / branchNotificationPageSize))
+  const safeBranchNotificationPage = Math.min(branchNotificationPage, branchNotificationTotalPages)
+  const paginatedBranchNotificationRows = useMemo(
+    () => branchNotificationRows.slice(
+      (safeBranchNotificationPage - 1) * branchNotificationPageSize,
+      safeBranchNotificationPage * branchNotificationPageSize,
+    ),
+    [branchNotificationRows, safeBranchNotificationPage],
+  )
+  const paginatedBranchNotificationSections = useMemo(() => {
+    const groups = new Map()
+    paginatedBranchNotificationRows.forEach(({ sectionLabel, item }) => {
+      if (!groups.has(sectionLabel)) groups.set(sectionLabel, [])
+      groups.get(sectionLabel).push(item)
+    })
+    return [...groups.entries()].map(([label, items]) => ({ label, items }))
+  }, [paginatedBranchNotificationRows])
+
+
   const branchNotificationMonthOptions = useMemo(() => {
     const currentMonth = new Date()
     const monthKeys = new Set([
@@ -5837,21 +6041,21 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
       .filter(Boolean)
     if (!unreadIds.length) return undefined
 
-    setBranchNotificationRecords((current) => current.map((item) => (
-      unreadIds.includes(item.id)
-        ? { ...item, read: true, dropdownViewed: true }
-        : item
-    )))
-    markNotificationsAsRead(unreadIds)
     void request('/notifications/mark-read', {
       method: 'PATCH',
       body: JSON.stringify({ notificationIds: unreadIds }),
+    }).then(() => {
+      const ids = new Set(unreadIds.map(String))
+      setBranchNotificationRecords((current) => current.map((item) => (
+        ids.has(String(item.id))
+          ? { ...item, read: true, dropdownViewed: true }
+          : item
+      )))
     }).catch((error) => {
       console.error('Failed to mark discontinuation notifications as read:', error)
     })
     return undefined
   }, [activeSection, normalizedBranchNotifications])
-
   const branchNotificationPreviewItems = useMemo(
     () => {
       const visibleItems = normalizedBranchNotifications.filter((item) => !item.dropdownViewed)
@@ -5880,34 +6084,50 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
   }
 
   const openBranchNotifications = async () => {
-    markNotificationsAsDropdownViewed()
+    const localProgressIds = branchNotificationItems
+      .filter((item) => String(item.kind || '').trim() === 'branch-progress-status')
+      .map((item) => item.id)
+      .filter(Boolean)
+    if (localProgressIds.length) markNotificationsAsDropdownViewed(localProgressIds)
     setIsNotificationMenuOpen(false)
     goToBranchSection('notifications')
     void loadBranchNotifications()
   }
-
   const openBranchNotificationTarget = async (notification) => {
-    if (notification?.id) {
-      markNotificationsAsDropdownViewed([notification.id])
-      markNotificationsAsRead([notification.id])
+    const notificationId = String(notification?.id || '')
+    const notificationKind = String(notification?.kind || '').trim()
+    const isLocalProgressNotification = notificationKind === 'branch-progress-status'
+
+    if (notificationId && isLocalProgressNotification) {
+      markNotificationsAsDropdownViewed([notificationId])
+      markNotificationsAsRead([notificationId])
       setBranchNotificationRecords((current) =>
         current.map((item) =>
-          String(item.id) === String(notification.id)
+          String(item.id) === notificationId
             ? { ...item, read: true, dropdownViewed: true }
             : item,
         ),
       )
-
-      void request('/notifications/mark-read', {
-        method: 'PATCH',
-        body: JSON.stringify({ notificationIds: [notification.id] }),
-      }).catch((error) => {
+    } else if (notificationId) {
+      try {
+        await request('/notifications/mark-read', {
+          method: 'PATCH',
+          body: JSON.stringify({ notificationIds: [notificationId] }),
+        })
+        setBranchNotificationRecords((current) =>
+          current.map((item) =>
+            String(item.id) === notificationId
+              ? { ...item, read: true, dropdownViewed: true }
+              : item,
+          ),
+        )
+      } catch (error) {
         console.error('Failed to sync branch notification read state:', error)
-      })
+      }
     }
+
     setIsNotificationMenuOpen(false)
     const requestDescription = String(notification?.requestDescription || '').trim()
-    const notificationKind = String(notification?.kind || '').trim()
     if (notificationKind === 'sales-crm-admission' || requestDescription.startsWith('BRANCH_STUDENT:')) {
       const studentKey = requestDescription.replace(/^BRANCH_STUDENT:/, '').trim().toLowerCase()
       goToBranchSection('students')
@@ -5923,14 +6143,13 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
       goToBranchSection('discontinuations')
       return
     }
-    if (String(notification?.kind || '').trim() === 'faculty-leave-request') {
+    if (notificationKind === 'faculty-leave-request') {
       goToBranchSection('faculty-leave')
       window.setTimeout(() => window.dispatchEvent(new Event('open-faculty-leave-requests')), 0)
       return
     }
     goToBranchSection('notifications')
   }
-
   const reviewStudentDiscontinuationNotification = async (notification, decision) => {
     setDiscontinuationReview(notification)
     setDiscontinuationOutcome(decision === 'REJECT' ? 'REJECT' : 'DISCONTINUE')
@@ -5973,7 +6192,10 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
         }),
       })
       setDiscontinuationReview(null)
-      await loadBranchNotifications()
+      await Promise.allSettled([
+        loadApprovedDiscontinuationRequests({ force: true }),
+        loadBranchNotifications({ force: true }),
+      ])
     } catch (error) {
       console.error('Failed to review student discontinuation request:', error)
     } finally {
@@ -6127,30 +6349,48 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
   }
 
   const markAllBranchNotificationsAsRead = async () => {
-    const unreadIds = branchNotificationItems
-      .filter((item) => item.unread)
+    const unreadItems = branchNotificationItems.filter((item) => item.unread)
+    const localProgressIds = unreadItems
+      .filter((item) => String(item.kind || '').trim() === 'branch-progress-status')
       .map((item) => item.id)
+      .filter(Boolean)
+    const persistedIds = unreadItems
+      .filter((item) => String(item.kind || '').trim() !== 'branch-progress-status')
+      .map((item) => item.id)
+      .filter(Boolean)
 
-    markNotificationsAsRead(unreadIds.length ? unreadIds : null)
-    setBranchNotificationRecords((current) =>
-      current.map((item) => ({
-        ...item,
-        read: true,
-        dropdownViewed: true,
-      })),
-    )
+    if (localProgressIds.length) {
+      const ids = new Set(localProgressIds.map(String))
+      markNotificationsAsRead(localProgressIds)
+      setBranchNotificationRecords((current) =>
+        current.map((item) =>
+          ids.has(String(item.id))
+            ? { ...item, read: true, dropdownViewed: true }
+            : item,
+        ),
+      )
+    }
     setIsNotificationMenuOpen(false)
 
+    if (!persistedIds.length) return
     try {
       await request('/notifications/mark-read', {
         method: 'PATCH',
-        body: JSON.stringify({ notificationIds: unreadIds }),
+        body: JSON.stringify({ notificationIds: persistedIds }),
       })
+      const ids = new Set(persistedIds.map(String))
+      setBranchNotificationRecords((current) =>
+        current.map((item) =>
+          ids.has(String(item.id))
+            ? { ...item, read: true, dropdownViewed: true }
+            : item,
+        ),
+      )
     } catch (error) {
       console.error('Failed to sync branch notification mark-all state:', error)
+      void loadBranchNotifications()
     }
   }
-
   const latestBranchCourseCode = useMemo(() => {
     const latestCourse = [...branchCourseCards]
       .filter((course) => String(course?.courseCode || '').trim())
@@ -7742,6 +7982,7 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
   const isPaymentSummaryLoading = isBranchStudentsLoading
     || loadedBranchStudentScopeKey !== branchStudentScopeKey
     || (!branchStudentScope.id && !branchStudentScope.branchCode)
+  const isBranchDashboardOverviewLoading = isDashboardRefreshing || isPaymentSummaryLoading || isBranchCoursesLoading || isBranchBatchesLoading
   const storedPaymentHistoryRecords = useMemo(() => {
     const scopedRecords = loadBranchPaymentHistoryEntries(branchStudentScope)
     if (scopedRecords.length > 0) {
@@ -7776,7 +8017,7 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
 
     setIsBranchStudentsLoading(true)
     try {
-      const freshRecords = await refreshBranchStudents(branchStudentScope)
+      const freshRecords = await refreshBranchStudents(branchStudentScope, { includeProgress: false })
       if (requestId === branchStudentReloadRequestRef.current) {
         setBranchStudents(freshRecords)
       }
@@ -7806,7 +8047,7 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
 
       await Promise.allSettled([
         reloadBranchStudents(),
-        loadApprovedDiscontinuationRequests(),
+        loadApprovedDiscontinuationRequests({ force: true }),
         loadBranchCourses(),
         loadBranchBatches(scopeId),
         loadFacultyList(),
@@ -9833,6 +10074,20 @@ useEffect(() => {
   }, [filteredBranchStudents, isCourseCompletedFilter, safeStudentPage])
 
   useEffect(() => {
+    // Academic completion reports are expensive: the backend loads both the
+    // academic and syllabus report for every requested student. They are only
+    // needed by the Completed Students view (or the explicit Course Completed
+    // filter), so keep them out of the initial dashboard load.
+    const shouldLoadAcademicProgress =
+      activeSection === 'completed-students'
+      || (activeSection === 'students' && isCourseCompletedFilter)
+
+    if (!shouldLoadAcademicProgress) {
+      setBranchAcademicProgressByStudent(new Map())
+      setIsBranchAcademicProgressLoaded(true)
+      return undefined
+    }
+
     if (!branchStudentsForDisplay.length) {
       setBranchAcademicProgressByStudent(new Map())
       setIsBranchAcademicProgressLoaded(true)
@@ -9876,46 +10131,60 @@ useEffect(() => {
       return undefined
     }
 
-    Promise.allSettled(
-      reportCandidates.map(async (student) => {
-        const studentId = String(student?.studentId || student?.id || '').trim()
-        if (!studentId) return null
-        const [academicResult, syllabusResult] = await Promise.allSettled([
-          getBranchStudentAcademicReports(studentId, branchIdForReports),
-          getBranchStudentSyllabusReports(studentId, branchIdForReports),
-        ])
-        const academicResponse = academicResult.status === 'fulfilled' ? academicResult.value : {}
-        const syllabusResponse = syllabusResult.status === 'fulfilled' ? syllabusResult.value : {}
-        const academicPayload = academicResponse?.data || academicResponse || {}
-        const syllabusPayload = syllabusResponse?.data || syllabusResponse || {}
-        const syllabusEvaluations = (Array.isArray(syllabusPayload.items) ? syllabusPayload.items : []).map((item) => ({
-          ...item,
-          evaluationId: item.evaluationId || item.id,
-          courseId: item.courseId || null,
-          status: item.status || 'SUBMITTED',
-        }))
-        const mergedResponse = {
-          ...academicPayload,
-          evaluations: [
-            ...(Array.isArray(academicPayload.evaluations) ? academicPayload.evaluations : []),
-            ...syllabusEvaluations,
-          ],
-        }
-        return [studentId.toLowerCase(), getAcademicProgressIndex(mergedResponse)]
-      }),
-    ).then((results) => {
-      if (!active) return
-      const next = new Map()
-      results.forEach((result) => {
-        if (result.status !== 'fulfilled' || !result.value) return
-        next.set(result.value[0], result.value[1])
+    const requestedStudentIds = reportCandidates
+      .map((student) => String(student?.studentId || student?.id || "").trim())
+      .filter(Boolean)
+
+    getBranchStudentReportCompletionSummaries(requestedStudentIds, branchIdForReports)
+      .then((reportSummaries) => {
+        if (!active) return
+        const reportsByStudent = new Map()
+        reportSummaries.forEach((summary) => {
+          const normalizedStudentId = String(summary?.studentId || "").trim().toLowerCase()
+          if (!normalizedStudentId) return
+          reportsByStudent.set(normalizedStudentId, summary)
+          const recordId = String(summary?.recordId || "").trim().toLowerCase()
+          if (recordId) reportsByStudent.set(recordId, summary)
+        })
+
+        const next = new Map()
+        reportCandidates.forEach((student) => {
+          const studentId = String(student?.studentId || student?.id || "").trim()
+          if (!studentId) return
+          const summary = reportsByStudent.get(studentId.toLowerCase())
+          if (!summary) return
+
+          const academicResponse = summary.academicReport || {}
+          const syllabusResponse = summary.syllabusReport || {}
+          const academicPayload = academicResponse?.data || academicResponse
+          const syllabusPayload = syllabusResponse?.data || syllabusResponse
+          const syllabusEvaluations = (Array.isArray(syllabusPayload?.items) ? syllabusPayload.items : []).map((item) => ({
+            ...item,
+            evaluationId: item.evaluationId || item.id,
+            courseId: item.courseId || null,
+            status: item.status || "SUBMITTED",
+          }))
+          const mergedResponse = {
+            ...academicPayload,
+            evaluations: [
+              ...(Array.isArray(academicPayload?.evaluations) ? academicPayload.evaluations : []),
+              ...syllabusEvaluations,
+            ],
+          }
+          next.set(studentId.toLowerCase(), getAcademicProgressIndex(mergedResponse))
+        })
+
+        setBranchAcademicProgressByStudent(next)
+        setIsBranchAcademicProgressLoaded(true)
       })
-      setBranchAcademicProgressByStudent(next)
-      setIsBranchAcademicProgressLoaded(true)
-    })
+      .catch(() => {
+        if (!active) return
+        setBranchAcademicProgressByStudent(new Map())
+        setIsBranchAcademicProgressLoaded(true)
+      })
 
     return () => { active = false }
-  }, [branchCourseCards, branchStudentScope.branchCode, branchStudentScope.id, branchStudentsForDisplay, facultyTodayWorkEntries])
+  }, [activeSection, branchCourseCards, branchStudentScope.branchCode, branchStudentScope.id, branchStudentsForDisplay, facultyTodayWorkEntries, isCourseCompletedFilter])
 
   const branchStudentCourseProgressByKey = useMemo(() => {
     const progressByStudentKey = new Map()
@@ -11617,7 +11886,7 @@ useEffect(() => {
                     ].sort((left, right) => { const leftWidget = dashboardWidgets.find((widget) => widget.widgetKey === dashboardWidgetKeyByLabel[left.label]); const rightWidget = dashboardWidgets.find((widget) => widget.widgetKey === dashboardWidgetKeyByLabel[right.label]); return Number(rightWidget?.isPinned === true) - Number(leftWidget?.isPinned === true) || Number(leftWidget?.displayOrder || 0) - Number(rightWidget?.displayOrder || 0) }).filter(({ label }) => isDashboardWidgetVisible(label)).map(({ label, value, note, Icon, TrailIcon, tone, onClick }) => (
                       <article
                         key={label}
-                        className={`branch-dashboard-stat-card tone-${tone}${onClick ? ' is-clickable' : ''}${label === 'This Month Admissions' ? ' is-admissions-card' : ''}`}
+                        className={`branch-dashboard-stat-card tone-${tone}${onClick ? ' is-clickable' : ''}${label === 'This Month Admissions' ? ' is-admissions-card' : ''}${isBranchDashboardOverviewLoading ? ' is-loading' : ''}`} aria-busy={isBranchDashboardOverviewLoading}
                         onClick={onClick}
                         role={onClick ? 'button' : undefined}
                         tabIndex={onClick ? 0 : undefined}
@@ -11628,9 +11897,9 @@ useEffect(() => {
                         </div>
                         <div className="branch-dashboard-stat-card-copy">
                           <span>{label}</span>
-                          <strong>{value}</strong>
+                          <strong>{isBranchDashboardOverviewLoading ? <span className="sa-metric-skeleton-value branch-dashboard-metric-skeleton-value" aria-hidden="true" /> : value}</strong>
                           <div className={`branch-dashboard-stat-card-footer${label === 'Outstanding' && discontinuedFinancialSummary.totalNotCollectible > 0 ? ' has-reduction' : ''}`}>
-                            {label === 'Outstanding' && discontinuedFinancialSummary.totalNotCollectible > 0 ? <>
+                            {isBranchDashboardOverviewLoading ? <span className="sa-metric-skeleton-meta branch-dashboard-metric-skeleton-note" aria-hidden="true" /> : label === 'Outstanding' && discontinuedFinancialSummary.totalNotCollectible > 0 ? <>
                               <small className="branch-dashboard-stat-card-reduction" tabIndex="0" data-tooltip={discontinuedFinancialSummary.reductionDetails} aria-label={discontinuedFinancialSummary.reductionDetails}><ArrowDownRight size={15} strokeWidth={2.5} />{formatBranchRupees(discontinuedFinancialSummary.totalNotCollectible)}</small>
                             </> : <small aria-label={note}>{note}</small>}
                           </div>
@@ -11649,7 +11918,7 @@ useEffect(() => {
                       <CalendarClock className="batch-availability-heading-icon" size={46} strokeWidth={1.8} aria-hidden="true" />
                       <div><span>Batch Availability Overview</span><h2>Batches ending within the next 4 days</h2></div>
                     </div>
-                    {availableBatchRecords.length ? <div className="batch-availability-chart">
+                    {isBranchDashboardOverviewLoading ? <div className="branch-dashboard-batch-skeleton" role="status" aria-label="Loading batch availability">{[1, 2, 3].map((row) => <div className="branch-dashboard-batch-skeleton-row" key={row}><span /><i /><b /><em /></div>)}</div> : availableBatchRecords.length ? <div className="batch-availability-chart">
                       {availableBatchRecords.map((batch) => <div className="batch-availability-chart-row" key={`${batch.batchId}-${batch.courseEndDate}`}>
                         <div className="batch-availability-chart-label"><strong>{batch.courseName || 'Course'}</strong><small>({batch.batchId})</small></div>
                         <div className="batch-availability-chart-track"><span className={`tone-${batch.tone}`} style={{ width: `${batch.remainingDays === 0 ? 4 : Math.max(8, (batch.remainingDays / 4) * 100)}%` }} /></div>
@@ -11670,7 +11939,7 @@ useEffect(() => {
                       <Flame className="trending-courses-heading-icon" size={28} strokeWidth={2.2} aria-hidden="true" />
                       <div><span>Trending Courses</span><h2>Top 3 courses based on student admissions</h2></div>
                     </div>
-                    {trendingCourses.length ? <div className="trending-courses-list">
+                    {isBranchDashboardOverviewLoading ? <div className="trending-courses-list" role="status" aria-label="Loading trending courses">{[1, 2, 3].map((row) => <article className="trending-course-card branch-dashboard-trending-skeleton" key={row}><span className="branch-dashboard-trending-skeleton-rank" /><div className="trending-course-copy"><strong /><span /></div></article>)}</div> : trendingCourses.length ? <div className="trending-courses-list">
                       {trendingCourses.map((course) => <article className={`trending-course-card rank-${course.rank}`} key={course.courseId}>
                         <span className="trending-course-rank">#{course.rank}</span>
                         <div className="trending-course-copy"><strong>{course.courseName}</strong><span><b>{course.totalAdmissions}</b> Admissions</span></div>
@@ -11691,15 +11960,15 @@ useEffect(() => {
                       </div>
                       <div className="branch-dashboard-admission-target-column is-expected">
                         <strong>Expected</strong>
-                        <b>{nextMonthExpectedAdmissions}</b>
+                        <b>{isBranchDashboardOverviewLoading ? <span className="branch-dashboard-target-value-skeleton" aria-hidden="true" /> : nextMonthExpectedAdmissions}</b>
                         <small>Students</small>
-                        <b>{formatBranchRupees(Math.round(nextMonthExpectedValue))}</b>
+                        <b>{isBranchDashboardOverviewLoading ? <span className="branch-dashboard-target-value-skeleton is-wide" aria-hidden="true" /> : formatBranchRupees(Math.round(nextMonthExpectedValue))}</b>
                       </div>
                       <div className="branch-dashboard-admission-target-column is-target">
                         <strong>Target</strong>
-                        <b>{nextMonthTargetAdmissions}</b>
+                        <b>{isBranchDashboardOverviewLoading ? <span className="branch-dashboard-target-value-skeleton" aria-hidden="true" /> : nextMonthTargetAdmissions}</b>
                         <small>Students</small>
-                        <b>{formatBranchRupees(Math.round(nextMonthTargetValue))}</b>
+                        <b>{isBranchDashboardOverviewLoading ? <span className="branch-dashboard-target-value-skeleton is-wide" aria-hidden="true" /> : formatBranchRupees(Math.round(nextMonthTargetValue))}</b>
                       </div>
                     </div>
                   </section>
@@ -11715,37 +11984,43 @@ useEffect(() => {
                   <div className="branch-dashboard-analytics-grid">
                     <section className="branch-dashboard-analytics-card dashboard-collection-trend-card">
                       <div className="branch-dashboard-analytics-heading"><div><span>Collection Trend</span><h2>Payment collections</h2></div><select className="dashboard-trend-select" value={dashboardTrendMode} onChange={(event) => setDashboardTrendMode(event.target.value)} aria-label="Collection trend period"><option value="daily">Daily</option><option value="weekly">Weekly</option><option value="monthly">Monthly</option></select></div>
-                      <div className="dashboard-trend-chart-shell">
+                      <div className="dashboard-trend-chart-shell" aria-busy={isBranchDashboardOverviewLoading}>
+                        {isBranchDashboardOverviewLoading ? <div className="branch-dashboard-chart-skeleton" role="status" aria-label="Loading collection trend">{[18, 34, 56, 42, 70, 48, 62].map((height, index) => <span style={{ height: `${height}%` }} key={index} />)}</div> : <>
                         <div className="dashboard-trend-y-axis" aria-hidden="true"><span>{formatBranchRupees(dashboardData.trendMax)}</span><span>₹0</span></div>
                         <div className="dashboard-trend-chart" aria-label={`${dashboardTrendMode} collection trend chart`}>
                           {dashboardData.trend.map((item) => <div className="dashboard-trend-column" key={`${item.label}-${item.value}`} data-tooltip-label={item.label} data-tooltip-amount={formatBranchRupees(item.value)}><span style={{ height: `${dashboardData.trendMax ? Math.max(3, (item.value / dashboardData.trendMax) * 100) : 3}%` }} /><small>{item.label}</small></div>)}
                         </div>
+                        </>}
                       </div>
                     </section>
                     <section className="branch-dashboard-analytics-card dashboard-fee-status-card">
                       <div className="branch-dashboard-analytics-heading"><div><span>Fee Status</span><h2>Collection breakdown</h2></div></div>
-                      <FeeStatusDonut values={[
+                      {isBranchDashboardOverviewLoading ? <BranchDashboardFeeStatusSkeleton /> : <FeeStatusDonut values={[
                         ['Collected', dashboardData.statusValues[0], 'is-collected'],
                         ['Outstanding', dashboardData.statusValues[1], 'is-pending'],
                         ['Overdue', dashboardData.statusValues[2], 'is-overdue'],
                         ['Target', dashboardData.totalFee, 'is-target'],
-                      ]} />
+                      ]} />}
                     </section>
                   </div>
 
                   <div className="branch-dashboard-dashboard-table-grid">
                     <section className="branch-dashboard-analytics-card dashboard-list-card dashboard-reference-payment-card">
                       <div className="branch-dashboard-analytics-heading"><div><span>Recent Payments</span><h2>Latest collections</h2></div><button type="button" onClick={() => goToBranchSection('payments')}>View all</button></div>
-                      <div className="dashboard-mini-table">
-                        {dashboardData.payments.slice(0, 5).map((payment, index) => <div className="dashboard-payment-row" key={`reference-${payment.id}`}><span className={`dashboard-row-avatar avatar-tone-${index % 4}`}>{String(payment.studentName || '?').trim().charAt(0).toUpperCase()}</span><div className="dashboard-row-copy"><strong>{payment.studentName}</strong><small>{payment.course} · {payment.payAgainst || 'Payment'}</small></div><div className="dashboard-row-amount"><b>{formatBranchRupees(payment.amount)}</b><small>{getDashboardPaymentMoment(payment.dateRaw || payment.paymentDate)}</small></div></div>)}
-                        {!dashboardData.payments.length ? <p className="dashboard-empty-state">No payments found for the selected filters.</p> : null}
+                      <div className="dashboard-mini-table" aria-busy={isBranchDashboardOverviewLoading}>
+                        {isBranchDashboardOverviewLoading ? <BranchDashboardMiniListSkeleton label="Loading recent payments" /> : <>
+                          {dashboardData.payments.slice(0, 5).map((payment, index) => <div className="dashboard-payment-row" key={`reference-${payment.id}`}><span className={`dashboard-row-avatar avatar-tone-${index % 4}`}>{String(payment.studentName || '?').trim().charAt(0).toUpperCase()}</span><div className="dashboard-row-copy"><strong>{payment.studentName}</strong><small>{payment.course} · {payment.payAgainst || 'Payment'}</small></div><div className="dashboard-row-amount"><b>{formatBranchRupees(payment.amount)}</b><small>{getDashboardPaymentMoment(payment.dateRaw || payment.paymentDate)}</small></div></div>)}
+                          {!dashboardData.payments.length ? <p className="dashboard-empty-state">No payments found for the selected filters.</p> : null}
+                        </>}
                       </div>
                     </section>
                     <section className="branch-dashboard-analytics-card dashboard-list-card dashboard-reference-due-card">
                       <div className="branch-dashboard-analytics-heading"><div><span>Attention Needed</span><h2>Upcoming and overdue dues</h2></div><button type="button" onClick={() => goToBranchSection('students')}>Open list</button></div>
-                      <div className="dashboard-mini-table">
-                        {[...dashboardData.dueToday, ...dashboardData.dueSoon, ...dashboardData.overdue].slice(0, 5).map((item) => { const dueMeta = getDashboardDueMeta(item.dueDate); return <div className="dashboard-due-row" key={`reference-${item.student.id}-${item.installmentNumber}-${item.dueDate}`}><div className="dashboard-row-copy"><strong>{item.student.studentName}</strong><small>{item.dueDate} · Installment {item.installmentNumber || '-'}</small></div><div className="dashboard-row-amount"><b>{formatBranchRupees(Math.max(item.amount - item.paidAmount, 0))}</b><span className={`dashboard-due-badge is-${dueMeta.tone}`}>{dueMeta.label}</span></div></div> })}
-                        {!dashboardData.dueToday.length && !dashboardData.dueSoon.length && !dashboardData.overdue.length ? <p className="dashboard-empty-state">No urgent dues found.</p> : null}
+                      <div className="dashboard-mini-table" aria-busy={isBranchDashboardOverviewLoading}>
+                        {isBranchDashboardOverviewLoading ? <BranchDashboardMiniListSkeleton label="Loading urgent dues" /> : <>
+                          {[...dashboardData.dueToday, ...dashboardData.dueSoon, ...dashboardData.overdue].slice(0, 5).map((item) => { const dueMeta = getDashboardDueMeta(item.dueDate); return <div className="dashboard-due-row" key={`reference-${item.student.id}-${item.installmentNumber}-${item.dueDate}`}><div className="dashboard-row-copy"><strong>{item.student.studentName}</strong><small>{item.dueDate} · Installment {item.installmentNumber || '-'}</small></div><div className="dashboard-row-amount"><b>{formatBranchRupees(Math.max(item.amount - item.paidAmount, 0))}</b><span className={`dashboard-due-badge is-${dueMeta.tone}`}>{dueMeta.label}</span></div></div> })}
+                          {!dashboardData.dueToday.length && !dashboardData.dueSoon.length && !dashboardData.overdue.length ? <p className="dashboard-empty-state">No urgent dues found.</p> : null}
+                        </>}
                       </div>
                       {/* {dashboardData.overdue.length ? <button type="button" className="dashboard-overdue-link" onClick={() => { setPaymentStatusFilter('overdue'); goToBranchSection('payments') }}>View all overdue <span>›</span></button> : null} */}
                     </section>
@@ -11797,7 +12072,7 @@ useEffect(() => {
                       <input
                         type="search"
                         value={branchNotificationSearch}
-                        onChange={(event) => setBranchNotificationSearch(event.target.value)}
+                        onChange={(event) => { setBranchNotificationPage(1); setBranchNotificationSearch(event.target.value) }}
                         placeholder="Search notifications"
                         aria-label="Search notifications"
                       />
@@ -11807,7 +12082,7 @@ useEffect(() => {
                       <CalendarDays size={19} strokeWidth={2.1} aria-hidden="true" focusable="false" />
                       <select
                         value={branchNotificationMonthFilter}
-                        onChange={(event) => setBranchNotificationMonthFilter(event.target.value)}
+                        onChange={(event) => { setBranchNotificationPage(1); setBranchNotificationMonthFilter(event.target.value) }}
                         aria-label="Filter notifications by date or month"
                       >
                         <option value="all">All dates</option>
@@ -11825,7 +12100,7 @@ useEffect(() => {
                       <span className="branch-notifications-status-dot" aria-hidden="true" />
                       <select
                         value={branchNotificationStatusFilter}
-                        onChange={(event) => setBranchNotificationStatusFilter(event.target.value)}
+                        onChange={(event) => { setBranchNotificationPage(1); setBranchNotificationStatusFilter(event.target.value) }}
                         aria-label="Filter notifications by status"
                       >
                         <option value="all">All status</option>
@@ -11837,8 +12112,8 @@ useEffect(() => {
                   </div>
 
                   <div className="notifications-feed">
-                    {branchNotificationSections.length ? (
-                      branchNotificationSections.map((section) => (
+                    {paginatedBranchNotificationSections.length ? (
+                      paginatedBranchNotificationSections.map((section) => (
                         <BranchNotificationGroup
                           key={section.label}
                           label={section.label}
@@ -11863,6 +12138,19 @@ useEffect(() => {
                       </div>
                     )}
                   </div>
+                  {branchNotificationRows.length > branchNotificationPageSize ? (
+                    <PaginationBar
+                      className="notifications-page-pagination"
+                      currentPage={safeBranchNotificationPage}
+                      totalPages={branchNotificationTotalPages}
+                      onPageChange={setBranchNotificationPage}
+                      label="Notification pagination"
+                      previousLabel="Previous"
+                      nextLabel="Next"
+                      visiblePageCount={2}
+                      summaryText={['Showing', (safeBranchNotificationPage - 1) * branchNotificationPageSize + 1, '–', Math.min(safeBranchNotificationPage * branchNotificationPageSize, branchNotificationRows.length), 'of', branchNotificationRows.length].join(' ')}
+                    />
+                  ) : null}
                 </section>
               ) : null}
 
@@ -12920,7 +13208,7 @@ else {
                         Prev
                       </button>
                       <div className="branch-course-pagination-pages" role="navigation" aria-label="Student pagination">
-                        {Array.from({ length: totalStudentPages }, (_, i) => i + 1).map((pg) => (
+                        {getPageNumberWindow(totalStudentPages, safeStudentPage, 2).map((pg) => (
                           <button
                             key={pg}
                             type="button"
@@ -13293,7 +13581,7 @@ else {
                       </button>
 
                       <div className="branch-course-pagination-pages" role="navigation" aria-label="Course pagination">
-                        {Array.from({ length: totalBranchCoursePages }, (_, index) => index + 1).map((page) => (
+                        {getPageNumberWindow(totalBranchCoursePages, safeBranchCoursePage, 2).map((page) => (
                           <button
                             key={page}
                             type="button"
@@ -13728,10 +14016,7 @@ else {
             </button>
 
             <div className="branch-course-pagination-pages">
-              {Array.from(
-                { length: totalPaymentHistoryPages },
-                (_, index) => index + 1
-              ).map((page) => (
+              {getPageNumberWindow(totalPaymentHistoryPages, safePaymentHistoryPage, 2).map((page) => (
                 <button
                   key={page}
                   type="button"
@@ -14729,12 +15014,7 @@ else {
             aria-label="Payment pagination"
           >
 
-            {Array.from(
-              {
-                length: totalPaymentPages,
-              },
-              (_, i) => i + 1
-            ).map((pg) => (
+            {getPageNumberWindow(totalPaymentPages, safePaymentPage, 2).map((pg) => (
 
               <button
                 key={pg}
@@ -16228,7 +16508,7 @@ else {
                       </button>
 
                       <div className="assign-faculty-v2-page-dots">
-                        {Array.from({ length: totalFacultyPages }, (_, i) => i + 1).map((page) => (
+                        {getPageNumberWindow(totalFacultyPages, safeAssignPage, 2).map((page) => (
                           <button
                             key={page}
                             type="button"

@@ -2880,6 +2880,7 @@ export function StudentManagementPage() {
             totalPages={totalPages}
             onPageChange={setCurrentPage}
             label="Student pagination"
+            visiblePageCount={role === 'branch-admin' ? 2 : 7}
           />
         ) : null}
 

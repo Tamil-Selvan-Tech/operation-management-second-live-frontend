@@ -21,6 +21,7 @@ import {
 } from '../services/branchFacultyService'
 import { getBranchFacultyAttendanceStatus } from '../services/attendanceService'
 import { getMatchingStudents } from '../lib/facultyFlow'
+import { getPageNumberWindow } from '../components/PaginationBar'
 
 // Prefix constant for Faculty ID
 const FACULTY_ID_PREFIX = 'FC-'
@@ -1202,7 +1203,7 @@ export function BranchFacultyPage({ branchCode = '', branchId = '', branchBatchG
         </button>
 
         <div className="branch-course-pagination-pages">
-          {Array.from({ length: totalPages }, (_, index) => index + 1).map((page) => (
+          {getPageNumberWindow(totalPages, safeCurrentPage, 2).map((page) => (
             <button
               key={page}
               type="button"

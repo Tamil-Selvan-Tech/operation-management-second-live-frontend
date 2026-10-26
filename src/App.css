@@ -28183,3 +28183,99 @@ canvas {
     grid-template-columns: 1fr;
   }
 }
+
+/* Shared, compact pagination for full notification feeds. */
+.notifications-page-pagination.pagination-bar {
+  box-sizing: border-box;
+  width: fit-content;
+  max-width: 100%;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 8px;
+  margin: 18px 0 0 auto;
+  padding: 16px 0 0;
+  border-top: 1px solid #e5edf6;
+  background: transparent;
+}
+
+.notifications-page-pagination .pagination-bar-summary {
+  order: 1;
+  min-width: 0;
+  margin-right: auto;
+  color: #64748b;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.notifications-page-pagination .pagination-bar-button:first-child {
+  order: 2;
+}
+
+.notifications-page-pagination .pagination-bar-pages {
+  order: 3;
+  gap: 6px;
+}
+
+.notifications-page-pagination .pagination-bar-button:nth-of-type(2) {
+  order: 4;
+}
+
+.notifications-page-pagination .pagination-bar-button {
+  min-height: 38px;
+  padding: 0 12px;
+  border-color: #d7e3f1;
+  border-radius: 10px;
+  color: #2456d3;
+  font-size: 13px;
+  box-shadow: none;
+}
+
+.notifications-page-pagination .pagination-bar-page {
+  min-width: 36px;
+  height: 36px;
+  padding: 0 10px;
+  border-radius: 10px;
+  font-size: 13px;
+}
+
+@media (max-width: 640px) {
+  .notifications-page-pagination.pagination-bar {
+    width: fit-content;
+    max-width: 100%;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-left: auto;
+  }
+
+  .notifications-page-pagination .pagination-bar-summary {
+    order: 1;
+    flex: 0 1 auto;
+    margin: 0 0 4px auto;
+    text-align: right;
+  }
+
+  .notifications-page-pagination .pagination-bar-button:first-child {
+    order: 2;
+  }
+
+  .notifications-page-pagination .pagination-bar-pages {
+    order: 3;
+    gap: 4px;
+  }
+
+  .notifications-page-pagination .pagination-bar-button:nth-of-type(2) {
+    order: 4;
+  }
+
+  .notifications-page-pagination .pagination-bar-button {
+    min-height: 36px;
+    padding: 0 9px;
+  }
+
+  .notifications-page-pagination .pagination-bar-page {
+    min-width: 32px;
+    height: 34px;
+    padding: 0 8px;
+  }
+}
