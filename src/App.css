@@ -10431,6 +10431,7 @@ td .faculty-my-batches-empty {
   color: #475569;
   font-size: 0.9rem;
   line-height: 1.45;
+  white-space: pre-line;
 }
 
 .notifications-item-meta {
@@ -27641,6 +27642,7 @@ canvas {
 .student-form-grid-tight .student-course-step-start-date { order: 6; }
 .student-form-grid-tight .student-course-step-end-date { order: 7; }
 .student-form-grid-tight .student-course-step-amount { order: 8; }
+.student-form-grid-tight .student-course-step-lead-payment { order: 8.5; }
 .student-form-grid-tight .student-course-step-discount { order: 11; }
 .student-form-grid-tight .student-course-step-discount-value { order: 12; }
 .student-form-grid-tight .student-course-step-final-amount { order: 13; }

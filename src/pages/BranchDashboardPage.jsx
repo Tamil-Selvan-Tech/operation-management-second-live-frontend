@@ -1049,7 +1049,7 @@ function applyAdmissionLeadToStudentForm(baseForm, lead) {
     courseMode: /ONLINE/i.test(lead.courseMode || lead.trainingMode || '') ? 'Online' : /OFFLINE/i.test(lead.courseMode || lead.trainingMode || '') ? 'Offline' : '',
     classSchedule: /WEEKEND/i.test(lead.classSchedule || '') ? 'Weekend' : /WEEKDAY/i.test(lead.classSchedule || '') ? 'Weekday' : '',
     source: lead.leadSource || '',
-    remarks: `Source Lead: ${lead.leadId || ''}`,
+    remarks: '',
     admissionDate: getTodayValue(),
     courseStartDate: getTodayValue(),
   }
@@ -5678,6 +5678,7 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
               String(notification.kind || '').startsWith('branch-') ||
               String(notification.kind || '').startsWith('faculty-') ||
               String(notification.kind || '').startsWith('course-edit-') ||
+              String(notification.kind || '').trim() === 'sales-crm-admission' ||
               (String(notification.kind || '') === 'sequential-course-scheduling-required' ||
                 String(notification.kind || '').startsWith('student-'))
             ),
@@ -7886,7 +7887,15 @@ const studentCourseOptions = useMemo(() => {
     [selectedStudentCourse, studentForm.courseAmount],
   )
 
-  const selectedStudentFinalAmount = useMemo(() => {
+  const leadPaymentCreditAmount = useMemo(() => {
+    if (!admissionOnlyMode) return 0
+    const status = String(admissionLead?.paymentStatus || '').trim().toUpperCase()
+    if (!['INITIAL_PAYMENT', 'PARTIALLY_PAID', 'PAID'].includes(status)) return 0
+    const amount = Number(String(admissionLead?.paymentAmount ?? '').replace(/,/g, ''))
+    return Number.isFinite(amount) && amount > 0 ? amount : 0
+  }, [admissionLead?.paymentAmount, admissionLead?.paymentStatus, admissionOnlyMode])
+
+  const selectedStudentTuitionAmount = useMemo(() => {
     const summary = getStudentDiscountSummary({
       totalCourseAmount: selectedStudentCourseAmount,
       discountType: studentForm.discountType,
@@ -7894,6 +7903,12 @@ const studentCourseOptions = useMemo(() => {
     })
     return Number.isFinite(summary.finalCourseAmount) ? String(summary.finalCourseAmount) : ''
   }, [selectedStudentCourseAmount, studentForm.discountType, studentForm.discountValue])
+
+  const selectedStudentFinalAmount = useMemo(() => {
+    const tuitionAmount = Number(selectedStudentTuitionAmount)
+    if (!Number.isFinite(tuitionAmount)) return ''
+    return String(Math.max(0, tuitionAmount - leadPaymentCreditAmount))
+  }, [leadPaymentCreditAmount, selectedStudentTuitionAmount])
 
   const selectedStudentDiscountSummary = useMemo(
     () => getStudentDiscountSummary({
@@ -8154,7 +8169,7 @@ const studentCourseOptions = useMemo(() => {
   }, [selectedStudentPaymentPlan, studentArrangementType, studentCombinedPaymentPlanId, studentCourseOptions, studentFirstCourseId, studentSelectedCourseIds])
 
   const studentScheduleAmount = useMemo(() => {
-    if (studentSelectedCourseIds.length < 2) return selectedStudentFinalAmount
+    if (studentSelectedCourseIds.length < 2) return selectedStudentTuitionAmount
 
     const amountCourseIds = studentArrangementType === 'SEQUENTIAL' && studentFirstCourseId
       ? [studentFirstCourseId]
@@ -8165,7 +8180,7 @@ const studentCourseOptions = useMemo(() => {
         : (studentCourseDrafts[courseId] || {})
       return sum + getAllocatedStudentDiscount(courseId, draft, studentSelectedCourseIds, studentArrangementType, studentCommonDiscount, 0).finalCourseAmount
     }, 0))
-  }, [selectedStudentFinalAmount, studentArrangementType, studentCommonDiscount, studentCourseDrafts, studentFirstCourseId, studentForm, studentSelectedCourseIds])
+  }, [selectedStudentTuitionAmount, studentArrangementType, studentCommonDiscount, studentCourseDrafts, studentFirstCourseId, studentForm, studentSelectedCourseIds])
 
   const studentInstallmentCount = useMemo(() => {
     if (!selectedStudentSchedulePaymentPlan) return 0
@@ -8188,6 +8203,18 @@ const studentCourseOptions = useMemo(() => {
 
     return buildStudentInstallmentAmounts(total, studentInstallmentCount).map((amount) => Number(amount))
   }, [studentInstallmentCount, studentScheduleAmount])
+
+  const studentInstallmentBalanceRows = useMemo(() => {
+    let remainingCredit = admissionOnlyMode ? leadPaymentCreditAmount : 0
+    return studentInstallmentAmounts.map((amount) => {
+      const creditApplied = Math.min(Number(amount || 0), remainingCredit)
+      remainingCredit -= creditApplied
+      return {
+        amountDue: Math.max(Number(amount || 0) - creditApplied, 0),
+        creditApplied,
+      }
+    })
+  }, [admissionOnlyMode, leadPaymentCreditAmount, studentInstallmentAmounts])
 
   const studentInstallmentSchedule = useMemo(() => {
     const isParallelPackage = studentArrangementType === 'PARALLEL' && studentSelectedCourseIds.length >= 2
@@ -10159,6 +10186,17 @@ useEffect(() => {
   const studentFormValidationErrors = useMemo(
     () => {
       const nextErrors = validateStudentForm(studentForm, branchStudents)
+      if (studentForm.courseId) {
+        if (Number(String(selectedStudentCourseAmount || '').replace(/,/g, '')) > 0) {
+          delete nextErrors.courseAmount
+        }
+        if (selectedStudentDiscountSummary.error) {
+          nextErrors.studentDiscountAmount = selectedStudentDiscountSummary.error
+        } else if (nextErrors.studentDiscountAmount === 'Fixed discount cannot exceed the course amount.'
+          || nextErrors.studentDiscountAmount === 'Percentage discount must be between 0 and 100.') {
+          delete nextErrors.studentDiscountAmount
+        }
+      }
       if (
         studentForm.courseId &&
         selectedStudentCourseBatchOptions.length &&
@@ -10183,6 +10221,8 @@ useEffect(() => {
       branchStudents,
       currentStudentSeatKeys.length,
       hasSelectableStudentBatchOption,
+      selectedStudentCourseAmount,
+      selectedStudentDiscountSummary,
       selectedStudentBatchOption,
       selectedStudentCourseBatchOptions.length,
       studentForm,
@@ -10307,6 +10347,14 @@ useEffect(() => {
       const nextForm = applyAdmissionLeadToStudentForm(nextStudentForm, admissionLead)
       nextForm.courseId = selectedLeadCourse?.id || leadCourseId
       nextForm.courseName = selectedLeadCourse?.name || nextForm.courseName
+      const leadCourseAmount = String(selectedLeadCourse?.amount || nextForm.totalCourseAmount || nextForm.courseAmount || '').trim()
+      nextForm.courseAmount = leadCourseAmount
+      nextForm.totalCourseAmount = leadCourseAmount
+      nextForm.finalCourseAmount = String(getStudentDiscountSummary({
+        totalCourseAmount: leadCourseAmount,
+        discountType: nextForm.discountType,
+        discountValue: nextForm.discountValue,
+      }).finalCourseAmount)
       setStudentSelectedCourseIds(leadCourseId ? [leadCourseId] : [])
       setStudentCourseSearch(selectedLeadCourse?.name || nextForm.courseName)
       setStudentForm(nextForm)
@@ -18824,6 +18872,24 @@ else {
           />
         </Field>
 
+        {admissionOnlyMode ? (
+          <Field
+            label="Lead Payment Amount"
+            className="student-course-step-lead-payment"
+            hint={leadPaymentCreditAmount > 0
+              ? 'Applied as a payment credit to the student balance during admission.'
+              : `Lead payment status: ${String(admissionLead?.paymentStatus || 'Not Paid').replaceAll('_', ' ')}. No payment credit will be applied.`}
+          >
+            <input
+              type="text"
+              value={admissionLead?.paymentAmount === null || admissionLead?.paymentAmount === undefined || admissionLead?.paymentAmount === ''
+                ? '—'
+                : formatBranchRupees(admissionLead.paymentAmount)}
+              readOnly
+            />
+          </Field>
+        ) : null}
+
        <Field
          label="Course Mode"
          className="student-course-step-mode"
@@ -18915,11 +18981,13 @@ else {
           <input type="number" min="0" max={studentForm.discountType === 'PERCENTAGE' ? 100 : undefined} value={studentForm.discountValue || ''} onChange={(e) => updateStudentField('discountValue', e.target.value)} onBlur={() => setStudentFormTouched((current) => ({ ...current, studentDiscountAmount: true }))} placeholder="Optional discount value" disabled={studentFormMode === 'view'} />
         </Field>
         <Field className="student-course-step-final-amount" label="Final Course Amount">
-          <input type="text" value={formatBranchRupees(selectedStudentDiscountSummary.finalCourseAmount)} readOnly />
+          <input type="text" value={formatBranchRupees(selectedStudentFinalAmount)} readOnly />
         </Field>
         <div className="student-course-discount-summary">
           <span>Total Course Amount <strong>{formatBranchRupees(selectedStudentDiscountSummary.totalCourseAmount)}</strong></span>
           <span>Discount Amount <strong>{formatBranchRupees(selectedStudentDiscountSummary.discountAmount)}</strong></span>
+          {admissionOnlyMode && leadPaymentCreditAmount > 0 ? <span>Lead Payment Credit <strong>−{formatBranchRupees(leadPaymentCreditAmount)}</strong></span> : null}
+          {admissionOnlyMode ? <span>Balance Due <strong>{formatBranchRupees(selectedStudentFinalAmount)}</strong></span> : null}
           {selectedStudentDiscountSummary.error ? <small className="field-error">{selectedStudentDiscountSummary.error}</small> : null}
         </div>
 
@@ -19009,7 +19077,7 @@ else {
                    const summary = getAllocatedStudentDiscount(courseId, draft, studentSelectedCourseIds, studentArrangementType, studentCommonDiscount, course?.amount || 0)
                    return <div className="student-course-total-summary-row" key={courseId}><span>{course?.name || draft.courseName || courseId}</span><strong>{formatBranchRupees(summary.finalCourseAmount)}</strong></div>
                 })}
-                 <div className="student-course-total-summary-grand"><strong>Final Course Amount</strong><strong>{formatBranchRupees(multiCourseAmountTotal)}</strong></div>
+                 <div className="student-course-total-summary-grand"><strong>{admissionOnlyMode ? 'Balance Due' : 'Final Course Amount'}</strong><strong>{formatBranchRupees(admissionOnlyMode ? Math.max(0, multiCourseAmountTotal - leadPaymentCreditAmount) : multiCourseAmountTotal)}</strong></div>
               </div>
               <label className="student-combined-payment-plan-field">
                 <span>{studentArrangementType === 'SEQUENTIAL' ? 'Payment Plan for First Course *' : 'Payment Plan for all courses *'}</span>
@@ -19040,10 +19108,10 @@ else {
       </div>
 
       <div className="student-payment-installment-total">
-          <span>{studentArrangementType === 'SEQUENTIAL' && studentSelectedCourseIds.length >= 2 ? 'First Course Amount' : studentSelectedCourseIds.length >= 2 ? 'Total Course Amount' : 'Final Course Amount'}</span>
+          <span>{admissionOnlyMode ? 'Balance Due' : studentArrangementType === 'SEQUENTIAL' && studentSelectedCourseIds.length >= 2 ? 'First Course Amount' : studentSelectedCourseIds.length >= 2 ? 'Total Course Amount' : 'Final Course Amount'}</span>
         <strong>
           ₹{Number(
-            String(studentScheduleAmount || '').replace(/,/g, '')
+            String(admissionOnlyMode ? Math.max(Number(studentScheduleAmount || 0) - leadPaymentCreditAmount, 0) : studentScheduleAmount || '').replace(/,/g, '')
           ).toLocaleString('en-IN')}
         </strong>
       </div>
@@ -19065,7 +19133,12 @@ else {
     <td>Installment {index + 1}</td>
 
     <td>
-      {formatBranchRupees(amount)}
+      {formatBranchRupees(studentInstallmentBalanceRows[index]?.amountDue ?? amount)}
+      {studentInstallmentBalanceRows[index]?.creditApplied > 0 ? (
+        <div style={{ marginTop: '4px', fontSize: '11px', color: '#526581' }}>
+          Lead payment credit: −{formatBranchRupees(studentInstallmentBalanceRows[index].creditApplied)}
+        </div>
+      ) : null}
       {studentInstallmentSchedule[index]?.courseAllocations?.length ? (
         <div style={{ marginTop: '4px', fontSize: '11px', color: '#526581' }}>
           {studentInstallmentSchedule[index].courseAllocations.map((allocation) => (
@@ -19102,7 +19175,7 @@ else {
               <strong>Total</strong>
             </td>
             <td>
-              <strong>{formatBranchRupees(studentInstallmentAmounts.reduce((sum, amount) => sum + amount, 0))}</strong>
+              <strong>{formatBranchRupees(studentInstallmentBalanceRows.reduce((sum, row) => sum + row.amountDue, 0))}</strong>
             </td>
           </tr>
         </tbody>

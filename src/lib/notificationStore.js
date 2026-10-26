@@ -163,6 +163,7 @@ export function loadNotifications() {
         String(notification.kind || '').startsWith('course-edit-') ||
         String(notification.kind || '').startsWith('faculty-progress-status') ||
         String(notification.kind || '').startsWith('branch-progress-status') ||
+        String(notification.kind || '').trim() === 'sales-crm-admission' ||
         String(notification.kind || '') === 'sequential-course-scheduling-required'
       ),
     )

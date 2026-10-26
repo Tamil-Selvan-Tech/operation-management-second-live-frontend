@@ -57,7 +57,10 @@ function getNotificationIcon(kind) {
 export function normalizeBranchNotification(notification = {}) {
   const kind = String(notification.kind || '').trim()
   const title = String(notification.title || '').trim()
-  const message = normalizeNotificationMessage(notification.message).trim()
+  const normalizedMessage = normalizeNotificationMessage(notification.message).trim()
+  const message = kind === 'sales-crm-admission'
+    ? normalizedMessage.replace(/\s+(Student ID:|Lead ID:|Branch:|Course:|Faculty:|Batch:|Training Mode:|Schedule:)/g, '\n$1')
+    : normalizedMessage
   const createdAt =
     String(notification.createdAt || '').trim() ||
     String(notification.updatedAt || '').trim() ||
