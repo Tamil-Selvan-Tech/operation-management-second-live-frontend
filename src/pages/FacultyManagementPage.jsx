@@ -2178,6 +2178,7 @@ export function FacultyManagementPage() {
             totalPages={totalPages}
             onPageChange={setCurrentPage}
             label="Faculty pagination"
+            visiblePageCount={role === 'branch-admin' ? 2 : 7}
           />
         ) : null}
 

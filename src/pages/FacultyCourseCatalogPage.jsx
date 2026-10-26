@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
 import { ArrowLeft, BookOpen, CheckCircle2, Clock3, Globe2, IndianRupee, Menu, Monitor, UsersRound } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
+import { useAuth } from '../auth/useAuth'
 import { Button } from '../components/Button'
 import { SearchBar } from '../components/SearchBar'
-import { PaginationBar } from '../components/PaginationBar'
+import { PaginationBar, getPageNumberWindow } from '../components/PaginationBar'
 import './FacultyCourseCatalogPage.css'
 import { COURSE_RECORD_SYNC_EVENT, loadCourseRecords } from '../data/courseRecords'
 import { loadFacultyRecords } from '../data/facultyRecords'
@@ -63,6 +64,7 @@ function buildPageList(totalPages, currentPage) {
 }
 
 export function FacultyCourseCatalogPage() {
+  const { role } = useAuth()
   const navigate = useNavigate()
   const openMenu = useMobileMenu()
   const [courses, setCourses] = useState(() => loadStoredCourses())
@@ -135,7 +137,9 @@ export function FacultyCourseCatalogPage() {
   const pageSize = 4
   const totalPages = Math.max(1, Math.ceil(filteredCards.length / pageSize))
   const safeCurrentPage = Math.min(currentPage, totalPages)
-  const pageList = useMemo(() => buildPageList(totalPages, safeCurrentPage), [safeCurrentPage, totalPages])
+  const pageList = useMemo(() => (role === 'branch-admin'
+    ? getPageNumberWindow(totalPages, safeCurrentPage, 2)
+    : buildPageList(totalPages, safeCurrentPage)), [role, safeCurrentPage, totalPages])
   const visibleCards = useMemo(() => {
     const start = (safeCurrentPage - 1) * pageSize
     return filteredCards.slice(start, start + pageSize)
@@ -340,6 +344,7 @@ export function FacultyCourseCatalogPage() {
               pageList={pageList}
               onPageChange={goToPage}
               label="Faculty course catalog pagination"
+              visiblePageCount={role === 'branch-admin' ? 2 : 7}
             />
 
             <div className="faculty-course-pagination">

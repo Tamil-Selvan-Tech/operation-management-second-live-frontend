@@ -88,17 +88,51 @@ export async function markFacultyStudentAttendance(payload = {}) {
   return unwrapData(response)
 }
 
-export async function getBranchAttendanceOverview(date, branchId = '') {
-  const params = new URLSearchParams({ date })
-  if (branchId) params.set('branchId', branchId)
-  const response = await request(`/attendance/branch/overview?${params}`)
-  const data = unwrapData(response)
-  if (!Array.isArray(data?.students) || !data?.branchId || data.date !== date) {
-    throw new Error('Invalid attendance response. Please refresh or contact support.')
-  }
-  return data
-}
+const BRANCH_ATTENDANCE_DEDUPE_MS = 2000
+const branchAttendanceRecentRequests = new Map()
 
+export function getBranchAttendanceOverview(date, branchId = '', options = {}) {
+  const normalizedDate = String(date || '').trim()
+  const normalizedBranchId = String(branchId || '').trim()
+  const requestKey = normalizedDate + ':' + normalizedBranchId
+  const now = Date.now()
+  const existing = branchAttendanceRecentRequests.get(requestKey)
+
+  if (existing && existing.expiresAt > now && (!options?.force || !existing.settled)) {
+    return existing.promise
+  }
+
+  const promise = (async () => {
+    const params = new URLSearchParams({ date: normalizedDate })
+    if (normalizedBranchId) params.set('branchId', normalizedBranchId)
+
+    const response = await request('/attendance/branch/overview?' + params)
+    const data = unwrapData(response)
+    if (!Array.isArray(data?.students) || !data?.branchId || data.date !== normalizedDate) {
+      throw new Error('Invalid attendance response. Please refresh or contact support.')
+    }
+    return data
+  })()
+
+  const entry = {
+    promise,
+    expiresAt: now + BRANCH_ATTENDANCE_DEDUPE_MS,
+    settled: false,
+  }
+  branchAttendanceRecentRequests.set(requestKey, entry)
+
+  promise.then(
+    () => { if (branchAttendanceRecentRequests.get(requestKey)?.promise === promise) entry.settled = true },
+    () => { if (branchAttendanceRecentRequests.get(requestKey)?.promise === promise) entry.settled = true },
+  )
+
+  promise.catch(() => {
+    const current = branchAttendanceRecentRequests.get(requestKey)
+    if (current?.promise === promise) branchAttendanceRecentRequests.delete(requestKey)
+  })
+
+  return promise
+}
 export async function recordFacultyAttendanceLogin(payload = {}) {
   try {
     const response = await request('/attendance/faculty/session/login', {

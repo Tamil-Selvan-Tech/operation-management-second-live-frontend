@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useAuth } from '../auth/useAuth'
 import { ArrowLeft, BookOpen, Mail, Menu, Phone, UsersRound } from 'lucide-react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { AppLoadingState } from '../components/AppLoadingState'
 import { Button } from '../components/Button'
 import { SearchBar } from '../components/SearchBar'
-import { PaginationBar } from '../components/PaginationBar'
+import { PaginationBar, getPageNumberWindow } from '../components/PaginationBar'
 import { COURSE_RECORD_SYNC_EVENT, loadCourseRecords } from '../data/courseRecords'
 import { loadFacultyRecords } from '../data/facultyRecords'
 import { mergeFacultyWithSnapshot } from '../lib/facultySnapshot'
@@ -43,6 +44,7 @@ function loadStoredStudents() {
 }
 
 export function FacultyCourseFacultyPage() {
+  const { role } = useAuth()
   const { courseId = '' } = useParams()
   const navigate = useNavigate()
   const openMenu = useMobileMenu()
@@ -168,6 +170,8 @@ export function FacultyCourseFacultyPage() {
   }, [filteredFaculty, safeCurrentPage])
 
   const pageList = useMemo(() => {
+    if (role === 'branch-admin') return getPageNumberWindow(totalPages, safeCurrentPage, 2)
+
     if (totalPages <= 7) {
       return Array.from({ length: totalPages }, (_, index) => index + 1)
     }
@@ -181,7 +185,7 @@ export function FacultyCourseFacultyPage() {
     if (end < totalPages - 1) pages.push('right-ellipsis')
     pages.push(totalPages)
     return pages
-  }, [safeCurrentPage, totalPages])
+  }, [role, safeCurrentPage, totalPages])
 
   const goToPage = (page) => {
     setCurrentPage(Math.max(1, Math.min(page, totalPages)))
@@ -342,6 +346,7 @@ export function FacultyCourseFacultyPage() {
             pageList={pageList}
             onPageChange={goToPage}
             label="Faculty course faculty pagination"
+            visiblePageCount={role === 'branch-admin' ? 2 : 7}
           />
 
           {filteredFaculty.length ? (

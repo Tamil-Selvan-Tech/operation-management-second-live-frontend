@@ -1,20 +1,24 @@
-import { request } from './apiClient'
+import { request, impersonateBranchId } from './apiClient'
+import { shareInFlightRequest } from '../lib/inFlightRequests'
 import { FACULTY_RECORD_SYNC_EVENT } from '../data/facultyRecords'
 
-export async function listBranchFaculty(params = {}) {
+export function listBranchFaculty(params = {}) {
   const searchParams = new URLSearchParams()
-  
-  if (params.page) searchParams.set('page', String(params.page))
-  if (params.limit) searchParams.set('limit', String(params.limit))
-  if (params.search) searchParams.set('search', params.search)
-  if (params.status && params.status !== 'All') searchParams.set('status', params.status)
-  if (params.sortBy) searchParams.set('sortBy', params.sortBy)
-  if (params.sortOrder) searchParams.set('sortOrder', params.sortOrder)
-  
-  return request(`/branch-faculty?${searchParams.toString()}`, {
-    method: 'GET',
-    ...(params.impersonateBranchId ? { impersonateBranchId: params.impersonateBranchId } : {}),
-  })
+  if (params.page) searchParams.set("page", String(params.page))
+  if (params.limit) searchParams.set("limit", String(params.limit))
+  if (params.search) searchParams.set("search", params.search)
+  if (params.status && params.status !== "All") searchParams.set("status", params.status)
+  if (params.sortBy) searchParams.set("sortBy", params.sortBy)
+  if (params.sortOrder) searchParams.set("sortOrder", params.sortOrder)
+
+  const query = searchParams.toString()
+  const branchScope = String(params.impersonateBranchId || impersonateBranchId || "")
+  return shareInFlightRequest("branch-faculty:" + branchScope + ":" + query, () =>
+    request("/branch-faculty?" + query, {
+      method: "GET",
+      ...(branchScope ? { impersonateBranchId: branchScope } : {}),
+    }),
+  )
 }
 
 export async function checkBranchFacultyPhone(phone) {

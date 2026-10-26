@@ -11,12 +11,6 @@ import {
 
 import { request } from '../services/apiClient'
 import { unwrapNotifications } from '../services/notificationService'
-import {
-  markNotificationsAsRead,
-  loadNotifications,
-  mergeNotificationsWithStoredState,
-  saveNotifications,
-} from '../lib/notificationStore'
 
 function formatNotificationTime(createdAt) {
   const date = new Date(createdAt)
@@ -116,32 +110,22 @@ export function SuperAdminNotificationBell({
         method: 'GET',
       })
       const { data } = unwrapNotifications(response)
-      const mergedNotifications = mergeNotificationsWithStoredState(data.map(normalizeBellNotification))
-
-      const storedViewedIds = JSON.parse(
-        localStorage.getItem('superAdminDropdownViewedNotifications') || '[]',
-      )
-
-      const viewedIds = new Set(
-        Array.isArray(storedViewedIds)
-          ? storedViewedIds.map(String)
-          : [],
-      )
-
-      const notificationsWithDropdownState = mergedNotifications.map((notification) => ({
-        ...notification,
-        dropdownViewed: viewedIds.has(String(notification.id)),
+      setNotifications(data.map((notification) => {
+        const normalized = normalizeBellNotification(notification)
+        return {
+          ...normalized,
+          // Read state is persisted by the API, so it remains correct across
+          // refreshes, tabs, and logout/login cycles.
+          dropdownViewed: Boolean(normalized.read),
+        }
       }))
-
-      saveNotifications(notificationsWithDropdownState, { emit: false })
-      setNotifications(notificationsWithDropdownState)
     } catch {
-      setNotifications(mergeNotificationsWithStoredState(loadNotifications().map(normalizeBellNotification)))
+      // Do not show another session's stale browser cache when the API fails.
+      setNotifications([])
     } finally {
       setIsLoading(false)
     }
   }
-
   useEffect(() => {
     const timerId = window.setTimeout(() => {
       void refreshNotifications()
@@ -214,98 +198,70 @@ export function SuperAdminNotificationBell({
     [visibleNotifications],
   )
   const handleOpenNotification = async (notification) => {
-  setIsOpen(false)
+    setIsOpen(false)
 
-  setNotifications((current) =>
-    current.map((item) =>
-      item.id === notification.id
-        ? { ...item, dropdownViewed: true }
-        : item,
-    ),
-  )
+    try {
+      await request('/notifications/mark-read', {
+        method: 'PATCH',
+        body: JSON.stringify({ notificationIds: [notification.id] }),
+      })
+      setNotifications((current) =>
+        current.map((item) =>
+          item.id === notification.id
+            ? { ...item, read: true, dropdownViewed: true }
+            : item,
+        ),
+      )
+    } catch {
+      await refreshNotifications()
+    }
 
-const storedViewedIds = JSON.parse(
-  localStorage.getItem('superAdminDropdownViewedNotifications') || '[]',
-)
+    if (notification.kind?.startsWith('branch-')) {
+      const branchId = notification.targetBranchId || notification.branchId
+      if (branchId && typeof onOpenBranch === 'function') {
+        onOpenBranch(branchId)
+        return
+      }
+      if (typeof onOpenBranches === 'function') {
+        onOpenBranches(notification)
+        return
+      }
+    }
+    const notificationDescription = String(notification.requestDescription || '')
+    if (
+      String(notification.kind || '').trim().toLowerCase() === 'student-discontinuation' ||
+      notificationDescription.startsWith('DISCONTINUATION_SUPER_REVIEW:')
+    ) {
+      navigate('/dashboard/super-admin?section=discontinuations')
+      return
+    }
 
-const viewedIds = new Set(
-  Array.isArray(storedViewedIds)
-    ? storedViewedIds.map(String)
-    : [],
-)
-
-viewedIds.add(String(notification.id))
-
-localStorage.setItem(
-  'superAdminDropdownViewedNotifications',
-  JSON.stringify([...viewedIds]),
-)
-  
-
-  try {
-  await request('/notifications/mark-read', {
-    method: 'PATCH',
-    body: JSON.stringify({ notificationIds: [notification.id] }),
-  })
-} catch {
-  // Keep the optimistic state if the API is temporarily unavailable.
-}
-
-  if (notification.kind?.startsWith('branch-') && typeof onOpenBranches === 'function') {
-    onOpenBranches(notification)
-    return
+    navigate('/dashboard/super-admin')
   }
 
-  const notificationDescription = String(notification.requestDescription || '')
-  if (
-    String(notification.kind || '').trim().toLowerCase() === 'student-discontinuation' ||
-    notificationDescription.startsWith('DISCONTINUATION_SUPER_REVIEW:')
-  ) {
-    navigate('/dashboard/super-admin?section=discontinuations')
-    return
+  const handleMarkAllAsRead = async () => {
+    const visibleIds = visibleNotifications
+      .filter((notification) => !notification.read)
+      .map((notification) => notification.id)
+    if (!visibleIds.length) return
+
+    try {
+      await request('/notifications/mark-read', {
+        method: 'PATCH',
+        body: JSON.stringify({ notificationIds: visibleIds }),
+      })
+      const ids = new Set(visibleIds.map(String))
+      setNotifications((current) =>
+        current.map((item) =>
+          ids.has(String(item.id))
+            ? { ...item, read: true, dropdownViewed: true }
+            : item,
+        ),
+      )
+    } catch {
+      await refreshNotifications()
+    }
   }
-
-  navigate('/dashboard/super-admin')
-}
-
- 
-const handleMarkAllAsRead = () => {
-  const visibleIds = visibleNotifications.map((item) => item.id)
-  if (!visibleIds.length) return
-  setNotifications((current) =>
-    current.map((item) =>
-      visibleIds.includes(item.id)
-        ? { ...item, read: true, dropdownViewed: true }
-        : item,
-    ),
-  )
-
-  const storedViewedIds = JSON.parse(
-    localStorage.getItem('superAdminDropdownViewedNotifications') || '[]',
-  )
-
-  const viewedIds = new Set(
-    Array.isArray(storedViewedIds)
-      ? storedViewedIds.map(String)
-      : [],
-  )
-
-  visibleNotifications.forEach((notification) => {
-    viewedIds.add(String(notification.id))
-  })
-
-  localStorage.setItem(
-    'superAdminDropdownViewedNotifications',
-    JSON.stringify([...viewedIds]),
-  )
-
-  markNotificationsAsRead(visibleIds.length ? visibleIds : null)
-
-  void request('/notifications/mark-read', {
-    method: 'PATCH',
-    body: JSON.stringify({ notificationIds: visibleIds }),
-  }).catch(() => {})
-}
   return (
     <div ref={menuRef} className="notification-menu super-admin-notification-menu">
       <button

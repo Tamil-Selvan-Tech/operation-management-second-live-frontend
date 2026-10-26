@@ -1,4 +1,5 @@
-import { request } from './apiClient'
+import { request, impersonateBranchId } from './apiClient'
+import { shareInFlightRequest } from '../lib/inFlightRequests'
 import { clearBranchRegistry } from '../lib/branchAuth'
 
 function pickFirstNonEmpty(...values) {
@@ -122,11 +123,15 @@ export async function resendBranchInvitation(branchId) {
   }
 }
 
-export async function getCurrentBranchProfile() {
-  const response = await request('/branches/me', {
-    method: 'GET',
-  })
+export function getCurrentBranchProfile() {
+  const branchScope = String(impersonateBranchId || "");
+  return shareInFlightRequest("current-branch-profile:" + branchScope, async () => {
+    const response = await request("/branches/me", {
+      method: "GET",
+      ...(branchScope ? { impersonateBranchId: branchScope } : {}),
+    });
 
-  clearBranchRegistry()
-  return normalizeBranchRecord(unwrapResponse(response))
+    clearBranchRegistry();
+    return normalizeBranchRecord(unwrapResponse(response));
+  });
 }

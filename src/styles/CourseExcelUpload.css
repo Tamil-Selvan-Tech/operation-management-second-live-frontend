@@ -777,3 +777,15 @@
 .course-import-latest-code > span { color:#6b7f9a;font-size:.72rem;font-weight:700 }
 .course-import-latest-code > strong { color:#1d5db5;font-size:.86rem;font-weight:800;letter-spacing:.02em }
 @media(max-width:640px) { .course-import-header { flex-wrap:wrap;gap:10px } .course-import-heading { order:1 } .course-import-page-back,.course-import-close { order:2;margin-left:auto } .course-import-latest-code { order:3;flex:1 1 100%;justify-content:space-between;margin:0 0 0 61px;padding:7px 10px } }
+
+/* Keep duplicate course rows distinct from other validation errors. */
+.course-import-row-badge.is-duplicate,
+.course-import-row-state .course-import-row-badge.is-duplicate { background:#fff0d2;color:#9a5b00 }
+.course-import-dialog .course-import-row-action.is-delete,
+.course-import-page .course-import-row-action.is-delete { border-color:#efb4ad;background:#fff4f2;color:#b42318 }
+.course-import-dialog .course-import-row-action.is-delete:hover,
+.course-import-page .course-import-row-action.is-delete:hover { border-color:#d98278;background:#ffe8e4;color:#971c14 }
+.course-import-table-review-area { position:relative; min-height:80px }
+.course-import-table-review-area[aria-busy="true"] { pointer-events:none }
+.course-import-table-loading { position:absolute; inset:0; z-index:30; display:flex; align-items:center; justify-content:center; gap:8px; min-height:88px; background:rgba(248,251,255,.78); color:#28558f; font-size:.78rem; font-weight:750; backdrop-filter:blur(1px) }
+.course-import-table-loading .course-import-spinner { animation:course-import-spin .8s linear infinite }
