@@ -11,6 +11,7 @@ const blankMeta = { page: 1, limit: 20, total: 0, totalPages: 1, unreadCount: 0,
 function categoryFor(item) {
   const kind = String(item.kind || '').toUpperCase()
   const marker = String(item.requestDescription || '').toUpperCase()
+  if (kind === 'PENDING_STUDENT_ADMISSION_REMINDER') return { label: 'Pending HOT Admissions', Icon: Bell, color: 'amber' }
   if (kind.includes('OVERDUE') || marker.startsWith('LEAD_FOLLOW_UP_OVERDUE:')) return { label: 'Overdue Follow-up', Icon: AlertCircle, color: 'red' }
   if (marker.startsWith('LEAD_FOLLOW_UP_DAILY:')) return { label: 'Daily Reminder', Icon: Repeat2, color: 'amber' }
   if (/^LEAD_FOLLOW_UP_REMINDER:[^:]+:\d{4}-\d{2}-\d{2}:\d{2}:\d{2}$/i.test(item.requestDescription || '')) return { label: 'Same-day Timed Reminder', Icon: Clock3, color: 'purple' }
@@ -120,6 +121,8 @@ export function SalesAdminNotificationsPage() {
     const leadId = String(item.requestDescription || '').split(':')[1]
     if (['LEAD_FOLLOW_UP_DUE', 'LEAD_FOLLOW_UP_OVERDUE'].includes(kind) && leadId) navigate('/dashboard/sales-admin/leads', { state: { leadId } })
     else if (kind === 'SALES_CRM_MONTHLY_REPORT') navigate('/dashboard/sales-admin/reports')
+    else if (kind === 'PENDING_STUDENT_ADMISSION_REMINDER') navigate('/dashboard/sales-admin/admissions?status=PENDING_HOT')
+    else if (kind === 'SALES_CRM_BATCH_REQUEST_UPDATE') navigate('/dashboard/sales-admin/admissions')
   }
 
   return <section className="sales-admin-notifications-page">
@@ -149,13 +152,14 @@ export function SalesAdminNotificationsPage() {
       const kind = String(item.kind || '').toUpperCase()
       const canOpenLead = ['LEAD_FOLLOW_UP_DUE', 'LEAD_FOLLOW_UP_OVERDUE'].includes(kind) && Boolean(String(item.requestDescription || '').split(':')[1])
       const canOpenReport = kind === 'SALES_CRM_MONTHLY_REPORT'
+      const canOpenPendingAdmissions = kind === 'PENDING_STUDENT_ADMISSION_REMINDER'
       return <article key={item.id} className={`sales-admin-notification-card${item.read ? '' : ' is-unread'}`}>
         <span className={`sales-admin-notification-icon is-${color}`}><Icon size={18} strokeWidth={2} /></span>
         <div className="sales-admin-notification-copy">
           <div className="sales-admin-notification-title-row"><h3>{item.title}</h3><span className={`sales-admin-notification-state${item.read ? '' : ' is-unread'}`}>{item.read ? 'Read' : 'Unread'}</span></div>
           {student || leadId ? <div className="sales-admin-notification-context">{student ? <strong>{student}</strong> : null}{leadId ? <span>Lead ID: {leadId}</span> : null}</div> : null}
           <p>{item.message}</p>
-          <div className="sales-admin-notification-card-footer"><span className={`sales-admin-notification-category is-${color}`}>{label}</span><div>{!item.read ? <button type="button" className="sales-admin-notification-mark-one" onClick={() => void markRead([item.id])} disabled={actionLoading}><Check size={14} />Mark as read</button> : null}{canOpenLead || canOpenReport ? <button type="button" className="sales-admin-notification-view" onClick={() => openNotification(item)}>{canOpenLead ? 'View Lead' : 'View Report'} <ExternalLink size={14} /></button> : null}</div></div>
+          <div className="sales-admin-notification-card-footer"><span className={`sales-admin-notification-category is-${color}`}>{label}</span><div>{!item.read ? <button type="button" className="sales-admin-notification-mark-one" onClick={() => void markRead([item.id])} disabled={actionLoading}><Check size={14} />Mark as read</button> : null}{canOpenLead || canOpenReport || canOpenPendingAdmissions ? <button type="button" className="sales-admin-notification-view" onClick={() => openNotification(item)}>{canOpenLead ? 'View Lead' : canOpenReport ? 'View Report' : (item.actionLabel || 'View Pending Admissions')} <ExternalLink size={14} /></button> : null}</div></div>
         </div>
         <time className="sales-admin-notification-created" dateTime={item.createdAt || undefined}>{formattedCreatedAt(item.createdAt, item.timezone)}</time>
         {!item.read ? <span className="sales-admin-notification-dot" aria-label="Unread notification" /> : null}
