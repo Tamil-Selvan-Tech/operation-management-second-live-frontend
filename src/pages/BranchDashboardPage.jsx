@@ -53,6 +53,7 @@ import {
   Flame,
   GraduationCap,
   PhoneCall,
+  BriefcaseBusiness,
 } from 'lucide-react'
 
 import { CourseExcelUpload } from '../components/CourseExcelUpload'
@@ -64,6 +65,7 @@ import { shareInFlightRequest } from '../lib/inFlightRequests'
 import { unwrapNotifications } from '../services/notificationService'
 import { getCurrentBranchProfile } from '../services/branchService'
 import BranchExamResultsPage from './BranchExamResultsPage'
+import BranchSalesCrmPage from './BranchSalesCrmPage'
 import { FacultySkillsUpgradePage } from './FacultySkillsUpgradePage'
 import AcademicTestPage from './AcademicTestPage'
 import { listBranchFaculty } from '../services/branchFacultyService'
@@ -2858,6 +2860,7 @@ function getBranchDashboardSectionFromPath(pathname = '', search = '') {
   if (section === 'course-import') return 'course-import'
   if (section === 'installments') return 'installments'
   if (section === 'faculty') return 'faculty'
+  if (section === 'sales-crm') return 'sales-crm'
   if (section === 'batches') return 'batches'
   if (section === 'payments') return 'payments'
   if (section === 'profile') return 'profile'
@@ -4193,7 +4196,7 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
   const [expandedSidebarGroups, setExpandedSidebarGroups] = useState(() => ({
     courses: false,
     academic: ['courses', 'course-import'].includes(activeSection),
-    faculty: activeSection === 'batches',
+    faculty: ['faculty', 'sales-crm', 'batches'].includes(activeSection),
     students: ['students', 'student-management', 'completed-students', 'courses', 'batches', 'installments', 'progress-notifications', 'institute-leave', 'faculty-leave', 'discontinuations'].includes(activeSection),
     management: ['institute-leave', 'faculty-leave', 'progress-notifications', 'faculty-edit-requests', 'discontinuations'].includes(activeSection),
   }))
@@ -11191,6 +11194,7 @@ useEffect(() => {
           { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
           { id: 'faculty', label: 'User & Role Management', icon: Shield, children: [
             { id: 'faculty', label: 'Faculty Management', icon: UserRound },
+            { id: 'sales-crm', label: 'Sales & CRM', icon: BriefcaseBusiness },
           ] },
           { id: 'academic', label: 'Academic Operation', icon: LayoutGrid, children: [
             { id: 'installments', label: 'Installment Templates', icon: Wallet },
@@ -15141,6 +15145,7 @@ else {
                   branchStudents={branchStudents}
                 />
               ) : null}
+              {activeSection === 'sales-crm' ? <BranchSalesCrmPage /> : null}
             </div>
           </main>
         </div>
