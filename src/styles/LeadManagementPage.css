@@ -37,6 +37,8 @@
 .lead-table tbody tr .lead-actions button { cursor: pointer; }
 .lead-state-cell { padding: 42px 16px !important; color: #64748b; text-align: center; }
 .lead-badge { display: inline-flex; padding: 5px 9px; border-radius: 999px; font-size: 11px; font-weight: 700; }
+.lead-stage-cell { display: flex; flex-direction: column; align-items: flex-start; gap: 5px; }
+.lead-admission-complete { color: #15803d; font-size: 10px; font-weight: 700; line-height: 1.3; }
 .stage-cold { color: #475569; background: #f1f5f9; }.stage-warm { color: #a16207; background: #fef9c3; }.stage-hot { color: #b42318; background: #fee2e2; }.stage-closed { color: #64748b; background: #e2e8f0; }
 .lead-actions { display: flex; gap: 5px; }
 .lead-actions button { border: 1px solid #dbe4f0; border-radius: 6px; padding: 6px 8px; background: #fff; color: #2563eb; font-size: 11px; cursor: pointer; }
