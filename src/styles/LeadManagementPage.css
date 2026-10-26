@@ -132,9 +132,6 @@
 @media (max-width: 640px) { .lead-followup-dialog { padding: 22px 16px; }.lead-followup-grid { grid-template-columns: 1fr; }.lead-followup-grid label:nth-child(4), .lead-followup-grid label:nth-child(7) { grid-column: auto; } }
 .lead-field-error { display: block; margin-top: 5px; color: #dc2626; font-size: 12px; font-weight: 600; }
 .lead-form-grid input.has-error, .lead-form-grid select.has-error { border-color: #dc2626; box-shadow: 0 0 0 2px rgba(220, 38, 38, .08); }
-.lead-form-grid label:has(input[type="date"]:invalid)::after { content: 'This field is required'; display: block; margin-top: 5px; color: #dc2626; font-size: 12px; font-weight: 600; }
-.lead-form-grid label:has(select:invalid) > select:not(.has-error) { border-color: #dc2626; box-shadow: 0 0 0 2px rgba(220, 38, 38, .08); }
-.lead-form-grid label:has(select:invalid):not(:has(.lead-field-error))::after { content: 'This field is required'; display: block; margin-top: 5px; color: #dc2626; font-size: 12px; font-weight: 600; }
 .lead-form-grid label:has(input[type="number"]:valid) .lead-field-error { display: none; }
 .lead-step-indicator { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin: 18px 0 22px; }
 .lead-step-indicator > div { display: flex; align-items: center; gap: 8px; color: #94a3b8; font-size: 12px; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px; cursor: pointer; }
@@ -399,7 +396,7 @@
   background: transparent !important;
   box-shadow: none !important;
   overflow: visible !important;
-  z-index: 100 !important;
+  z-index: auto !important;
 }
 
 .lead-actions-menu {
@@ -480,18 +477,6 @@
   text-align: center;
 }
 
-.lead-delete-dialog::after {
-  content: 'X';
-  position: absolute;
-  top: 14px;
-  right: 18px;
-  z-index: 3;
-  color: #64748b;
-  font-size: 18px;
-  font-weight: 700;
-  pointer-events: none;
-}
-
 .lead-delete-close {
   position: absolute !important;
   top: 12px !important;
@@ -501,16 +486,28 @@
   place-items: center !important;
   width: 34px !important;
   height: 34px !important;
-  border: 0;
-  background: transparent;
-  color: #64748b;
-  font-size: 18px;
-  line-height: 1;
+  padding: 0 !important;
+  border: 1px solid transparent !important;
+  border-radius: 999px !important;
+  background: transparent !important;
+  color: #64748b !important;
+  font-family: Arial, sans-serif;
+  font-size: 24px !important;
+  font-weight: 400 !important;
+  line-height: 1 !important;
   cursor: pointer;
+  transition: color .15s ease, background-color .15s ease, border-color .15s ease;
 }
 
 .lead-delete-close:hover {
-  color: #17243b;
+  color: #17243b !important;
+  background: #f1f5f9 !important;
+  border-color: #e2e8f0 !important;
+}
+
+.lead-delete-close:focus-visible {
+  outline: 3px solid rgba(37, 99, 235, .25);
+  outline-offset: 2px;
 }
 
 .lead-delete-dialog h2 {
@@ -860,3 +857,318 @@
 .lead-recording-association { display: inline-block; width: fit-content; padding: 3px 6px; border-radius: 999px; color: #1769e0 !important; background: #edf5ff; font-size: 10px !important; font-weight: 600; }
 .lead-recording-player-card { min-height: 76px; }
 @media (max-width: 700px) { .lead-recordings-header-controls { align-items: stretch; width: 100%; } .lead-recordings-header-controls > * { flex: 1 1 auto; } .lead-recordings-date-input { max-width: none; } }
+
+/* Final lead action menu positioning: keep the trigger stable and render one visible menu. */
+.lead-table-card,
+.lead-table-scroll,
+.lead-table,
+.lead-table tbody,
+.lead-table tr,
+.lead-table td,
+.lead-table td:last-child {
+  overflow: visible !important;
+}
+
+.lead-table td:last-child {
+  position: static !important;
+  z-index: auto !important;
+}
+
+.lead-actions,
+.lead-actions:hover,
+.lead-actions.is-open {
+  position: relative !important;
+  inset: auto !important;
+  display: inline-flex !important;
+  width: 38px !important;
+  min-width: 38px !important;
+  height: 36px !important;
+  min-height: 36px !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  overflow: visible !important;
+  z-index: auto !important;
+}
+
+.lead-actions:hover:not(.is-open)::before {
+  display: none !important;
+  content: none !important;
+}
+
+.lead-actions,
+.lead-actions:hover,
+.lead-actions.is-open,
+.lead-actions .lead-menu-toggle {
+  z-index: auto !important;
+  isolation: auto !important;
+}
+
+.lead-actions .lead-menu-toggle {
+  position: static !important;
+}
+
+.lead-actions-menu {
+  position: absolute !important;
+  top: 100% !important;
+  right: 0 !important;
+  bottom: auto !important;
+  left: auto !important;
+  z-index: 10000 !important;
+  display: none;
+  width: 132px !important;
+  box-sizing: border-box !important;
+  padding: 8px !important;
+  gap: 2px !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 10px !important;
+  background: #fff !important;
+  box-shadow: 0 12px 28px rgba(15, 23, 42, .18) !important;
+}
+
+.lead-actions:hover .lead-actions-menu,
+.lead-actions.is-open .lead-actions-menu {
+  display: grid !important;
+}
+
+.lead-actions-menu > button {
+  position: static !important;
+  display: block !important;
+  width: 100% !important;
+  height: 34px !important;
+  margin: 0 !important;
+  padding: 8px 10px !important;
+  border: 0 !important;
+  border-radius: 6px !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: #294b78 !important;
+  text-align: left !important;
+  cursor: pointer;
+}
+
+.lead-actions-menu > button:hover {
+  background: #eef5ff !important;
+}
+
+.lead-actions-menu > button.is-danger {
+  color: #dc2626 !important;
+}
+/* Keep the three-dot trigger borderless. */
+.lead-actions .lead-menu-toggle,
+.lead-actions .lead-menu-toggle:hover,
+.lead-actions .lead-menu-toggle:focus,
+.lead-actions .lead-menu-toggle:focus-visible {
+  border: 0 !important;
+  outline: 0 !important;
+  box-shadow: none !important;
+}
+
+/* Reduce the visual size of the three-dot icon. */
+.lead-actions .lead-menu-toggle::after {
+  font-size: 20px !important;
+}
+
+/* Refined follow-up history card and expandable status control. */
+.lead-followup-history-header {
+  margin-bottom: 16px;
+  padding: 0 2px;
+}
+.lead-followup-history-header h3 {
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -.01em;
+}
+.lead-followup-history-header p {
+  color: #7185a2;
+  font-size: 12px;
+}
+.lead-followup-count {
+  min-width: 30px;
+  height: 30px;
+  color: #2463bd;
+  background: #edf5ff;
+  box-shadow: inset 0 0 0 1px #d7e8ff;
+}
+.lead-profile-followup-card {
+  border-color: #d8e5f3;
+  border-radius: 12px;
+  box-shadow: 0 5px 16px rgba(30, 71, 117, .04);
+  transition: border-color .2s ease, box-shadow .2s ease;
+}
+.lead-profile-followup-card:hover,
+.lead-profile-followup-card.is-expanded {
+  border-color: #9dc1ed;
+  box-shadow: 0 8px 22px rgba(30, 71, 117, .08);
+}
+.lead-followup-card-header {
+  min-height: 58px;
+  padding: 14px 16px;
+}
+.lead-followup-card-header:focus-visible {
+  outline: 3px solid rgba(37, 99, 235, .18);
+  outline-offset: -3px;
+}
+.lead-followup-card-main strong {
+  font-size: 13px;
+}
+.lead-followup-call-badge {
+  padding: 5px 10px;
+  color: #315f91;
+  background: #eef5ff;
+  box-shadow: inset 0 0 0 1px #d8e8fb;
+  font-size: 11px;
+  letter-spacing: .01em;
+  text-transform: none;
+}
+.lead-followup-chevron {
+  display: grid;
+  flex: 0 0 28px;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid #d8e5f3;
+  border-radius: 8px;
+  color: #55779f;
+  background: #f8fbff;
+  line-height: 0;
+  transition: transform .2s ease, background .2s ease, border-color .2s ease;
+}
+.lead-followup-chevron svg {
+  display: block;
+  width: 15px;
+  height: 15px;
+}
+.lead-followup-card-header:hover .lead-followup-chevron {
+  border-color: #b8d0ec;
+  background: #eef5ff;
+}
+.lead-profile-followup-card.is-expanded .lead-followup-chevron {
+  transform: rotate(180deg);
+}
+
+/* Keep the call-status badge and chevron centered in the same header row. */
+.lead-followup-card-header {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) auto !important;
+  align-items: center !important;
+}
+.lead-followup-card-main {
+  align-items: center !important;
+}
+.lead-followup-card-side {
+  align-self: center !important;
+  justify-self: end !important;
+  margin: 0 !important;
+}
+.lead-followup-call-badge,
+.lead-followup-chevron {
+  position: static !important;
+  top: auto !important;
+  bottom: auto !important;
+}
+
+/* Keep follow-up metadata columns aligned on one clean baseline. */
+.lead-followup-card-meta {
+  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  align-items: start !important;
+  column-gap: 24px !important;
+  row-gap: 12px !important;
+  padding: 2px 16px 14px !important;
+}
+.lead-followup-card-meta > span {
+  display: grid !important;
+  align-content: start !important;
+  gap: 4px !important;
+  min-height: 36px;
+}
+.lead-followup-card-meta small {
+  margin: 0 !important;
+  line-height: 1.2 !important;
+}
+.lead-followup-card-meta strong {
+  line-height: 1.3 !important;
+}
+@media (max-width: 700px) {
+  .lead-followup-card-meta {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    column-gap: 16px !important;
+  }
+}
+
+/* Show call status and expand control as the final aligned metadata column. */
+.lead-followup-card-meta {
+  grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+}
+.lead-followup-card-meta > .lead-followup-card-side {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  gap: 8px !important;
+  min-height: 36px;
+}
+.lead-followup-card-meta > .lead-followup-card-side .lead-followup-call-badge {
+  align-self: center;
+}
+@media (max-width: 700px) {
+  .lead-followup-card-meta {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+}
+
+/* Keep profile actions aligned at the end of the header and use an icon-only back control. */
+.lead-profile-header-actions {
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.lead-profile-back {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  padding: 0;
+  line-height: 0;
+}
+
+.lead-profile-back svg {
+  display: block;
+  flex: 0 0 auto;
+}
+
+/* Hide any stale Back label and keep the control icon-only during profile reuse. */
+.lead-profile-back {
+  gap: 0;
+  font-size: 0;
+}
+
+.lead-profile-back svg {
+  display: none;
+}
+
+.lead-profile-back::before {
+  content: '';
+  width: 9px;
+  height: 9px;
+  border-left: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: rotate(45deg);
+}
+
+.lead-profile-back::after {
+  content: '';
+  width: 15px;
+  height: 2px;
+  margin-left: -3px;
+  border-radius: 999px;
+  background: currentColor;
+}
+
+/* Keep the profile action buttons at the far end of the header row. */
+.lead-profile-header-actions {
+  right: 24px;
+  justify-content: flex-end;
+}
