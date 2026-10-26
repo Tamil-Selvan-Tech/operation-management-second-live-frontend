@@ -6,7 +6,7 @@ import { createSalesAdminBatchRequest, listSalesAdminBatchRequests } from '../se
 import '../styles/SalesAdminAdmissionsPage.css'
 
 const BranchDashboardPage = lazy(() => import('./BranchDashboardPage').then(({ BranchDashboardPage: Page }) => ({ default: Page })))
-const statusOptions = [['ALL', 'All admissions'], ['PENDING_HOT', 'My pending HOT admissions'], ['PENDING', 'Pending'], ['IN_PROGRESS', 'In Progress'], ['ADMITTED', 'Admitted']]
+const statusOptions = [['ALL', 'All admissions'], ['PENDING', 'Pending'], ['IN_PROGRESS', 'In Progress'], ['ADMITTED', 'Admitted']]
 
 function money(value) {
   const amount = Number(value)
@@ -37,25 +37,30 @@ function AdmissionForm({ lead, onCancel, onComplete }) {
 
 function StudentDetailsModal({ student, loading, error, onClose, onRetry }) {
   const details = student.feeDetails
+  const courseEnrollment = student.courseEnrollments?.[0] || {}
+  const email = student.emailAddress || student.email
+  const courseName = student.courseName || courseEnrollment.courseName
+  const facultyName = student.facultyName || courseEnrollment.facultyName
+  const batchName = student.batchName || courseEnrollment.batchName
+  const batchTiming = student.batchTiming || student.batchTime || courseEnrollment.batchTiming || courseEnrollment.timing
+  const courseMode = student.courseMode || courseEnrollment.mode
+  const classSchedule = student.classSchedule || courseEnrollment.scheduleType
   const studentFields = [
     ['Student ID', student.studentId],
     ['Student Name', student.studentName],
+    ['Email', email],
     ['Phone Number', student.mobileNumber],
     ['Branch', student.branchName],
-    ['Course', student.courseName],
-    ['Faculty', student.facultyName],
-    ['Batch', student.batchName],
-    ['Training Mode', student.courseMode],
-    ['Class Schedule', student.classSchedule],
     ['Admission Date', student.admissionDate],
   ]
   const courseFields = [
-    ['Course Name', student.courseName],
+    ['Course Name', courseName],
     ['Branch Name', student.branchName],
-    ['Assigned Faculty', student.facultyName],
-    ['Assigned Batch', student.batchName],
-    ['Training Mode', student.courseMode],
-    ['Weekday / Weekend Schedule', student.classSchedule],
+    ['Assigned Faculty', facultyName],
+    ['Assigned Batch', batchName],
+    ['Training Mode', courseMode],
+    ['Weekday / Weekend Schedule', classSchedule],
+    ['Batch Timing', batchTiming],
   ]
 
   const renderFields = (fields) => fields.map(([label, value]) => <div className="sales-admission-detail-item" key={label}><span>{label}</span><strong>{value || '—'}</strong></div>)
@@ -282,8 +287,8 @@ export function SalesAdminAdmissionsPage() {
     {error ? <div className="sales-admission-error" role="alert"><AlertCircle size={18} />{error}<button type="button" onClick={() => void load()}>Retry</button></div> : null}
     <div className="sales-admissions-filters">
       <label className="sales-admissions-search"><Search size={17} /><input value={search} onChange={(event) => { setSearch(event.target.value); setPage(1) }} placeholder="Search lead, student, phone or student ID" /></label>
-      <select aria-label="Admission status" value={status} onChange={(event) => { setStatus(event.target.value); setPage(1) }}>{statusOptions.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>
-      <select aria-label="Branch" value={branchId} onChange={(event) => { setBranchId(event.target.value); setPage(1) }}><option value="">All authorized branches</option>{branches.map((branch) => <option value={branch.id} key={branch.id}>{branch.branchName}</option>)}</select>
+      <select aria-label="Admission status" value={status} onChange={(event) => { setStatus(event.target.value); setPage(1) }}>{status === 'PENDING_HOT' ? <option value="PENDING_HOT" hidden>My pending HOT admissions</option> : null}{statusOptions.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>
+      <select aria-label="Branch" value={branchId} onChange={(event) => { setBranchId(event.target.value); setPage(1) }}><option value="">All branches</option>{branches.map((branch) => <option value={branch.id} key={branch.id}>{branch.branchName}</option>)}</select>
       <select aria-label="Course" value={courseId} onChange={(event) => { setCourseId(event.target.value); setPage(1) }}><option value="">All courses</option>{courses.map((course) => <option value={course.id} key={course.id}>{course.name}</option>)}</select>
     </div>
     <div className="sales-admissions-table-wrap"><table><thead><tr><th>Lead / Student ID</th><th>Student</th><th>Phone</th><th>Branch</th><th>Course</th><th>Training</th><th>Schedule</th><th>Stage</th><th>Lead Payment</th><th>Available Batches</th><th>Admission</th><th>Assigned To</th><th>Actions</th></tr></thead><tbody>

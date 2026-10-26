@@ -9,6 +9,8 @@
 .sales-admission-send-request:hover { background: #e8f0ff; }
 .sales-admission-request-dialog { position: relative; width: min(470px, calc(100vw - 28px)); padding: 26px; border: 1px solid #dce6f5; border-radius: 16px; background: #fff; box-shadow: 0 24px 70px #0f172a38; }
 .sales-admission-request-dialog > span { color: #2870ed; font-size: 11px; font-weight: 800; letter-spacing: .12em; }
+.sales-admissions-filters { padding: 0; border: 0; border-radius: 0; background: transparent; }
+.sales-admissions-search input { border: 0 !important; box-shadow: none !important; background: transparent !important; outline: 0; }
 .sales-admission-request-dialog h2 { margin: 8px 36px 7px 0; color: #183153; font-size: 21px; }
 .sales-admission-request-dialog p { margin: 0 0 18px; color: #64748b; font-size: 13px; line-height: 1.5; }
 .sales-admission-request-dialog dl { display: grid; grid-template-columns: 130px 1fr; gap: 10px 16px; margin: 0; padding: 16px; border: 1px solid #e6edf7; border-radius: 11px; background: #f8faff; font-size: 13px; }
