@@ -162,7 +162,7 @@ export function SalesAdminAdmissionsPage() {
     setLoading(true)
     setError('')
     try {
-      const params = new URLSearchParams({ page: String(page), limit: '20', status })
+      const params = new URLSearchParams({ page: String(page), limit: '5', status })
       if (branchId) params.set('branchId', branchId)
       if (courseId) params.set('courseId', courseId)
       if (search.trim()) params.set('search', search.trim())
