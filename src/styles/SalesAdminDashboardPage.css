@@ -245,7 +245,7 @@
     grid-template-columns: 1fr;
   }
 }
-.sales-crm-report-page { min-height: 100%; padding: 26px 28px 34px; background: #fff; color: #172b4d; }
+.sales-crm-report-page { min-height: 100%; padding: 0; background: #fff; color: #172b4d; }
 .sales-crm-report-header { display: flex; align-items: center; justify-content: space-between; gap: 18px; margin: 0 0 21px; }
 .sales-crm-report-header .eyebrow { margin: 0 0 5px; color: #2875e8; font-size: 10px; font-weight: 850; letter-spacing: .17em; }
 .sales-crm-report-header h1 { margin: 0; color: #132b52; font-size: clamp(22px, 2.2vw, 29px); letter-spacing: -.035em; }
@@ -279,6 +279,7 @@
 .sales-crm-report-stage.is-warm { --stage-accent: #c58a10; --stage-soft: #fff9e9; --stage-border: #f2e8c7; }
 .sales-crm-report-stage.is-hot { --stage-accent: #e87527; --stage-soft: #fff4ec; --stage-border: #f5e2d4; }
 .sales-crm-report-stage.is-closed { --stage-accent: #68778b; --stage-soft: #f3f5f8; --stage-border: #e4e8ee; }
+.sales-crm-report-stage.is-other { --stage-accent: #7652d6; --stage-soft: #f5f1ff; --stage-border: #e7ddfb; }
 .sales-crm-report-table-scroll { width: 100%; overflow-x: auto; border: 1px solid #e7edf5; border-radius: 11px; }
 .sales-crm-report-table { width: 100%; min-width: 780px; border-collapse: separate; border-spacing: 0; text-align: left; }
 .sales-crm-report-table th { padding: 11px 13px; border-bottom: 1px solid #e4ebf4; color: #71829a; background: #f6f8fc; font-size: 10px; font-weight: 850; letter-spacing: .055em; text-transform: uppercase; white-space: nowrap; }
@@ -288,11 +289,12 @@
 .sales-crm-report-table tbody tr:hover { background: #f8fbff; }
 .sales-crm-report-lead-id { color: #245db5; font-weight: 800; }
 .sales-crm-report-student { color: #203754 !important; font-weight: 700; }
-.sales-crm-report-badge { display: inline-flex; align-items: center; min-height: 23px; padding: 3px 8px; border: 1px solid transparent; border-radius: 999px; font-size: 10px; font-weight: 800; }
+.sales-crm-report-badge { display: inline-flex; align-items: center; min-height: 23px; padding: 3px 8px; border: 1px solid #e2e8f0; border-radius: 999px; color: #64748b; background: #f7f9fc; font-size: 10px; font-weight: 800; }
 .sales-crm-report-badge.is-stage-cold { color: #2863b8; border-color: #d9e8ff; background: #edf4ff; }
 .sales-crm-report-badge.is-stage-warm { color: #986500; border-color: #f5e6b8; background: #fff8df; }
 .sales-crm-report-badge.is-stage-hot { color: #bb5916; border-color: #f4dcc8; background: #fff1e6; }
 .sales-crm-report-badge.is-stage-closed { color: #5c6778; border-color: #e2e6eb; background: #f1f3f6; }
+.sales-crm-report-badge.is-stage-other { color: #6941c6; border-color: #e7ddfb; background: #f5f1ff; }
 .sales-crm-report-badge.is-status-active { color: #16815c; border-color: #d5eee3; background: #eaf8f1; }
 .sales-crm-report-badge.is-status-follow-up { color: #2863b8; border-color: #d9e8ff; background: #edf4ff; }
 .sales-crm-report-badge.is-status-converted { color: #16815c; border-color: #d5eee3; background: #eaf8f1; }
@@ -313,13 +315,13 @@
 .sales-crm-report-skeleton-card i:nth-child(2) { width: 62%; }
 .sales-crm-report-skeleton-card i:last-child { width: 38%; height: 19px; }
 .sales-crm-report-skeleton-section > i:first-child { width: 190px; height: 16px; margin-bottom: 3px; }
-.sales-crm-report-skeleton-section > div { display: grid; grid-template-columns: repeat(4, 1fr); gap: 9px; }
+.sales-crm-report-skeleton-section > div { display: grid; grid-template-columns: repeat(5, 1fr); gap: 9px; }
 .sales-crm-report-skeleton-section > div i { height: 47px; }
 .sales-crm-report-skeleton-table i { height: 34px; }
 @keyframes sales-crm-report-shimmer { to { background-position: -220% 0; } }
 @media (max-width: 1120px) { .sales-crm-report-cards, .sales-crm-report-skeleton-metrics { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
-@media (max-width: 760px) { .sales-crm-report-page { padding: 20px 18px 28px; } .sales-crm-report-cards, .sales-crm-report-skeleton-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); } .sales-crm-report-stage-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-@media (max-width: 500px) { .sales-crm-report-page { padding: 17px 12px 24px; } .sales-crm-report-header { align-items: flex-start; flex-direction: column; } .sales-crm-report-period { min-width: 0; } .sales-crm-report-cards, .sales-crm-report-skeleton-metrics { grid-template-columns: 1fr; gap: 9px; } .sales-crm-report-metric { min-height: 82px; } .sales-crm-report-section { padding: 13px; } .sales-crm-report-stage-grid, .sales-crm-report-skeleton-section > div { grid-template-columns: repeat(2, minmax(0, 1fr)); } .sales-crm-report-error { align-items: flex-start; flex-wrap: wrap; } .sales-crm-report-error button { margin-left: auto; } }
+@media (max-width: 760px) { .sales-crm-report-page { padding: 0; } .sales-crm-report-cards, .sales-crm-report-skeleton-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); } .sales-crm-report-stage-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 500px) { .sales-crm-report-page { padding: 0; } .sales-crm-report-header { align-items: flex-start; flex-direction: column; } .sales-crm-report-period { min-width: 0; } .sales-crm-report-cards, .sales-crm-report-skeleton-metrics { grid-template-columns: 1fr; gap: 9px; } .sales-crm-report-metric { min-height: 82px; } .sales-crm-report-section { padding: 13px; } .sales-crm-report-stage-grid, .sales-crm-report-skeleton-section > div { grid-template-columns: repeat(2, minmax(0, 1fr)); } .sales-crm-report-error { align-items: flex-start; flex-wrap: wrap; } .sales-crm-report-error button { margin-left: auto; } }
 .sales-admin-notifications-page { min-height: 100%; width: 100%; box-sizing: border-box; padding: 25px 28px 34px; background: #fff; color: #0f172a; }
 .sales-admin-notifications-header { display: flex; align-items: center; justify-content: space-between; gap: 18px; margin: 0 0 18px; }
 .sales-admin-notifications-header .eyebrow { margin: 0 0 5px; color: #2563eb; font-size: 10px; font-weight: 850; letter-spacing: .16em; }
@@ -713,4 +715,607 @@
 .sales-admin-dashboard-metric strong,
 .sales-admin-dashboard-metric small {
   text-align: center;
+}
+
+/* Monthly Reports workspace */
+.sales-crm-report-page {
+  min-height: 100%;
+  box-sizing: border-box;
+  padding: 0;
+  color: #172b4d;
+  background: #ffffff;
+}
+
+.sales-crm-report-header {
+  align-items: flex-start;
+  margin-bottom: 20px;
+}
+
+.sales-crm-report-title .eyebrow {
+  margin: 0 0 6px;
+  color: #2875e8;
+  font-size: 10px;
+  font-weight: 850;
+  letter-spacing: .17em;
+}
+
+.sales-crm-report-title h1 {
+  margin: 0;
+  color: #132b52;
+  font-size: clamp(25px, 3vw, 35px);
+  font-weight: 800;
+  line-height: 1.12;
+  letter-spacing: -.045em;
+}
+
+.sales-crm-report-title p:not(.eyebrow) {
+  max-width: 660px;
+  margin: 8px 0 0;
+  color: #71829b;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.sales-crm-report-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sales-crm-report-period {
+  min-width: 155px;
+  padding: 10px 13px;
+  border: 1px solid #dce8fa;
+  border-radius: 11px;
+  background: #ffffff;
+  box-shadow: 0 4px 12px rgb(30 69 120 / 4%);
+}
+
+.sales-crm-report-period span,
+.sales-crm-report-period strong,
+.sales-crm-report-period small { display: block; }
+.sales-crm-report-period span { color: #8494aa; font-size: 9px; font-weight: 850; letter-spacing: .1em; }
+.sales-crm-report-period strong { margin-top: 3px; color: #1e4e96; font-size: 13px; line-height: 1.25; }
+.sales-crm-report-period small { margin-top: 3px; color: #9aa8ba; font-size: 10px; }
+
+.sales-crm-report-icon-button,
+.sales-crm-report-download-button,
+.sales-crm-report-apply-button,
+.sales-crm-report-reset-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 38px;
+  border-radius: 9px;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: background .16s ease, border-color .16s ease, box-shadow .16s ease, transform .16s ease;
+}
+
+.sales-crm-report-icon-button {
+  width: 38px;
+  padding: 0;
+  border: 1px solid #cfe0fa;
+  color: #1d5fbd;
+  background: #ffffff;
+}
+
+.sales-crm-report-download-button,
+.sales-crm-report-apply-button {
+  padding: 0 13px;
+  border: 1px solid #2563eb;
+  color: #ffffff;
+  background: #2563eb;
+  box-shadow: 0 5px 14px rgb(37 99 235 / 16%);
+}
+
+.sales-crm-report-icon-button:hover:not(:disabled),
+.sales-crm-report-download-button:hover:not(:disabled),
+.sales-crm-report-apply-button:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 17px rgb(37 99 235 / 21%);
+}
+
+.sales-crm-report-icon-button:hover:not(:disabled) { background: #f3f8ff; }
+.sales-crm-report-download-button:hover:not(:disabled), .sales-crm-report-apply-button:hover:not(:disabled) { background: #1d58d8; }
+.sales-crm-report-icon-button:disabled, .sales-crm-report-download-button:disabled, .sales-crm-report-apply-button:disabled, .sales-crm-report-reset-button:disabled { opacity: .55; cursor: not-allowed; }
+.sales-crm-report-icon-button:focus-visible, .sales-crm-report-download-button:focus-visible, .sales-crm-report-apply-button:focus-visible, .sales-crm-report-reset-button:focus-visible, .sales-crm-report-table-search input:focus-visible { outline: 3px solid rgb(37 99 235 / 18%); outline-offset: 2px; }
+
+.sales-crm-report-filter-card {
+  margin-bottom: 18px;
+  padding: 17px;
+  border: 1px solid #dce7f5;
+  border-radius: 15px;
+  background: #ffffff;
+  box-shadow: 0 8px 22px rgb(30 69 120 / 5%);
+}
+
+.sales-crm-report-filter-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 15px;
+}
+
+.sales-crm-report-filter-heading > div { display: flex; align-items: center; gap: 10px; }
+.sales-crm-report-filter-icon { display: grid; place-items: center; width: 35px; height: 35px; border-radius: 10px; color: #2875e8; background: #edf5ff; }
+.sales-crm-report-filter-heading h2 { margin: 0; color: #19385f; font-size: 14px; font-weight: 800; }
+.sales-crm-report-filter-heading p { margin: 3px 0 0; color: #8494aa; font-size: 11px; }
+.sales-crm-report-scope-pill { padding: 6px 9px; border: 1px solid #dbeafe; border-radius: 999px; color: #245db5; background: #f1f6ff; font-size: 10px; font-weight: 800; }
+
+.sales-crm-report-filter-grid,
+.sales-crm-report-advanced-filters {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.sales-crm-report-advanced-filters { grid-template-columns: repeat(4, minmax(0, 1fr)); margin-top: 11px; padding-top: 12px; border-top: 1px solid #edf2f7; }
+.sales-crm-report-filter-grid label, .sales-crm-report-advanced-filters label { display: grid; gap: 5px; min-width: 0; color: #63758e; font-size: 10px; font-weight: 800; }
+.sales-crm-report-filter-grid select, .sales-crm-report-advanced-filters select, .sales-crm-report-filter-grid input, .sales-crm-report-advanced-filters input { width: 100%; min-height: 37px; box-sizing: border-box; padding: 7px 10px; border: 1px solid #d8e2ef; border-radius: 9px; color: #29415f; background: #fbfdff; font: inherit; font-size: 12px; font-weight: 650; }
+.sales-crm-report-filter-grid select:focus, .sales-crm-report-advanced-filters select:focus, .sales-crm-report-filter-grid input:focus, .sales-crm-report-advanced-filters input:focus { border-color: #82aef0; outline: 3px solid rgb(37 99 235 / 12%); background: #fff; }
+
+.sales-crm-report-filter-actions { display: flex; align-items: flex-end; justify-content: flex-end; gap: 8px; }
+.sales-crm-report-reset-button { padding: 0 12px; border: 1px solid #d5dfeb; color: #5b6b80; background: #ffffff; }
+.sales-crm-report-reset-button:hover { border-color: #b9c9df; background: #f8fafc; }
+.sales-crm-report-inline-error, .sales-crm-report-inline-warning { margin: 10px 0 0; padding: 8px 10px; border-radius: 8px; font-size: 11px; }
+.sales-crm-report-inline-error { color: #a63f45; background: #fff2f2; }
+.sales-crm-report-inline-warning { color: #8a6500; background: #fff9e5; }
+
+.sales-crm-report-context-line,
+.sales-crm-report-download-error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 0 13px;
+  color: #8494aa;
+  font-size: 10px;
+}
+
+.sales-crm-report-context-line strong { color: #536b88; font-weight: 800; }
+.sales-crm-report-download-error { justify-content: flex-start; padding: 10px 12px; border: 1px solid #fecaca; border-radius: 9px; color: #a63f45; background: #fff5f5; }
+.sales-crm-report-download-error button { display: grid; place-items: center; margin-left: auto; padding: 2px; border: 0; color: #a63f45; background: transparent; cursor: pointer; }
+
+.sales-crm-report-cards { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 17px; }
+.sales-crm-report-metric {
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr);
+  grid-template-rows: auto 1fr auto;
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 121px;
+  padding: 14px;
+  border-radius: 14px;
+  text-align: left;
+  font: inherit;
+  appearance: none;
+}
+.sales-crm-report-metric.is-clickable { cursor: pointer; }
+.sales-crm-report-metric.is-clickable:hover { transform: translateY(-3px); }
+.sales-crm-report-metric.is-selected { border-color: color-mix(in srgb, var(--report-accent) 48%, white); box-shadow: 0 0 0 3px color-mix(in srgb, var(--report-accent) 13%, transparent), 0 7px 18px rgb(24 55 99 / 8%); }
+.sales-crm-report-metric-link { grid-column: 1 / -1; display: inline-flex; align-items: center; gap: 4px; justify-self: start; margin-top: 7px; color: var(--report-accent); font-size: 10px; font-weight: 800; }
+.sales-crm-report-table-card { scroll-margin-top: 18px; }
+.sales-crm-report-metric-icon { grid-row: 1 / 2; }
+.sales-crm-report-metric-label { grid-column: 2; align-self: center; }
+.sales-crm-report-metric > strong { grid-column: 2; align-self: start; margin-top: 5px; }
+.sales-crm-report-metric > small { grid-column: 1 / -1; align-self: end; margin-top: 8px; color: #8a9ab0; font-size: 10px; }
+
+.sales-crm-report-section { margin-bottom: 16px; padding: 18px; border-radius: 15px; box-shadow: 0 7px 20px rgb(30 69 120 / 4%); }
+.sales-crm-report-section-heading { margin-bottom: 15px; }
+.sales-crm-report-section-count { padding: 5px 8px; border-radius: 999px; color: #6c7c92; background: #f4f7fb; font-size: 10px; font-weight: 800; }
+.sales-crm-report-stage-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 11px; }
+.sales-crm-report-stage { display: block; padding: 13px; border-radius: 12px; }
+.sales-crm-report-stage-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.sales-crm-report-stage > strong { font-size: 20px; }
+.sales-crm-report-stage-track { height: 6px; margin-top: 12px; overflow: hidden; border-radius: 999px; background: rgb(255 255 255 / 75%); }
+.sales-crm-report-stage-track span { display: block; height: 100%; border-radius: inherit; background: var(--stage-accent); transition: width .25s ease; }
+.sales-crm-report-stage small { display: block; margin-top: 8px; color: color-mix(in srgb, var(--stage-accent) 75%, #64748b); font-size: 10px; }
+
+.sales-crm-report-performance-table td { vertical-align: middle; }
+.sales-crm-report-progress-value { display: grid; grid-template-columns: 34px 62px; align-items: center; gap: 7px; color: #526985; font-size: 11px; font-weight: 800; }
+.sales-crm-report-progress-value i { display: block; height: 5px; overflow: hidden; border-radius: 999px; background: #e8eef7; }
+.sales-crm-report-progress-value b { display: block; height: 100%; border-radius: inherit; background: #2875e8; }
+
+.sales-crm-report-table-card .sales-crm-report-section-heading { align-items: center; }
+.sales-crm-report-table-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: min(330px, 100%);
+  min-height: 40px;
+  box-sizing: border-box;
+  padding: 0 10px;
+  border: 1px solid #d8e2ef;
+  border-radius: 10px;
+  color: #7b8da6;
+  background: #fff;
+  box-shadow: 0 2px 8px rgb(30 69 120 / 4%);
+}
+
+.sales-crm-report-table-search:focus-within {
+  border-color: #82aef0;
+  box-shadow: 0 0 0 3px rgb(37 99 235 / 10%);
+}
+
+.sales-crm-report-table-search > svg {
+  flex: 0 0 auto;
+  color: #7890ae;
+}
+
+.sales-crm-report-table-search input,
+.sales-crm-report-table-search input[type="search"] {
+  display: block;
+  min-width: 0;
+  width: 100%;
+  height: 38px;
+  flex: 1 1 auto;
+  box-sizing: border-box;
+  padding: 0;
+  border: 0 !important;
+  border-radius: 0;
+  outline: 0 !important;
+  box-shadow: none !important;
+  color: #29415f;
+  background: transparent !important;
+  font: inherit;
+  font-size: 12px;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.sales-crm-report-table-search input::placeholder {
+  color: #9aa8ba;
+  opacity: 1;
+}
+
+.sales-crm-report-table-search button {
+  width: 24px;
+  height: 24px;
+  flex: 0 0 24px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0 !important;
+  border-radius: 6px;
+  color: #7890ae;
+  background: transparent;
+  cursor: pointer;
+}
+
+.sales-crm-report-table-search button:hover {
+  color: #285ea8;
+  background: #eef5ff;
+}
+.sales-crm-report-sub-cell { display: block; margin-top: 3px; color: #8b9bb0; font-size: 9px; }
+.sales-crm-report-pagination { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 13px; color: #8190a4; font-size: 11px; }
+.sales-crm-report-pagination > div { display: flex; align-items: center; gap: 8px; }
+.sales-crm-report-pagination button { min-height: 31px; padding: 5px 9px; border: 1px solid #dbe4ef; border-radius: 8px; color: #38516e; background: #fff; font: inherit; font-size: 10px; font-weight: 750; cursor: pointer; }
+.sales-crm-report-pagination button:hover:not(:disabled) { border-color: #a9c9f6; background: #f4f8ff; }
+.sales-crm-report-pagination button:disabled { color: #aeb8c5; background: #f8fafc; cursor: not-allowed; }
+.sales-crm-report-pagination strong { color: #526985; font-size: 10px; }
+
+.sales-crm-report-filter-grid.sales-crm-report-compact-filters {
+  grid-template-columns: minmax(180px, 1.15fr) minmax(150px, 1fr) minmax(190px, 1.35fr) auto;
+  align-items: end;
+}
+.sales-crm-report-compact-filters .sales-crm-report-filter-actions { align-self: end; }
+@media (max-width: 1180px) {
+  .sales-crm-report-filter-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .sales-crm-report-filter-grid.sales-crm-report-compact-filters { grid-template-columns: minmax(150px, 1fr) minmax(130px, 1fr) minmax(170px, 1.2fr) auto; }
+  .sales-crm-report-advanced-filters { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .sales-crm-report-cards { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+
+@media (max-width: 800px) {
+  .sales-crm-report-page { padding: 0; }
+  .sales-crm-report-header { flex-direction: column; }
+  .sales-crm-report-header-actions { width: 100%; flex-wrap: wrap; }
+  .sales-crm-report-period { flex: 1; }
+  .sales-crm-report-filter-grid, .sales-crm-report-advanced-filters { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .sales-crm-report-filter-grid.sales-crm-report-compact-filters { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .sales-crm-report-filter-actions { grid-column: 1 / -1; }
+  .sales-crm-report-stage-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .sales-crm-report-context-line { align-items: flex-start; flex-direction: column; gap: 4px; }
+  .sales-crm-report-table-card .sales-crm-report-section-heading { align-items: flex-start; flex-direction: column; }
+  .sales-crm-report-table-search { width: 100%; }
+}
+
+@media (max-width: 560px) {
+  .sales-crm-report-page { padding: 0; }
+  .sales-crm-report-header-actions { display: grid; grid-template-columns: 1fr auto; }
+  .sales-crm-report-period { grid-column: 1 / -1; width: auto; }
+  .sales-crm-report-download-button { min-width: 0; }
+  .sales-crm-report-filter-card, .sales-crm-report-section { padding: 13px; }
+  .sales-crm-report-filter-heading { align-items: flex-start; flex-direction: column; }
+  .sales-crm-report-filter-grid, .sales-crm-report-advanced-filters, .sales-crm-report-cards, .sales-crm-report-stage-grid { grid-template-columns: 1fr; }
+  .sales-crm-report-filter-actions { grid-column: auto; }
+  .sales-crm-report-filter-actions button { flex: 1; }
+  .sales-crm-report-pagination { align-items: flex-start; flex-direction: column; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sales-crm-report-icon-button,
+  .sales-crm-report-download-button,
+  .sales-crm-report-apply-button,
+  .sales-crm-report-stage-track span { transition: none; }
+}
+
+.sales-crm-report-period-picker {
+  position: relative;
+  z-index: 40;
+  min-width: 155px;
+}
+
+.sales-crm-report-period {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 18px;
+  align-items: center;
+  width: 100%;
+  min-width: 155px;
+  box-sizing: border-box;
+  padding: 10px 36px 10px 13px;
+  border: 1px solid #dce8fa;
+  border-radius: 11px;
+  color: #1e4e96;
+  background: #ffffff;
+  box-shadow: 0 4px 12px rgb(30 69 120 / 4%);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color .16s ease, box-shadow .16s ease, background-color .16s ease;
+}
+
+.sales-crm-report-period:hover,
+.sales-crm-report-period-picker.is-open .sales-crm-report-period {
+  border-color: #9fc3f4;
+  background: #fbfdff;
+  box-shadow: 0 0 0 3px rgb(37 99 235 / 9%), 0 6px 16px rgb(30 69 120 / 6%);
+}
+
+.sales-crm-report-period-chevron {
+  position: absolute;
+  right: 12px;
+  bottom: 11px;
+  color: #526681;
+  transition: transform .16s ease, color .16s ease;
+}
+
+.sales-crm-report-period-picker.is-open .sales-crm-report-period-chevron {
+  color: #2563eb;
+  transform: rotate(180deg);
+}
+
+.sales-crm-report-period > span,
+.sales-crm-report-period > strong {
+  grid-column: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sales-crm-report-period-popover {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  width: 360px;
+  box-sizing: border-box;
+  padding: 15px;
+  border: 1px solid #d7e3f2;
+  border-radius: 13px;
+  background: #ffffff;
+  box-shadow: 0 18px 38px rgb(15 23 42 / 16%);
+}
+
+.sales-crm-report-period-popover-heading { grid-column: 1 / -1;  display: grid;
+  gap: 3px;
+  padding-bottom: 2px;
+}
+
+.sales-crm-report-period-popover-heading strong { color: #17345f; font-size: 13px; }
+.sales-crm-report-period-popover-heading span { color: #8292a8; font-size: 10px; line-height: 1.45; }
+.sales-crm-report-period-field { display: grid; gap: 5px; color: #63758e; font-size: 10px; font-weight: 800; }
+.sales-crm-report-period-actions { grid-column: 1 / -1; display: flex; justify-content: flex-end; gap: 8px; padding-top: 2px; }
+.sales-crm-report-period-actions button { min-height: 34px; padding: 6px 10px; border-radius: 8px; font: inherit; font-size: 10px; font-weight: 800; cursor: pointer; }
+.sales-crm-report-period-cancel { border: 1px solid #d5dfeb; color: #5b6b80; background: #ffffff; }
+.sales-crm-report-period-cancel:hover { background: #f8fafc; }
+.sales-crm-report-period-apply { border: 1px solid #2563eb; color: #ffffff; background: #2563eb; box-shadow: 0 4px 11px rgb(37 99 235 / 16%); }
+.sales-crm-report-period-apply:hover { background: #1d58d8; }
+@media (max-width: 560px) {
+  .sales-crm-report-period-picker { width: 100%; min-width: 0; }
+  .sales-crm-report-period { min-width: 0; }
+  .sales-crm-report-period-popover { left: 0; right: auto; width: min(360px, calc(100vw - 26px)); grid-template-columns: 1fr; }
+  .sales-crm-report-period-popover-heading,
+  .sales-crm-report-period-actions { grid-column: auto; }
+}
+/* Keep Monthly Reports flush with the app shell while preserving inner card spacing. */
+.app-shell.sales-crm-reports-shell {
+  gap: 0 !important;
+  padding: 0 !important;
+}
+
+.app-shell.sales-crm-reports-shell .main-area {
+  gap: 0 !important;
+  padding: 0 !important;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  background: #ffffff !important;
+}
+
+.app-shell.sales-crm-reports-shell .main-area > .content {
+  padding: 0 !important;
+}
+
+.app-shell.sales-crm-reports-shell .sales-crm-report-page {
+  width: 100%;
+  min-height: 100%;
+  margin: 0;
+  padding: 0 !important;
+  background: #ffffff;
+}
+
+@media (min-width: 1081px) {
+  .app-shell.sales-crm-reports-shell .sidebar {
+    top: 0;
+    left: 0;
+    margin: 0;
+    border-radius: 0;
+    box-shadow: none;
+  }
+}
+.sales-crm-report-download-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1400;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  background: rgba(15, 23, 42, .54);
+}
+
+.sales-crm-report-download-modal {
+  width: min(680px, 100%);
+  max-height: min(760px, calc(100vh - 36px));
+  overflow: auto;
+  border: 1px solid #dbe4f0;
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: 0 24px 70px rgba(15, 23, 42, .26);
+}
+
+.sales-crm-report-download-modal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 24px 26px 18px;
+  border-bottom: 1px solid #eef2f7;
+}
+
+.sales-crm-report-download-modal-header .eyebrow { margin: 0 0 6px; }
+.sales-crm-report-download-modal-header h2 { margin: 0; color: #17345f; font-size: 22px; }
+.sales-crm-report-download-modal-header p:not(.eyebrow) { margin: 7px 0 0; color: #647b9b; font-size: 13px; }
+
+.sales-crm-report-download-close {
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 34px;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: 1px solid #d7e1ef;
+  border-radius: 9px;
+  background: #fff;
+  color: #64748b;
+  cursor: pointer;
+}
+
+.sales-crm-report-download-close:hover:not(:disabled) { border-color: #bfd1e5; background: #f8fbff; color: #17345f; }
+.sales-crm-report-download-close:disabled { cursor: not-allowed; opacity: .55; }
+
+.sales-crm-report-download-form { display: grid; gap: 18px; padding: 22px 26px 4px; }
+.sales-crm-report-download-controls, .sales-crm-report-download-period-card { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.sales-crm-report-download-year-card { grid-template-columns: minmax(0, 1fr); }
+.sales-crm-report-download-field, .sales-crm-report-download-period-card > label { display: grid; gap: 6px; color: #475569; font-size: 12px; font-weight: 700; }
+.sales-crm-report-download-period-card input { width: 100%; min-height: 44px; box-sizing: border-box; padding: 10px 11px; border: 1px solid #d7e1ef; border-radius: 9px; background: #fff; color: #334155; font: inherit; font-weight: 400; }
+.sales-crm-report-download-period-card input:focus { border-color: #2563eb; outline: none; box-shadow: 0 0 0 3px rgba(37, 99, 235, .12); }
+
+.sales-crm-report-select { position: relative; z-index: 1; }
+.sales-crm-report-select.is-open { z-index: 20; }
+.sales-crm-report-select-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  min-height: 44px;
+  box-sizing: border-box;
+  padding: 10px 12px;
+  border: 1px solid #cbd9ea;
+  border-radius: 9px;
+  background: #fff;
+  color: #334155;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color .18s ease, box-shadow .18s ease, background-color .18s ease;
+}
+.sales-crm-report-select-trigger > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sales-crm-report-select-trigger > svg { flex: 0 0 auto; color: #526681; transition: color .18s ease, transform .18s ease; }
+.sales-crm-report-select:hover .sales-crm-report-select-trigger { border-color: #8cb8f4; background: #fbfdff; }
+.sales-crm-report-select.is-open .sales-crm-report-select-trigger { border-color: #4b8ff5; box-shadow: 0 0 0 3px rgba(59, 130, 246, .12); }
+.sales-crm-report-select.is-open .sales-crm-report-select-trigger > svg { color: #2563eb; transform: rotate(180deg); }
+.sales-crm-report-select-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 30;
+  display: grid;
+  gap: 2px;
+  width: 100%;
+  max-height: 260px;
+  overflow-y: auto;
+  padding: 6px;
+  border: 1px solid #d7e3f2;
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 16px 30px rgba(15, 23, 42, .16);
+}
+.sales-crm-report-select-option {
+  width: 100%;
+  min-height: 35px;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 7px;
+  background: #fff;
+  color: #334155;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 650;
+  text-align: left;
+  cursor: pointer;
+}
+.sales-crm-report-select-option:hover, .sales-crm-report-select-option:focus-visible { color: #fff; background: #2563eb; outline: none; }
+.sales-crm-report-select-option.is-selected { color: #1557b0; background: #eaf2ff; font-weight: 800; }
+.sales-crm-report-select-option.is-selected:hover, .sales-crm-report-select-option.is-selected:focus-visible { color: #fff; background: #2563eb; }
+
+.sales-crm-report-download-summary {
+  display: grid;
+  gap: 4px;
+  padding: 13px 14px;
+  border: 1px solid #dbeafe;
+  border-radius: 11px;
+  background: #f8fbff;
+}
+.sales-crm-report-download-summary span { color: #647b9b; font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
+.sales-crm-report-download-summary strong { color: #17345f; font-size: 15px; }
+.sales-crm-report-download-summary small { color: #647b9b; font-size: 12px; }
+.sales-crm-report-download-inline-error { display: flex; align-items: center; gap: 7px; padding: 9px 10px; border-radius: 8px; color: #a63f45; background: #fff2f2; font-size: 12px; font-weight: 650; }
+.sales-crm-report-download-actions { display: flex; justify-content: flex-end; gap: 10px; padding: 16px 26px 22px; border-top: 1px solid #eef2f7; background: #fff; }
+.sales-crm-report-download-actions button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 40px; border-radius: 9px; font: inherit; font-size: 12px; font-weight: 800; cursor: pointer; }
+.sales-crm-report-download-actions button:disabled { cursor: not-allowed; opacity: .65; }
+.sales-crm-report-download-cancel { padding: 0 15px; border: 1px solid #d5dfeb; color: #5b6b80; background: #fff; }
+.sales-crm-report-download-cancel:hover:not(:disabled) { border-color: #b9c9df; background: #f8fafc; }
+.sales-crm-report-download-submit { padding: 0 16px; border: 1px solid #2563eb; color: #fff; background: #2563eb; box-shadow: 0 5px 14px rgb(37 99 235 / 16%); }
+.sales-crm-report-download-submit:hover:not(:disabled) { background: #1d58d8; box-shadow: 0 8px 17px rgb(37 99 235 / 21%); }
+.sales-crm-report-download-success { display: flex; align-items: center; gap: 8px; margin: 0 0 13px; padding: 10px 12px; border: 1px solid #bbf7d0; border-radius: 9px; color: #166534; background: #f0fdf4; font-size: 11px; font-weight: 700; }
+.sales-crm-report-download-success button { display: grid; place-items: center; margin-left: auto; padding: 2px; border: 0; color: #166534; background: transparent; cursor: pointer; }
+
+@media (max-width: 720px) {
+  .sales-crm-report-download-modal-header, .sales-crm-report-download-form, .sales-crm-report-download-actions { padding-left: 18px; padding-right: 18px; }
+  .sales-crm-report-download-controls, .sales-crm-report-download-period-card { grid-template-columns: 1fr; }
+  .sales-crm-report-download-actions { flex-direction: column-reverse; }
+  .sales-crm-report-download-actions button { width: 100%; }
 }

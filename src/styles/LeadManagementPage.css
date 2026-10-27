@@ -1175,46 +1175,6 @@
   justify-content: flex-end;
 }
 
-/* Lead report export */
+/* Header actions */
 .lead-management-heading-actions { display: flex; align-items: center; justify-content: flex-end; gap: 10px; flex-wrap: wrap; }
-.lead-report-trigger { display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
-.lead-report-backdrop { position: fixed; inset: 0; z-index: 1300; display: grid; place-items: center; padding: 18px; background: rgba(15, 23, 42, .54); }
-.lead-report-modal { width: min(680px, 100%); max-height: min(760px, calc(100vh - 36px)); overflow: auto; border: 1px solid #dbe4f0; border-radius: 18px; background: #fff; box-shadow: 0 24px 70px rgba(15, 23, 42, .26); }
-.lead-report-modal-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; padding: 24px 26px 18px; border-bottom: 1px solid #eef2f7; }
-.lead-report-modal-header .eyebrow { margin: 0 0 6px; }
-.lead-report-modal-header h2 { margin: 0; color: #17345f; font-size: 22px; }
-.lead-report-modal-header p:not(.eyebrow) { margin: 7px 0 0; color: #647b9b; font-size: 13px; }
-.lead-report-close { display: inline-grid; place-items: center; flex: 0 0 34px; width: 34px; height: 34px; padding: 0; border: 1px solid #d7e1ef; border-radius: 9px; background: #fff; color: #64748b; font-size: 22px; line-height: 1; cursor: pointer; }
-.lead-report-close:hover { border-color: #bfd1e5; background: #f8fbff; color: #17345f; }
-.lead-report-close:disabled { cursor: not-allowed; opacity: .55; }
-.lead-report-form { display: grid; gap: 18px; padding: 22px 26px 4px; }
-.lead-report-fieldset { min-width: 0; margin: 0; padding: 0; border: 0; }
-.lead-report-controls { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
-.lead-report-control-field { display: grid; gap: 6px; color: #475569; font-size: 12px; font-weight: 700; }
-.lead-report-control-field select { width: 100%; min-height: 44px; box-sizing: border-box; padding: 10px 12px; border: 1px solid #d7e1ef; border-radius: 9px; background: #fff; color: #334155; font: inherit; font-weight: 600; }
-.lead-report-control-field select:focus { border-color: #2563eb; outline: none; box-shadow: 0 0 0 3px rgba(37, 99, 235, .12); }.lead-report-select { position: relative; z-index: 1; }
-.lead-report-select.is-open { z-index: 20; }
-.lead-report-select-trigger { display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%; min-height: 44px; box-sizing: border-box; padding: 10px 12px; border: 1px solid #cbd9ea; border-radius: 9px; background: #fff; color: #334155; font: inherit; font-size: 13px; font-weight: 600; text-align: left; cursor: pointer; transition: border-color .18s ease, box-shadow .18s ease, background-color .18s ease; }
-.lead-report-select-trigger > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.lead-report-select-trigger > svg { flex: 0 0 auto; color: #526681; transition: color .18s ease, transform .18s ease; }
-.lead-report-select:hover .lead-report-select-trigger { border-color: #8cb8f4; background: #fbfdff; }
-.lead-report-select.is-open .lead-report-select-trigger { border-color: #4b8ff5; box-shadow: 0 0 0 3px rgba(59, 130, 246, .12); }
-.lead-report-select.is-open .lead-report-select-trigger > svg { color: #2563eb; transform: rotate(180deg); }
-.lead-report-select-menu { position: absolute; top: calc(100% + 6px); left: 0; z-index: 30; display: grid; gap: 2px; width: 100%; max-height: 260px; overflow-y: auto; padding: 6px; border: 1px solid #d7e3f2; border-radius: 10px; background: #fff; box-shadow: 0 16px 30px rgba(15, 23, 42, .16); }
-.lead-report-select-option { width: 100%; min-height: 35px; padding: 8px 10px; border: 0; border-radius: 7px; background: #fff; color: #334155; font: inherit; font-size: 12px; font-weight: 650; text-align: left; cursor: pointer; transition: color .14s ease, background-color .14s ease; }
-.lead-report-select-option:hover, .lead-report-select-option:focus-visible { color: #fff; background: #2563eb; outline: none; }
-.lead-report-select-option.is-selected { color: #1557b0; background: #eaf2ff; font-weight: 800; }
-.lead-report-select-option.is-selected:hover, .lead-report-select-option.is-selected:focus-visible { color: #fff; background: #2563eb; }
-.lead-report-period-card { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
-.lead-report-period-card label { display: grid; gap: 6px; color: #475569; font-size: 12px; font-weight: 700; }
-.lead-report-period-card select, .lead-report-period-card input { width: 100%; min-height: 42px; box-sizing: border-box; padding: 10px 11px; border: 1px solid #d7e1ef; border-radius: 9px; background: #fff; color: #334155; font: inherit; font-weight: 400; }
-.lead-report-period-card select:focus, .lead-report-period-card input:focus { border-color: #2563eb; outline: none; box-shadow: 0 0 0 3px rgba(37, 99, 235, .12); }
-.lead-report-year-card { grid-template-columns: minmax(0, 1fr); }
-.lead-report-period-summary { display: grid; gap: 4px; padding: 13px 14px; border: 1px solid #dbeafe; border-radius: 11px; background: #f8fbff; }
-.lead-report-period-summary span { color: #647b9b; font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
-.lead-report-period-summary strong { color: #17345f; font-size: 15px; }
-.lead-report-period-summary small { color: #647b9b; font-size: 12px; }
-.lead-report-modal-actions { display: flex; justify-content: flex-end; gap: 10px; padding: 16px 26px 22px; border-top: 1px solid #eef2f7; background: #fff; }
-.lead-report-modal-actions button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
-.lead-report-modal-actions button:disabled { cursor: not-allowed; opacity: .65; }
-@media (max-width: 720px) { .lead-management-heading-actions { width: 100%; justify-content: stretch; }.lead-management-heading-actions > button { flex: 1 1 180px; }.lead-report-modal-header, .lead-report-form, .lead-report-modal-actions { padding-left: 18px; padding-right: 18px; }.lead-report-controls, .lead-report-period-card { grid-template-columns: 1fr; }.lead-report-modal-actions { flex-direction: column-reverse; }.lead-report-modal-actions button { width: 100%; } }
+@media (max-width: 720px) { .lead-management-heading-actions { width: 100%; justify-content: stretch; }.lead-management-heading-actions > button { flex: 1 1 180px; } }
