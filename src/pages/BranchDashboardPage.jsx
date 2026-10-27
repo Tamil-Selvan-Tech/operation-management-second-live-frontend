@@ -15157,7 +15157,7 @@ else {
                       <div className="branch-profile-avatar" aria-hidden="true">{String(branchAdminDisplay || 'A').trim().charAt(0).toUpperCase()}</div>
                       <div>
                         <strong>{branchAdminDisplay}</strong>
-                        <span>Branch Administrator</span>
+                        {hasLeadManagementAccess ? <div className="branch-profile-role-badges" aria-label="Account roles"><span className="is-branch-admin">Branch Admin</span><span className="is-sales-admin">Sales Admin</span></div> : <span>Branch Administrator</span>}
                         <small className="branch-profile-meta-clean">{branchTitle} - {branchLocation}</small>
                         <small>{branchTitle} • {branchLocation}</small>
                       </div>

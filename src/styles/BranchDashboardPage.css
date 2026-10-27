@@ -2613,6 +2613,11 @@ body.branch-notification-menu-open .main-area {
   display: block;
 }
 
+.branch-profile-role-badges { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin: 4px 0 2px; }
+.branch-profile-role-badges span { display: inline-flex; align-items: center; min-height: 22px; padding: 0 8px; border: 1px solid transparent; border-radius: 999px; font-size: 10px; font-weight: 750; line-height: 1; }
+.branch-profile-role-badges .is-branch-admin { border-color: #d9e7fb; color: #315f9f; background: #eff6ff; }
+.branch-profile-role-badges .is-sales-admin { border-color: #cceee0; color: #17714f; background: #ecfbf4; }
+
 .branch-profile-edit-button {
   display: inline-flex;
   align-items: center;
