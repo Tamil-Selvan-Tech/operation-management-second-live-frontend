@@ -166,6 +166,9 @@ import '../styles/BranchDashboardPage.css'
 // short recent-result window in addition to the in-flight lock so those
 // signals cannot issue the same live request repeatedly.
 const BRANCH_LIVE_REFRESH_DEDUPE_MS = 2000
+// Follow-up reminders are created by the backend scheduler. Poll only while
+// the dashboard is visible so due reminders appear without manual refreshes.
+const BRANCH_NOTIFICATION_POLL_MS = 30 * 1000
 const recentBranchDashboardRequests = new Map()
 
 function shareRecentBranchDashboardRequest(key, loader, ttl = BRANCH_LIVE_REFRESH_DEDUPE_MS) {
@@ -5492,14 +5495,14 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
   }, [loadBranchInstallmentPlanOptions])
 
   useEffect(() => {
-    const scheduleNotificationRefresh = () => {
+    const scheduleNotificationRefresh = (options = {}) => {
       if (branchNotificationsRefreshTimerRef.current) {
         window.clearTimeout(branchNotificationsRefreshTimerRef.current)
       }
 
       branchNotificationsRefreshTimerRef.current = window.setTimeout(() => {
         branchNotificationsRefreshTimerRef.current = null
-        void loadBranchNotifications()
+        void loadBranchNotifications({ force: options?.force === true })
       }, 250)
     }
 
@@ -5522,10 +5525,21 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
     }
 
     window.addEventListener('focus', handleFocus)
+    const handleLeadNotificationUpdated = () => scheduleNotificationRefresh({ force: true })
+
+    window.addEventListener('lead-notification-updated', handleLeadNotificationUpdated)
     document.addEventListener('visibilitychange', handleVisibilityChange)
+    const notificationPollTimer = window.setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        scheduleNotificationRefresh({ force: true })
+      }
+    }, BRANCH_NOTIFICATION_POLL_MS)
+
     return () => {
       window.removeEventListener('focus', handleFocus)
+      window.removeEventListener('lead-notification-updated', handleLeadNotificationUpdated)
       document.removeEventListener('visibilitychange', handleVisibilityChange)
+      window.clearInterval(notificationPollTimer)
       if (branchNotificationsRefreshTimerRef.current) {
         window.clearTimeout(branchNotificationsRefreshTimerRef.current)
         branchNotificationsRefreshTimerRef.current = null
@@ -5891,7 +5905,8 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
               String(notification.kind || '').startsWith('course-edit-') ||
               String(notification.kind || '').trim() === 'sales-crm-admission' ||
               String(notification.kind || '').trim() === 'sales-crm-batch-request' ||
-              (hasLeadManagementAccess && ['lead-follow-up-due', 'lead-follow-up-overdue', 'lead-follow-up-scheduled', 'sales-crm-monthly-report', 'pending-student-admission-reminder', 'sales-crm-batch-request-update'].includes(String(notification.kind || '').trim())) ||
+              (['lead-follow-up-due', 'lead-follow-up-overdue', 'lead-follow-up-scheduled'].includes(String(notification.kind || '').trim())) ||
+              (hasLeadManagementAccess && ['sales-crm-monthly-report', 'pending-student-admission-reminder', 'sales-crm-batch-request-update'].includes(String(notification.kind || '').trim())) ||
               (String(notification.kind || '') === 'sequential-course-scheduling-required' ||
                 String(notification.kind || '').startsWith('student-'))
             ),

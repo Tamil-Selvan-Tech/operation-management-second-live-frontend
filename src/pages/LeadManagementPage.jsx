@@ -102,6 +102,7 @@ export function LeadManagementPage() {
       setFollowUpFieldErrors({})
       setFollowUpModal(false)
       setNotice('Follow-up added successfully.')
+      window.dispatchEvent(new Event('lead-notification-updated'))
     } catch (reason) { setFollowUpError(reason?.message || 'Unable to save follow-up') } finally { setFollowUpSaving(false) }
   }
   const openEdit = async (lead) => { setSaving(false); setError(''); try { const result = await request(`/leads/${lead.id}`); const detail = result?.data || lead; setEditing(detail); setRecordings((detail.recordings || []).map((recording) => ({ id: recording.id, existing: true, originalName: recording.originalName, sizeBytes: recording.sizeBytes, createdAt: recording.createdAt }))); setForm({ ...emptyForm, ...detail, leadId: detail.leadId || makeLeadId(), phoneNumber: detail.phoneNumber || '', leadDate: detail.leadDate ? String(detail.leadDate).slice(0, 10) : emptyForm.leadDate }); } catch (reason) { setEditing(lead); setRecordings([]); setForm({ ...emptyForm, ...lead, leadId: lead.leadId || makeLeadId(), phoneNumber: lead.phoneNumber || '', leadDate: lead.leadDate ? String(lead.leadDate).slice(0, 10) : emptyForm.leadDate }); setError(reason?.message || 'Unable to load lead recordings') } setFieldErrors({}); setValidatedSteps({}); setStep(1); setModal(true) }
@@ -151,6 +152,7 @@ export function LeadManagementPage() {
       setModal(false)
       setNotice(editing ? 'Lead updated successfully.\nThe lead details have been saved successfully.' : 'Lead created successfully.\nThe lead details have been saved successfully.')
       setFilters((current) => ({ ...current, page: 1 }))
+      window.dispatchEvent(new Event('lead-notification-updated'))
       await loadLeads()
     } catch (reason) {
       const message = reason?.message || 'Unable to save lead and recordings'

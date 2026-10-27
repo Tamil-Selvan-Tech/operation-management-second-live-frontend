@@ -115,6 +115,7 @@ const normalizeNotification = (notification = {}) => {
     targetBranchId: String(notification.targetBranchId || '').trim(),
     targetBranchEmail: String(notification.targetBranchEmail || '').trim().toLowerCase(),
     targetBranchName: String(notification.targetBranchName || '').trim(),
+    targetUserId: String(notification.targetUserId || '').trim(),
     facultyId: String(notification.facultyId || '').trim(),
     facultyEmail: String(notification.facultyEmail || '').trim().toLowerCase(),
     facultyName: String(notification.facultyName || '').trim(),
@@ -181,6 +182,7 @@ export function loadNotifications() {
         String(notification.kind || '').startsWith('branch-progress-status') ||
         String(notification.kind || '').trim() === 'sales-crm-admission' ||
         String(notification.kind || '').trim() === 'sales-crm-batch-request' ||
+        ['lead-follow-up-scheduled', 'lead-follow-up-due', 'lead-follow-up-overdue'].includes(String(notification.kind || '').trim()) ||
         String(notification.kind || '') === 'sequential-course-scheduling-required'
       ),
     )

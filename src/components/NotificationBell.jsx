@@ -47,7 +47,9 @@ export function NotificationBell() {
     // so every open dashboard does not issue a request every few seconds.
     window.addEventListener('focus', load)
     window.addEventListener('institute-leave-updated', load)
-    return () => { active = false; window.removeEventListener('focus', load); window.removeEventListener('institute-leave-updated', load) }
+    window.addEventListener('lead-notification-updated', load)
+    return () => { active = false; window.removeEventListener('focus', load); window.removeEventListener('institute-leave-updated', load)
+      window.removeEventListener('lead-notification-updated', load) }
   }, [isRemoteNotifications])
   const markRead = async (notificationIds = null) => {
     if (!isRemoteNotifications) return
