@@ -121,7 +121,51 @@ export function LeadManagementPage() {
   useEffect(() => { const groups = Array.from(document.querySelectorAll('.lead-actions')); groups.forEach((group) => { if (group.querySelector('.lead-menu-toggle')) return; const toggle = document.createElement('button'); toggle.type = 'button'; toggle.className = 'lead-menu-toggle'; toggle.setAttribute('aria-label', 'Actions'); toggle.textContent = '⋮'; toggle.addEventListener('click', (event) => { event.stopPropagation(); groups.forEach((item) => { if (item !== group) item.classList.remove('is-open') }); group.classList.toggle('is-open') }); group.insertBefore(toggle, group.firstChild) }); const closeMenus = (event) => { if (!event.target.closest('.lead-actions')) groups.forEach((group) => group.classList.remove('is-open')) }; document.addEventListener('click', closeMenus); return () => document.removeEventListener('click', closeMenus) }, [leads])
   const nextStep = () => { const stepValid = validateStep(step); const basicValid = step === 1 ? validateBasicMandatory() : true; if (stepValid && basicValid) { setError(''); setStep((current) => Math.min(4, current + 1)) } }
   const removeRecording = async (entry) => { if (!entry.existing || !editing?.id) { setRecordings((current) => current.filter((item) => item.id !== entry.id)); return } const confirmed = await new Promise((resolve) => { const underlyingCloses = Array.from(document.querySelectorAll('.lead-modal-close')); underlyingCloses.forEach((button) => button.classList.add('is-confirmation-hidden')); const backdrop = document.createElement('div'); backdrop.className = 'lead-delete-backdrop'; const dialog = document.createElement('div'); dialog.className = 'lead-delete-dialog'; const closeButton = document.createElement('button'); closeButton.type = 'button'; closeButton.className = 'lead-delete-close'; closeButton.setAttribute('aria-label', 'Close recording removal confirmation'); closeButton.textContent = '×'; closeButton.title = 'Close'; const title = document.createElement('h2'); title.textContent = 'Remove call recording?'; const message = document.createElement('p'); message.textContent = `${entry.originalName || 'This recording'} will be permanently deleted.`; const actions = document.createElement('div'); actions.className = 'lead-delete-actions'; const cancel = document.createElement('button'); cancel.type = 'button'; cancel.className = 'lead-secondary-button'; cancel.textContent = 'Cancel'; const confirm = document.createElement('button'); confirm.type = 'button'; confirm.className = 'lead-primary-button is-delete'; confirm.textContent = 'Remove'; const close = (value) => { underlyingCloses.forEach((button) => button.classList.remove('is-confirmation-hidden')); backdrop.remove(); resolve(value) }; closeButton.onclick = () => close(false); cancel.onclick = () => close(false); confirm.onclick = () => close(true); backdrop.onclick = (event) => { if (event.target === backdrop) close(false) }; actions.append(cancel, confirm); dialog.append(closeButton, title, message, actions); backdrop.append(dialog); document.body.append(backdrop); confirm.focus() }); if (!confirmed) return; try { await request(`/leads/${editing.id}/recordings/${entry.id}`, { method: 'DELETE' }); setRecordings((current) => current.filter((item) => item.id !== entry.id)); setError('') } catch (reason) { setError(reason?.message || 'Unable to remove call recording') } }
-  const submit = async (event) => { event.preventDefault(); if (![1, 2, 3, 4].every(validateStep)) return; const invalidRecordings = recordings.filter((entry) => entry.error); if (invalidRecordings.length) { setError('Remove invalid call recordings before submitting.'); return } setSaving(true); setError(''); try { const result = await request(editing ? `/leads/${editing.id}` : '/leads', { method: editing ? 'PATCH' : 'POST', body: JSON.stringify(form) }); const savedLead = result?.data || editing; const newRecordings = recordings.filter((entry) => entry.file && !entry.existing); if (newRecordings.length && savedLead?.id) { const body = new FormData(); newRecordings.forEach((entry) => body.append('recordings', entry.file)); await request(`/leads/${savedLead.id}/call-recordings`, { method: 'POST', body }) } setRecordings([]); setModal(false); setNotice(editing ? 'Lead updated successfully.\nThe lead details have been saved successfully.' : 'Lead created successfully.\nThe lead details have been saved successfully.'); setFilters((current) => ({ ...current, page: 1 })); await loadLeads() } catch (reason) { const message = reason?.message || 'Unable to save lead and recordings'; const normalizedMessage = message.toLowerCase(); const duplicateKey = normalizedMessage.includes('lead id') && normalizedMessage.includes('already exists') ? 'leadId' : normalizedMessage.includes('email') && normalizedMessage.includes('already exists') ? 'email' : normalizedMessage.includes('phone') && normalizedMessage.includes('already exists') ? 'phoneNumber' : ''; if (duplicateKey) { setStep(1); setValidatedSteps((current) => ({ ...current, 1: true })); setFieldErrors((current) => ({ ...current, [duplicateKey]: message })) } setError(message) } finally { setSaving(false) } }
+  const submit = async (event) => {
+    event.preventDefault()
+    const dateInput = document.querySelector('.lead-wizard-modal .lead-recordings-step .next-follow-up-date-field input[type="date"]')
+    const timeInput = document.querySelector('.lead-wizard-modal .lead-recordings-step .next-follow-up-time-field input[type="time"]')
+    const submittedForm = {
+      ...form,
+      nextFollowUpDate: dateInput?.value ?? form.nextFollowUpDate ?? '',
+      nextFollowUpTime: timeInput?.value ?? form.nextFollowUpTime ?? '',
+    }
+    if (![1, 2, 3, 4].every(validateStep)) return
+    const invalidRecordings = recordings.filter((entry) => entry.error)
+    if (invalidRecordings.length) { setError('Remove invalid call recordings before submitting.'); return }
+    setSaving(true)
+    setError('')
+    try {
+      const result = await request(editing ? `/leads/${editing.id}` : '/leads', {
+        method: editing ? 'PATCH' : 'POST',
+        body: JSON.stringify(submittedForm),
+      })
+      const savedLead = result?.data || editing
+      const newRecordings = recordings.filter((entry) => entry.file && !entry.existing)
+      if (newRecordings.length && savedLead?.id) {
+        const body = new FormData()
+        newRecordings.forEach((entry) => body.append('recordings', entry.file))
+        await request(`/leads/${savedLead.id}/call-recordings`, { method: 'POST', body })
+      }
+      setRecordings([])
+      setModal(false)
+      setNotice(editing ? 'Lead updated successfully.\nThe lead details have been saved successfully.' : 'Lead created successfully.\nThe lead details have been saved successfully.')
+      setFilters((current) => ({ ...current, page: 1 }))
+      await loadLeads()
+    } catch (reason) {
+      const message = reason?.message || 'Unable to save lead and recordings'
+      const normalizedMessage = message.toLowerCase()
+      const duplicateKey = normalizedMessage.includes('lead id') && normalizedMessage.includes('already exists') ? 'leadId' : normalizedMessage.includes('email') && normalizedMessage.includes('already exists') ? 'email' : normalizedMessage.includes('phone') && normalizedMessage.includes('already exists') ? 'phoneNumber' : ''
+      if (duplicateKey) {
+        setStep(1)
+        setValidatedSteps((current) => ({ ...current, 1: true }))
+        setFieldErrors((current) => ({ ...current, [duplicateKey]: message }))
+      }
+      setError(message)
+    } finally {
+      setSaving(false)
+    }
+  }
   const remove = async (lead) => { const confirmed = await new Promise((resolve) => { const backdrop = document.createElement('div'); backdrop.className = 'lead-delete-backdrop'; const dialog = document.createElement('div'); dialog.className = 'lead-delete-dialog'; const closeButton = document.createElement('button'); closeButton.type = 'button'; closeButton.className = 'lead-delete-close'; closeButton.setAttribute('aria-label', 'Close delete confirmation'); closeButton.textContent = '×'; closeButton.title = 'Close'; const title = document.createElement('h2'); title.textContent = 'Are you sure you want to delete?'; const message = document.createElement('p'); message.textContent = 'This lead will be permanently deleted.'; const actions = document.createElement('div'); actions.className = 'lead-delete-actions'; const cancel = document.createElement('button'); cancel.type = 'button'; cancel.className = 'lead-secondary-button'; cancel.textContent = 'Cancel'; const confirm = document.createElement('button'); confirm.type = 'button'; confirm.className = 'lead-primary-button is-delete'; confirm.textContent = 'Delete'; const close = (value) => { backdrop.remove(); resolve(value) }; closeButton.onclick = () => close(false); cancel.onclick = () => close(false); confirm.onclick = () => close(true); backdrop.onclick = (event) => { if (event.target === backdrop) close(false) }; actions.append(cancel, confirm); dialog.append(closeButton, title, message, actions); backdrop.append(dialog); document.body.append(backdrop); confirm.focus() }); if (!confirmed) return; try { await request(`/leads/${lead.id}`, { method: 'DELETE' }); setNotice('Lead deleted successfully.'); await loadLeads() } catch (reason) { setError(reason?.message || 'Unable to delete lead') } }
   useEffect(() => { document.querySelectorAll('.lead-actions').forEach((group) => { if (group.querySelector('.lead-actions-menu')) return; const menu = document.createElement('div'); menu.className = 'lead-actions-menu'; Array.from(group.querySelectorAll('button:not(.lead-menu-toggle)')).forEach((button) => menu.appendChild(button)); group.appendChild(menu) }) }, [leads])
   // eslint-disable-next-line react-hooks/exhaustive-deps
