@@ -130,6 +130,7 @@ import CompletedStudentsPage from './CompletedStudentsPage'
 import { BranchMonthlyReportModal } from '../components/BranchMonthlyReportModal'
 import RecordPayment from '../components/payments/RecordPayment'
 import { buildModernPaymentReceiptHtml } from '../components/payments/RecordPayment'
+import { hasSalesCollectedAmount } from '../components/payments/receiptPaymentSource'
 import '../components/payments/RecordPayment.css'
 import {
   groupByDate,
@@ -1745,6 +1746,7 @@ function downloadBranchStudentReceipt(payment = {}, student = {}, context = {}) 
     ? Math.max(Number(paymentSummary.paidAmount || 0) - amount, 0)
     : Number(paymentSummary.paidAmount || 0)
   const totalPaidForReceipt = Math.min(Number(paymentSummary.totalFee || 0), previouslyPaidForReceipt + amount)
+  const previouslyPaidLabel = hasSalesCollectedAmount(receiptStudent, payment) ? 'Sales Collected' : 'Previously Paid'
   const html = buildModernPaymentReceiptHtml({
     logoUrl: `${window.location.origin}/logo.png`,
     instituteName: context.branchProfile?.branchName || 'CISPRO',
@@ -1766,6 +1768,7 @@ function downloadBranchStudentReceipt(payment = {}, student = {}, context = {}) 
     notes: payment.notes || '-',
     totalCourseFee: paymentSummary.totalFee,
     previouslyPaid: previouslyPaidForReceipt,
+    previouslyPaidLabel,
     currentPayment: amount,
     totalPaid: totalPaidForReceipt,
     balance: Math.max(Number(paymentSummary.totalFee || 0) - totalPaidForReceipt, 0),

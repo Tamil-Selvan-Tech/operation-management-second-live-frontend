@@ -46,7 +46,7 @@ export function SalesAdminDashboardPage() {
       }
     })
     request('/sales-admins/dashboard')
-      .then((response) => { if (active) { setDashboard(response?.data || null); window.dispatchEvent(new Event('institute-leave-updated')) } })
+      .then((response) => { if (active) setDashboard(response?.data || null) })
       .catch((reason) => { if (active) setError(reason?.message || 'Unable to load dashboard') })
       .finally(() => { if (active) setDashboardLoading(false) })
     return () => { active = false }

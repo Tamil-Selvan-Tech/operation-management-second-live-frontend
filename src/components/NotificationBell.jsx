@@ -42,10 +42,12 @@ export function NotificationBell() {
       finally { if (remoteLoadRef.current === pending) remoteLoadRef.current = null }
     }
     void load()
-    const timer = setInterval(load, 10000)
+    // Notifications are refreshed on initial mount, when the tab regains focus,
+    // or after an explicit notification-producing update. Avoid background polling
+    // so every open dashboard does not issue a request every few seconds.
     window.addEventListener('focus', load)
     window.addEventListener('institute-leave-updated', load)
-    return () => { active = false; clearInterval(timer); window.removeEventListener('focus', load); window.removeEventListener('institute-leave-updated', load) }
+    return () => { active = false; window.removeEventListener('focus', load); window.removeEventListener('institute-leave-updated', load) }
   }, [isRemoteNotifications])
   const markRead = async (notificationIds = null) => {
     if (!isRemoteNotifications) return
@@ -56,7 +58,6 @@ export function NotificationBell() {
       setRemoteItems(current => current.map(item => unreadIds.includes(item.id) ? { ...item, read: true, featured: false } : item))
       setRemoteCount(current => Math.max(0, current - unreadIds.length))
       setError('')
-      window.dispatchEvent(new Event('institute-leave-updated'))
     } catch (err) { setError(err.message) }
   }
 
