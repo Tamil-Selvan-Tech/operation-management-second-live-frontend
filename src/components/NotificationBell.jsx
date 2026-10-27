@@ -15,6 +15,7 @@ export function NotificationBell() {
   const [remoteItems, setRemoteItems] = useState([])
   const [remoteCount, setRemoteCount] = useState(0)
   const [error, setError] = useState('')
+  const remoteLoadRef = useRef(null)
   const roleKey = String(role).toUpperCase().replace(/[^A-Z0-9]+/g, '_')
   const isSalesAdmin = ['SALES_ADMIN', 'SALESADMIN'].includes(roleKey)
   const isRemoteNotifications = roleKey === 'STUDENT' || isSalesAdmin
@@ -29,20 +30,24 @@ export function NotificationBell() {
     if (!isRemoteNotifications) return undefined
     let active = true
     const load = async () => {
+      const pending = remoteLoadRef.current || request('/notifications?limit=20&page=1').then(unwrapNotifications)
+      remoteLoadRef.current = pending
       try {
-        const response = await request('/notifications?limit=20&page=1')
-        const body = unwrapNotifications(response)
+        const body = await pending
         if (active) {
           setRemoteItems((body.data || []).map(item => ({ ...item, icon: Bell, time: new Date(item.createdAt).toLocaleString(), featured: !item.read })))
           setRemoteCount(body.meta?.unreadCount ?? 0); setError('')
         }
       } catch (err) { if (active) setError(err.message) }
+      finally { if (remoteLoadRef.current === pending) remoteLoadRef.current = null }
     }
     void load()
-    const timer = setInterval(load, 10000)
+    // Notifications are refreshed on initial mount, when the tab regains focus,
+    // or after an explicit notification-producing update. Avoid background polling
+    // so every open dashboard does not issue a request every few seconds.
     window.addEventListener('focus', load)
     window.addEventListener('institute-leave-updated', load)
-    return () => { active = false; clearInterval(timer); window.removeEventListener('focus', load); window.removeEventListener('institute-leave-updated', load) }
+    return () => { active = false; window.removeEventListener('focus', load); window.removeEventListener('institute-leave-updated', load) }
   }, [isRemoteNotifications])
   const markRead = async (notificationIds = null) => {
     if (!isRemoteNotifications) return
@@ -53,7 +58,6 @@ export function NotificationBell() {
       setRemoteItems(current => current.map(item => unreadIds.includes(item.id) ? { ...item, read: true, featured: false } : item))
       setRemoteCount(current => Math.max(0, current - unreadIds.length))
       setError('')
-      window.dispatchEvent(new Event('institute-leave-updated'))
     } catch (err) { setError(err.message) }
   }
 

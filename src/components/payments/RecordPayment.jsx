@@ -4,6 +4,7 @@ import html2pdf from "html2pdf.js";
 import { request } from "../../services/apiClient";
 import { saveBranchPaymentHistoryEntry } from "../../lib/branchPaymentHistoryStore";
 import { loadBranchStudents } from "../../lib/branchStudentStore";
+import { hasSalesCollectedAmount } from "./receiptPaymentSource";
 
 const escapeReceiptValue = (value) => String(value ?? "-")
   .replace(/&/g, "&amp;")
@@ -167,6 +168,7 @@ export const buildModernPaymentReceiptHtml = ({
   collectedBy,
   totalCourseFee,
   previouslyPaid,
+  previouslyPaidLabel = 'Previously Paid',
   currentPayment,
   totalPaid,
   balance,
@@ -259,7 +261,7 @@ export const buildModernPaymentReceiptHtml = ({
     <section class="amount-box"><div class="amount-label">AMOUNT RECEIVED</div><div class="amount">${money(currentPayment)}</div><div class="words">${safe(amountInWords)}</div><span class="received">RECEIVED</span></section>
 
     <div class="two-column summary-columns">
-      <div class="summary-left-column"><section class="card fee-card"><div class="section-title">FEE SUMMARY</div><div class="table-head"><span>DESCRIPTION</span><span>AMOUNT</span></div>${detailRow("Total Course Fee", money(totalCourseFee))}${hasValue(discount) ? detailRow("Discount", money(discount)) : ""}${hasValue(tax) ? detailRow("Tax / GST", money(tax)) : ""}${hasValue(lateFee) ? detailRow("Late Fee", money(lateFee)) : ""}${detailRow("Previously Paid", money(previouslyPaid))}<div class="detail-row green"><span>Current Payment</span><strong>${money(currentPayment)}</strong></div><div class="total-row"><span>Total Paid</span><strong>${money(totalPaid)}</strong></div><div class="detail-row balance"><span>Remaining Balance</span><strong>${money(balance)}</strong></div></section>${nextPayment}</div>
+      <div class="summary-left-column"><section class="card fee-card"><div class="section-title">FEE SUMMARY</div><div class="table-head"><span>DESCRIPTION</span><span>AMOUNT</span></div>${detailRow("Total Course Fee", money(totalCourseFee))}${hasValue(discount) ? detailRow("Discount", money(discount)) : ""}${hasValue(tax) ? detailRow("Tax / GST", money(tax)) : ""}${hasValue(lateFee) ? detailRow("Late Fee", money(lateFee)) : ""}${detailRow(previouslyPaidLabel, money(previouslyPaid))}<div class="detail-row green"><span>Current Payment</span><strong>${money(currentPayment)}</strong></div><div class="total-row"><span>Total Paid</span><strong>${money(totalPaid)}</strong></div><div class="detail-row balance"><span>Remaining Balance</span><strong>${money(balance)}</strong></div></section>${nextPayment}</div>
       <section class="card installment-card"><div class="section-title">INSTALLMENT DETAILS</div><table><thead><tr><th style="font-size:6px !important;font-weight:800 !important;line-height:1;white-space:nowrap">INSTALLMENT</th><th style="font-size:6px !important;font-weight:800 !important;line-height:1;white-space:nowrap">DUE DATE</th><th style="font-size:6px !important;font-weight:800 !important;line-height:1;white-space:nowrap">AMOUNT</th><th style="font-size:6px !important;font-weight:800 !important;line-height:1;white-space:nowrap">STATUS</th></tr></thead><tbody>${installmentRows || `<tr><td colspan="4" class="empty">No installment schedule available</td></tr>`}</tbody></table></section>
     </div>
 
@@ -369,6 +371,7 @@ const getCourseInstallmentSlice = (studentRecord = {}, enrollments = [], selecte
 };
 
 const EMPTY_STUDENT = {};
+
 
 const RecordPayment = ({ student, students = [], onClose, branchProfile = null }) => {
   const initialStudent = student?.studentId ? student : null;
@@ -647,6 +650,7 @@ const RecordPayment = ({ student, students = [], onClose, branchProfile = null }
   );
 
   const totalPaid = previouslyPaid + currentPayment;
+  const previouslyPaidLabel = hasSalesCollectedAmount(activeStudent) ? 'Sales Collected' : 'Previously Paid';
 
   const balance = Math.max(
     totalCourseFee - totalPaid,
@@ -1639,7 +1643,7 @@ const RecordPayment = ({ student, students = [], onClose, branchProfile = null }
             font-size:13px;
           ">
             <span style="color:#64748b;">
-              Previously Paid
+              ${previouslyPaidLabel}
             </span>
 
             <strong>
@@ -1865,6 +1869,7 @@ const RecordPayment = ({ student, students = [], onClose, branchProfile = null }
       notes: formData.notes,
       totalCourseFee,
       previouslyPaid,
+      previouslyPaidLabel,
       currentPayment,
       totalPaid,
       balance,
@@ -2838,7 +2843,7 @@ const RecordPayment = ({ student, students = [], onClose, branchProfile = null }
               <div className="receipt-summary-row">
 
                 <span>
-                  Previously Paid
+                  {previouslyPaidLabel}
                 </span>
 
                 <strong>

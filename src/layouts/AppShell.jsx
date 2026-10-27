@@ -92,6 +92,7 @@ export function AppShell({
     isNotificationsWorkspace ||
     forceFlatMainArea
   const isStudentPage = location.pathname === '/dashboard/student'
+  const isSalesCrmReportPage = location.pathname === '/dashboard/sales-admin/reports'
   const closeMobileSidebar = () => setIsMobileSidebarOpen(false)
   const shellClassName = [
     usePremiumLayout
@@ -102,6 +103,7 @@ export function AppShell({
     isBusinessOwnerWorkspace || (isBusinessOwnerRole && isPremiumSidebarWorkspace) ? 'business-owner-shell' : '',
     isOperationManagerWorkspace || (isOperationManagerRole && isPremiumSidebarWorkspace) ? 'operation-manager-shell' : '',
     useDashboardShell ? 'dashboard-shell' : '',
+    isSalesCrmReportPage ? 'sales-crm-reports-shell' : '',
   ]
     .filter(Boolean)
     .join(' ')
