@@ -67,6 +67,8 @@ import { getCurrentBranchProfile } from '../services/branchService'
 import BranchExamResultsPage from './BranchExamResultsPage'
 import BranchSalesCrmPage from './BranchSalesCrmPage'
 import { LeadManagementPage } from './LeadManagementPage'
+import { SalesAdminAdmissionsPage } from './SalesAdminAdmissionsPage'
+import { SalesCrmReportPage } from './SalesCrmReportPage'
 import { FacultySkillsUpgradePage } from './FacultySkillsUpgradePage'
 import AcademicTestPage from './AcademicTestPage'
 import { listBranchFaculty } from '../services/branchFacultyService'
@@ -134,6 +136,7 @@ import { BranchMonthlyReportModal } from '../components/BranchMonthlyReportModal
 import RecordPayment from '../components/payments/RecordPayment'
 import { buildModernPaymentReceiptHtml } from '../components/payments/RecordPayment'
 import '../components/payments/RecordPayment.css'
+import '../styles/SalesAdminDashboardPage.css'
 import {
   groupByDate,
   doesBranchNotificationBelongToBranch,
@@ -2852,6 +2855,8 @@ function getBranchDashboardSectionFromPath(pathname = '', search = '') {
 
   if (section === 'notifications') return 'notifications'
   if (section === 'lead-management') return 'lead-management'
+  if (section === 'sales-crm-admissions') return 'sales-crm-admissions'
+  if (section === 'sales-crm-reports') return 'sales-crm-reports'
   if (section === 'institute-leave') return 'institute-leave'
   if (section === 'faculty-leave') return 'faculty-leave'
   if (section === 'progress-notifications') return 'progress-notifications'
@@ -4197,7 +4202,7 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
   const hasLeadManagementAccess = String(user?.roleAccess || session?.user?.roleAccess || '').toUpperCase() === 'BRANCH_ADMIN_SALES_ADMIN'
 
   useEffect(() => {
-    if (activeSection === 'lead-management' && !hasLeadManagementAccess) {
+    if (['lead-management', 'sales-crm-admissions', 'sales-crm-reports'].includes(activeSection) && !hasLeadManagementAccess) {
       navigate('/branch-dashboard', { replace: true })
     }
   }, [activeSection, hasLeadManagementAccess, navigate])
@@ -4280,7 +4285,7 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
   }, [isSidebarFlyoutMode, openSidebarFlyout])
 
   useEffect(() => {
-    const parentByChild = { faculty: 'faculty', 'sales-crm-admissions': 'faculty', students: 'academic', 'student-management': 'academic', 'completed-students': 'academic', courses: 'academic', batches: 'academic', installments: 'academic', payments: 'payments', 'exams-results': 'academic', 'academic-tests': 'academic', 'institute-leave': 'academic', 'faculty-leave': 'academic', 'progress-notifications': 'academic', 'faculty-edit-requests': 'academic', discontinuations: 'academic' }
+    const parentByChild = { faculty: 'faculty', 'sales-crm-admissions': 'lead-management', 'sales-crm-reports': 'lead-management', 'lead-management': 'lead-management', students: 'academic', 'student-management': 'academic', 'completed-students': 'academic', courses: 'academic', batches: 'academic', installments: 'academic', payments: 'academic', 'exams-results': 'academic', 'academic-tests': 'academic', 'institute-leave': 'academic', 'faculty-leave': 'academic', 'progress-notifications': 'academic', 'faculty-edit-requests': 'academic', discontinuations: 'academic' }
     const parent = parentByChild[activeSection]
     if (!parent) return
     setExpandedSidebarGroups((current) => current[parent] ? current : { ...current, [parent]: true })
@@ -5875,15 +5880,30 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
               String(notification.kind || '').startsWith('course-edit-') ||
               String(notification.kind || '').trim() === 'sales-crm-admission' ||
               String(notification.kind || '').trim() === 'sales-crm-batch-request' ||
+              (hasLeadManagementAccess && ['lead-follow-up-due', 'lead-follow-up-overdue', 'lead-follow-up-scheduled', 'sales-crm-monthly-report', 'pending-student-admission-reminder', 'sales-crm-batch-request-update'].includes(String(notification.kind || '').trim())) ||
               (String(notification.kind || '') === 'sequential-course-scheduling-required' ||
                 String(notification.kind || '').startsWith('student-'))
             ),
         )
+        .filter((notification) => {
+          if (!hasLeadManagementAccess) return true
+          const salesNotificationKinds = new Set([
+            'lead-follow-up-due',
+            'lead-follow-up-overdue',
+            'lead-follow-up-scheduled',
+            'sales-crm-monthly-report',
+            'pending-student-admission-reminder',
+            'sales-crm-batch-request-update',
+          ])
+          const kind = String(notification.kind || '').trim()
+          return !salesNotificationKinds.has(kind) || String(notification.targetUserId || '').trim() === String(user?.id || '').trim()
+        })
         // The API is already tenant-scoped. Keep sequential scheduling alerts
         // visible even for legacy rows that were saved before branch IDs were
         // normalized to the canonical branch primary key.
         .filter((notification) => (
           String(notification.kind || '').trim() === 'sequential-course-scheduling-required' ||
+          String(notification.targetUserId || '').trim() === String(user?.id || '').trim() ||
           doesBranchNotificationBelongToBranch(notification, branchScope)
         ))
         .filter((notification) => {
@@ -5923,7 +5943,7 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
         })
         .sort((left, right) => new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime())
     },
-    [branchNotificationRecords, branchScope],
+    [branchNotificationRecords, branchScope, hasLeadManagementAccess, user?.id],
   )
   const branchNotificationSections = useMemo(
     () => {
@@ -11237,7 +11257,11 @@ useEffect(() => {
             ] },
           ] },
           { id: 'payments', label: 'Fee & Accounts Management', icon: Wallet },
-          ...(String(user?.roleAccess || session?.user?.roleAccess || '').toUpperCase() === 'BRANCH_ADMIN_SALES_ADMIN' ? [{ id: 'lead-management', label: 'Lead Management', icon: BriefcaseBusiness }] : []),
+          ...(String(user?.roleAccess || session?.user?.roleAccess || '').toUpperCase() === 'BRANCH_ADMIN_SALES_ADMIN' ? [{ id: 'lead-management', label: 'Lead Management', icon: BriefcaseBusiness, children: [
+            { id: 'lead-management', label: 'Lead Management', icon: BriefcaseBusiness },
+            { id: 'sales-crm-admissions', label: 'Student Admission', icon: GraduationCap },
+            { id: 'sales-crm-reports', label: 'Monthly Reports', icon: FileText },
+          ] }] : []),
           { id: 'notifications', label: 'Notifications', icon: Bell },
           { id: 'profile', label: 'Profile', icon: CircleUserRound },
         ].map((item) => {
@@ -11264,6 +11288,7 @@ useEffect(() => {
                       setExpandedSidebarNestedGroups((current) => ({ ...current, [entry.id]: !current[entry.id] }))
                       if (entry.id === 'academic-tests') goToBranchSection('academic-tests')
                       if (entry.id === 'sales-crm') goToBranchSection('sales-crm')
+                      if (entry.id === 'lead-management') goToBranchSection('lead-management')
                     }}
                   >
                     <span className="super-admin-sidebar-subitem-icon" aria-hidden="true"><ChildIcon size={15} strokeWidth={2.1} /></span>
@@ -12059,6 +12084,8 @@ useEffect(() => {
               {activeSection === 'faculty-edit-requests' ? <FacultyEditRequestsView /> : null}
               {activeSection === 'discontinuations' ? <BranchDiscontinuationManagementPage /> : null}
               {activeSection === 'lead-management' ? <LeadManagementPage /> : null}
+              {activeSection === 'sales-crm-admissions' ? <SalesAdminAdmissionsPage key={location.search} /> : null}
+              {activeSection === 'sales-crm-reports' ? <SalesCrmReportPage /> : null}
               {activeSection === 'exams-results' ? <BranchExamResultsPage branchId={branchProfile?.id || branchProfile?.branchId || branchData?.id || branchData?.branchId || ''} /> : null}
               {activeSection === 'academic-tests' ? <AcademicTestPage /> : null}
               {activeSection === 'notifications' ? (
