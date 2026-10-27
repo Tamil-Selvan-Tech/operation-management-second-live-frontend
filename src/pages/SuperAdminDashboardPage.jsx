@@ -658,6 +658,7 @@ export function SuperAdminDashboardPage() {
     branchState: '',
     branchDistrict: '',
     branchAddress: '',
+    roleAccess: 'BRANCH_ADMIN_ONLY',
   })
   const loadBranches = useCallback(async () => {
     try {
@@ -1382,6 +1383,7 @@ const filteredBranches = useMemo(() => {
       branchState: '',
       branchDistrict: '',
       branchAddress: '',
+      roleAccess: 'BRANCH_ADMIN_ONLY',
     })
     setIsAddBranchOpen(true)
   }
@@ -1405,6 +1407,7 @@ const filteredBranches = useMemo(() => {
       branchState: branch.branchState || '',
       branchDistrict: branch.branchCity || branch.branchDistrict || '',
       branchAddress: branch.branchAddress || '',
+      roleAccess: branch.roleAccess || 'BRANCH_ADMIN_ONLY',
     })
     setIsAddBranchOpen(true)
   }
@@ -1752,6 +1755,7 @@ const filteredBranches = useMemo(() => {
       branchDistrict: nextForm.branchDistrict.trim(),
       district: nextForm.branchDistrict.trim(),
       branchAddress: nextForm.branchAddress.trim(),
+      roleAccess: nextForm.roleAccess || 'BRANCH_ADMIN_ONLY',
     }
 
     try {
@@ -3237,6 +3241,18 @@ const filteredBranches = useMemo(() => {
                   maxLength={10}
                 />
                 {branchErrors.branchPhone ? <small className="branch-field-error">{branchErrors.branchPhone}</small> : null}
+              </label>
+
+              <label className="branch-field">
+                <span>Role Access</span>
+                <select
+                  value={form.roleAccess || 'BRANCH_ADMIN_ONLY'}
+                  onChange={(event) => setForm((current) => ({ ...current, roleAccess: event.target.value }))}
+                  className="branch-location-select"
+                >
+                  <option value="BRANCH_ADMIN_ONLY">Branch Admin Only</option>
+                  <option value="BRANCH_ADMIN_SALES_ADMIN">Branch Admin + Sales Admin</option>
+                </select>
               </label>
 
               <label className="branch-field">

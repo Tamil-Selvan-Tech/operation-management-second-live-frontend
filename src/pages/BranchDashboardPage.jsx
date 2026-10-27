@@ -66,6 +66,7 @@ import { unwrapNotifications } from '../services/notificationService'
 import { getCurrentBranchProfile } from '../services/branchService'
 import BranchExamResultsPage from './BranchExamResultsPage'
 import BranchSalesCrmPage from './BranchSalesCrmPage'
+import { LeadManagementPage } from './LeadManagementPage'
 import { FacultySkillsUpgradePage } from './FacultySkillsUpgradePage'
 import AcademicTestPage from './AcademicTestPage'
 import { listBranchFaculty } from '../services/branchFacultyService'
@@ -2850,6 +2851,7 @@ function getBranchDashboardSectionFromPath(pathname = '', search = '') {
   const section = String(params.get('section') || '').trim().toLowerCase()
 
   if (section === 'notifications') return 'notifications'
+  if (section === 'lead-management') return 'lead-management'
   if (section === 'institute-leave') return 'institute-leave'
   if (section === 'faculty-leave') return 'faculty-leave'
   if (section === 'progress-notifications') return 'progress-notifications'
@@ -4191,6 +4193,14 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
     : studentCalendarId
       ? 'student-calendar'
       : requestedSidebarSection || routeSection
+
+  const hasLeadManagementAccess = String(user?.roleAccess || session?.user?.roleAccess || '').toUpperCase() === 'BRANCH_ADMIN_SALES_ADMIN'
+
+  useEffect(() => {
+    if (activeSection === 'lead-management' && !hasLeadManagementAccess) {
+      navigate('/branch-dashboard', { replace: true })
+    }
+  }, [activeSection, hasLeadManagementAccess, navigate])
 
   useEffect(() => {
     setRequestedSidebarSection('')
@@ -11227,6 +11237,7 @@ useEffect(() => {
             ] },
           ] },
           { id: 'payments', label: 'Fee & Accounts Management', icon: Wallet },
+          ...(String(user?.roleAccess || session?.user?.roleAccess || '').toUpperCase() === 'BRANCH_ADMIN_SALES_ADMIN' ? [{ id: 'lead-management', label: 'Lead Management', icon: BriefcaseBusiness }] : []),
           { id: 'notifications', label: 'Notifications', icon: Bell },
           { id: 'profile', label: 'Profile', icon: CircleUserRound },
         ].map((item) => {
@@ -12047,6 +12058,7 @@ useEffect(() => {
               {activeSection === 'progress-notifications' ? <ProgressNotificationsView branch={branchScope} /> : null}
               {activeSection === 'faculty-edit-requests' ? <FacultyEditRequestsView /> : null}
               {activeSection === 'discontinuations' ? <BranchDiscontinuationManagementPage /> : null}
+              {activeSection === 'lead-management' ? <LeadManagementPage /> : null}
               {activeSection === 'exams-results' ? <BranchExamResultsPage branchId={branchProfile?.id || branchProfile?.branchId || branchData?.id || branchData?.branchId || ''} /> : null}
               {activeSection === 'academic-tests' ? <AcademicTestPage /> : null}
               {activeSection === 'notifications' ? (

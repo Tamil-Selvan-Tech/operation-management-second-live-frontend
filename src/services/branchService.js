@@ -45,6 +45,7 @@ function normalizeBranchRecord(record = {}) {
     branchCity: pickFirstNonEmpty(record.branchCity, record.city, record.branchDistrict, record.district),
     branchDistrict: pickFirstNonEmpty(record.branchDistrict, record.district, record.branchCity, record.city),
     branchAddress: String(record.branchAddress || '').trim(),
+    roleAccess: String(record.roleAccess || 'BRANCH_ADMIN_ONLY').trim().toUpperCase(),
     tempPassword,
     mustResetPassword: Boolean(record.mustResetPassword || tempPassword),
     status: normalizeStatus(record.status),
