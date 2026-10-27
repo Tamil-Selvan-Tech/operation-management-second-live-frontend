@@ -5138,6 +5138,7 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
           const preservedNotifications = storedNotifications.filter((notification) => {
             const notificationId = String(notification.id || '').trim()
             if (mergedIds.has(notificationId)) return false
+            if (['lead-follow-up-scheduled', 'lead-follow-up-due', 'lead-follow-up-overdue'].includes(String(notification.kind || '').trim())) return false
             if (String(notification.kind || '').trim() === 'branch-progress-status') {
               return storedProgressNotifications.includes(notification)
             }
@@ -5158,10 +5159,11 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
             branchId: String(branchProfile?.branchId || branchData?.branchId || branchProfile?.id || branchData?.id || '').trim(),
             branchEmail: String(branchProfile?.branchEmail || branchData?.branchEmail || user?.email || '').trim().toLowerCase(),
           }
-          const fallbackNotifications = mergeNotificationsWithStoredState(loadNotifications()).filter((notification) => (
-            String(notification.kind || '').trim() !== 'branch-progress-status' ||
-            doesBranchNotificationBelongToBranch(notification, activeBranchScope)
-          ))
+          const fallbackNotifications = mergeNotificationsWithStoredState(loadNotifications()).filter((notification) => {
+            const kind = String(notification.kind || '').trim()
+            if (['lead-follow-up-scheduled', 'lead-follow-up-due', 'lead-follow-up-overdue'].includes(kind)) return false
+            return kind !== 'branch-progress-status' || doesBranchNotificationBelongToBranch(notification, activeBranchScope)
+          })
           setBranchNotificationRecords(fallbackNotifications)
         } finally {
           window.clearTimeout(timeoutId)
@@ -5924,6 +5926,12 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
           const kind = String(notification.kind || '').trim()
           return !salesNotificationKinds.has(kind) || String(notification.targetUserId || '').trim() === String(user?.id || '').trim()
         })
+        .filter((notification) => {
+          const kind = String(notification.kind || '').trim()
+          const followUpKinds = ['lead-follow-up-scheduled', 'lead-follow-up-due', 'lead-follow-up-overdue']
+          if (!followUpKinds.includes(kind)) return true
+          return String(notification.targetUserId || '').trim() === String(user?.id || '').trim()
+        })
         // The API is already tenant-scoped. Keep sequential scheduling alerts
         // visible even for legacy rows that were saved before branch IDs were
         // normalized to the canonical branch primary key.
@@ -6437,6 +6445,9 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
     setIsNotificationMenuOpen(false)
 
     if (!persistedIds.length) return
+    // Update the local cache before the API call so stale unread rows cannot
+    // reappear while the server response is in flight.
+    markNotificationsAsRead(persistedIds)
     try {
       await request('/notifications/mark-read', {
         method: 'PATCH',
