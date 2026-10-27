@@ -2856,6 +2856,7 @@ function getBranchDashboardSectionFromPath(pathname = '', search = '') {
   if (section === 'notifications') return 'notifications'
   if (section === 'lead-management') return 'lead-management'
   if (section === 'sales-crm-admissions') return 'sales-crm-admissions'
+  if (section === 'sales-crm-admitted-students') return 'sales-crm-admitted-students'
   if (section === 'sales-crm-reports') return 'sales-crm-reports'
   if (section === 'institute-leave') return 'institute-leave'
   if (section === 'faculty-leave') return 'faculty-leave'
@@ -2870,6 +2871,7 @@ function getBranchDashboardSectionFromPath(pathname = '', search = '') {
   if (section === 'faculty') return 'faculty'
   if (section === 'sales-crm') return 'sales-crm'
   if (section === 'sales-crm-admissions') return 'sales-crm-admissions'
+  if (section === 'sales-crm-admitted-students') return 'sales-crm-admitted-students'
   if (section === 'batches') return 'batches'
   if (section === 'payments') return 'payments'
   if (section === 'profile') return 'profile'
@@ -4199,7 +4201,8 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
       ? 'student-calendar'
       : requestedSidebarSection || routeSection
 
-  const hasLeadManagementAccess = String(user?.roleAccess || session?.user?.roleAccess || '').toUpperCase() === 'BRANCH_ADMIN_SALES_ADMIN'
+  const [resolvedBranchRoleAccess, setResolvedBranchRoleAccess] = useState('')
+  const hasLeadManagementAccess = String(resolvedBranchRoleAccess || user?.roleAccess || session?.user?.roleAccess || '').toUpperCase() === 'BRANCH_ADMIN_SALES_ADMIN'
 
   useEffect(() => {
     if (['lead-management', 'sales-crm-admissions', 'sales-crm-reports'].includes(activeSection) && !hasLeadManagementAccess) {
@@ -4285,14 +4288,14 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
   }, [isSidebarFlyoutMode, openSidebarFlyout])
 
   useEffect(() => {
-    const parentByChild = { faculty: 'faculty', 'sales-crm-admissions': 'lead-management', 'sales-crm-reports': 'lead-management', 'lead-management': 'lead-management', students: 'academic', 'student-management': 'academic', 'completed-students': 'academic', courses: 'academic', batches: 'academic', installments: 'academic', payments: 'academic', 'exams-results': 'academic', 'academic-tests': 'academic', 'institute-leave': 'academic', 'faculty-leave': 'academic', 'progress-notifications': 'academic', 'faculty-edit-requests': 'academic', discontinuations: 'academic' }
+    const parentByChild = { faculty: 'faculty', 'sales-crm-admitted-students': 'faculty', 'sales-crm-admissions': 'lead-management', 'sales-crm-reports': 'lead-management', 'lead-management': 'lead-management', students: 'academic', 'student-management': 'academic', 'completed-students': 'academic', courses: 'academic', batches: 'academic', installments: 'academic', payments: 'payments', 'exams-results': 'academic', 'academic-tests': 'academic', 'institute-leave': 'academic', 'faculty-leave': 'academic', 'progress-notifications': 'academic', 'faculty-edit-requests': 'academic', discontinuations: 'academic' }
     const parent = parentByChild[activeSection]
     if (!parent) return
     setExpandedSidebarGroups((current) => current[parent] ? current : { ...current, [parent]: true })
   }, [activeSection])
 
   useEffect(() => {
-    if (activeSection === 'sales-crm' || activeSection === 'sales-crm-admissions') {
+    if (activeSection === 'sales-crm' || activeSection === 'sales-crm-admitted-students' || activeSection === 'sales-crm-admissions') {
       setExpandedSidebarNestedGroups((current) => ({ ...current, 'sales-crm': true }))
     }
     if (activeSection === 'progress-notifications') {
@@ -5094,7 +5097,8 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
             signal: controller.signal,
           })
 
-          const { data: responseData } = unwrapNotifications(response)
+          const { data: responseData, meta: responseMeta } = unwrapNotifications(response)
+          if (responseMeta?.roleAccess) setResolvedBranchRoleAccess(responseMeta.roleAccess)
           const activeBranchScope = {
             id: String(branchProfile?.id || branchData?.id || branchProfile?.branchId || branchData?.branchId || '').trim(),
             branchId: String(branchProfile?.branchId || branchData?.branchId || branchProfile?.id || branchData?.id || '').trim(),
@@ -5202,6 +5206,7 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
       const embeddedBranchId = branchData.id || branchData.branchId || null
       setImpersonateBranchId(embeddedBranchId)
       setBranchProfile(branchData)
+      setResolvedBranchRoleAccess(branchData?.roleAccess || '')
       if (admissionOnlyMode) {
         const context = admissionLead?.admissionContext
         setBranchCourseCards(mergeBranchCoursesWithSnapshot(Array.isArray(context?.courses) ? context.courses : [], embeddedBranchId || ''))
@@ -5233,8 +5238,11 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
 
       if (branchResult.status === 'fulfilled') {
         setBranchProfile(branchResult.value)
+        setResolvedBranchRoleAccess(branchResult.value?.roleAccess || '')
       } else {
-        setBranchProfile(buildFallbackBranchProfile(user, session))
+        const fallbackProfile = buildFallbackBranchProfile(user, session)
+        setBranchProfile(fallbackProfile)
+        setResolvedBranchRoleAccess(fallbackProfile?.roleAccess || '')
       }
 
       if (coursesResult.status === 'fulfilled') {
@@ -11230,7 +11238,7 @@ useEffect(() => {
           { id: 'faculty', label: 'User & Role Management', icon: Shield, children: [
             { id: 'faculty', label: 'Faculty Management', icon: UserRound },
             { id: 'sales-crm', label: 'Sales & CRM', icon: BriefcaseBusiness, children: [
-              { id: 'sales-crm-admissions', label: 'Admissions', icon: GraduationCap },
+              { id: 'sales-crm-admitted-students', label: 'Admissions', icon: GraduationCap },
             ] },
           ] },
           { id: 'academic', label: 'Academic Operation', icon: LayoutGrid, children: [
@@ -11257,7 +11265,7 @@ useEffect(() => {
             ] },
           ] },
           { id: 'payments', label: 'Fee & Accounts Management', icon: Wallet },
-          ...(String(user?.roleAccess || session?.user?.roleAccess || '').toUpperCase() === 'BRANCH_ADMIN_SALES_ADMIN' ? [{ id: 'lead-management', label: 'Lead Management', icon: BriefcaseBusiness, children: [
+          ...(hasLeadManagementAccess ? [{ id: 'lead-management', label: 'Lead Management', icon: BriefcaseBusiness, children: [
             { id: 'lead-management', label: 'Lead Management', icon: BriefcaseBusiness },
             { id: 'sales-crm-admissions', label: 'Student Admission', icon: GraduationCap },
             { id: 'sales-crm-reports', label: 'Monthly Reports', icon: FileText },
@@ -15195,8 +15203,8 @@ else {
                   branchStudents={branchStudents}
                 />
               ) : null}
-              {activeSection === 'sales-crm' || activeSection === 'sales-crm-admissions' ? (
-                <BranchSalesCrmPage key={activeSection} view={activeSection === 'sales-crm-admissions' ? 'admissions' : 'admins'} />
+              {activeSection === 'sales-crm' || activeSection === 'sales-crm-admitted-students' ? (
+                <BranchSalesCrmPage key={activeSection} view={activeSection === 'sales-crm-admitted-students' ? 'admissions' : 'admins'} />
               ) : null}
             </div>
           </main>
