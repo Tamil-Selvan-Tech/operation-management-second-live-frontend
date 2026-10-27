@@ -162,6 +162,7 @@ export function normalizeBranchNotification(notification = {}) {
     facultyEmail: String(notification.facultyEmail || '').trim(),
     branchId,
     targetBranchId: branchId,
+    targetUserId: String(notification.targetUserId || '').trim(),
     targetBranchEmail: branchEmail,
     targetBranchName: String(notification.targetBranchName || '').trim(),
     courseId: String(notification.courseId || '').trim(),
