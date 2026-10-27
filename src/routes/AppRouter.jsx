@@ -492,6 +492,7 @@ export function AppRouter() {
             <Route path="/dashboard/sales-admin/reports" element={<SalesAdminDashboardPage />} />
             <Route path="/dashboard/sales-admin/notifications" element={<SalesAdminDashboardPage />} />
             <Route path="/dashboard/sales-admin/admissions" element={<SalesAdminDashboardPage />} />
+            <Route path="/dashboard/sales-admin/profile" element={<SalesAdminDashboardPage />} />
           </Route>
 
           <Route path="*" element={<NotFoundRoute />} />
