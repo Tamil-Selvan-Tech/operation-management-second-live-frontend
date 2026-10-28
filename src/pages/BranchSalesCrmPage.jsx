@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { BriefcaseBusiness, GraduationCap, Mail, Phone, Search, Users } from 'lucide-react'
+import { BriefcaseBusiness, FileSpreadsheet, GraduationCap, Mail, Phone, Search, Users } from 'lucide-react'
 import { request } from '../services/apiClient'
+import { SalesCrmReportSubmissionModal } from '../components/SalesCrmReportSubmissionModal'
 import '../styles/BranchSalesCrmPage.css'
 
 const PAGE_SIZE = 5
@@ -27,6 +28,7 @@ export default function BranchSalesCrmPage({ view = 'admins' }) {
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(1)
   const [salesAdminFilter, setSalesAdminFilter] = useState('ALL')
+  const [sendReportOpen, setSendReportOpen] = useState(false)
 
   const loadSalesAdmins = useCallback(async () => {
     setLoadingAdmins(true)
@@ -106,8 +108,11 @@ export default function BranchSalesCrmPage({ view = 'admins' }) {
               <strong>{loading ? '—' : activeTab === 'admins' ? salesAdmins.length : admissions.length}</strong>
             </div>
           </div>
+          <button type="button" className="branch-sales-crm-report-button" onClick={() => setSendReportOpen(true)}><FileSpreadsheet size={16} />Send Report</button>
         </div>
       </header>
+
+      <SalesCrmReportSubmissionModal isOpen={sendReportOpen} onClose={() => setSendReportOpen(false)} branches={branch ? [branch] : []} initialBranchId={branch?.id || ''} onSubmitted={() => setSendReportOpen(false)} />
 
       {error ? <div className="branch-sales-crm-message is-error" role="alert">{error}</div> : null}
 

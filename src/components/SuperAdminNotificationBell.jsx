@@ -236,6 +236,12 @@ export function SuperAdminNotificationBell({
       return
     }
 
+    if (notificationDescription.startsWith('SALES_CRM_REPORT:')) {
+      const [, , salesAdminId] = notificationDescription.split(':')
+      if (salesAdminId) navigate(`/dashboard/super-admin?section=sales-admin&adminId=${encodeURIComponent(salesAdminId)}&tab=reports`)
+      return
+    }
+
     navigate('/dashboard/super-admin')
   }
 

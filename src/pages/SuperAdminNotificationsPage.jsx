@@ -524,6 +524,12 @@ export function SuperAdminNotificationsPage() {
         navigate('/dashboard/super-admin?section=discontinuations')
         return
       }
+      const reportDescription = String(notification.requestDescription || '').trim()
+      if (reportDescription.startsWith('SALES_CRM_REPORT:')) {
+        const [, , salesAdminId] = reportDescription.split(':')
+        if (salesAdminId) navigate(`/dashboard/super-admin?section=sales-admin&adminId=${encodeURIComponent(salesAdminId)}&tab=reports`)
+        return
+      }
       const description = String(notification.requestDescription || '').trim()
       const requestId = description.startsWith('DISCONTINUATION_SUPER_REVIEW:')
         ? description.slice('DISCONTINUATION_SUPER_REVIEW:'.length).trim()
