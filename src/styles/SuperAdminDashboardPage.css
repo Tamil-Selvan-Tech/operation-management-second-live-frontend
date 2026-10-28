@@ -5530,6 +5530,8 @@ body.super-admin-sidebar-open {
 
 /* Consolidated Super Admin dashboard */
 .sa-overall-dashboard { display: grid; gap: 22px; }
+.sa-trending-crm-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; align-items: stretch; }
+.sa-trending-crm-row > .sa-trending-courses { width: 100%; }
 .sa-overall-intro { display: flex; justify-content: space-between; align-items: flex-end; gap: 20px; }
 .sa-overall-kicker { display: inline-flex; align-items: center; gap: 7px; margin: 0 0 8px; color: #2563eb; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; }
 .sa-overall-intro h1 { margin: 0; color: #172033; font-size: 28px; line-height: 1.15; }
