@@ -268,6 +268,14 @@ export async function getSuperAdminOverview(branchId = null, performance = {}) {
   return response?.data || response
 }
 
+export async function getSuperAdminSalesCrmAnalytics(filters = {}) {
+  const params = new URLSearchParams()
+  Object.entries(filters).forEach(([key, value]) => { if (value !== undefined && value !== null && value !== '') params.set(key, value) })
+  const query = params.toString() ? `?${params.toString()}` : ''
+  const response = await request(`/dashboard/super-admin/sales-crm-analytics${query}`, { method: 'GET' })
+  return response?.data || response
+}
+
 export function formatOverviewCurrency(value) {
   return CURRENCY.format(toNumber(value))
 }
