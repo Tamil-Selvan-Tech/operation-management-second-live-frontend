@@ -366,7 +366,7 @@
 .sales-admin-notification-state.is-unread { color: #1d4ed8; border-color: #dbeafe; background: #eff6ff; }
 .sales-admin-notification-context { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 3px; color: #64748b; font-size: 10px; }
 .sales-admin-notification-context strong { color: #334155; }
-.sales-admin-notification-copy > p { margin: 5px 0 9px; color: #475569; font-size: 12px; line-height: 1.45; }
+.sales-admin-notification-copy > p { margin: 5px 0 9px; color: #475569; font-size: 12px; line-height: 1.45; white-space: pre-line; overflow-wrap: anywhere; }
 .sales-admin-notification-card-footer { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 9px; }
 .sales-admin-notification-category { display: inline-flex; align-items: center; padding: 4px 7px; border-radius: 999px; color: #1d4ed8; background: #eff6ff; font-size: 9px; font-weight: 800; }
 .sales-admin-notification-category.is-amber { color: #996500; background: #fff8e5; }

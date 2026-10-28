@@ -121,6 +121,17 @@ export function SalesAdminDashboardPage({ embeddedBranchAdmin = false, onSwitchD
     return () => { active = false }
   }, [isDashboard, dashboardReloadKey, dateRange.from, dateRange.to, selectedBranchId])
 
+  useEffect(() => {
+    if (!isDashboard) return undefined
+    let active = true
+    request('/sales-admins/admissions/pending-reminder')
+      .then((response) => {
+        if (active && (response?.data?.notificationCreated || response?.data?.notificationUpdated || response?.data?.notificationRemoved)) window.dispatchEvent(new Event('lead-notification-updated'))
+      })
+      .catch((reason) => console.warn('Unable to refresh the pending HOT admission reminder:', reason?.message || reason))
+    return () => { active = false }
+  }, [isDashboard])
+
   const cards = dashboard?.cards || {}
   const assignedBranches = dashboard?.profile?.branches || []
   const upcomingFollowUps = dashboard?.followUps?.upcoming || []

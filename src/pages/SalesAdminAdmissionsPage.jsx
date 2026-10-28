@@ -201,7 +201,7 @@ export function SalesAdminAdmissionsPage() {
     let active = true
     request('/sales-admins/admissions/pending-reminder')
       .then((response) => {
-        if (active && response?.data?.notificationCreated) window.dispatchEvent(new Event('institute-leave-updated'))
+        if (active && (response?.data?.notificationCreated || response?.data?.notificationUpdated || response?.data?.notificationRemoved)) window.dispatchEvent(new Event('lead-notification-updated'))
       })
       .catch((reason) => console.warn('Unable to refresh the pending HOT admission reminder:', reason?.message || reason))
     return () => { active = false }

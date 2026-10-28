@@ -23,7 +23,7 @@ function notificationMetadata(item) {
   const title = String(item.title || '')
   const separator = Math.max(title.lastIndexOf('—'), title.lastIndexOf('–'))
   const student = separator >= 0 ? title.slice(separator + 1).trim() : ''
-  const leadId = String(item.message || '').match(/\((CISLEA[A-Z0-9._/-]+)\)/i)?.[1] || ''
+  const leadId = String(item.message || '').match(/\(((?:CISLEA[A-Z0-9._/-]+|LD-\d+))\)/i)?.[1] || ''
   return { student, leadId }
 }
 
