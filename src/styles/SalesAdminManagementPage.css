@@ -433,3 +433,12 @@ form[role='dialog'] > div:last-child button[type='submit']:hover { background: #
     width: 100%;
   }
 }
+.sales-admin-details-only .sales-admin-create-button { display: none !important; }
+.sales-admin-details-only .sales-admin-table th:last-child,
+.sales-admin-details-only .sales-admin-table td:last-child { display: none; }
+.sales-admin-details-only .sales-admin-online-dot { display: none !important; }
+.sales-admin-details-only .sales-admin-table-toolbar > select { display: none !important; }
+.sales-admin-details-only > div > div > p:not(.eyebrow),
+.sales-admin-details-only section > h2 { display: none !important; }
+.sales-admin-details-only .sales-admin-table th:nth-last-child(2),
+.sales-admin-details-only .sales-admin-table td:nth-last-child(2) { display: none; }
