@@ -421,6 +421,20 @@
   margin-bottom: 25px;
 }
 
+.sales-admin-dashboard-header-actions {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 9px;
+}
+
+.sales-admin-dashboard-switch-mode {
+  border-color: #0f766e;
+  color: #0f766e;
+  background: #f2fbfa;
+}
+
 .sales-admin-dashboard-intro .eyebrow {
   margin: 0 0 7px;
   color: #2875e8;
@@ -698,6 +712,7 @@
 @media (max-width: 560px) {
   .sales-admin-dashboard-home { padding: 8px 6px 28px; }
   .sales-admin-dashboard-header { align-items: stretch; flex-direction: column; gap: 16px; }
+  .sales-admin-dashboard-header-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .sales-admin-dashboard-refresh { width: 100%; }
   .sales-admin-dashboard-cards { grid-template-columns: minmax(0, 1fr); }
   .sales-admin-dashboard-lead-card { align-items: flex-start; flex-wrap: wrap; }
@@ -709,6 +724,47 @@
   .sales-admin-dashboard-value-skeleton { animation: none; }
   .sales-admin-dashboard-metric,
   .sales-admin-dashboard-refresh { transition: none; }
+}
+
+.super-admin-page.is-embedded-branch-admin {
+  width: 100%;
+  min-height: 0 !important;
+  height: auto !important;
+  padding: 0 !important;
+  overflow: visible !important;
+  background: transparent !important;
+}
+
+.super-admin-page.is-embedded-branch-admin .super-admin-shell {
+  min-height: 0 !important;
+  height: auto !important;
+  overflow: visible !important;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.super-admin-page.is-embedded-branch-admin .super-admin-sidebar,
+.super-admin-page.is-embedded-branch-admin .super-admin-sidebar-backdrop,
+.super-admin-page.is-embedded-branch-admin .super-admin-topbar {
+  display: none !important;
+}
+
+.super-admin-page.is-embedded-branch-admin .super-admin-main {
+  width: 100%;
+  min-height: 0 !important;
+  height: auto !important;
+  margin: 0 !important;
+  overflow: visible !important;
+}
+
+.super-admin-page.is-embedded-branch-admin .super-admin-content {
+  min-height: 0 !important;
+  padding: 0 !important;
+  overflow: visible !important;
+}
+
+.super-admin-page.is-embedded-branch-admin .sales-admin-dashboard-home {
+  padding: 0 0 16px;
 }
 
 .sales-admin-dashboard-metric-label,

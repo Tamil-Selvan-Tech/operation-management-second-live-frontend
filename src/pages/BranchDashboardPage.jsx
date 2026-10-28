@@ -68,6 +68,7 @@ import BranchExamResultsPage from './BranchExamResultsPage'
 import BranchSalesCrmPage from './BranchSalesCrmPage'
 import { LeadManagementPage } from './LeadManagementPage'
 import { SalesAdminAdmissionsPage } from './SalesAdminAdmissionsPage'
+import { SalesAdminDashboardPage } from './SalesAdminDashboardPage'
 import { SalesCrmReportPage } from './SalesCrmReportPage'
 import { FacultySkillsUpgradePage } from './FacultySkillsUpgradePage'
 import AcademicTestPage from './AcademicTestPage'
@@ -4208,6 +4209,7 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
       : requestedSidebarSection || routeSection
 
   const [resolvedBranchRoleAccess, setResolvedBranchRoleAccess] = useState('')
+  const [isSalesAdminDashboardMode, setIsSalesAdminDashboardMode] = useState(false)
   const hasLeadManagementAccess = String(resolvedBranchRoleAccess || user?.roleAccess || session?.user?.roleAccess || '').toUpperCase() === 'BRANCH_ADMIN_SALES_ADMIN'
 
   useEffect(() => {
@@ -11806,6 +11808,9 @@ useEffect(() => {
               <BranchMonthlyReportModal isOpen={isStudentMonthlyReportOpen} onClose={() => setIsStudentMonthlyReportOpen(false)} reportVariant="monthly" />
               {activeSection === 'faculty-skills' ? <FacultySkillsUpgradePage embedded branchId={branchData?.id || branchData?.branchId || branchProfile?.id || branchProfile?.branchId || ''} /> : null}
               {activeSection === 'dashboard' ? (
+                isSalesAdminDashboardMode && hasLeadManagementAccess ? (
+                  <SalesAdminDashboardPage embeddedBranchAdmin onSwitchDashboard={() => setIsSalesAdminDashboardMode(false)} />
+                ) : (
                 <>
                   <div className="branch-dashboard-overview-intro">
                     <div className="branch-dashboard-overview-intro-heading">
@@ -11816,6 +11821,12 @@ useEffect(() => {
                             <LayoutGrid size={17} strokeWidth={2.4} />
                             <span>Customize Dashboard</span>
                           </button>
+                          {hasLeadManagementAccess ? (
+                            <button type="button" className="branch-dashboard-customize-button branch-dashboard-switch-sales-button" onClick={() => setIsSalesAdminDashboardMode(true)}>
+                              <BriefcaseBusiness size={17} strokeWidth={2.3} />
+                              <span>Switch Sales Admin</span>
+                            </button>
+                          ) : null}
                           <button
                             type="button"
                             className="branch-dashboard-refresh-button"
@@ -12103,6 +12114,7 @@ useEffect(() => {
                     </section>
                   </div>
                 </>
+                )
               ) : null}
 
               {activeSection === 'institute-leave' || activeSection === 'faculty-leave' ? <InstituteLeavePage key={activeSection} initialViewMode={activeSection === 'faculty-leave' ? 'faculty' : 'institute'} /> : null}

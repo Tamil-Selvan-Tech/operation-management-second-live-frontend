@@ -76,7 +76,7 @@ function formatChartDate(value) {
   return new Intl.DateTimeFormat('en-IN', { day: '2-digit', month: 'short', timeZone: 'UTC' }).format(new Date(`${String(value).slice(0, 10)}T00:00:00.000Z`))
 }
 
-export function SalesAdminDashboardPage() {
+export function SalesAdminDashboardPage({ embeddedBranchAdmin = false, onSwitchDashboard }) {
   const { user, signOut } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
@@ -155,7 +155,7 @@ export function SalesAdminDashboardPage() {
   }
 
   return (
-    <section className={`super-admin-page ${isSidebarCollapsed ? 'is-sidebar-collapsed' : ''}`}>
+    <section className={`super-admin-page ${isSidebarCollapsed ? 'is-sidebar-collapsed' : ''} ${embeddedBranchAdmin ? 'is-embedded-branch-admin' : ''}`}>
       <div className="super-admin-shell">
         {isMobileSidebarOpen ? <button type="button" className="super-admin-sidebar-backdrop" aria-label="Close navigation menu" onClick={closeMobileSidebar} /> : null}
         <aside className={`super-admin-sidebar ${isSidebarCollapsed ? 'is-sidebar-collapsed' : ''} ${isMobileSidebarOpen ? 'is-open' : ''}`} aria-label="Sales admin navigation">
@@ -167,20 +167,22 @@ export function SalesAdminDashboardPage() {
             <button type="button" className="super-admin-sidebar-close" aria-label="Close navigation menu" onClick={closeMobileSidebar}><X size={18} /></button>
           </div>
           <nav className="super-admin-sidebar-nav">
-            <div className="super-admin-sidebar-section"><button type="button" className={`super-admin-sidebar-item ${!isLeadManagement ? 'is-active' : ''}`} data-tooltip="Dashboard" onClick={() => { navigate('/dashboard/sales-admin'); closeMobileSidebar() }}><span className="super-admin-sidebar-icon"><Home size={18} /></span><span>Dashboard</span></button></div>
-            <div className="super-admin-sidebar-section"><button type="button" className={`super-admin-sidebar-item ${isLeadManagement ? 'is-active' : ''}`} data-tooltip="Lead Management" onClick={() => { navigate('/dashboard/sales-admin/leads'); closeMobileSidebar() }}><span className="super-admin-sidebar-icon"><LayoutGrid size={18} /></span><span>Lead Management</span></button></div>
-            <div className="super-admin-sidebar-section"><button type="button" className={`super-admin-sidebar-item ${isAdmissions ? 'is-active' : ''}`} data-tooltip="Student Admission" onClick={() => { navigate('/dashboard/sales-admin/admissions'); closeMobileSidebar() }}><span className="super-admin-sidebar-icon"><GraduationCap size={18} /></span><span>Student Admission</span></button></div>
-            <div className="super-admin-sidebar-section"><button type="button" className={`super-admin-sidebar-item ${isReports ? 'is-active' : ''}`} data-tooltip="Monthly Reports" onClick={() => { navigate('/dashboard/sales-admin/reports'); closeMobileSidebar() }}><span className="super-admin-sidebar-icon"><LayoutGrid size={18} /></span><span>Monthly Reports</span></button></div>
-            <div className="super-admin-sidebar-section"><button type="button" className={`super-admin-sidebar-item ${isNotifications ? 'is-active' : ''}`} data-tooltip="Notifications" onClick={() => { navigate('/dashboard/sales-admin/notifications'); closeMobileSidebar() }}><span className="super-admin-sidebar-icon"><Bell size={18} /></span><span>Notifications</span></button></div>
-            <div className="super-admin-sidebar-section"><button type="button" className={`super-admin-sidebar-item ${isProfile ? 'is-active' : ''}`} data-tooltip="My Profile" onClick={() => { navigate('/dashboard/sales-admin/profile'); closeMobileSidebar() }}><span className="super-admin-sidebar-icon"><UserRound size={18} /></span><span>My Profile</span></button></div>
+            <div className="super-admin-sidebar-section"><button type="button" className="super-admin-sidebar-item is-active" data-tooltip="Dashboard" onClick={() => { if (!embeddedBranchAdmin) navigate('/dashboard/sales-admin'); closeMobileSidebar() }}><span className="super-admin-sidebar-icon"><Home size={18} /></span><span>Dashboard</span></button></div>
+            {!embeddedBranchAdmin ? <>
+              <div className="super-admin-sidebar-section"><button type="button" className={`super-admin-sidebar-item ${isLeadManagement ? 'is-active' : ''}`} data-tooltip="Lead Management" onClick={() => { navigate('/dashboard/sales-admin/leads'); closeMobileSidebar() }}><span className="super-admin-sidebar-icon"><LayoutGrid size={18} /></span><span>Lead Management</span></button></div>
+              <div className="super-admin-sidebar-section"><button type="button" className={`super-admin-sidebar-item ${isAdmissions ? 'is-active' : ''}`} data-tooltip="Student Admission" onClick={() => { navigate('/dashboard/sales-admin/admissions'); closeMobileSidebar() }}><span className="super-admin-sidebar-icon"><GraduationCap size={18} /></span><span>Student Admission</span></button></div>
+              <div className="super-admin-sidebar-section"><button type="button" className={`super-admin-sidebar-item ${isReports ? 'is-active' : ''}`} data-tooltip="Monthly Reports" onClick={() => { navigate('/dashboard/sales-admin/reports'); closeMobileSidebar() }}><span className="super-admin-sidebar-icon"><LayoutGrid size={18} /></span><span>Monthly Reports</span></button></div>
+              <div className="super-admin-sidebar-section"><button type="button" className={`super-admin-sidebar-item ${isNotifications ? 'is-active' : ''}`} data-tooltip="Notifications" onClick={() => { navigate('/dashboard/sales-admin/notifications'); closeMobileSidebar() }}><span className="super-admin-sidebar-icon"><Bell size={18} /></span><span>Notifications</span></button></div>
+              <div className="super-admin-sidebar-section"><button type="button" className={`super-admin-sidebar-item ${isProfile ? 'is-active' : ''}`} data-tooltip="My Profile" onClick={() => { navigate('/dashboard/sales-admin/profile'); closeMobileSidebar() }}><span className="super-admin-sidebar-icon"><UserRound size={18} /></span><span>My Profile</span></button></div>
+            </> : null}
           </nav>
-          <div className="sales-admin-sidebar-account"><span className="sales-admin-sidebar-account-avatar"><UserRound size={18} /></span><span className="sales-admin-sidebar-account-copy"><strong>{user?.name || 'Sales Admin'}</strong><small>{user?.email || 'salesadmin@cispro.com'}</small></span><button type="button" className="sales-admin-sidebar-account-logout" aria-label="Logout" onClick={() => setIsLogoutConfirmOpen(true)}><LogOut size={20} /></button></div>
+          <div className="sales-admin-sidebar-account"><span className="sales-admin-sidebar-account-avatar"><UserRound size={18} /></span><span className="sales-admin-sidebar-account-copy"><strong>{user?.name || 'Sales Admin'}</strong><small>{user?.email || 'salesadmin@cispro.com'}</small></span>{!embeddedBranchAdmin ? <button type="button" className="sales-admin-sidebar-account-logout" aria-label="Logout" onClick={() => setIsLogoutConfirmOpen(true)}><LogOut size={20} /></button> : null}</div>
         </aside>
 
         <div className="super-admin-main">
           <header className="super-admin-topbar">
             <div className="super-admin-topbar-left"><button type="button" className="super-admin-sidebar-toggle" aria-label="Open navigation menu" onClick={() => setIsMobileSidebarOpen(true)}><LayoutGrid size={19} /></button><h1 className="super-admin-header-title">{isLeadManagement ? 'Lead Management' : isReports ? 'Monthly Reports' : isNotifications ? 'Notifications' : isAdmissions ? 'Student Admission' : isProfile ? 'My Profile' : 'Sales Admin Dashboard'}</h1></div>
-            <div className="super-admin-topbar-right"><NotificationBell /><div className="super-admin-profile"><span className="super-admin-avatar"><span className="super-admin-avatar-mark"><UserRound size={19} /></span></span><div className="super-admin-profile-copy"><strong>{user?.name || 'Sales Admin'}</strong><span>{user?.email || 'salesadmin@cispro.com'}</span></div></div></div>
+            <div className="super-admin-topbar-right">{!embeddedBranchAdmin ? <NotificationBell /> : null}<div className="super-admin-profile"><span className="super-admin-avatar"><span className="super-admin-avatar-mark"><UserRound size={19} /></span></span><div className="super-admin-profile-copy"><strong>{user?.name || 'Sales Admin'}</strong><span>{user?.email || 'salesadmin@cispro.com'}</span></div></div></div>
           </header>
 
           <main className="super-admin-content">
@@ -192,10 +194,13 @@ export function SalesAdminDashboardPage() {
                     <h2>Dashboard</h2>
                     <p>Monitor lead movement and admission performance across your assigned branches.</p>
                   </div>
-                  <button type="button" className="sales-admin-dashboard-refresh" onClick={refreshDashboard} disabled={dashboardLoading}>
-                    <RefreshCw size={16} className={dashboardLoading ? 'is-spinning' : ''} />
-                    <span>{dashboardLoading ? 'Refreshing' : 'Refresh'}</span>
-                  </button>
+                  <div className="sales-admin-dashboard-header-actions">
+                    {embeddedBranchAdmin ? <button type="button" className="sales-admin-dashboard-refresh sales-admin-dashboard-switch-mode" onClick={onSwitchDashboard}><Home size={16} /><span>Switch Branch Admin</span></button> : null}
+                    <button type="button" className="sales-admin-dashboard-refresh" onClick={refreshDashboard} disabled={dashboardLoading}>
+                      <RefreshCw size={16} className={dashboardLoading ? 'is-spinning' : ''} />
+                      <span>{dashboardLoading ? 'Refreshing' : 'Refresh'}</span>
+                    </button>
+                  </div>
                 </header>
 
                 <section className="sales-admin-dashboard-date-filter" aria-label="Dashboard date filter">
@@ -290,7 +295,7 @@ export function SalesAdminDashboardPage() {
                   <article className="sales-admin-dashboard-panel sales-admin-dashboard-followups">
                     <header className="sales-admin-dashboard-panel-header">
                       <div><span className="sales-admin-dashboard-panel-icon is-blue"><CalendarClock size={17} /></span><div><h2>Upcoming follow-ups</h2><p>Scheduled across your assigned branches</p></div></div>
-                      <button type="button" onClick={() => navigate('/dashboard/sales-admin/leads')}>View leads <ArrowUpRight size={14} /></button>
+                      {!embeddedBranchAdmin ? <button type="button" onClick={() => navigate('/dashboard/sales-admin/leads')}>View leads <ArrowUpRight size={14} /></button> : null}
                     </header>
                     {dashboardLoading ? <div className="sales-admin-dashboard-list-skeleton" aria-label="Loading follow-ups"><i /><i /><i /></div> : upcomingFollowUps.length ? (
                       <div className="sales-admin-dashboard-followup-list">
