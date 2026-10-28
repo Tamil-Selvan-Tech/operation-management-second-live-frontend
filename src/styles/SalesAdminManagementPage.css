@@ -516,3 +516,24 @@ form[role='dialog'] > div:last-child button[type='submit']:hover { background: #
 .sales-admin-analytics-header > .sales-admin-analytics-identity { grid-column: 1; grid-row: 2; }
 .sales-admin-analytics-header > .sales-admin-analytics-actions { grid-column: 2; grid-row: 2; align-self: center; }
 @media (max-width: 720px) { .sales-admin-analytics-header { grid-template-columns: 1fr; } .sales-admin-analytics-header > .sales-admin-analytics-back,.sales-admin-analytics-header > .sales-admin-analytics-identity,.sales-admin-analytics-header > .sales-admin-analytics-actions { grid-column: 1; grid-row: auto; } }
+.sales-admin-analytics-actions .sales-admin-date-filter label > span { transform: translateY(-8px); }
+.sales-admin-analytics-loading { display: grid; gap: 16px; padding: 4px 0 36px; }
+.sales-admin-analytics-loading-back { width: 150px; height: 14px; border-radius: 5px; }
+.sales-admin-analytics-loading-header { display: flex; align-items: center; gap: 16px; padding: 20px 0; border-bottom: 1px solid #e5edf6; }
+.sales-admin-analytics-loading-header > span:first-child { width: 62px; height: 62px; border-radius: 14px; }
+.sales-admin-analytics-loading-header > div { display: grid; gap: 8px; flex: 1; }
+.sales-admin-analytics-loading-header i { width: 180px; height: 24px; }
+.sales-admin-analytics-loading-header b { width: 260px; height: 12px; }
+.sales-admin-analytics-loading-header em { width: 120px; height: 10px; }
+.sales-admin-analytics-loading-header > span:last-child { width: 58px; height: 22px; border-radius: 999px; }
+.sales-admin-analytics-loading-tabs { display: flex; gap: 30px; padding: 14px 12px; border-bottom: 1px solid #e5edf6; }
+.sales-admin-analytics-loading-tabs span { width: 100px; height: 12px; border-radius: 5px; }
+.sales-admin-analytics-loading-kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.sales-admin-analytics-loading-kpis span,.sales-admin-analytics-loading-columns > div,.sales-admin-analytics-loading-card,.sales-admin-analytics-loading-back,.sales-admin-analytics-loading-header > span,.sales-admin-analytics-loading-header i,.sales-admin-analytics-loading-header b,.sales-admin-analytics-loading-header em,.sales-admin-analytics-loading-tabs span { background: linear-gradient(90deg, #f1f5f9 25%, #e8eef6 37%, #f1f5f9 63%); background-size: 400% 100%; animation: sales-admin-analytics-shimmer 1.4s ease infinite; }
+.sales-admin-analytics-loading-kpis span { height: 86px; border: 1px solid #e4ebf4; border-radius: 12px; }
+.sales-admin-analytics-loading-columns { display: grid; grid-template-columns: 1.25fr .75fr; gap: 16px; }
+.sales-admin-analytics-loading-columns > div { height: 260px; border: 1px solid #e4ebf4; border-radius: 13px; }
+.sales-admin-analytics-loading-card { height: 170px; border: 1px solid #e4ebf4; border-radius: 13px; }
+@keyframes sales-admin-analytics-shimmer { 0% { background-position: 100% 0; } 100% { background-position: -100% 0; } }
+@media (max-width: 720px) { .sales-admin-analytics-loading-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } .sales-admin-analytics-loading-columns { grid-template-columns: 1fr; } .sales-admin-analytics-loading-tabs { gap: 14px; overflow: hidden; } }
+@media (max-width: 420px) { .sales-admin-analytics-loading-kpis { grid-template-columns: 1fr; } }
