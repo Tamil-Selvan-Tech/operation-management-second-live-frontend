@@ -4,7 +4,7 @@ import '../styles/SuperAdminSalesCrmOverview.css'
 
 function Metric({ label, value, note, tone = 'blue' }) { return <article className={`sa-crm-metric ${tone}`}><span>{label}</span><strong>{value}</strong><small>{note}</small></article> }
 
-export function SuperAdminSalesCrmOverview({ branches = [], onSummaryChange = null, showMetrics = true, hideAnalytics = false, chartOnly = false }) {
+export function SuperAdminSalesCrmOverview({ branches = [], dateRange = null, onSummaryChange = null, showMetrics = true, hideAnalytics = false, chartOnly = false }) {
   const [period, setPeriod] = useState('monthly')
   const [branchId, setBranchId] = useState('')
   const [adminId, setAdminId] = useState('')
@@ -16,12 +16,12 @@ export function SuperAdminSalesCrmOverview({ branches = [], onSummaryChange = nu
     let cancelled = false
     const timer = window.setTimeout(async () => {
       setLoading(true); setError('')
-      try { const next = await getSuperAdminSalesCrmAnalytics({ period, branchId, salesAdminId: adminId, salesAdminSearch: adminSearch }); if (!cancelled) setData(next) }
+      try { const next = await getSuperAdminSalesCrmAnalytics({ period, branchId, salesAdminId: adminId, salesAdminSearch: adminSearch, startDate: dateRange?.startDate, endDate: dateRange?.endDate }); if (!cancelled) setData(next) }
       catch (err) { if (!cancelled) setError(err?.message || 'Unable to load Sales CRM analytics.') }
       finally { if (!cancelled) setLoading(false) }
     }, 250)
     return () => { cancelled = true; window.clearTimeout(timer) }
-  }, [period, branchId, adminId, adminSearch])
+  }, [period, branchId, adminId, adminSearch, dateRange?.startDate, dateRange?.endDate])
   const summary = data?.summary || {}
   useEffect(() => { onSummaryChange?.(summary) }, [onSummaryChange, summary])
   const admins = data?.salesAdmins || []
