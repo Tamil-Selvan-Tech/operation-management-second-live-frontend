@@ -4476,7 +4476,9 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
       () => shareInFlightRequest(
         requestKey,
         async () => {
-          const response = await request("/student-discontinuation?status=APPROVED", {
+          const query = new URLSearchParams({ status: "APPROVED" })
+          if (approvedDiscontinuationScope) query.set("branchId", approvedDiscontinuationScope)
+          const response = await request(`/student-discontinuation?${query.toString()}`, {
             ...(embeddedMode && approvedDiscontinuationScope ? { impersonateBranchId: approvedDiscontinuationScope } : {}),
           })
           return Array.isArray(response?.data) ? response.data : []

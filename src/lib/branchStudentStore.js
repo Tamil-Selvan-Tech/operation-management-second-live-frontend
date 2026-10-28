@@ -391,19 +391,33 @@ export async function refreshBranchStudents(branchId, options = {}) {
   let records
 
   try {
-    const params = new URLSearchParams({
-      page: '1',
-      limit: '100',
-      sortBy: 'createdAt',
-      sortOrder: 'desc',
-      branchId: branchScopeKeys[0],
-    })
-    if (!includeProgress) params.set('includeProgress', 'false')
-    const response = await request('/branch-students?' + params.toString(), {
-      method: 'GET',
-    })
-    const payload = response?.data ?? response
-    records = extractBranchStudentListPayload(payload).map((record) => normalizeStoredStudentRecord({
+    // The dashboard totals are branch-wide. Loading only the first page made
+    // the KPI cards silently under-count branches with more than 100 students.
+    const pageSize = 100
+    const pages = []
+    let page = 1
+    let totalPages = 1
+    do {
+      const params = new URLSearchParams({
+        page: String(page),
+        limit: String(pageSize),
+        sortBy: 'createdAt',
+        sortOrder: 'desc',
+        branchId: branchScopeKeys[0],
+      })
+      if (!includeProgress) params.set('includeProgress', 'false')
+      const response = await request(`/branch-students?${params.toString()}`, {
+        method: 'GET',
+        impersonateBranchId: branchScopeKeys[0],
+      })
+      const payload = response?.data ?? response
+      pages.push(...extractBranchStudentListPayload(payload))
+      const meta = response?.meta || payload?.meta || payload?.pagination || payload?.pageInfo
+      totalPages = Math.max(1, Number(meta?.totalPages || Math.ceil(Number(meta?.total || 0) / pageSize) || 1))
+      page += 1
+    } while (page <= totalPages && page <= 100)
+
+    records = pages.map((record) => normalizeStoredStudentRecord({
       ...record,
       _fromBackend: true,
       _isExistingRecord: true,
