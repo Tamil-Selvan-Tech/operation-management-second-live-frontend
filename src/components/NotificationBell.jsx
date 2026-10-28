@@ -140,7 +140,7 @@ export function NotificationBell() {
         onClick={() => setIsOpen(true)}
       >
         <Bell size={20} strokeWidth={2.2} aria-hidden="true" focusable="false" />
-        <b>{unreadCount}</b>
+        {unreadCount > 0 ? <b>{unreadCount}</b> : null}
       </button>
 
       {isOpen ? (

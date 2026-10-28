@@ -270,6 +270,7 @@ export function AppSidebar({
             <div className="logout-modal-backdrop" role="presentation">
               <div
                 className="logout-modal"
+                style={{ width: '330px', maxWidth: 'calc(100vw - 48px)', boxSizing: 'border-box' }}
                 role="dialog"
                 aria-modal="true"
                 aria-labelledby="logout-modal-title"

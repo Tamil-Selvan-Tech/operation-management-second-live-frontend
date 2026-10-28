@@ -24,10 +24,35 @@ const formatAudioTime = (value) => { if (!Number.isFinite(value) || value < 0) r
 export function LeadManagementPage() {
   const location = useLocation()
   const navigate = useNavigate()
-  const [leads, setLeads] = useState([]); const [meta, setMeta] = useState({ page: 1, totalPages: 1, total: 0 }); const [options, setOptions] = useState({ branches: [], courses: [], assignees: [], nextLeadId: '', currentUserId: '' }); const [filters, setFilters] = useState({ search: '', branchId: '', courseId: '', stage: '', status: '', leadSource: '', page: 1 }); const [form, setForm] = useState(emptyForm); const [fieldErrors, setFieldErrors] = useState({}); const [validatedSteps, setValidatedSteps] = useState({}); const [editing, setEditing] = useState(null); const [viewing, setViewing] = useState(null); const [modal, setModal] = useState(false); const [step, setStep] = useState(1); const [loading, setLoading] = useState(true); const [saving, setSaving] = useState(false); const [recordings, setRecordings] = useState([]); const [followUpModal, setFollowUpModal] = useState(false); const [followUpForm, setFollowUpForm] = useState({ stage: '', status: '', callStatus: '', notes: '', scheduleChoice: 'SET_NEW_DATE', nextFollowUpDate: '' }); const [followUpFieldErrors, setFollowUpFieldErrors] = useState({}); const [followUpRecordings, setFollowUpRecordings] = useState([]); const [followUpSaving, setFollowUpSaving] = useState(false); const [followUpError, setFollowUpError] = useState(''); const [error, setError] = useState(''); const [notice, setNotice] = useState('')
+  const [leads, setLeads] = useState([]); const [meta, setMeta] = useState({ page: 1, totalPages: 1, total: 0 }); const [options, setOptions] = useState({ branches: [], courses: [], assignees: [], nextLeadId: '', currentUserId: '' }); const [filters, setFilters] = useState({ search: '', branchId: '', courseId: '', stage: '', status: '', leadSource: '', page: 1 }); const [form, setForm] = useState(emptyForm); const [fieldErrors, setFieldErrors] = useState({}); const [validatedSteps, setValidatedSteps] = useState({}); const [editing, setEditing] = useState(null); const [viewing, setViewing] = useState(null); const [modal, setModal] = useState(false); const [step, setStep] = useState(1); const [loading, setLoading] = useState(true); const [saving, setSaving] = useState(false); const [recordings, setRecordings] = useState([]); const [followUpModal, setFollowUpModal] = useState(false); const [followUpForm, setFollowUpForm] = useState({ stage: '', status: '', callStatus: '', notes: '', scheduleChoice: 'SET_NEW_DATE', nextFollowUpDate: '' }); const [followUpFieldErrors, setFollowUpFieldErrors] = useState({}); const [followUpRecordings, setFollowUpRecordings] = useState([]); const [followUpSaving, setFollowUpSaving] = useState(false); const [followUpError, setFollowUpError] = useState(''); const [followUpSuccess, setFollowUpSuccess] = useState(false); const [error, setError] = useState(''); const [notice, setNotice] = useState('')
   const followUpFormRef = useRef(followUpForm)
   const followUpScheduleInitialized = useRef(false)
   const followUpDefaultSelectionApplied = useRef(false)
+  useEffect(() => {
+    if (!followUpSuccess || !viewing) return undefined
+    const backdrop = document.createElement('div')
+    backdrop.className = 'lead-followup-success-backdrop'
+    backdrop.setAttribute('role', 'presentation')
+    const dialog = document.createElement('div')
+    dialog.className = 'lead-followup-success-dialog'
+    dialog.setAttribute('role', 'status')
+    dialog.setAttribute('aria-live', 'polite')
+    const check = document.createElement('span')
+    check.className = 'lead-followup-success-icon'
+    check.setAttribute('aria-hidden', 'true')
+    check.textContent = '✓'
+    const message = document.createElement('p')
+    message.textContent = 'Follow-up added successfully.'
+    const ok = document.createElement('button')
+    ok.type = 'button'
+    ok.className = 'lead-primary-button'
+    ok.textContent = 'OK'
+    ok.onclick = () => setFollowUpSuccess(false)
+    dialog.append(check, message, ok)
+    backdrop.append(dialog)
+    document.body.append(backdrop)
+    return () => backdrop.remove()
+  }, [followUpSuccess, viewing])
   useEffect(() => { if (!followUpModal) { followUpScheduleInitialized.current = false; followUpDefaultSelectionApplied.current = false; return } if (followUpScheduleInitialized.current) return; followUpScheduleInitialized.current = true; if (['COLD', 'WARM'].includes(String(viewing?.stage || '').toUpperCase()) && !viewing?.nextFollowUpDate) setFollowUpForm(current => ({ ...current, scheduleChoice: 'KEEP_EXISTING_DATE', nextFollowUpDate: '', nextFollowUpTime: '' })) }, [followUpModal, viewing])
   useEffect(() => { if (!followUpModal || !followUpScheduleInitialized.current || followUpDefaultSelectionApplied.current) return undefined; const timer = window.setTimeout(() => { if (!['COLD', 'WARM'].includes(String(viewing?.stage || '').toUpperCase()) || viewing?.nextFollowUpDate) { followUpDefaultSelectionApplied.current = true; return } const scheduleLabel = Array.from(document.querySelectorAll('.lead-followup-grid label')).find(label => label.textContent.startsWith('Follow-up Scheduling')); const select = scheduleLabel?.querySelector('select'); if (!select) return; select.value = 'KEEP_EXISTING_DATE'; select.dispatchEvent(new Event('change', { bubbles: true })); followUpDefaultSelectionApplied.current = true }, 0); return () => window.clearTimeout(timer) }, [followUpModal, viewing])
   useEffect(() => { if (!viewing) return undefined; const timer = window.setTimeout(() => { const activityTitles = { REMINDER_LOOP_ACTIVATED: ['Reminder Loop Activated', 'Automatic follow-up reminders are active until the lead reaches HOT or CLOSED.'], FOLLOW_UP_REMINDER_SCHEDULED: ['Follow-up Reminder Scheduled', 'The next follow-up reminder has been scheduled.'], FOLLOW_UP_REMINDER_RESCHEDULED: ['Follow-up Reminder Rescheduled', 'The active reminder schedule was updated.'], DAILY_REMINDER_SCHEDULED: ['Daily Reminder Generated', 'A daily follow-up reminder was scheduled for the next morning.'], REMINDER_LOOP_STOPPED: ['Reminder Loop Stopped', 'Automatic reminders stopped because the lead is no longer in an active follow-up stage.'] }; document.querySelectorAll('.lead-activity-item').forEach(row => { const title = row.querySelector('.lead-activity-item-top strong'); if (!title) return; const key = title.textContent.trim().toUpperCase().replace(/[^A-Z0-9]+/g, '_'); const details = activityTitles[key]; if (!details) return; title.textContent = details[0]; const description = row.querySelector('.lead-activity-content > p'); if (description) description.textContent = details[1] }) }, 80); return () => window.clearTimeout(timer) }, [viewing])
@@ -66,7 +91,7 @@ export function LeadManagementPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const availableAssignees = useMemo(() => options.assignees.filter(isCurrentAssignee), [options.assignees, currentUserId, currentUserEmail, currentUserCode])
   const openCreate = () => { const branchId = options.branches.length === 1 ? options.branches[0].id : ''; setSaving(false); setEditing(null); setRecordings([]); setForm({ ...emptyForm, leadId: branchId ? options.nextLeadId || makeLeadId() : '', assignedToId: isCombinedBranchAdmin ? currentUserId : (availableAssignees[0]?.id || ''), branchId }); setFieldErrors({}); setValidatedSteps({}); setStep(1); setError(''); setModal(true); if (branchId) void request(`/leads/options?branchId=${encodeURIComponent(branchId)}`).then((result) => { const nextLeadId = result?.data?.nextLeadId; if (nextLeadId) setForm((current) => current.branchId === branchId ? { ...current, leadId: nextLeadId } : current) }).catch(() => {}) }
-  const openView = async (lead) => { try { const result = await request(`/leads/${lead.id}`); setViewing(result?.data || lead) } catch (reason) { setError(reason?.message || 'Unable to load lead details') } }
+  const openView = async (lead) => { try { const result = await request(`/leads/${lead.id}`); setFollowUpSuccess(false); setViewing(result?.data || lead) } catch (reason) { setError(reason?.message || 'Unable to load lead details') } }
   const openAdmission = () => { setViewing(null); navigate('/branch-dashboard?section=sales-crm-admissions') }
   useEffect(() => { if (!viewing) return undefined; const timer = window.setTimeout(() => { const button = document.querySelector('.lead-profile-header-actions button'); if (!button || button.textContent?.trim() !== 'Convert to Admission') return; button.disabled = false; button.title = 'Open Student Admission'; button.onclick = openAdmission }, 0); return () => window.clearTimeout(timer) }, [viewing])
   useEffect(() => { const leadId = location.state?.leadId; if (!leadId) return; let active = true; void request(`/leads/${leadId}`).then((result) => { if (active) setViewing(result?.data || null) }).catch((reason) => { if (active) setError(reason?.message || 'Unable to load lead details') }).finally(() => { if (active) navigate(location.pathname, { replace: true, state: null }) }); return () => { active = false } }, [location.pathname, location.state, navigate])
@@ -102,7 +127,7 @@ export function LeadManagementPage() {
       setViewing(refreshed?.data || viewing)
       setFollowUpFieldErrors({})
       setFollowUpModal(false)
-      setNotice('Follow-up added successfully.')
+      setFollowUpSuccess(true)
       window.dispatchEvent(new Event('lead-notification-updated'))
     } catch (reason) { setFollowUpError(reason?.message || 'Unable to save follow-up') } finally { setFollowUpSaving(false) }
   }
