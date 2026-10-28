@@ -425,12 +425,12 @@ export function SuperAdminOverallDashboard({ branches, userKey = 'super-admin', 
     {error ? <div className="sa-overall-alert"><AlertCircle size={18} /> <span>{error}</span><button type="button" onClick={() => void load()}>Try again</button></div> : null}
     <div className="sa-overall-metrics sa-overall-summary-grid" aria-label="Overall dashboard summary">
       {orderedMetricKeys.filter((key) => !metricLayout.hidden.includes(key)).map((key) => <div key={key}>{metricDefinitions[key].node}</div>)}
-      <MetricCard label="Total Leads" value={crmSummary.totalLeads ?? 0} icon={Users} tone="blue" scopeLabel="All active branches" isLoading={!crmSummary.totalLeads && crmSummary.totalLeads !== 0} />
-      <MetricCard label="This Month's Leads" value={crmSummary.thisMonthLeads ?? 0} icon={CalendarDays} tone="purple" scopeLabel="Leads added this month" isLoading={!crmSummary.thisMonthLeads && crmSummary.thisMonthLeads !== 0} />
-      <MetricCard label="Total Admissions" value={crmSummary.totalAdmissions ?? 0} icon={Users} tone="green" scopeLabel="Admissions from CRM" isLoading={!crmSummary.totalAdmissions && crmSummary.totalAdmissions !== 0} />
-      <MetricCard label="HOT Leads" value={crmSummary.hotLeads ?? 0} icon={Users} tone="orange" scopeLabel="HOT stage leads" isLoading={!crmSummary.hotLeads && crmSummary.hotLeads !== 0} />
-      <MetricCard label="WARM Leads" value={crmSummary.warmLeads ?? 0} icon={Users} tone="amber" scopeLabel="WARM stage leads" isLoading={!crmSummary.warmLeads && crmSummary.warmLeads !== 0} />
-      <MetricCard label="COLD Leads" value={crmSummary.coldLeads ?? 0} icon={Users} tone="purple" scopeLabel="COLD stage leads" isLoading={!crmSummary.coldLeads && crmSummary.coldLeads !== 0} />
+      <MetricCard label="Total Leads" value={crmSummary.totalLeads ?? 0} icon={Users} tone="blue" scopeLabel="All active branches" isLoading={!crmSummary.totalLeads && crmSummary.totalLeads !== 0} onClick={() => navigate('/dashboard/super-admin?section=sales-admin')} />
+      <MetricCard label="This Month's Leads" value={crmSummary.thisMonthLeads ?? 0} icon={CalendarDays} tone="purple" scopeLabel="Leads added this month" isLoading={!crmSummary.thisMonthLeads && crmSummary.thisMonthLeads !== 0} onClick={() => navigate('/dashboard/super-admin?section=sales-admin')} />
+      <MetricCard label="Total Admissions" value={crmSummary.totalAdmissions ?? 0} icon={Users} tone="green" scopeLabel="Admissions from CRM" isLoading={!crmSummary.totalAdmissions && crmSummary.totalAdmissions !== 0} onClick={() => navigate('/dashboard/super-admin?section=sales-admin')} />
+      <MetricCard label="HOT Leads" value={crmSummary.hotLeads ?? 0} icon={Users} tone="orange" scopeLabel="HOT stage leads" isLoading={!crmSummary.hotLeads && crmSummary.hotLeads !== 0} onClick={() => navigate('/dashboard/super-admin?section=sales-admin')} />
+      <MetricCard label="WARM Leads" value={crmSummary.warmLeads ?? 0} icon={Users} tone="amber" scopeLabel="WARM stage leads" isLoading={!crmSummary.warmLeads && crmSummary.warmLeads !== 0} onClick={() => navigate('/dashboard/super-admin?section=sales-admin')} />
+      <MetricCard label="COLD Leads" value={crmSummary.coldLeads ?? 0} icon={Users} tone="purple" scopeLabel="COLD stage leads" isLoading={!crmSummary.coldLeads && crmSummary.coldLeads !== 0} onClick={() => navigate('/dashboard/super-admin?section=sales-admin')} />
     </div>
     <div className="sa-overall-grid">
       <section className="sa-overall-panel sa-overall-admissions">

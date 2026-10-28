@@ -1,10 +1,19 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { getSuperAdminSalesCrmAnalytics } from '../services/superAdminDashboardService'
 import '../styles/SuperAdminSalesCrmOverview.css'
 
 function Metric({ label, value, note, tone = 'blue' }) { return <article className={`sa-crm-metric ${tone}`}><span>{label}</span><strong>{value}</strong><small>{note}</small></article> }
 
+function CrmLoadingSkeleton({ showMetrics }) {
+  return <div className="sa-crm-loading-skeleton" aria-label="Loading Sales CRM analytics">
+    {showMetrics ? <div className="sa-crm-loading-metrics">{[1, 2, 3, 4, 5].map((item) => <span key={item} />)}</div> : null}
+    <div className="sa-crm-loading-chart"><span className="sa-crm-loading-chart-title" /><span className="sa-crm-loading-chart-body" /></div>
+  </div>
+}
+
 export function SuperAdminSalesCrmOverview({ branches = [], dateRange = null, onSummaryChange = null, showMetrics = true, hideAnalytics = false, chartOnly = false }) {
+  const navigate = useNavigate()
   const [period, setPeriod] = useState('monthly')
   const [branchId, setBranchId] = useState('')
   const [adminId, setAdminId] = useState('')
@@ -34,10 +43,10 @@ export function SuperAdminSalesCrmOverview({ branches = [], dateRange = null, on
     })
   }, [rows])
   const activeBranches = useMemo(() => branches.filter((branch) => String(branch?.status || '').toLowerCase() === 'active'), [branches])
-  return <section className={`sa-crm-overview ${showMetrics ? '' : 'sa-crm-summary-hidden'} ${hideAnalytics ? 'sa-crm-hidden' : ''} ${chartOnly ? 'sa-crm-chart-only' : ''}`} aria-labelledby="sa-crm-overview-title">
-    <header className="sa-crm-header"><div><p>SALES CRM ANALYTICS</p><h2 id="sa-crm-overview-title">Lead &amp; Admission Summary</h2><span>Combined performance across every active branch.</span></div><div className="sa-crm-filters"><label><span>Sales Admin</span><input value={adminSearch} onChange={(event) => { setAdminSearch(event.target.value); setAdminId('') }} placeholder="Search ID or name" /></label><label><span>Admin filter</span><select value={adminId} onChange={(event) => setAdminId(event.target.value)}><option value="">All Sales Admins</option>{admins.map((admin) => <option key={admin.id} value={admin.id}>{admin.fullName} ({admin.userCode})</option>)}</select></label><label><span>Branch</span><select value={branchId} onChange={(event) => setBranchId(event.target.value)}><option value="">All Branches</option>{activeBranches.map((branch) => <option key={branch.id || branch.branchId} value={branch.branchId || branch.id}>{branch.branchName || branch.branchId}</option>)}</select></label><label><span>Chart</span><select value={period} onChange={(event) => setPeriod(event.target.value)}><option value="daily">Daily</option><option value="weekly">Weekly</option><option value="monthly">Monthly</option></select></label></div></header>
+  return <section className={`sa-crm-overview ${showMetrics ? '' : 'sa-crm-summary-hidden'} ${hideAnalytics ? 'sa-crm-hidden' : ''} ${chartOnly ? 'sa-crm-chart-only' : ''} ${loading ? 'is-loading' : ''}`} aria-labelledby="sa-crm-overview-title" onClick={(event) => { if (!event.target.closest(".sa-crm-filters")) navigate("/dashboard/super-admin?section=sales-admin") }}>
+    <header className="sa-crm-header"><div><p>SALES CRM ANALYTICS</p><h2 id="sa-crm-overview-title">Lead &amp; Admission Summary</h2><span>Combined performance across every active branch.</span><button type="button" className="sa-crm-view-link" onClick={(event) => { event.stopPropagation(); navigate("/dashboard/super-admin?section=sales-admin") }}>View</button></div><div className="sa-crm-filters"><label><span>Sales Admin</span><input value={adminSearch} onChange={(event) => { setAdminSearch(event.target.value); setAdminId('') }} placeholder="Search ID or name" /></label><label><span>Admin filter</span><select value={adminId} onChange={(event) => setAdminId(event.target.value)}><option value="">All Sales Admins</option>{admins.map((admin) => <option key={admin.id} value={admin.id}>{admin.fullName} ({admin.userCode})</option>)}</select></label><label><span>Branch</span><select value={branchId} onChange={(event) => setBranchId(event.target.value)}><option value="">All Branches</option>{activeBranches.map((branch) => <option key={branch.id || branch.branchId} value={branch.branchId || branch.id}>{branch.branchName || branch.branchId}</option>)}</select></label><label><span>Chart</span><select value={period} onChange={(event) => setPeriod(event.target.value)}><option value="daily">Daily</option><option value="weekly">Weekly</option><option value="monthly">Monthly</option></select></label></div></header>
     {error ? <div className="sa-crm-error" role="alert">{error}</div> : null}
-    {showMetrics ? <div className="sa-crm-metrics"><Metric label="Total Leads" value={loading ? '—' : summary.totalLeads} note="Current authorized scope" tone="slate" /><Metric label="This Month's Leads" value={loading ? '—' : summary.thisMonthLeads} note="Created this month" /><Metric label="Total Admissions" value={loading ? '—' : summary.totalAdmissions} note="CRM-origin admissions" tone="green" /><Metric label="CRM Students" value={loading ? '—' : summary.totalStudentsFromSalesCrm} note="Created from a lead" tone="green" /><Metric label="HOT Leads" value={loading ? '—' : summary.hotLeads} note="Current stage" tone="orange" /><Metric label="WARM Leads" value={loading ? '—' : summary.warmLeads} note="Current stage" tone="amber" /><Metric label="COLD Leads" value={loading ? '—' : summary.coldLeads} note="Current stage" tone="purple" /></div> : null}
+    <CrmLoadingSkeleton showMetrics={showMetrics} />
     <div className="sa-crm-panel"><div className="sa-crm-panel-title"><div><h3>CRM performance</h3><span>{period === 'daily' ? 'Last 30 days' : period === 'weekly' ? 'Last 12 weeks' : 'Last 12 months'}</span></div><div className="sa-crm-legend"><span><i className="leads" />Leads</span><span><i className="admissions" />Admissions</span><span><i className="hot" />HOT</span><span><i className="warm" />WARM</span><span><i className="cold" />COLD</span></div></div><div className="sa-crm-series">{rows.map((row) => <div className="sa-crm-series-column" key={row.key}><div className="sa-crm-series-bars">{['leads', 'admissions', 'hotLeads', 'warmLeads', 'coldLeads'].map((key) => <b key={key} className={key.replace('Leads', '').toLowerCase()} title={`${key}: ${row[key]}`} style={{ height: `${Math.max(row[key] ? 5 : 0, row[key] / max * 100)}%` }} />)}</div><small>{row.key}</small></div>)}</div></div>
   </section>
 }
