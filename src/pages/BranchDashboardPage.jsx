@@ -4296,14 +4296,14 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
   }, [isSidebarFlyoutMode, openSidebarFlyout])
 
   useEffect(() => {
-    const parentByChild = { faculty: 'faculty', 'sales-crm-admitted-students': 'faculty', 'sales-crm-admissions': 'lead-management', 'sales-crm-reports': 'lead-management', 'lead-management': 'lead-management', students: 'academic', 'student-management': 'academic', 'completed-students': 'academic', courses: 'academic', batches: 'academic', installments: 'academic', payments: 'payments', 'exams-results': 'academic', 'academic-tests': 'academic', 'institute-leave': 'academic', 'faculty-leave': 'academic', 'progress-notifications': 'academic', 'faculty-edit-requests': 'academic', discontinuations: 'academic' }
+    const parentByChild = { faculty: 'faculty', 'sales-crm-admitted-students': 'sales-crm', 'sales-crm-admissions': 'lead-management', 'sales-crm-reports': 'lead-management', 'lead-management': 'lead-management', students: 'academic', 'student-management': 'academic', 'completed-students': 'academic', courses: 'academic', batches: 'academic', installments: 'academic', payments: 'payments', 'exams-results': 'academic', 'academic-tests': 'academic', 'institute-leave': 'academic', 'faculty-leave': 'academic', 'progress-notifications': 'academic', 'faculty-edit-requests': 'academic', discontinuations: 'academic' }
     const parent = parentByChild[activeSection]
     if (!parent) return
     setExpandedSidebarGroups((current) => current[parent] ? current : { ...current, [parent]: true })
   }, [activeSection])
 
   useEffect(() => {
-    if (activeSection === 'sales-crm' || activeSection === 'sales-crm-admitted-students' || activeSection === 'sales-crm-admissions') {
+    if (activeSection === 'sales-crm' || activeSection === 'sales-crm-admitted-students') {
       setExpandedSidebarNestedGroups((current) => ({ ...current, 'sales-crm': true }))
     }
     if (activeSection === 'progress-notifications') {
@@ -11268,11 +11268,11 @@ useEffect(() => {
       <nav className="super-admin-sidebar-nav">
         {[
           { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+          { id: 'sales-crm', label: 'Sales & CRM', icon: BriefcaseBusiness, children: [
+            { id: 'sales-crm-admitted-students', label: 'Admissions', icon: GraduationCap },
+          ] },
           { id: 'faculty', label: 'User & Role Management', icon: Shield, children: [
             { id: 'faculty', label: 'Faculty Management', icon: UserRound },
-            { id: 'sales-crm', label: 'Sales & CRM', icon: BriefcaseBusiness, children: [
-              { id: 'sales-crm-admitted-students', label: 'Admissions', icon: GraduationCap },
-            ] },
           ] },
           { id: 'academic', label: 'Academic Operation', icon: LayoutGrid, children: [
             { id: 'installments', label: 'Installment Templates', icon: Wallet },
