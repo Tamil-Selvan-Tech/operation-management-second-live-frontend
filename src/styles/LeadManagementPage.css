@@ -101,7 +101,7 @@
 .lead-recording-pending-row button.lead-recording-remove:focus-visible { outline: 3px solid rgba(37, 99, 235, .18); outline-offset: 2px; }
 .lead-recording-pending-row button.lead-recording-remove svg { display: block; width: 17px; height: 17px; }
 @media (max-width: 640px) { .lead-recordings-pending { grid-template-columns: 1fr; } }
-@media (max-width: 800px) { .lead-recording-player-card { grid-template-columns: auto 1fr auto; }.lead-recording-player-info { grid-column: 2; }.lead-recording-player-main { grid-column: 2 / -1; }.lead-recording-player-actions { grid-column: 3; grid-row: 1; } }
+@media (max-width: 800px) { .lead-recording-player-card { grid-template-columns: auto auto 1fr auto; }.lead-recording-player-info { grid-column: 3; }.lead-recording-player-main { grid-column: 2 / -1; }.lead-recording-player-actions { grid-column: 4; grid-row: 1; } }
 @media (max-width: 520px) { .lead-recordings-header { align-items: flex-start; flex-direction: column; }.lead-recordings-header-controls { justify-content: space-between; width: 100%; }.lead-recording-player-card { grid-template-columns: auto 1fr; gap: 12px; }.lead-recording-player-info, .lead-recording-player-main, .lead-recording-player-actions { grid-column: 1 / -1; }.lead-recording-player-actions { justify-content: flex-end; } }
 @media (max-width: 520px) { .lead-recording-progress { width: 100%; } }
 .lead-modal-close.is-confirmation-hidden { visibility: hidden !important; }
@@ -858,6 +858,12 @@ body:has(.lead-followup-backdrop) .branch-dashboard-app-shell .super-admin-sideb
 .lead-recordings-heading { flex-wrap: wrap; }
 .lead-recordings-heading p { flex-basis: 100%; margin: -4px 0 0 44px; color: #7a8da8; font-size: 11px; }
 .lead-recordings-header-controls { flex-wrap: wrap; }
+.lead-recordings-send-button { min-height: 30px; padding: 5px 10px; border: 1px solid #2563eb; border-radius: 7px; background: #2563eb; color: #fff; font-size: 11px; font-weight: 700; cursor: pointer; }
+.lead-recordings-send-button:disabled { border-color: #cbd5e1; background: #e2e8f0; color: #64748b; cursor: not-allowed; }
+.lead-recordings-send-status { flex-basis: 100%; color: #047857; font-size: 11px; }
+.lead-recording-select { display: grid; place-items: center; min-width: 24px; cursor: pointer; }
+.lead-recording-select input { width: 16px; height: 16px; accent-color: #2563eb; cursor: pointer; }
+.lead-recording-player-card { grid-template-columns: auto auto minmax(150px, 245px) minmax(260px, 1fr) auto; }
 .lead-recordings-header-controls select, .lead-recordings-date-input, .lead-recordings-clear { min-height: 30px; padding: 5px 8px; border: 1px solid #d4e2f3; border-radius: 7px; color: #36557d; background: #fff; font-size: 11px; }
 .lead-recordings-date-input { max-width: 138px; }
 .lead-recordings-clear { color: #1769e0; cursor: pointer; }
@@ -1204,3 +1210,5 @@ body:has(.lead-followup-backdrop) .branch-dashboard-app-shell .super-admin-sideb
 /* Header actions */
 .lead-management-heading-actions { display: flex; align-items: center; justify-content: flex-end; gap: 10px; flex-wrap: wrap; }
 @media (max-width: 720px) { .lead-management-heading-actions { width: 100%; justify-content: stretch; }.lead-management-heading-actions > button { flex: 1 1 180px; } }
+
+.lead-recordings-send-status.is-error { color: #b42318; }

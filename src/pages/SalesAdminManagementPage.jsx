@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { getCitiesOfState, getCountries, getStatesOfCountry } from '@countrystatecity/countries-browser'
 import { listBranches } from '../services/branchService'
-import { request } from '../services/apiClient'
+import { API_BASE_URL, request } from '../services/apiClient'
+import { loadSession } from '../lib/session'
 import { useNavigate } from 'react-router-dom'
 import '../styles/SalesAdminManagementPage.css'
 import { listSalesCrmReportSubmissions, downloadSalesCrmReportSubmission } from '../services/salesCrmReportSubmissionService'
@@ -30,15 +31,56 @@ function SalesAdminDateRangeFilter({ value, onChange }) {
   return <div className="sales-admin-date-filter" aria-label="Sales Admin analytics date range"><label><span>Date range</span><select value={preset} onChange={(event) => updatePreset(event.target.value)}><option value="thisMonth">This Month</option><option value="thisWeek">This Week</option><option value="custom">Custom Range</option></select></label>{preset === 'custom' ? <><label><span>From</span><input type="date" value={startDate} onChange={(event) => updateCustom('startDate', event.target.value)} /></label><label><span>To</span><input type="date" min={startDate || undefined} value={endDate} onChange={(event) => updateCustom('endDate', event.target.value)} /></label></> : null}</div>
 }
 
+function SharedRecordingAudio({ recording }) {
+  const [source, setSource] = useState('')
+  const [error, setError] = useState('')
+  useEffect(() => {
+    let active = true
+    let objectUrl = ''
+    const session = loadSession()
+    fetch(`${API_BASE_URL}${recording.playbackUrl}`, { credentials: 'include', headers: session?.token ? { Authorization: `Bearer ${session.token}` } : {} })
+      .then((response) => { if (!response.ok) throw new Error('Recording playback is unavailable'); return response.blob() })
+      .then((blob) => { if (!active) return; objectUrl = URL.createObjectURL(blob); setSource(objectUrl) })
+      .catch((reason) => { if (active) setError(reason?.message || 'Unable to load recording') })
+    return () => { active = false; if (objectUrl) URL.revokeObjectURL(objectUrl) }
+  }, [recording.playbackUrl])
+  return error ? <small className="sales-admin-recording-error">{error}</small> : source ? <audio controls preload="none" src={source} aria-label={`Play ${recording.originalName}`} /> : <small>Loading audio…</small>
+}
+
+function SalesAdminCallRecordingsPanel({ admin }) {
+  const [shares, setShares] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+  const [recordingPage, setRecordingPage] = useState(1)
+  const [recordingSearch, setRecordingSearch] = useState('')
+  useEffect(() => {
+    let active = true
+    setLoading(true)
+    request(`/lead-recording-shares/admin/${encodeURIComponent(admin?.id || '')}`)
+      .then((response) => { if (active) setShares(response?.data?.data || []) })
+      .catch((reason) => { if (active) setError(reason?.message || 'Unable to load shared call recordings.') })
+      .finally(() => { if (active) setLoading(false) })
+    return () => { active = false }
+  }, [admin?.id])
+  const recordingRows = shares.flatMap((share) => (share.recordings || []).map((recording) => ({ share, recording })))
+  const normalizedSearch = recordingSearch.trim().toLowerCase()
+  const filteredRecordingRows = normalizedSearch ? recordingRows.filter(({ share }) => [share.studentId, share.leadId, share.studentName].some((value) => String(value || '').toLowerCase().includes(normalizedSearch))) : recordingRows
+  const pageSize = 5
+  const pageCount = Math.max(1, Math.ceil(filteredRecordingRows.length / pageSize))
+  const currentPage = Math.min(recordingPage, pageCount)
+  const visibleRows = filteredRecordingRows.slice((currentPage - 1) * pageSize, currentPage * pageSize)
+  const formatDateTime = (value) => value ? new Date(value).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }) : '-'
+  useEffect(() => { setRecordingPage(1) }, [recordingSearch])
+  return <section className="sales-admin-shared-recordings-card"><div className="sales-admin-recordings-heading"><div><span className="sales-admin-profile-kicker">RECEIVED CRM AUDIO</span><h2>Call Recordings</h2></div><span>{normalizedSearch ? `${filteredRecordingRows.length} of ${recordingRows.length} recordings` : `${recordingRows.length} recording${recordingRows.length === 1 ? '' : 's'}`}</span><input className="sales-admin-recordings-search" type="search" value={recordingSearch} onChange={(event) => setRecordingSearch(event.target.value)} placeholder="Search student ID, lead ID or name" aria-label="Search recordings by student ID, lead ID or student name" /></div>{loading ? <div className="sales-admin-reports-skeleton"><span /><span /><span /></div> : error ? <p className="sales-admin-profile-error">{error}</p> : filteredRecordingRows.length ? <><div className="sales-admin-call-recordings-table-wrap"><table className="sales-admin-call-recordings-table"><thead><tr><th>Submitted By</th><th>Student / Lead</th><th>Course</th><th>Recording</th><th>Recorded At</th><th>Submitted At</th><th>Status</th><th>Playback</th></tr></thead><tbody>{visibleRows.map(({ share, recording }) => <tr key={`${share.id}-${recording.recordingId}`}><td><strong>{share.submitterName || share.submittedBy || 'Staff member'}</strong><small>{String(share.submitterRole || '').replaceAll('_', ' ')}</small></td><td><strong>{share.studentName || '-'}</strong><small>Lead ID: {share.leadId || '-'}</small>{share.studentId ? <small>Student ID: {share.studentId}</small> : null}</td><td>{share.courseName || '-'}</td><td><strong>{recording.originalName || 'Call recording'}</strong></td><td>{formatDateTime(recording.recordingDate)}</td><td>{formatDateTime(share.submissionDate)}</td><td><span className="sales-admin-share-status">{share.submissionStatus || 'SUBMITTED'}</span></td><td><SharedRecordingAudio recording={recording} /></td></tr>)}</tbody></table></div>{pageCount > 1 ? <div className="sales-admin-call-recordings-pagination"><span>Page {currentPage} of {pageCount} · {filteredRecordingRows.length} recordings</span><div><button type="button" disabled={currentPage === 1} onClick={() => setRecordingPage((page) => Math.max(1, page - 1))}>Previous</button>{Array.from({ length: pageCount }, (_, index) => index + 1).map((page) => <button key={page} type="button" className={page === currentPage ? 'is-current' : ''} onClick={() => setRecordingPage(page)}>{page}</button>)}<button type="button" disabled={currentPage === pageCount} onClick={() => setRecordingPage((page) => Math.min(pageCount, page + 1))}>Next</button></div></div> : null}</> : <p className="sales-admin-profile-empty">{normalizedSearch ? 'No recordings match the student or lead search.' : 'No call recordings have been shared with Super Admin for this Sales Admin or its branch.'}</p>}</section>
+}
+
 function SalesAdminReportsPanel({ admin }) {
   const [reports, setReports] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [search, setSearch] = useState('')
   const [reportPage, setReportPage] = useState(1)
   useEffect(() => { let active = true; setLoading(true); listSalesCrmReportSubmissions(admin?.id).then((response) => { if (active) setReports(response?.data || []) }).catch((reason) => { if (active) setError(reason?.message || 'Unable to load submitted reports.') }).finally(() => { if (active) setLoading(false) }); return () => { active = false } }, [admin?.id])
-  const rows = reports.filter((report) => `${report.reportName} ${report.reportType} ${report.fileName}`.toLowerCase().includes(search.toLowerCase()))
-  useEffect(() => { setReportPage(1) }, [search])
+  const rows = reports
   useEffect(() => {
     const table = document.querySelector('.sales-admin-reports-table')
     if (!table) return undefined
@@ -80,7 +122,7 @@ function SalesAdminReportsPanel({ admin }) {
     return undefined
   }, [rows, admin?.fullName, admin?.name])
   const download = async (report) => { const response = await downloadSalesCrmReportSubmission(report.id); if (!response?.blob) return; const url = URL.createObjectURL(response.blob); const link = document.createElement('a'); link.href = url; link.download = response.fileName || report.fileName; document.body.appendChild(link); link.click(); link.remove(); URL.revokeObjectURL(url) }
-  return <section className="sales-admin-profile-card sales-admin-reports-card"><div className="sales-admin-reports-heading"><div><span className="sales-admin-profile-kicker">SUBMITTED REPORTS</span><h2>Reports</h2></div><input type="search" placeholder="Search reports" value={search} onChange={(event) => setSearch(event.target.value)} /></div>{error ? <p className="sales-admin-profile-error">{error}</p> : loading ? <div className="sales-admin-reports-skeleton">{[1, 2, 3, 4].map((item) => <span key={item} />)}</div> : rows.length ? <div className="sales-admin-reports-table-wrap"><table className="sales-admin-reports-table"><thead><tr><th>Report ID</th><th>Report Name</th><th>Type</th><th>Period</th><th>Submitted At</th><th>Status</th><th>Action</th></tr></thead><tbody>{rows.map((report) => <tr key={report.id}><td>{report.id}</td><td><strong>{report.reportName}</strong><small>{report.fileName}</small></td><td>{report.reportType}</td><td>{report.fromDate} to {report.toDate}</td><td>{new Date(report.createdAt).toLocaleString('en-IN')}</td><td><span className={`sales-admin-report-status is-${String(report.status).toLowerCase()}`}>{report.status}</span></td><td><button type="button" onClick={() => void download(report)}>Download</button></td></tr>)}</tbody></table></div> : <p className="sales-admin-profile-empty">No reports submitted by this Sales Admin.</p>}</section>
+  return <section className="sales-admin-reports-card"><div className="sales-admin-reports-heading"><div><span className="sales-admin-profile-kicker">SUBMITTED REPORTS</span><h2>Reports</h2></div></div>{error ? <p className="sales-admin-profile-error">{error}</p> : loading ? <div className="sales-admin-reports-skeleton">{[1, 2, 3, 4].map((item) => <span key={item} />)}</div> : rows.length ? <div className="sales-admin-reports-table-wrap"><table className="sales-admin-reports-table"><thead><tr><th>Report ID</th><th>Report Name</th><th>Type</th><th>Period</th><th>Submitted At</th><th>Status</th><th>Action</th></tr></thead><tbody>{rows.map((report) => <tr key={report.id}><td>{report.id}</td><td><strong>{report.reportName}</strong><small>{report.fileName}</small></td><td>{report.reportType}</td><td>{report.fromDate} to {report.toDate}</td><td>{new Date(report.createdAt).toLocaleString('en-IN')}</td><td><span className={`sales-admin-report-status is-${String(report.status).toLowerCase()}`}>{report.status}</span></td><td><button type="button" onClick={() => void download(report)}>Download</button></td></tr>)}</tbody></table></div> : <p className="sales-admin-profile-empty">No reports submitted by this Sales Admin.</p>}</section>
 }
 
 function SalesAdminProfileView({ admin, onClose, onEdit }) {
@@ -116,21 +158,27 @@ function SalesAdminAnalyticsViewBase({ admin, onBack, onEdit, dateRange, onDateR
     reportsButton.type = 'button'
     reportsButton.textContent = 'Reports'
     reportsButton.dataset.salesAdminReportsTab = 'true'
-    reportsButton.onclick = () => {
+    const recordingsButton = document.createElement('button')
+    recordingsButton.type = 'button'
+    recordingsButton.textContent = 'Call Recordings'
+    recordingsButton.dataset.salesAdminRecordingsTab = 'true'
+    const activateRouteTab = (route) => {
       const params = new URLSearchParams(window.location.search)
-      params.set('tab', 'reports')
+      params.set('tab', route)
       window.history.pushState({}, '', `${window.location.pathname}?${params.toString()}`)
       tabs.querySelectorAll('button').forEach((button) => button.classList.remove('is-active'))
-      reportsButton.classList.add('is-active')
+      ;(route === 'reports' ? reportsButton : recordingsButton).classList.add('is-active')
       tabs.closest('.sales-admin-analytics-page')?.querySelectorAll(':scope > .sales-admin-analytics-kpis, :scope > .sales-admin-analytics-two-column, :scope > .sales-admin-profile-card').forEach((node) => { node.style.display = 'none' })
       const reportsSection = document.querySelector('.sales-admin-reports-route')
-      if (reportsSection) reportsSection.style.display = 'block'
+      const recordingsSection = document.querySelector('.sales-admin-call-recordings-route')
+      if (reportsSection) reportsSection.style.display = route === 'reports' ? 'block' : 'none'
+      if (recordingsSection) recordingsSection.style.display = route === 'call-recordings' ? 'block' : 'none'
     }
+    reportsButton.onclick = () => activateRouteTab('reports')
+    recordingsButton.onclick = () => activateRouteTab('call-recordings')
     tabs.appendChild(reportsButton)
-    if (activeRouteTab === 'reports') {
-      tabs.querySelectorAll('button').forEach((button) => button.classList.remove('is-active'))
-      reportsButton.classList.add('is-active')
-    }
+    tabs.appendChild(recordingsButton)
+    if (activeRouteTab === 'reports' || activeRouteTab === 'call-recordings') activateRouteTab(activeRouteTab)
     const tabValues = { Overview: 'overview', 'Follow-up Analytics': 'followups', Admissions: 'admissions' }
     const routeHandlers = []
     tabs.querySelectorAll('button:not([data-sales-admin-reports-tab])').forEach((button) => {
@@ -143,12 +191,14 @@ function SalesAdminAnalyticsViewBase({ admin, onBack, onEdit, dateRange, onDateR
         tabs.querySelectorAll('button').forEach((item) => item.classList.toggle('is-active', item === button))
         tabs.closest('.sales-admin-analytics-page')?.querySelectorAll(':scope > .sales-admin-analytics-kpis, :scope > .sales-admin-analytics-two-column, :scope > .sales-admin-profile-card').forEach((node) => { node.style.display = 'block' })
         const reportsSection = document.querySelector('.sales-admin-reports-route')
+        const recordingsSection = document.querySelector('.sales-admin-call-recordings-route')
         if (reportsSection) reportsSection.style.display = 'none'
+        if (recordingsSection) recordingsSection.style.display = 'none'
       }
       button.addEventListener('click', handler)
       routeHandlers.push([button, handler])
     })
-    return () => { routeHandlers.forEach(([button, handler]) => button.removeEventListener('click', handler)); reportsButton.remove() }
+    return () => { routeHandlers.forEach(([button, handler]) => button.removeEventListener('click', handler)); reportsButton.remove(); recordingsButton.remove() }
   }, [])
   const metrics = admin?.leadMetrics || {}
   const total = Number(metrics.leadCount || 0)
@@ -170,7 +220,8 @@ function SalesAdminAnalyticsViewBase({ admin, onBack, onEdit, dateRange, onDateR
 }
 
 function SalesAdminAnalyticsView(props) {
-  return <div className={`sales-admin-reports-view ${props.initialTab === 'reports' ? 'is-reports' : ''}`}><SalesAdminAnalyticsViewBase {...props} initialTab={props.initialTab === 'reports' ? 'overview' : props.initialTab} /><section className="sales-admin-analytics-page sales-admin-reports-route"><SalesAdminReportsPanel admin={props.admin} /></section></div>
+  const isStandaloneTab = ['reports', 'call-recordings'].includes(props.initialTab)
+  return <div className={`sales-admin-reports-view ${isStandaloneTab ? 'is-reports' : ''}`}><SalesAdminAnalyticsViewBase {...props} initialTab={isStandaloneTab ? 'overview' : props.initialTab} /><section className="sales-admin-analytics-page sales-admin-reports-route"><SalesAdminReportsPanel admin={props.admin} /></section><section className="sales-admin-analytics-page sales-admin-call-recordings-route"><SalesAdminCallRecordingsPanel admin={props.admin} /></section></div>
 }
 
 export function SalesAdminManagementPage() {

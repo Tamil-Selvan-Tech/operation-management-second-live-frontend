@@ -530,6 +530,12 @@ export function SuperAdminNotificationsPage() {
         if (salesAdminId) navigate(`/dashboard/super-admin?section=sales-admin&adminId=${encodeURIComponent(salesAdminId)}&tab=reports`)
         return
       }
+      if (reportDescription.startsWith('CALL_RECORDING_SHARE:')) {
+        const [, , , salesAdminId] = reportDescription.split(':')
+        if (salesAdminId) navigate(`/dashboard/super-admin?section=sales-admin&adminId=${encodeURIComponent(salesAdminId)}&tab=call-recordings`)
+        else navigate('/dashboard/super-admin?section=sales-admin')
+        return
+      }
       const description = String(notification.requestDescription || '').trim()
       const requestId = description.startsWith('DISCONTINUATION_SUPER_REVIEW:')
         ? description.slice('DISCONTINUATION_SUPER_REVIEW:'.length).trim()
