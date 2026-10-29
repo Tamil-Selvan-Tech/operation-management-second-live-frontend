@@ -2864,6 +2864,7 @@ function getBranchDashboardSectionFromPath(pathname = '', search = '') {
   if (section === 'lead-management') return 'lead-management'
   if (section === 'sales-crm-admissions') return 'sales-crm-admissions'
   if (section === 'sales-crm-admitted-students') return 'sales-crm-admitted-students'
+  if (section === 'sales-admin-directory') return 'sales-admin-directory'
   if (section === 'sales-crm-reports') return 'sales-crm-reports'
   if (section === 'institute-leave') return 'institute-leave'
   if (section === 'faculty-leave') return 'faculty-leave'
@@ -2879,6 +2880,7 @@ function getBranchDashboardSectionFromPath(pathname = '', search = '') {
   if (section === 'sales-crm') return 'sales-crm'
   if (section === 'sales-crm-admissions') return 'sales-crm-admissions'
   if (section === 'sales-crm-admitted-students') return 'sales-crm-admitted-students'
+  if (section === 'sales-admin-directory') return 'sales-admin-directory'
   if (section === 'batches') return 'batches'
   if (section === 'payments') return 'payments'
   if (section === 'profile') return 'profile'
@@ -4224,7 +4226,7 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
   const [expandedSidebarGroups, setExpandedSidebarGroups] = useState(() => ({
     courses: false,
     academic: ['courses', 'course-import'].includes(activeSection),
-    faculty: ['faculty', 'sales-crm', 'sales-crm-admissions', 'batches'].includes(activeSection),
+    faculty: ['faculty', 'sales-admin-directory', 'sales-crm', 'sales-crm-admissions', 'batches'].includes(activeSection),
     students: ['students', 'student-management', 'completed-students', 'courses', 'batches', 'installments', 'progress-notifications', 'institute-leave', 'faculty-leave', 'discontinuations'].includes(activeSection),
     management: ['institute-leave', 'faculty-leave', 'progress-notifications', 'faculty-edit-requests', 'discontinuations'].includes(activeSection),
   }))
@@ -4296,7 +4298,7 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
   }, [isSidebarFlyoutMode, openSidebarFlyout])
 
   useEffect(() => {
-    const parentByChild = { faculty: 'faculty', 'sales-crm-admitted-students': 'sales-crm', 'sales-crm-admissions': 'lead-management', 'sales-crm-reports': 'lead-management', 'lead-management': 'lead-management', students: 'academic', 'student-management': 'academic', 'completed-students': 'academic', courses: 'academic', batches: 'academic', installments: 'academic', payments: 'payments', 'exams-results': 'academic', 'academic-tests': 'academic', 'institute-leave': 'academic', 'faculty-leave': 'academic', 'progress-notifications': 'academic', 'faculty-edit-requests': 'academic', discontinuations: 'academic' }
+    const parentByChild = { faculty: 'faculty', 'sales-admin-directory': 'faculty', 'sales-crm-admitted-students': 'sales-crm', 'sales-crm-admissions': 'lead-management', 'sales-crm-reports': 'lead-management', 'lead-management': 'lead-management', students: 'academic', 'student-management': 'academic', 'completed-students': 'academic', courses: 'academic', batches: 'academic', installments: 'academic', payments: 'payments', 'exams-results': 'academic', 'academic-tests': 'academic', 'institute-leave': 'academic', 'faculty-leave': 'academic', 'progress-notifications': 'academic', 'faculty-edit-requests': 'academic', discontinuations: 'academic' }
     const parent = parentByChild[activeSection]
     if (!parent) return
     setExpandedSidebarGroups((current) => current[parent] ? current : { ...current, [parent]: true })
@@ -11273,6 +11275,7 @@ useEffect(() => {
           ] },
           { id: 'faculty', label: 'User & Role Management', icon: Shield, children: [
             { id: 'faculty', label: 'Faculty Management', icon: UserRound },
+            { id: 'sales-admin-directory', label: 'Sales Admin', icon: BriefcaseBusiness },
           ] },
           { id: 'academic', label: 'Academic Operation', icon: LayoutGrid, children: [
             { id: 'installments', label: 'Installment Templates', icon: Wallet },
@@ -15248,6 +15251,9 @@ else {
               ) : null}
               {activeSection === 'sales-crm' || activeSection === 'sales-crm-admitted-students' ? (
                 <BranchSalesCrmPage key={activeSection} view={activeSection === 'sales-crm-admitted-students' ? 'admissions' : 'admins'} />
+              ) : null}
+              {activeSection === 'sales-admin-directory' ? (
+                <BranchSalesCrmPage key={activeSection} view="admins" title="Sales Admin" showReportAction={false} />
               ) : null}
             </div>
           </main>
