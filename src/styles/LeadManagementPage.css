@@ -858,6 +858,28 @@ body:has(.lead-followup-backdrop) .branch-dashboard-app-shell .super-admin-sideb
 .lead-recordings-heading { flex-wrap: wrap; }
 .lead-recordings-heading p { flex-basis: 100%; margin: -4px 0 0 44px; color: #7a8da8; font-size: 11px; }
 .lead-recordings-header-controls { flex-wrap: wrap; }
+.lead-recordings-send-button { min-height: 30px; padding: 5px 10px; border: 1px solid #2563eb; border-radius: 7px; background: #2563eb; color: #fff; font-size: 11px; font-weight: 700; cursor: pointer; }
+.lead-recordings-send-button:disabled { border-color: #cbd5e1; background: #e2e8f0; color: #64748b; cursor: not-allowed; }
+.lead-recordings-send-status { flex-basis: 100%; color: #047857; font-size: 11px; }
+.lead-recording-share-backdrop { position: fixed; inset: 0; z-index: 1400; display: grid; place-items: center; padding: 18px; background: rgba(15, 23, 42, .48); }
+.lead-recording-share-dialog { display: grid; width: min(520px, 100%); max-height: min(620px, calc(100vh - 36px)); grid-template-rows: auto minmax(0, 1fr) auto; overflow: hidden; border: 1px solid #dbe5f0; border-radius: 14px; background: #fff; box-shadow: 0 24px 70px rgba(15, 23, 42, .25); }
+.lead-recording-share-dialog-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; padding: 18px 20px; border-bottom: 1px solid #e8eef6; }
+.lead-recording-share-dialog-header h3 { margin: 0; color: #17345f; font-size: 17px; }
+.lead-recording-share-dialog-header p { margin: 5px 0 0; color: #71839c; font-size: 12px; }
+.lead-recording-share-close { display: grid; width: 30px; height: 30px; flex: 0 0 30px; place-items: center; border: 1px solid #dbe5f0; border-radius: 8px; background: #fff; color: #64748b; font-size: 20px; cursor: pointer; }
+.lead-recording-share-list { display: grid; align-content: start; gap: 8px; overflow-y: auto; padding: 14px 18px; }
+.lead-recording-share-row { display: flex; align-items: center; gap: 11px; padding: 11px 12px; border: 1px solid #e2eaf4; border-radius: 9px; cursor: pointer; }
+.lead-recording-share-row:has(input:checked) { border-color: #60a5fa; background: #f5f9ff; }
+.lead-recording-share-row input { width: 16px; height: 16px; flex: 0 0 16px; accent-color: #2563eb; }
+.lead-recording-share-row-details { display: grid; gap: 4px; min-width: 0; }
+.lead-recording-share-row-details strong { overflow-wrap: anywhere; color: #17345f; font-size: 12px; }
+.lead-recording-share-row-details small, .lead-recording-share-empty { color: #71839c; font-size: 11px; }
+.lead-recording-share-actions { display: flex; justify-content: flex-end; gap: 9px; padding: 13px 18px; border-top: 1px solid #e8eef6; }
+.lead-recording-share-actions button { min-height: 36px; }
+.lead-recording-share-actions .lead-primary-button:disabled { opacity: .55; cursor: not-allowed; }
+.lead-recording-select { display: grid; place-items: center; min-width: 24px; cursor: pointer; }
+.lead-recording-select input { width: 16px; height: 16px; accent-color: #2563eb; cursor: pointer; }
+.lead-recording-player-card { grid-template-columns: auto minmax(150px, 245px) minmax(260px, 1fr) auto; }
 .lead-recordings-header-controls select, .lead-recordings-date-input, .lead-recordings-clear { min-height: 30px; padding: 5px 8px; border: 1px solid #d4e2f3; border-radius: 7px; color: #36557d; background: #fff; font-size: 11px; }
 .lead-recordings-date-input { max-width: 138px; }
 .lead-recordings-clear { color: #1769e0; cursor: pointer; }
@@ -954,6 +976,12 @@ body:has(.lead-followup-backdrop) .branch-dashboard-app-shell .super-admin-sideb
   border-radius: 10px !important;
   background: #fff !important;
   box-shadow: 0 12px 28px rgba(15, 23, 42, .18) !important;
+}
+
+/* Keep the menu visible inside the table for the final two lead rows. */
+.lead-table tbody tr:nth-last-child(-n + 2) .lead-actions-menu {
+  top: auto !important;
+  bottom: 100% !important;
 }
 
 .lead-actions:hover .lead-actions-menu,
@@ -1204,3 +1232,14 @@ body:has(.lead-followup-backdrop) .branch-dashboard-app-shell .super-admin-sideb
 /* Header actions */
 .lead-management-heading-actions { display: flex; align-items: center; justify-content: flex-end; gap: 10px; flex-wrap: wrap; }
 @media (max-width: 720px) { .lead-management-heading-actions { width: 100%; justify-content: stretch; }.lead-management-heading-actions > button { flex: 1 1 180px; } }
+
+.lead-recordings-send-status.is-error { color: #b42318; }
+
+.lead-recording-share-close svg { display: block; }
+
+.lead-recording-share-actions .lead-primary-button { width: auto; min-width: 145px; flex: 0 0 auto; padding: 9px 14px; color: #fff; font-size: 12px; white-space: nowrap; }
+.lead-recording-share-actions .lead-primary-button:disabled { border-color: #7897ed; background: #7897ed; color: #fff; opacity: 1; }
+
+.lead-list-tabs{display:flex;gap:22px;margin:0 0 14px;border-bottom:1px solid #dbe4f0}.lead-list-tabs button{padding:11px 3px;border:0;border-bottom:2px solid transparent;background:transparent;color:#64748b;font-family:inherit;font-size:13px;font-weight:600;line-height:1.4;cursor:pointer}.lead-list-tabs button.is-active{border-bottom-color:#2563eb;color:#2563eb}.lead-table-card.is-archived .lead-table{min-width:1100px}.lead-deleted-table td{font-size:12px}.lead-deleted-table td:nth-child(7){font-weight:600;color:#1e3a5f}.lead-deleted-table td:nth-child(9){white-space:nowrap}@media(max-width:700px){.lead-list-tabs{margin-bottom:10px}.lead-list-tabs button{font-size:12px}}
+
+.lead-deleted-row{cursor:pointer}.lead-deleted-row:hover,.lead-deleted-row:focus{background:#f3f7ff;outline:none}

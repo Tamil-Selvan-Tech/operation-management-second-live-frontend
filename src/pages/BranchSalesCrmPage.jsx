@@ -14,7 +14,7 @@ function formatDate(value) {
   return new Intl.DateTimeFormat('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).format(date)
 }
 
-export default function BranchSalesCrmPage({ view = 'admins' }) {
+export default function BranchSalesCrmPage({ view = 'admins', title = 'Sales & CRM', showReportAction = true }) {
   const activeTab = view
   const [salesAdmins, setSalesAdmins] = useState([])
   const [admissions, setAdmissions] = useState([])
@@ -81,11 +81,11 @@ export default function BranchSalesCrmPage({ view = 'admins' }) {
       }
       if (!query) return true
       const values = activeTab === 'admins'
-        ? [item.id, item.name, item.email, item.phone]
+        ? [item.id, item.name, item.email, item.phone, branch?.branchName, branch?.branchId]
         : [item.studentId, item.studentName, item.email, item.phone, item.leadId, item.courseName, item.salesAdminId, item.salesAdminName]
       return values.some((value) => String(value || '').toLowerCase().includes(query))
     })
-  }, [activeTab, admissions, query, salesAdminFilter, salesAdmins])
+  }, [activeTab, admissions, branch, query, salesAdminFilter, salesAdmins])
   const totalPages = Math.max(1, Math.ceil(filteredRows.length / PAGE_SIZE))
   const pageRows = filteredRows.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
   const loading = activeTab === 'admins' ? loadingAdmins : loadingAdmissions
@@ -97,8 +97,8 @@ export default function BranchSalesCrmPage({ view = 'admins' }) {
       <header className="branch-sales-crm-heading">
         <div>
           <span className="branch-sales-crm-eyebrow">USER &amp; ROLE MANAGEMENT</span>
-          <h2>Sales &amp; CRM</h2>
-          <p>{branch?.branchName ? `Sales CRM records for ${branch.branchName}.` : 'Sales Admin and admission records for this branch.'}</p>
+          <h2>{title}</h2>
+          <p>{branch?.branchName ? `${title === 'Sales Admin' ? 'Sales Admin accounts assigned to' : 'Sales CRM records for'} ${branch.branchName}.` : 'Sales Admin and admission records for this branch.'}</p>
         </div>
         <div className="branch-sales-crm-heading-actions">
           <div className="branch-sales-crm-summary">
@@ -108,7 +108,7 @@ export default function BranchSalesCrmPage({ view = 'admins' }) {
               <strong>{loading ? '—' : activeTab === 'admins' ? salesAdmins.length : admissions.length}</strong>
             </div>
           </div>
-          <button type="button" className="branch-sales-crm-report-button" onClick={() => setSendReportOpen(true)}><FileSpreadsheet size={16} />Send Report</button>
+          {showReportAction ? <button type="button" className="branch-sales-crm-report-button" onClick={() => setSendReportOpen(true)}><FileSpreadsheet size={16} />Send Report</button> : null}
         </div>
       </header>
 
@@ -139,19 +139,20 @@ export default function BranchSalesCrmPage({ view = 'admins' }) {
       <div className="branch-sales-crm-table-wrap">
         {activeTab === 'admins' ? (
           <table>
-            <thead><tr><th>Sales Admin ID</th><th>Name</th><th>Email</th><th>Phone Number</th><th>Status</th></tr></thead>
+            <thead><tr><th>Sales Admin ID</th><th>Name</th><th>Email</th><th>Phone Number</th><th>Branch</th><th>Status</th></tr></thead>
             <tbody>
-              {loading ? Array.from({ length: PAGE_SIZE }, (_, index) => <tr key={`admin-skeleton-${index}`} className="branch-sales-crm-skeleton-row"><td><span /></td><td><span /></td><td><span /></td><td><span /></td><td><span /></td></tr>)
-                : error ? <tr><td colSpan="5" className="branch-sales-crm-empty">Sales Admin details could not be loaded.</td></tr>
+              {loading ? Array.from({ length: PAGE_SIZE }, (_, index) => <tr key={`admin-skeleton-${index}`} className="branch-sales-crm-skeleton-row"><td><span /></td><td><span /></td><td><span /></td><td><span /></td><td><span /></td><td><span /></td></tr>)
+                : error ? <tr><td colSpan="6" className="branch-sales-crm-empty">Sales Admin details could not be loaded.</td></tr>
                   : pageRows.length ? pageRows.map((admin) => (
                     <tr key={admin.userId || admin.id}>
                       <td><strong className="branch-sales-crm-id">{admin.id || EMPTY}</strong></td>
                       <td><span className="branch-sales-crm-name"><BriefcaseBusiness size={15} />{admin.name || EMPTY}</span></td>
                       <td>{admin.email ? <a href={`mailto:${admin.email}`}><Mail size={14} />{admin.email}</a> : EMPTY}</td>
                       <td>{admin.phone ? <a href={`tel:${admin.phone}`}><Phone size={14} />{admin.phone}</a> : EMPTY}</td>
+                      <td>{branch?.branchName || branch?.branchId || EMPTY}</td>
                       <td><span className={`branch-sales-crm-status${admin.status === 'ACTIVE' ? ' is-active' : ' is-inactive'}`}>{admin.status === 'ACTIVE' ? 'Active' : 'Inactive'}</span></td>
                     </tr>
-                  )) : <tr><td colSpan="5" className="branch-sales-crm-empty"><Users size={23} /><strong>{hasLoaded && salesAdmins.length ? 'No matching Sales Admins' : 'No Sales Admins assigned'}</strong><span>{hasLoaded && salesAdmins.length ? 'Try another Sales Admin ID or name.' : 'Sales Admins assigned to this branch by Super Admin will appear here.'}</span></td></tr>}
+                  )) : <tr><td colSpan="6" className="branch-sales-crm-empty"><Users size={23} /><strong>{hasLoaded && salesAdmins.length ? 'No matching Sales Admins' : 'No Sales Admins assigned'}</strong><span>{hasLoaded && salesAdmins.length ? 'Try another Sales Admin ID or name.' : 'Sales Admins assigned to this branch by Super Admin will appear here.'}</span></td></tr>}
             </tbody>
           </table>
         ) : (

@@ -1563,3 +1563,135 @@
   .sales-crm-report-download-actions button { width: 100%; }
 }
 .sales-crm-report-send-button { display: inline-flex; align-items: center; gap: 7px; min-height: 36px; padding: 0 12px; border: 1px solid #0f766e; border-radius: 8px; background: #0f766e; color: #fff; font: inherit; font-size: 11px; font-weight: 750; cursor: pointer; }
+
+/* Match the Branch Admin summary-card layout only in the embedded switch view. */
+.super-admin-page.is-embedded-branch-admin .sales-admin-dashboard-cards {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.super-admin-page.is-embedded-branch-admin .sales-admin-dashboard-metric {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr) 30px;
+  grid-template-rows: auto auto auto;
+  align-content: center;
+  align-items: center;
+  column-gap: 13px;
+  min-height: 132px;
+  padding: 15px 15px 13px;
+  border-radius: 15px;
+  box-shadow: 0 6px 18px rgb(15 23 42 / 5%);
+}
+
+.super-admin-page.is-embedded-branch-admin .sales-admin-dashboard-metric::after {
+  display: none;
+}
+
+.super-admin-page.is-embedded-branch-admin .sales-admin-dashboard-metric-top {
+  display: contents;
+}
+
+.super-admin-page.is-embedded-branch-admin .sales-admin-dashboard-metric-icon {
+  grid-column: 1;
+  grid-row: 1 / 4;
+  align-self: start;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+}
+
+.super-admin-page.is-embedded-branch-admin .sales-admin-dashboard-metric-trend {
+  grid-column: 3;
+  grid-row: 1 / 4;
+  align-self: center;
+  width: 30px;
+  height: 30px;
+}
+
+.super-admin-page.is-embedded-branch-admin .sales-admin-dashboard-metric-label {
+  grid-column: 2;
+  grid-row: 1;
+  color: #50637f;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .045em;
+  text-align: left;
+  text-transform: uppercase;
+}
+
+.super-admin-page.is-embedded-branch-admin .sales-admin-dashboard-metric strong {
+  grid-column: 2;
+  grid-row: 2;
+  min-height: 0;
+  margin-top: 5px;
+  color: #111827;
+  font-size: 25px;
+  line-height: 1.1;
+  letter-spacing: -.04em;
+  text-align: left;
+}
+
+.super-admin-page.is-embedded-branch-admin .sales-admin-dashboard-metric small {
+  grid-column: 2;
+  grid-row: 3;
+  min-width: 0;
+  margin-top: 8px;
+  padding-top: 7px;
+  border-top: 1px solid #e8edf4;
+  color: #718096;
+  font-size: 10px;
+  line-height: 1.3;
+  text-align: left;
+}
+
+.super-admin-page.is-embedded-branch-admin .sales-admin-dashboard-switch-mode {
+  border-color: #0f766e;
+  color: #fff;
+  background: #0f766e;
+  box-shadow: 0 5px 14px rgb(15 118 110 / 18%);
+}
+
+.super-admin-page.is-embedded-branch-admin .sales-admin-dashboard-switch-mode:hover:not(:disabled) {
+  border-color: #0b625b;
+  color: #fff;
+  background: #0b625b;
+  box-shadow: 0 8px 18px rgb(15 118 110 / 24%);
+}
+
+@media (max-width: 1050px) {
+  .super-admin-page.is-embedded-branch-admin .sales-admin-dashboard-cards {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 700px) {
+  .super-admin-page.is-embedded-branch-admin .sales-admin-dashboard-cards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .super-admin-page.is-embedded-branch-admin .sales-admin-dashboard-metric {
+    grid-template-columns: 36px minmax(0, 1fr) 22px;
+    column-gap: 8px;
+    min-height: 112px;
+    padding: 12px 10px;
+  }
+
+  .super-admin-page.is-embedded-branch-admin .sales-admin-dashboard-metric-icon {
+    width: 34px;
+    height: 34px;
+  }
+
+  .super-admin-page.is-embedded-branch-admin .sales-admin-dashboard-metric-trend {
+    width: 22px;
+    height: 22px;
+  }
+
+  .super-admin-page.is-embedded-branch-admin .sales-admin-dashboard-metric-label {
+    font-size: 9px;
+  }
+
+  .super-admin-page.is-embedded-branch-admin .sales-admin-dashboard-metric strong {
+    font-size: 21px;
+  }
+}

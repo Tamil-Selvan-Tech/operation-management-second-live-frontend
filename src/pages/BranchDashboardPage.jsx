@@ -1851,6 +1851,20 @@ function getDashboardDateValue(value) {
   return getLocalDateValue(date)
 }
 
+function getBranchDashboardDateRange(preset, now = new Date()) {
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  if (preset === 'TODAY') return { from: getDashboardDateValue(today), to: getDashboardDateValue(today) }
+  if (preset === 'THIS_WEEK') {
+    const monday = new Date(today)
+    monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7))
+    return { from: getDashboardDateValue(monday), to: getDashboardDateValue(today) }
+  }
+  if (preset === 'THIS_MONTH') {
+    return { from: getDashboardDateValue(new Date(today.getFullYear(), today.getMonth(), 1)), to: getDashboardDateValue(today) }
+  }
+  return { from: getDashboardDateValue(new Date(today.getFullYear(), today.getMonth(), 1)), to: getDashboardDateValue(today) }
+}
+
 function isCompletedCourseForAdmissionsCount(student = {}) {
   const lifecycleValues = [
     student.status,
@@ -2864,6 +2878,7 @@ function getBranchDashboardSectionFromPath(pathname = '', search = '') {
   if (section === 'lead-management') return 'lead-management'
   if (section === 'sales-crm-admissions') return 'sales-crm-admissions'
   if (section === 'sales-crm-admitted-students') return 'sales-crm-admitted-students'
+  if (section === 'sales-admin-directory') return 'sales-admin-directory'
   if (section === 'sales-crm-reports') return 'sales-crm-reports'
   if (section === 'institute-leave') return 'institute-leave'
   if (section === 'faculty-leave') return 'faculty-leave'
@@ -2879,6 +2894,7 @@ function getBranchDashboardSectionFromPath(pathname = '', search = '') {
   if (section === 'sales-crm') return 'sales-crm'
   if (section === 'sales-crm-admissions') return 'sales-crm-admissions'
   if (section === 'sales-crm-admitted-students') return 'sales-crm-admitted-students'
+  if (section === 'sales-admin-directory') return 'sales-admin-directory'
   if (section === 'batches') return 'batches'
   if (section === 'payments') return 'payments'
   if (section === 'profile') return 'profile'
@@ -4224,7 +4240,7 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
   const [expandedSidebarGroups, setExpandedSidebarGroups] = useState(() => ({
     courses: false,
     academic: ['courses', 'course-import'].includes(activeSection),
-    faculty: ['faculty', 'sales-crm', 'sales-crm-admissions', 'batches'].includes(activeSection),
+    faculty: ['faculty', 'sales-admin-directory', 'sales-crm', 'sales-crm-admissions', 'batches'].includes(activeSection),
     students: ['students', 'student-management', 'completed-students', 'courses', 'batches', 'installments', 'progress-notifications', 'institute-leave', 'faculty-leave', 'discontinuations'].includes(activeSection),
     management: ['institute-leave', 'faculty-leave', 'progress-notifications', 'faculty-edit-requests', 'discontinuations'].includes(activeSection),
   }))
@@ -4296,14 +4312,14 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
   }, [isSidebarFlyoutMode, openSidebarFlyout])
 
   useEffect(() => {
-    const parentByChild = { faculty: 'faculty', 'sales-crm-admitted-students': 'faculty', 'sales-crm-admissions': 'lead-management', 'sales-crm-reports': 'lead-management', 'lead-management': 'lead-management', students: 'academic', 'student-management': 'academic', 'completed-students': 'academic', courses: 'academic', batches: 'academic', installments: 'academic', payments: 'payments', 'exams-results': 'academic', 'academic-tests': 'academic', 'institute-leave': 'academic', 'faculty-leave': 'academic', 'progress-notifications': 'academic', 'faculty-edit-requests': 'academic', discontinuations: 'academic' }
+    const parentByChild = { faculty: 'faculty', 'sales-admin-directory': 'faculty', 'sales-crm-admitted-students': 'sales-crm', 'sales-crm-admissions': 'lead-management', 'sales-crm-reports': 'lead-management', 'lead-management': 'lead-management', students: 'academic', 'student-management': 'academic', 'completed-students': 'academic', courses: 'academic', batches: 'academic', installments: 'academic', payments: 'payments', 'exams-results': 'academic', 'academic-tests': 'academic', 'institute-leave': 'academic', 'faculty-leave': 'academic', 'progress-notifications': 'academic', 'faculty-edit-requests': 'academic', discontinuations: 'academic' }
     const parent = parentByChild[activeSection]
     if (!parent) return
     setExpandedSidebarGroups((current) => current[parent] ? current : { ...current, [parent]: true })
   }, [activeSection])
 
   useEffect(() => {
-    if (activeSection === 'sales-crm' || activeSection === 'sales-crm-admitted-students' || activeSection === 'sales-crm-admissions') {
+    if (activeSection === 'sales-crm' || activeSection === 'sales-crm-admitted-students') {
       setExpandedSidebarNestedGroups((current) => ({ ...current, 'sales-crm': true }))
     }
     if (activeSection === 'progress-notifications') {
@@ -4698,12 +4714,14 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
   }
   const [dashboardCourseFilter, setDashboardCourseFilter] = useState('all')
   const [dashboardBatchFilter, setDashboardBatchFilter] = useState('all')
-  const [dashboardDateFrom, setDashboardDateFrom] = useState('')
-  const [dashboardDateTo, setDashboardDateTo] = useState('')
+  const [dashboardDatePreset, setDashboardDatePreset] = useState('THIS_MONTH')
+  const [dashboardDatePresetDraft, setDashboardDatePresetDraft] = useState('THIS_MONTH')
+  const [dashboardDateFrom, setDashboardDateFrom] = useState(() => getBranchDashboardDateRange('THIS_MONTH').from)
+  const [dashboardDateTo, setDashboardDateTo] = useState(() => getBranchDashboardDateRange('THIS_MONTH').to)
   const [dashboardCourseDraft, setDashboardCourseDraft] = useState('all')
   const [dashboardBatchDraft, setDashboardBatchDraft] = useState('all')
-  const [dashboardDateFromDraft, setDashboardDateFromDraft] = useState('')
-  const [dashboardDateToDraft, setDashboardDateToDraft] = useState('')
+  const [dashboardDateFromDraft, setDashboardDateFromDraft] = useState(() => getBranchDashboardDateRange('THIS_MONTH').from)
+  const [dashboardDateToDraft, setDashboardDateToDraft] = useState(() => getBranchDashboardDateRange('THIS_MONTH').to)
   const [dashboardTrendMode, setDashboardTrendMode] = useState('daily')
   const [isDashboardRefreshing, setIsDashboardRefreshing] = useState(false)
   const [studentSearchTerm, setStudentSearchTerm] = useState('')
@@ -9224,7 +9242,7 @@ const studentCourseOptions = useMemo(() => {
   }, [branchBatchGroups, branchCourseCards, branchStudents, dashboardCourseDraft])
 
   const dashboardData = useMemo(() => {
-    const selectedDate = dashboardDateFrom || ''
+    const selectedDate = dashboardDateTo || dashboardDateFrom || ''
     const today = selectedDate ? new Date(`${selectedDate}T00:00:00`) : new Date()
     today.setHours(0, 0, 0, 0)
     const todayValue = getDashboardDateValue(today)
@@ -9307,11 +9325,7 @@ const studentCourseOptions = useMemo(() => {
     })
     const dueSoon = dueThisWeek.filter((item) => getDashboardDateValue(item.dueDate) > todayValue)
     const overdue = dueItems.filter((item) => getDashboardDateValue(item.dueDate) < todayValue)
-    const currentMonthStudents = branchStudents.filter((student) => {
-      if (!matchesBaseStudentFilters(student)) return false
-      const addedDate = getDashboardDateValue(student.admissionDate) || getDashboardDateValue(student.courseStartDate) || getDashboardDateValue(student.courseStartingDate)
-      return addedDate.slice(0, 7) === todayValue.slice(0, 7)
-    }).length
+    const currentMonthStudents = students.length
     const totalFee = rows.reduce((sum, row) => sum + row.totalFee, 0)
     const totalCollected = rows.reduce((sum, row) => sum + row.paidAmount, 0)
     const startOfWeek = (date) => {
@@ -9414,12 +9428,19 @@ const studentCourseOptions = useMemo(() => {
   }, [allPaymentHistoryRecords])
 
   const currentMonthAdmissions = dashboardData.currentMonthStudents
+  const admissionsSummaryLabel = dashboardDatePreset === 'TODAY'
+    ? "Today's Admissions"
+    : dashboardDatePreset === 'THIS_WEEK'
+      ? 'This Week Admissions'
+      : dashboardDatePreset === 'CUSTOM'
+        ? 'Admissions in Range'
+        : 'This Month Admissions'
   const batchAvailability = useMemo(() => {
     const records = []
     const normalizeFilterValue = (value) => String(value || '').trim().toLowerCase().replace(/[^a-z0-9]/g, '')
     const selectedCourse = dashboardFilterOptions.courses.find((course) => course.id === dashboardCourseFilter)
     const selectedBatch = dashboardFilterOptions.batches.find((batch) => batch.id === dashboardBatchFilter)
-    const referenceDate = dashboardDateFrom ? new Date(`${dashboardDateFrom}T00:00:00`) : new Date()
+    const referenceDate = dashboardDateTo ? new Date(`${dashboardDateTo}T00:00:00`) : dashboardDateFrom ? new Date(`${dashboardDateFrom}T00:00:00`) : new Date()
     branchBatchGroups.forEach((group) => {
       const batches = Array.isArray(group?.batches) && group.batches.length ? group.batches : [group]
       batches.forEach((batch, index) => {
@@ -9440,7 +9461,7 @@ const studentCourseOptions = useMemo(() => {
       })
     })
     return records
-  }, [branchBatchGroups, dashboardBatchFilter, dashboardCourseFilter, dashboardDateFrom, dashboardFilterOptions])
+  }, [branchBatchGroups, dashboardBatchFilter, dashboardCourseFilter, dashboardDateFrom, dashboardDateTo, dashboardFilterOptions])
   const availableBatchRecords = batchAvailability.filter((batch) => batch.remainingDays >= 0 && batch.remainingDays <= 4)
   const nextMonthExpectedAdmissions = currentMonthAdmissions + 10
   const nextMonthTargetAdmissions = 30
@@ -11268,11 +11289,12 @@ useEffect(() => {
       <nav className="super-admin-sidebar-nav">
         {[
           { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+          { id: 'sales-crm', label: 'Sales & CRM', icon: BriefcaseBusiness, children: [
+            { id: 'sales-crm-admitted-students', label: 'Admissions', icon: GraduationCap },
+          ] },
           { id: 'faculty', label: 'User & Role Management', icon: Shield, children: [
             { id: 'faculty', label: 'Faculty Management', icon: UserRound },
-            { id: 'sales-crm', label: 'Sales & CRM', icon: BriefcaseBusiness, children: [
-              { id: 'sales-crm-admitted-students', label: 'Admissions', icon: GraduationCap },
-            ] },
+            { id: 'sales-admin-directory', label: 'Sales Admin', icon: BriefcaseBusiness },
           ] },
           { id: 'academic', label: 'Academic Operation', icon: LayoutGrid, children: [
             { id: 'installments', label: 'Installment Templates', icon: Wallet },
@@ -11880,15 +11902,52 @@ useEffect(() => {
                       <option value="all">All Batches</option>
                       {dashboardFilterOptions.batches.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
                     </select></label>
-                    <label><span>Date</span><input type="date" value={dashboardDateFromDraft} onChange={(event) => { setDashboardDateFromDraft(event.target.value); setDashboardDateToDraft(event.target.value) }} aria-label="Filter by date" /></label>
-                    <button type="button" className="dashboard-filter-apply" onClick={() => { setDashboardCourseFilter(dashboardCourseDraft); setDashboardBatchFilter(dashboardBatchDraft); setDashboardDateFrom(dashboardDateFromDraft); setDashboardDateTo(dashboardDateFromDraft) }}>Apply</button>
-                    <button type="button" className="dashboard-filter-reset" onClick={() => { setDashboardCourseDraft('all'); setDashboardBatchDraft('all'); setDashboardDateFromDraft(''); setDashboardDateToDraft(''); setDashboardCourseFilter('all'); setDashboardBatchFilter('all'); setDashboardDateFrom(''); setDashboardDateTo('') }}>Reset</button>
+                    <label><span>Date</span><select value={dashboardDatePresetDraft} onChange={(event) => {
+                      const preset = event.target.value
+                      setDashboardDatePresetDraft(preset)
+                      if (preset !== 'CUSTOM') {
+                        const range = getBranchDashboardDateRange(preset)
+                        setDashboardDateFromDraft(range.from)
+                        setDashboardDateToDraft(range.to)
+                      }
+                    }} aria-label="Select dashboard date range">
+                      <option value="TODAY">Today</option>
+                      <option value="THIS_WEEK">This week</option>
+                      <option value="THIS_MONTH">This month</option>
+                      <option value="CUSTOM">Custom date range</option>
+                    </select></label>
+                    {dashboardDatePresetDraft === 'CUSTOM' ? (
+                      <div className="branch-dashboard-date-range-controls">
+                        <label><span>From</span><input type="date" value={dashboardDateFromDraft} max={dashboardDateToDraft || undefined} onChange={(event) => setDashboardDateFromDraft(event.target.value)} aria-label="Custom date range start" /></label>
+                        <label><span>To</span><input type="date" value={dashboardDateToDraft} min={dashboardDateFromDraft || undefined} onChange={(event) => setDashboardDateToDraft(event.target.value)} aria-label="Custom date range end" /></label>
+                      </div>
+                    ) : null}
+                    <button type="button" className="dashboard-filter-apply" disabled={dashboardDatePresetDraft === 'CUSTOM' && (!dashboardDateFromDraft || !dashboardDateToDraft || dashboardDateFromDraft > dashboardDateToDraft)} onClick={() => {
+                      setDashboardCourseFilter(dashboardCourseDraft)
+                      setDashboardBatchFilter(dashboardBatchDraft)
+                      setDashboardDatePreset(dashboardDatePresetDraft)
+                      setDashboardDateFrom(dashboardDateFromDraft)
+                      setDashboardDateTo(dashboardDateToDraft)
+                    }}>Apply</button>
+                    <button type="button" className="dashboard-filter-reset" onClick={() => {
+                      const range = getBranchDashboardDateRange('THIS_MONTH')
+                      setDashboardCourseDraft('all')
+                      setDashboardBatchDraft('all')
+                      setDashboardDatePresetDraft('THIS_MONTH')
+                      setDashboardDateFromDraft(range.from)
+                      setDashboardDateToDraft(range.to)
+                      setDashboardCourseFilter('all')
+                      setDashboardBatchFilter('all')
+                      setDashboardDatePreset('THIS_MONTH')
+                      setDashboardDateFrom(range.from)
+                      setDashboardDateTo(range.to)
+                    }}>Reset</button>
                   </div>
 
                   <div className="branch-dashboard-stats branch-dashboard-finance-stats">
                     {[
                       {
-                        label: 'This Month Admissions',
+                        label: admissionsSummaryLabel,
                         value: dashboardData.currentMonthStudents,
                         note: 'Students Joined',
                         Icon: Users,
@@ -15248,6 +15307,9 @@ else {
               ) : null}
               {activeSection === 'sales-crm' || activeSection === 'sales-crm-admitted-students' ? (
                 <BranchSalesCrmPage key={activeSection} view={activeSection === 'sales-crm-admitted-students' ? 'admissions' : 'admins'} />
+              ) : null}
+              {activeSection === 'sales-admin-directory' ? (
+                <BranchSalesCrmPage key={activeSection} view="admins" title="Sales Admin" showReportAction={false} />
               ) : null}
             </div>
           </main>

@@ -242,6 +242,13 @@ export function SuperAdminNotificationBell({
       return
     }
 
+    if (notificationDescription.startsWith('CALL_RECORDING_SHARE:')) {
+      const [, , , salesAdminId] = notificationDescription.split(':')
+      if (salesAdminId) navigate(`/dashboard/super-admin?section=sales-admin&adminId=${encodeURIComponent(salesAdminId)}&tab=call-recordings`)
+      else navigate('/dashboard/super-admin?section=sales-admin')
+      return
+    }
+
     navigate('/dashboard/super-admin')
   }
 
