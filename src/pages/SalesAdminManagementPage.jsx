@@ -166,6 +166,7 @@ function SalesAdminAnalyticsViewBase({ admin, onBack, onEdit, dateRange, onDateR
       const params = new URLSearchParams(window.location.search)
       params.set('tab', route)
       window.history.pushState({}, '', `${window.location.pathname}?${params.toString()}`)
+      tabs.closest('.sales-admin-reports-view')?.classList.add('is-reports')
       tabs.querySelectorAll('button').forEach((button) => button.classList.remove('is-active'))
       ;(route === 'reports' ? reportsButton : recordingsButton).classList.add('is-active')
       tabs.closest('.sales-admin-analytics-page')?.querySelectorAll(':scope > .sales-admin-analytics-kpis, :scope > .sales-admin-analytics-two-column, :scope > .sales-admin-profile-card').forEach((node) => { node.style.display = 'none' })
@@ -189,7 +190,8 @@ function SalesAdminAnalyticsViewBase({ admin, onBack, onEdit, dateRange, onDateR
         params.set('tab', nextTab)
         window.history.pushState({}, '', `${window.location.pathname}?${params.toString()}`)
         tabs.querySelectorAll('button').forEach((item) => item.classList.toggle('is-active', item === button))
-        tabs.closest('.sales-admin-analytics-page')?.querySelectorAll(':scope > .sales-admin-analytics-kpis, :scope > .sales-admin-analytics-two-column, :scope > .sales-admin-profile-card').forEach((node) => { node.style.display = 'block' })
+        tabs.closest('.sales-admin-reports-view')?.classList.remove('is-reports')
+        tabs.closest('.sales-admin-analytics-page')?.querySelectorAll(':scope > .sales-admin-analytics-kpis, :scope > .sales-admin-analytics-two-column, :scope > .sales-admin-profile-card').forEach((node) => { node.style.removeProperty('display') })
         const reportsSection = document.querySelector('.sales-admin-reports-route')
         const recordingsSection = document.querySelector('.sales-admin-call-recordings-route')
         if (reportsSection) reportsSection.style.display = 'none'
