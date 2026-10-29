@@ -978,6 +978,12 @@ body:has(.lead-followup-backdrop) .branch-dashboard-app-shell .super-admin-sideb
   box-shadow: 0 12px 28px rgba(15, 23, 42, .18) !important;
 }
 
+/* Keep the menu visible inside the table for the final two lead rows. */
+.lead-table tbody tr:nth-last-child(-n + 2) .lead-actions-menu {
+  top: auto !important;
+  bottom: 100% !important;
+}
+
 .lead-actions:hover .lead-actions-menu,
 .lead-actions.is-open .lead-actions-menu {
   display: grid !important;
@@ -1233,3 +1239,7 @@ body:has(.lead-followup-backdrop) .branch-dashboard-app-shell .super-admin-sideb
 
 .lead-recording-share-actions .lead-primary-button { width: auto; min-width: 145px; flex: 0 0 auto; padding: 9px 14px; color: #fff; font-size: 12px; white-space: nowrap; }
 .lead-recording-share-actions .lead-primary-button:disabled { border-color: #7897ed; background: #7897ed; color: #fff; opacity: 1; }
+
+.lead-list-tabs{display:flex;gap:22px;margin:0 0 14px;border-bottom:1px solid #dbe4f0}.lead-list-tabs button{padding:11px 3px;border:0;border-bottom:2px solid transparent;background:transparent;color:#64748b;font-family:inherit;font-size:13px;font-weight:600;line-height:1.4;cursor:pointer}.lead-list-tabs button.is-active{border-bottom-color:#2563eb;color:#2563eb}.lead-table-card.is-archived .lead-table{min-width:1100px}.lead-deleted-table td{font-size:12px}.lead-deleted-table td:nth-child(7){font-weight:600;color:#1e3a5f}.lead-deleted-table td:nth-child(9){white-space:nowrap}@media(max-width:700px){.lead-list-tabs{margin-bottom:10px}.lead-list-tabs button{font-size:12px}}
+
+.lead-deleted-row{cursor:pointer}.lead-deleted-row:hover,.lead-deleted-row:focus{background:#f3f7ff;outline:none}
