@@ -537,6 +537,20 @@ export function SuperAdminNotificationsPage() {
         return
       }
       const description = String(notification.requestDescription || '').trim()
+      if (String(notification.kind || '').toUpperCase() === 'LEAD_DELETED') {
+        const leadId = description.split(':')[1]
+        setSelectedNotification({ ...notification, read: true, deletedLeadLoading: Boolean(leadId) })
+        if (leadId) {
+          try {
+            const response = await request(`/leads/${encodeURIComponent(leadId)}?includeDeleted=true`)
+            const details = response?.data ?? response
+            setSelectedNotification(current => current ? { ...current, deletedLeadDetails: details, deletedLeadLoading: false } : current)
+          } catch (error) {
+            setSelectedNotification(current => current ? { ...current, deletedLeadLoading: false, deletedLeadError: error?.message || 'Unable to load deleted lead details.' } : current)
+          }
+        }
+        return
+      }
       const requestId = description.startsWith('DISCONTINUATION_SUPER_REVIEW:')
         ? description.slice('DISCONTINUATION_SUPER_REVIEW:'.length).trim()
         : ''
@@ -1071,6 +1085,7 @@ export function SuperAdminNotificationsPage() {
             <p className="super-admin-notification-modal-message">
               {selectedNotification.message || 'No additional details are available for this notification.'}
             </p>
+            {String(selectedNotification.kind || '').toUpperCase() === 'LEAD_DELETED' ? <section className="super-admin-deleted-lead-notification-details"><h3>Deleted Lead Details</h3>{selectedNotification.deletedLeadLoading ? <p>Loading lead details...</p> : selectedNotification.deletedLeadError ? <p role="alert">{selectedNotification.deletedLeadError}</p> : selectedNotification.deletedLeadDetails ? <><div className="super-admin-deleted-lead-notification-grid">{[['Lead ID', selectedNotification.deletedLeadDetails.leadId], ['Student Name', selectedNotification.deletedLeadDetails.studentName], ['Deleted By', selectedNotification.deletedLeadDetails.deletedByName], ['Role', selectedNotification.deletedLeadDetails.deletedByRole], ['Deleted At', selectedNotification.deletedLeadDetails.deletedAt ? new Date(selectedNotification.deletedLeadDetails.deletedAt).toLocaleString('en-IN') : ''], ['Phone', selectedNotification.deletedLeadDetails.phoneNumber], ['Alternative Number', selectedNotification.deletedLeadDetails.alternativeNumber], ['Email', selectedNotification.deletedLeadDetails.email], ['Qualification', selectedNotification.deletedLeadDetails.qualification], ['Location', selectedNotification.deletedLeadDetails.location], ['Branch', selectedNotification.deletedLeadDetails.branch?.branchName], ['Course', selectedNotification.deletedLeadDetails.course?.name], ['Stage', selectedNotification.deletedLeadDetails.stage], ['Lead Status', selectedNotification.deletedLeadDetails.status], ['Lead Source', selectedNotification.deletedLeadDetails.leadSource], ['Call Type', selectedNotification.deletedLeadDetails.callType], ['Assigned To', selectedNotification.deletedLeadDetails.assignedTo?.fullName], ['Lead Date', selectedNotification.deletedLeadDetails.leadDate ? new Date(selectedNotification.deletedLeadDetails.leadDate).toLocaleDateString('en-IN') : ''], ['Payment Status', selectedNotification.deletedLeadDetails.paymentStatus], ['Payment Amount', selectedNotification.deletedLeadDetails.paymentAmount], ['Next Follow-up Date', selectedNotification.deletedLeadDetails.nextFollowUpDate ? new Date(selectedNotification.deletedLeadDetails.nextFollowUpDate).toLocaleDateString('en-IN') : ''], ['Next Follow-up Time', selectedNotification.deletedLeadDetails.nextFollowUpTime], ['Course Mode', selectedNotification.deletedLeadDetails.courseMode], ['Training Mode', selectedNotification.deletedLeadDetails.trainingMode], ['Schedule', selectedNotification.deletedLeadDetails.classSchedule], ['Referred By', selectedNotification.deletedLeadDetails.referredBy], ['Referred Name', selectedNotification.deletedLeadDetails.referredName]].map(([label, value]) => <div key={label}><span>{label}</span><strong>{value === null || value === undefined || value === '' ? '-' : String(value)}</strong></div>)}</div><h4>Follow-up History</h4>{selectedNotification.deletedLeadDetails.followUps?.length ? selectedNotification.deletedLeadDetails.followUps.map(item => <article key={item.id}><strong>{item.followUpDate ? new Date(item.followUpDate).toLocaleString('en-IN') : 'Follow-up'} / {item.callStatus || '-'}</strong><p>{item.notes || 'No notes added'}</p></article>) : <p>No follow-up records.</p>}<h4>Call Recordings</h4>{selectedNotification.deletedLeadDetails.recordings?.length ? selectedNotification.deletedLeadDetails.recordings.map(item => <p key={item.id}>{item.originalName || 'Call recording'} / {item.createdAt ? new Date(item.createdAt).toLocaleString('en-IN') : '-'}</p>) : <p>No recordings.</p>}</> : null}</section> : null}
             <div className="super-admin-notification-modal-meta">
               <div>
                 <span>Date and time</span>
