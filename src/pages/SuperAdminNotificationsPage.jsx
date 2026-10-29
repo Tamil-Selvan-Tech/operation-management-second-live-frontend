@@ -122,13 +122,24 @@ function normalizeNotificationItem(notification = {}) {
   const timeValue = createdAt || new Date().toISOString()
   const title = String(notification.title || 'Notification').trim()
   const rawMessage = String(notification.message || '').trim()
-  const message = rawMessage.startsWith(title)
+  const kind = String(notification.kind || 'general').trim() || 'general'
+  const messageBody = rawMessage.startsWith(title)
     ? rawMessage.slice(title.length).trim()
     : rawMessage
+  const deletedFields = Object.fromEntries(messageBody.split(/\r?\n/).map((line) => {
+    const separator = line.indexOf(':')
+    return separator < 0 ? ['', ''] : [line.slice(0, separator).trim().toLowerCase(), line.slice(separator + 1).trim()]
+  }).filter(([key]) => key))
+  const deletedLeadName = deletedFields['student name'] || title.replace(/^Lead Deleted\s*-\s*/i, '').trim()
+  const deletedBy = deletedFields['deleted by'] || 'A staff member'
+  const deletedRole = deletedFields.role ? ` (${deletedFields.role})` : ''
+  const message = kind.toUpperCase() === 'LEAD_DELETED' && deletedFields['lead id']
+    ? `Lead: ${deletedLeadName}\nLead ID: ${deletedFields['lead id']}\nDeleted by: ${deletedBy}${deletedRole}.`
+    : messageBody
 
   return {
     id: String(notification.id || `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`),
-    kind: String(notification.kind || 'general').trim() || 'general',
+    kind,
     tone: String(notification.tone || 'blue').trim() || 'blue',
     title,
     message,
