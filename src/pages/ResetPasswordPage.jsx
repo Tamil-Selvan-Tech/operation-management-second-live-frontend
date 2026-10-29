@@ -84,7 +84,7 @@ export function ResetPasswordPage() {
   const authenticatedBranchEmail = String(session?.user?.email || '').trim().toLowerCase()
   const isBranchResetFlow = Boolean(
     (isBranchResetParam ||
-      (isAuthenticated && (role === 'branch-admin' || role === 'faculty' || role === 'student'))) &&
+      (isAuthenticated && (role === 'branch-admin' || role === 'faculty' || role === 'student' || role === 'hr'))) &&
       session?.user?.mustResetPassword,
   )
   const redirectTo =

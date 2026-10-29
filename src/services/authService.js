@@ -251,7 +251,7 @@ export async function signInWithFallback(credentials) {
   purgeInstallmentTemplateLocalCache()
   return {
     session,
-    redirectTo: dashboardPathByRole[session.user.role] || '/dashboard',
+    redirectTo: session.user?.mustResetPassword ? '/reset-password?firstLogin=1' : (dashboardPathByRole[session.user.role] || '/dashboard'),
     source: 'api',
   }
 }

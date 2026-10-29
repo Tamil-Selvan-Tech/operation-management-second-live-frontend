@@ -24,6 +24,7 @@ export function SuperAdminSidebarNav({ branches = [], isSidebarCollapsed, onClos
   const location = useLocation()
   const activeSection = getSection(location.search)
   const isNotifications = location.pathname.endsWith('/notifications')
+  const isUserRoleSectionActive = !isNotifications && ['branch-admin', 'faculty', 'hr'].includes(activeSection)
   const [isBranchExpanded, setIsBranchExpanded] = useState(false)
   const [isUserRoleExpanded, setIsUserRoleExpanded] = useState(false)
   const [isAcademicExpanded, setIsAcademicExpanded] = useState(false)
@@ -90,15 +91,17 @@ export function SuperAdminSidebarNav({ branches = [], isSidebarCollapsed, onClos
             <div className="super-admin-sidebar-collapsed-group-title">User &amp; Role Management</div>
             <button type="button" className="super-admin-sidebar-subitem" onClick={() => go('/dashboard/super-admin?section=branch-admin')}><span className="super-admin-sidebar-subitem-icon"><Shield size={15} /></span><span>Branch Admin</span></button>
             <button type="button" className="super-admin-sidebar-subitem" onClick={() => go('/dashboard/super-admin?section=faculty')}><span className="super-admin-sidebar-subitem-icon"><UserRound size={15} /></span><span>Faculty Management</span></button>
+            <button type="button" className="super-admin-sidebar-subitem" onClick={() => go('/dashboard/super-admin?section=hr')}><span className="super-admin-sidebar-subitem-icon"><UserRound size={15} /></span><span>HR Management</span></button>
           </div>
         </div>
-        <button type="button" className={`super-admin-sidebar-section-toggle ${!isNotifications && ['branch-admin', 'faculty', 'sales-admin'].includes(activeSection) ? 'is-active' : ''}`.trim()} aria-expanded={isUserRoleExpanded} onClick={() => setIsUserRoleExpanded((current) => !current)}>
+        <button type="button" className={`super-admin-sidebar-section-toggle ${!isNotifications && ['branch-admin', 'faculty', 'hr', 'sales-admin'].includes(activeSection) ? 'is-active' : ''}`.trim()} aria-expanded={isUserRoleExpanded || isUserRoleSectionActive} onClick={() => setIsUserRoleExpanded((current) => !current)}>
           <span className="super-admin-sidebar-section-toggle-label"><Users size={16} strokeWidth={2.2} aria-hidden="true" /><span>User &amp; Role Management</span></span>
-          <ChevronDown size={15} strokeWidth={2.4} className={isUserRoleExpanded ? 'is-expanded' : ''} aria-hidden="true" />
+          <ChevronDown size={15} strokeWidth={2.4} className={isUserRoleExpanded || isUserRoleSectionActive ? 'is-expanded' : ''} aria-hidden="true" />
         </button>
-        {(isUserRoleExpanded || isSidebarCollapsed) ? <>
+        {(isUserRoleExpanded || isUserRoleSectionActive || isSidebarCollapsed) ? <>
           <button type="button" className={`super-admin-sidebar-item ${!isNotifications && activeSection === 'branch-admin' ? 'is-active' : ''}`.trim()} data-tooltip="Branch Admin" onClick={() => go('/dashboard/super-admin?section=branch-admin')}><span className="super-admin-sidebar-icon" aria-hidden="true"><Shield size={18} strokeWidth={2.2} /></span><span>Branch Admin</span></button>
           <button type="button" className={`super-admin-sidebar-item ${!isNotifications && activeSection === 'faculty' ? 'is-active' : ''}`.trim()} data-tooltip="Faculty Management" onClick={() => go('/dashboard/super-admin?section=faculty')}><span className="super-admin-sidebar-icon" aria-hidden="true"><UserRound size={18} strokeWidth={2.2} /></span><span>Faculty Management</span></button>
+          <button type="button" className={`super-admin-sidebar-item ${!isNotifications && activeSection === 'hr' ? 'is-active' : ''}`.trim()} data-tooltip="HR Management" onClick={() => go('/dashboard/super-admin?section=hr')}><span className="super-admin-sidebar-icon" aria-hidden="true"><UserRound size={18} strokeWidth={2.2} /></span><span>HR Management</span></button>
         </> : null}
       </div>
 

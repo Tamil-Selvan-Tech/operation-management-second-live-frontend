@@ -49,6 +49,7 @@ import { SuperAdminMetricDetailPage } from '../components/SuperAdminMetricDetail
 import { SuperAdminSidebarNav } from '../components/SuperAdminSidebarNav'
 import { SuperAdminDiscontinuationPage } from './SuperAdminDiscontinuationPage'
 import { SalesAdminManagementPage } from './SalesAdminManagementPage'
+import { HrManagementPage } from './HrManagementPage'
 import { loadBranchStudents } from '../lib/branchStudentStore'
 import { loadBranchPaymentHistoryEntries } from '../lib/branchPaymentHistoryStore'
 import { buildModernPaymentReceiptHtml } from '../components/payments/RecordPayment'
@@ -564,7 +565,7 @@ function validateBranchForm(form, existingBranches = [], ignoreBranchId = null) 
 function getInitialSuperAdminSection(search = '') {
   const params = new URLSearchParams(search)
   const section = params.get('section')
-  return ['branches', 'branch-admin', 'faculty', 'sales-admin', 'students', 'leave-management', 'faculty-leave', 'discontinuations', 'metric-branches', 'metric-students', 'metric-admissions', 'metric-total-payment', 'metric-month-payment', 'metric-outstanding', 'metric-month-due', 'metric-today-due', 'metric-overdue', 'metric-due-students', 'metric-today-collection'].includes(section) ? section : 'dashboard'
+  return ['branches', 'branch-admin', 'faculty', 'sales-admin', 'hr', 'students', 'leave-management', 'faculty-leave', 'discontinuations', 'metric-branches', 'metric-students', 'metric-admissions', 'metric-total-payment', 'metric-month-payment', 'metric-outstanding', 'metric-month-due', 'metric-today-due', 'metric-overdue', 'metric-due-students', 'metric-today-collection'].includes(section) ? section : 'dashboard'
 }
 
 export function SuperAdminDashboardPage() {
@@ -2194,11 +2195,15 @@ const filteredBranches = useMemo(() => {
                     <span className="super-admin-sidebar-subitem-icon" aria-hidden="true"><UserRound size={15} strokeWidth={2.1} /></span>
                     <span>Faculty Management</span>
                   </button>
+                  <button type="button" className="super-admin-sidebar-subitem" onClick={() => { setIsSidebarFlyoutDismissed(true); setIsBranchManagementExpanded(false); setActiveSection('hr'); setIsMobileSidebarOpen(false) }}>
+                    <span className="super-admin-sidebar-subitem-icon" aria-hidden="true"><UserRound size={15} strokeWidth={2.1} /></span>
+                    <span>HR Management</span>
+                  </button>
                 </div>
               </div>
               <button
                 type="button"
-                className={`super-admin-sidebar-section-toggle ${['branch-admin', 'faculty'].includes(activeSection) ? 'is-active' : ''}`.trim()}
+                className={`super-admin-sidebar-section-toggle ${['branch-admin', 'faculty', 'hr'].includes(activeSection) ? 'is-active' : ''}`.trim()}
                 aria-expanded={isUserRoleManagementExpanded}
                 onClick={() => setIsUserRoleManagementExpanded((current) => !current)}
               >
@@ -2258,6 +2263,15 @@ const filteredBranches = useMemo(() => {
                   >
                     <span className="super-admin-sidebar-icon" aria-hidden="true"><UserRound size={18} strokeWidth={2.2} /></span>
                     <span>Faculty Management</span>
+                  </button>
+                  <button
+                    type="button"
+                    className={`super-admin-sidebar-item ${activeSection === 'hr' ? 'is-active' : ''}`.trim()}
+                    data-tooltip="HR Management"
+                    onClick={() => { setIsSidebarFlyoutDismissed(true); setIsBranchManagementExpanded(false); setActiveSection('hr'); setIsMobileSidebarOpen(false) }}
+                  >
+                    <span className="super-admin-sidebar-icon" aria-hidden="true"><UserRound size={18} strokeWidth={2.2} /></span>
+                    <span>HR Management</span>
                   </button>
                 </>
               ) : null}
@@ -2909,6 +2923,8 @@ const filteredBranches = useMemo(() => {
               </section>
             ) : activeSection === 'sales-admin' ? (
               <SalesAdminManagementPage />
+            ) : activeSection === 'hr' ? (
+              <HrManagementPage />
             ) : activeSection === 'branch-admin' ? (
               <section className="super-admin-global-panel">
                 <div className="super-admin-global-header">

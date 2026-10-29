@@ -71,6 +71,7 @@ const SuperAdminNotificationsPage = lazyNamed(
 )
 const SalesAdminManagementPage = lazyNamed(() => import('../pages/SalesAdminManagementPage'), 'SalesAdminManagementPage')
 const SalesAdminDashboardPage = lazyNamed(() => import('../pages/SalesAdminDashboardPage'), 'SalesAdminDashboardPage')
+const HrDashboardPage = lazyNamed(() => import('../pages/HrDashboardPage'), 'HrDashboardPage')
 const LeadManagementPage = lazyNamed(() => import('../pages/LeadManagementPage'), 'LeadManagementPage')
 const StudentNewDashboardPage = lazyNamed(
   () => import('../pages/StudentNewDashboardPage'),
@@ -126,6 +127,7 @@ const routeChunks = [
   SuperAdminNotificationsPage,
   SalesAdminManagementPage,
   SalesAdminDashboardPage,
+  HrDashboardPage,
   LeadManagementPage,
   StudentNewDashboardPage,
   BranchNotificationsPage,
@@ -451,7 +453,6 @@ export function AppRouter() {
                 path="/dashboard/operation-manager/faculty-management"
                 element={<FacultyManagementPage />}
               />
-              <Route path="/dashboard/hr" element={<DashboardPage role="hr" />} />
               <Route path="/dashboard/faculty" element={<Navigate to="/dashboard/faculty/dashboard" replace />} />
               {/* <Route path="/dashboard/student" element={<DashboardPage role="student" />} /> */}
     
@@ -486,7 +487,9 @@ export function AppRouter() {
               <Route path="/profile" element={<ProfileRedirectRoute />} />
             </Route>
           </Route>
-          <Route element={<ProtectedRoute allowedRoles={['sales-admin']} />}>
+          <Route element={<ProtectedRoute allowedRoles={['hr']} />}>
+            <Route path="/dashboard/hr" element={<HrDashboardPage />} />
+          </Route>          <Route element={<ProtectedRoute allowedRoles={['sales-admin']} />}>
             <Route path="/dashboard/sales-admin" element={<SalesAdminDashboardPage />} />
             <Route path="/dashboard/sales-admin/leads" element={<SalesAdminDashboardPage />} />
             <Route path="/dashboard/sales-admin/reports" element={<SalesAdminDashboardPage />} />
