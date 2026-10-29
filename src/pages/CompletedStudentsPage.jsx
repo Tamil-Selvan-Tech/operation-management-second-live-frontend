@@ -296,8 +296,8 @@ export function CompletedStudentsPage({ academicProgressByStudent = new Map(), b
   const [tab, setTab] = useState('COMPLETED')
   const [search, setSearch] = useState('')
   const [appliedSearch, setAppliedSearch] = useState('')
-  const [sortBy, setSortBy] = useState('studentName')
-  const [sortOrder, setSortOrder] = useState('asc')
+  const [sortBy, setSortBy] = useState('createdAt')
+  const [sortOrder, setSortOrder] = useState('desc')
   const [page, setPage] = useState(1)
   const [state, setState] = useState({ data: [], meta: null, loading: true, error: '' })
   const [counts, setCounts] = useState({ COMPLETED: null, DISCONTINUED: null })
@@ -687,7 +687,7 @@ export function CompletedStudentsPage({ academicProgressByStudent = new Map(), b
       <div className="completed-students-toolbar">
         <label className="completed-students-search"><Search size={17} /><input value={search} onChange={(event) => setSearch(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') { setAppliedSearch(search.trim()); setPage(1) } }} placeholder="Search student, ID, course or email" /></label>
         <button type="button" className="completed-students-search-button" onClick={() => { setAppliedSearch(search.trim()); setPage(1) }}>Search</button>
-        <select value={`${sortBy}:${sortOrder}`} onChange={(event) => { const [nextSort, nextOrder] = event.target.value.split(':'); setSortBy(nextSort); setSortOrder(nextOrder); setPage(1) }} aria-label="Sort records"><option value="studentName:asc">Name A-Z</option><option value="studentName:desc">Name Z-A</option><option value="courseName:asc">Course A-Z</option><option value="courseStartDate:desc">Newest course</option></select>
+        <select value={`${sortBy}:${sortOrder}`} onChange={(event) => { const [nextSort, nextOrder] = event.target.value.split(':'); setSortBy(nextSort); setSortOrder(nextOrder); setPage(1) }} aria-label="Sort records"><option value="createdAt:desc">Recently added</option><option value="studentName:asc">Name A-Z</option><option value="studentName:desc">Name Z-A</option><option value="courseName:asc">Course A-Z</option><option value="courseStartDate:desc">Newest course</option></select>
       </div>
 
       {state.error ? <div className="completed-students-error" role="alert">{state.error}</div> : null}

@@ -218,10 +218,9 @@ export function CompletedStudentUploadModal({ isOpen, onClose, onImported }) {
     const selectedMissing = importConfirmation.missingContactRows.filter((item) => item.selected).map((item) => item.row.rowNumber)
     const selectedRows = importConfirmation.rows.filter((row) => row.valid || selectedMissing.includes(row.rowNumber))
     if (!selectedRows.length) return
-    setError(''); setBusy(true); setImportProgress(12)
-    const progressTimer = window.setInterval(() => setImportProgress((value) => Math.min(value + 8, 86)), 350)
+    setError(''); setBusy(true); setImportProgress(5)
     try {
-      const response = await importCompletedStudents(selectedRows, { allowMissingContact: selectedMissing.length > 0 })
+      const response = await importCompletedStudents(selectedRows, { allowMissingContact: selectedMissing.length > 0, onChunkComplete: (completed, total) => setImportProgress(Math.min(96, Math.max(12, Math.round((completed / total) * 96)))) })
       setImportProgress(100)
       const importedResult = response?.data || response
       if (!Number(importedResult?.importedRows)) {
@@ -231,11 +230,10 @@ export function CompletedStudentUploadModal({ isOpen, onClose, onImported }) {
       }
       setResult(importedResult)
       if (importedResult?.importedRows) {
-        window.clearInterval(progressTimer)
         setBusy(false)
         await onImported?.()
       }
-    } catch (requestError) { setError(errorMessage(requestError)); setImportProgress(0) } finally { window.clearInterval(progressTimer); setBusy(false) }
+    } catch (requestError) { setError(errorMessage(requestError)); setImportProgress(0) } finally { setBusy(false) }
   }
 
   const toggleImportConfirmationRow = (rowNumber) => setImportConfirmation((current) => current ? ({ ...current, missingContactRows: current.missingContactRows.map((item) => item.row.rowNumber === rowNumber ? { ...item, selected: !item.selected } : item) }) : current)
@@ -254,10 +252,9 @@ export function CompletedStudentUploadModal({ isOpen, onClose, onImported }) {
     const selectedRows = (preview?.rows || []).filter((row) => row.valid || selectedRowNumbers.has(row.rowNumber))
     if (!selectedRows.length) return
     setContactReview(null)
-    setError(''); setBusy(true); setImportProgress(12)
-    const progressTimer = window.setInterval(() => setImportProgress((value) => Math.min(value + 8, 86)), 350)
+    setError(''); setBusy(true); setImportProgress(5)
     try {
-      const response = await importCompletedStudents(selectedRows, { allowMissingContact: true })
+      const response = await importCompletedStudents(selectedRows, { allowMissingContact: true, onChunkComplete: (completed, total) => setImportProgress(Math.min(96, Math.max(12, Math.round((completed / total) * 96)))) })
       const importedResult = response?.data || response
       setImportProgress(100)
       if (!Number(importedResult?.importedRows)) {
@@ -267,11 +264,10 @@ export function CompletedStudentUploadModal({ isOpen, onClose, onImported }) {
       }
       setResult(importedResult)
       if (importedResult?.importedRows) {
-        window.clearInterval(progressTimer)
         setBusy(false)
         await onImported?.()
       }
-    } catch (requestError) { setError(errorMessage(requestError)); setImportProgress(0) } finally { window.clearInterval(progressTimer); setBusy(false) }
+    } catch (requestError) { setError(errorMessage(requestError)); setImportProgress(0) } finally { setBusy(false) }
   }
 
   const toggleContactReviewRow = (rowNumber) => setContactReview((current) => current.map((item) => item.row.rowNumber === rowNumber ? { ...item, selected: !item.selected } : item))

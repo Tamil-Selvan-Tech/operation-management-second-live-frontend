@@ -1,5 +1,7 @@
 import { request, requestBlob } from './apiClient'
 
+const COMPLETED_IMPORT_TIMEOUT_MS = 120000
+
 function downloadBlob(blob, fileName) {
   const url = URL.createObjectURL(blob)
   const anchor = document.createElement('a')
@@ -21,15 +23,33 @@ export async function downloadCompletedStudentTemplate() {
 export async function previewCompletedStudentImport(file) {
   const body = new FormData()
   body.append('file', file)
-  return request('/reports/completed-student-import/preview', { method: 'POST', body })
+  return request('/reports/completed-student-import/preview', { method: 'POST', body, timeoutMs: COMPLETED_IMPORT_TIMEOUT_MS })
 }
 
+const COMPLETED_IMPORT_CHUNK_SIZE = 5
+
 export async function importCompletedStudents(rows, options = {}) {
-  return request('/reports/completed-student-import/import', { method: 'POST', body: JSON.stringify({ rows, allowMissingContact: options.allowMissingContact === true }) })
+  if (!Array.isArray(rows) || !rows.length) throw new Error('No rows were selected for import.')
+  const chunks = []
+  for (let index = 0; index < rows.length; index += COMPLETED_IMPORT_CHUNK_SIZE) chunks.push(rows.slice(index, index + COMPLETED_IMPORT_CHUNK_SIZE))
+  const aggregate = { importedRows: 0, validRows: 0, invalidRows: 0, warningRows: 0, rows: [], imported: [] }
+  for (let index = 0; index < chunks.length; index += 1) {
+    const response = await request('/reports/completed-student-import/import', { method: 'POST', body: JSON.stringify({ rows: chunks[index], allowMissingContact: options.allowMissingContact === true }), timeoutMs: COMPLETED_IMPORT_TIMEOUT_MS })
+    const result = response?.data || response || {}
+    if (!Number(result.importedRows) && result.message) throw new Error(result.message)
+    aggregate.importedRows += Number(result.importedRows || 0)
+    aggregate.validRows += Number(result.validRows || 0)
+    aggregate.invalidRows += Number(result.invalidRows || 0)
+    aggregate.warningRows += Number(result.warningRows || 0)
+    if (Array.isArray(result.rows)) aggregate.rows.push(...result.rows)
+    if (Array.isArray(result.imported)) aggregate.imported.push(...result.imported)
+    options.onChunkComplete?.(index + 1, chunks.length, result)
+  }
+  return { data: aggregate }
 }
 
 export async function revalidateCompletedStudentImport(rows) {
-  return request('/reports/completed-student-import/import', { method: 'POST', body: JSON.stringify({ rows, dryRun: true }) })
+  return request('/reports/completed-student-import/import', { method: 'POST', body: JSON.stringify({ rows, dryRun: true }), timeoutMs: COMPLETED_IMPORT_TIMEOUT_MS })
 }
 
 export async function downloadCompletedStudentFailedRows(rows) {
