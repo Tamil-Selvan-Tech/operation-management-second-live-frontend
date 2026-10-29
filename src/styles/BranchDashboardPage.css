@@ -188,6 +188,18 @@
   font-weight: 700;
 }
 
+.branch-dashboard-filter-bar .branch-dashboard-date-range-controls {
+  display: flex;
+  align-items: end;
+  gap: 8px;
+}
+
+.branch-dashboard-filter-bar .branch-dashboard-date-range-controls label {
+  display: grid;
+  gap: 4px;
+  min-width: 138px;
+}
+
 .dashboard-filter-reset,
 .branch-dashboard-quick-links button,
 .branch-dashboard-analytics-heading button {
@@ -370,6 +382,8 @@
 
 @media (max-width: 620px) {
   .branch-dashboard-finance-stats { grid-template-columns: 1fr; }
+  .branch-dashboard-filter-bar .branch-dashboard-date-range-controls { width: 100%; flex-direction: column; align-items: stretch; }
+  .branch-dashboard-filter-bar .branch-dashboard-date-range-controls label { width: 100%; }
   .branch-dashboard-filter-bar > select,
   .branch-dashboard-filter-bar label,
   .branch-dashboard-filter-bar input { width: 100%; }
@@ -526,6 +540,7 @@
 }
 
 .dashboard-filter-apply:hover { background: #1d4ed8; }
+.dashboard-filter-apply:disabled { cursor: not-allowed; opacity: .55; }
 
 .branch-dashboard-page .branch-dashboard-filter-bar {
   align-items: end;
