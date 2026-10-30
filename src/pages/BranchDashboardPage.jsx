@@ -13819,6 +13819,7 @@ else {
         student={recordPaymentStudent}
         students={branchStudents}
         branchProfile={branchProfile}
+        branchAdminName={branchAdminDisplay}
         onClose={() => {
           resetPaymentsView();
           void reloadBranchStudents();
