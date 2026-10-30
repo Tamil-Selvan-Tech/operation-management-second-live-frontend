@@ -220,6 +220,19 @@ export function CompletedStudentUploadModal({ isOpen, onClose, onImported }) {
     if (!selectedRows.length) return
     setError(''); setBusy(true); setImportProgress(5)
     try {
+      // Revalidate immediately before chunked import. This prevents earlier
+      // chunks from being saved when a later row became invalid after preview.
+      const validationResponse = await revalidateCompletedStudentImport(selectedRows, { allowMissingContact: selectedMissing.length > 0 })
+      const validationResult = normalizeCompletedStudentImportPreview(validationResponse?.data || validationResponse)
+      const invalidRows = validationResult?.rows?.filter((row) => !row.valid) || []
+      if (invalidRows.length) {
+        setPreview(validationResult)
+        setImportConfirmation(null)
+        setShowPreview(true)
+        setImportProgress(0)
+        setError(validationResult?.message || 'Fix the validation errors and revalidate before importing.')
+        return
+      }
       const response = await importCompletedStudents(selectedRows, { allowMissingContact: selectedMissing.length > 0, onChunkComplete: (completed, total) => setImportProgress(Math.min(96, Math.max(12, Math.round((completed / total) * 96)))) })
       setImportProgress(100)
       const importedResult = response?.data || response
@@ -235,7 +248,6 @@ export function CompletedStudentUploadModal({ isOpen, onClose, onImported }) {
       }
     } catch (requestError) { setError(errorMessage(requestError)); setImportProgress(0) } finally { setBusy(false) }
   }
-
   const toggleImportConfirmationRow = (rowNumber) => setImportConfirmation((current) => current ? ({ ...current, missingContactRows: current.missingContactRows.map((item) => item.row.rowNumber === rowNumber ? { ...item, selected: !item.selected } : item) }) : current)
 
   const removePreviewRow = (rowNumber) => {

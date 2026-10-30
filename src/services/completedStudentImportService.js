@@ -48,8 +48,8 @@ export async function importCompletedStudents(rows, options = {}) {
   return { data: aggregate }
 }
 
-export async function revalidateCompletedStudentImport(rows) {
-  return request('/reports/completed-student-import/import', { method: 'POST', body: JSON.stringify({ rows, dryRun: true }), timeoutMs: COMPLETED_IMPORT_TIMEOUT_MS })
+export async function revalidateCompletedStudentImport(rows, options = {}) {
+  return request('/reports/completed-student-import/import', { method: 'POST', body: JSON.stringify({ rows, dryRun: true, allowMissingContact: options.allowMissingContact === true }), timeoutMs: COMPLETED_IMPORT_TIMEOUT_MS })
 }
 
 export async function downloadCompletedStudentFailedRows(rows) {
