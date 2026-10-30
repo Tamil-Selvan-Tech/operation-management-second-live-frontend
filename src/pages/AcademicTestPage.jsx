@@ -106,7 +106,7 @@ export default function AcademicTestPage({ mode = 'branch', autoOpenCreate = fal
     rows.forEach((row) => {
       ;(row.batches || []).forEach((batch) => {
         const keys = [batch?.id, batch?.batchId, batch?.batchName]
-        const completedBatch = batch?.hasCompletedStudents === true || Number(batch?.studentCount) === 0 || keys.some((key) => batchProgressById.get(String(key || '').trim().toLowerCase()) === 0)
+        const completedBatch = batch?.reportSent === true && (batch?.hasCompletedStudents === true || Number(batch?.studentCount) === 0)
         if (!completedBatch) return
         keys.forEach((key) => {
           const normalizedKey = String(key || '').trim().toLowerCase()
@@ -165,7 +165,7 @@ export default function AcademicTestPage({ mode = 'branch', autoOpenCreate = fal
             })
           })
           ;(academicOptions?.courses || []).flatMap((course) => course.batches || []).forEach((entry) => {
-            if (!entry?.hasCompletedStudents) return
+            if (entry?.reportSent !== true || !entry?.hasCompletedStudents) return
             ;[entry?.id, entry?.batchId, entry?.batchName].forEach((batchKey) => {
               const normalizedBatchKey = String(batchKey || '').trim().toLowerCase()
               if (normalizedBatchKey) nextProgress.set(normalizedBatchKey, 0)

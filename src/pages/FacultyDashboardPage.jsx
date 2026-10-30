@@ -268,6 +268,14 @@ function getFacultyFlowBatchKey(batch = {}) {
   )
 }
 
+function isAcademicReportFullySent(report = {}) {
+  const requiredIds = Array.isArray(report?.reportableTestIds) && report.reportableTestIds.length
+    ? report.reportableTestIds
+    : (Array.isArray(report?.tests) ? report.tests.map((test) => test?.scheduleId).filter(Boolean) : [])
+  const sentIds = new Set(Array.isArray(report?.sentReport?.academicTestIds) ? report.sentReport.academicTestIds : [])
+  return requiredIds.length > 0 && requiredIds.every((id) => sentIds.has(id))
+}
+
 function getAttendanceBatchTiming(batch = {}) {
   const startTime = String(batch?.startTime || batch?.fromTime || '').trim()
   const endTime = String(batch?.endTime || batch?.toTime || '').trim()
@@ -3409,7 +3417,10 @@ export function FacultyDashboardPage() {
           .map((key) => facultyAcademicBatchProgress.get(key))
           .find(Boolean) || incompleteBatchProgress || singleBatchProgress
       const batchAcademicComplete = Number(batchAcademicProgress?.total || 0) > 0 &&
+        Number(batchAcademicProgress?.activeStudentCount || 0) > 0 &&
+        Number(batchAcademicProgress?.reportStudentCount || 0) >= Number(batchAcademicProgress?.activeStudentCount || 0) &&
         Number(batchAcademicProgress?.completed || 0) >= Number(batchAcademicProgress.total)
+      const batchReportSent = batchAcademicProgress?.reportSent === true
       // A student may have completed one evaluation while another evaluation
       // is still pending for the batch. Do not remove anyone until the batch
       // report itself confirms that every configured evaluation is complete
@@ -3419,7 +3430,7 @@ export function FacultyDashboardPage() {
       const hasIncompleteAcademicBatchReport = Number(batchAcademicProgress?.total || 0) > 0 && !batchAcademicComplete
       const lifecycleMetrics = hasIncompleteAcademicBatchReport
         ? { ...lifecycle, isCompleted: false }
-        : academicBatchCompleteForStudent && lifecycle.courseProgress >= 100
+        : academicBatchCompleteForStudent && batchReportSent && lifecycle.courseProgress >= 100
         ? {
           ...lifecycle,
           isCompleted: true,
@@ -3432,7 +3443,7 @@ export function FacultyDashboardPage() {
             academicComplete: true,
           },
         }
-        : lifecycle
+        : { ...lifecycle, isCompleted: false }
 
       return {
         ...lifecycleStudent,
@@ -3537,7 +3548,7 @@ export function FacultyDashboardPage() {
       const normalizedFacultyId = String(entry?.facultyId || facultyId || '').trim().toLowerCase()
       const reportProgress = facultyAcademicBatchProgress.get(normalizedBatchId) ||
         facultyAcademicBatchProgress.get(normalizeWorkStudentId(getFacultyFlowBatchKey(entry)))
-      if (Number(reportProgress?.total || 0) > 0 && Number(reportProgress?.completed || 0) >= Number(reportProgress.total)) {
+      if (reportProgress?.reportSent === true && Number(reportProgress?.total || 0) > 0 && Number(reportProgress?.completed || 0) >= Number(reportProgress.total)) {
         return 0
       }
 
@@ -3897,7 +3908,10 @@ export function FacultyDashboardPage() {
         const batchProgress = {
           completed,
           total: total || Math.max(completed, report.tests?.length || 0),
+          reportStudentCount: reportStudentProgress.length,
+          activeStudentCount: matchingStudents.length,
           completedStudentKeys,
+          reportSent: isAcademicReportFullySent(report),
         }
         const batchKey = getFacultyFlowBatchKey(batch)
         next.set(batchKey, batchProgress)
@@ -3906,11 +3920,19 @@ export function FacultyDashboardPage() {
         completedStudentKeys.forEach((studentKey) => next.set(studentKey, batchProgress))
       }))
       if (active) {
-        setFacultyAcademicBatchProgress((current) => next.size ? next : current)
+        // A failed/empty report response must not preserve an old reportSent
+        // value; otherwise a batch can be marked complete before every report
+        // is actually sent.
+        setFacultyAcademicBatchProgress(next)
       }
     }
     void loadBatchAcademicProgress()
-    return () => { active = false }
+    const refresh = () => void loadBatchAcademicProgress()
+    window.addEventListener('cispro:faculty-dashboard-refresh', refresh)
+    return () => {
+      active = false
+      window.removeEventListener('cispro:faculty-dashboard-refresh', refresh)
+    }
   }, [currentFacultyIdentity.facultyId, currentFacultyIdentity.facultyName, facultyBatchRows, facultyScopedStudents, selectedStudentsCourse, selectedStudentsCourseBatches])
 
   const filteredStudentsCourseBatches = useMemo(() => {
@@ -3944,7 +3966,9 @@ export function FacultyDashboardPage() {
 
   const selectedStudentsBatchCycleStatus = String(selectedStudentsBatch?.currentCycleStatus || '').toUpperCase()
   const selectedStudentsBatchHasActiveCycle = ['ACTIVE', 'PLANNED'].includes(selectedStudentsBatchCycleStatus)
-  const selectedStudentsBatchCompleted = Boolean(selectedStudentsBatch) && !selectedStudentsBatchHasActiveCycle && (
+  const selectedStudentsBatchCompleted = Boolean(selectedStudentsBatch) &&
+    !selectedStudentsBatchHasActiveCycle &&
+    selectedStudentsBatchProgress?.reportSent === true && (
     String(selectedStudentsBatch?.completionStatus || '').toUpperCase() === 'COMPLETED' ||
     selectedStudentsBatchCycleStatus === 'COMPLETED' ||
     (Number(selectedStudentsBatchProgress?.total || 0) > 0 &&
@@ -4036,6 +4060,7 @@ export function FacultyDashboardPage() {
           ))
           studentKeys.forEach((key) => progressByStudent.set(key, {
             completedEvaluations: completedTests + (standaloneProjectCompleted ? 1 : 0),
+            reportSent: isAcademicReportFullySent(report),
           }))
         })
         setFacultyAcademicReportProgress(progressByStudent)
@@ -4166,7 +4191,7 @@ export function FacultyDashboardPage() {
     if (!selectedStudentsBatch) return []
     const academicProgress = facultyAcademicBatchProgress.get(getFacultyFlowBatchKey(selectedStudentsBatch)) ||
       facultyAcademicBatchProgress.get(normalizeWorkStudentId(getFacultyFlowBatchKey(selectedStudentsBatch)))
-    if (Number(academicProgress?.total || 0) > 0 && Number(academicProgress?.completed || 0) >= Number(academicProgress.total)) return []
+    if (academicProgress?.reportSent === true && Number(academicProgress?.total || 0) > 0 && Number(academicProgress?.completed || 0) >= Number(academicProgress.total)) return []
     return getFacultyBatchProgressStudents(
       selectedStudentsBatch,
       selectedStudentsCourse,
@@ -4281,7 +4306,7 @@ export function FacultyDashboardPage() {
     progressByBatch.forEach((value, key) => {
       const academicProgress = facultyAcademicBatchProgress.get(key) ||
         facultyAcademicBatchProgress.get(normalizeWorkStudentId(key))
-      if (Number(academicProgress?.total || 0) > 0 && Number(academicProgress?.completed || 0) >= Number(academicProgress.total)) {
+      if (academicProgress?.reportSent === true && Number(academicProgress?.total || 0) > 0 && Number(academicProgress?.completed || 0) >= Number(academicProgress.total)) {
         progressByBatch.set(key, 0)
       }
     })
@@ -7236,7 +7261,8 @@ const nextName = trimmedValue
                               {paginatedStudentsCourseBatches.map((batch, index) => {
                                 const reportBatchProgress = facultyAcademicBatchProgress.get(getFacultyFlowBatchKey(batch)) ||
                                   facultyAcademicBatchProgress.get(normalizeWorkStudentId(getFacultyFlowBatchKey(batch)))
-                                const reportCompleted = Number(reportBatchProgress?.total || 0) > 0 &&
+                                const reportCompleted = reportBatchProgress?.reportSent === true &&
+                                  Number(reportBatchProgress?.total || 0) > 0 &&
                                   Number(reportBatchProgress?.completed || 0) >= Number(reportBatchProgress.total)
                                 const activeBatchStudents = getFacultyBatchProgressStudents(
                                   batch,

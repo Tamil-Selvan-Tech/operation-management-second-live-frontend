@@ -42,6 +42,19 @@ function normalizeText(value = '') {
   return String(value || '').trim()
 }
 
+function cycleCourseDateUpdateKey(batch = {}, group = {}) {
+  const batchKey = normalizeText(batch?.batchId || batch?.id || group?.batchId || group?.id).toLowerCase()
+  const cycleKey = normalizeText(batch?.currentCycleId || group?.currentCycleId || batch?.currentCycleNumber || group?.currentCycleNumber).toLowerCase()
+  return batchKey && cycleKey ? `cispro:batch-course-date-updated:${batchKey}:${cycleKey}` : ''
+}
+
+function isCycleCourseDateUpdated(batch = {}, group = {}) {
+  const cycleNumber = Number(batch?.currentCycleNumber || group?.currentCycleNumber || 0)
+  if (cycleNumber <= 1) return true
+  const key = cycleCourseDateUpdateKey(batch, group)
+  return Boolean(key && window.localStorage.getItem(key) === 'true')
+}
+
 function BranchBatchFilterSelect({ value, options, onChange, ariaLabel, width = 150 }) {
   const [isOpen, setIsOpen] = useState(false)
   const containerRef = useRef(null)
@@ -880,6 +893,7 @@ function getPrimaryBatchForGroup(group = {}) {
     currentCycleId: primaryBatch?.currentCycleId || group?.currentCycleId || null,
     currentCycleNumber: primaryBatch?.currentCycleNumber || group?.currentCycleNumber || null,
     currentCycleName: primaryBatch?.currentCycleName || group?.currentCycleName || null,
+    currentCycleStartDate: primaryBatch?.currentCycleStartDate || group?.currentCycleStartDate || null,
     currentCycleStatus: primaryBatch?.currentCycleStatus || group?.currentCycleStatus || 'ACTIVE',
     completionStatus: primaryBatch?.completionStatus || group?.completionStatus || '',
     activeStudentCount: primaryBatch?.activeStudentCount ?? group?.activeStudentCount ?? 0,
@@ -1960,6 +1974,14 @@ export function BranchBatchManagementSection({
           ? await updateBranchBatch(existingGroup.id || existingGroup.batchGroupId || existingGroup.batchId, payload)
           : await createBranchBatch(payload)
 
+        if (existingGroup) {
+          const existingBatch = getPrimaryBatchForGroup(existingGroup)
+          const updateKey = cycleCourseDateUpdateKey(existingBatch, existingGroup)
+          if (updateKey && Number(existingBatch?.currentCycleNumber || existingGroup?.currentCycleNumber || 0) > 1) {
+            window.localStorage.setItem(updateKey, 'true')
+          }
+        }
+
         const normalizedSavedGroup = {
           ...existingGroup,
           ...savedGroup,
@@ -2151,20 +2173,23 @@ export function BranchBatchManagementSection({
 
   useEffect(() => {
     for (const group of displayGroups) {
-      if (getComputedBatchStatus(group) !== 'completed') continue
       const batch = getPrimaryBatchForGroup(group)
+      const nextCycleReady = Number(batch?.currentCycleNumber || group?.currentCycleNumber || 0) > 1
+        && String(batch?.currentCycleStatus || group?.currentCycleStatus || '').toUpperCase() === 'ACTIVE'
+        && !isCycleCourseDateUpdated(batch, group)
+      if (!nextCycleReady) continue
       const noticeKey = `${getBatchDisplayKey(group)}|${batch?.currentCycleId || batch?.currentCycleNumber || 'completed'}`
       if (completionNoticeShownRef.current.has(noticeKey)) continue
       completionNoticeShownRef.current.add(noticeKey)
       setSaveSuccessPopup({
-        title: 'Batch Cycle Completed',
-        message: `${batch?.batchName || group?.batchName || 'This batch'} is completed. Click Edit to add the new cycle Course Start Date before adding new students.`,
+        title: 'New Batch Cycle Started',
+        message: `${batch?.batchName || group?.batchName || 'This batch'} is ready for the next cycle. Please update the Course Start Date before adding new students.`,
         group,
-        actionLabel: 'Edit Batch',
+        actionLabel: 'Update Course Start Date',
       })
       break
     }
-  }, [displayGroups, getComputedBatchStatus])
+  }, [displayGroups])
 
   const displayGroupAcademicKey = displayGroups.map((group) => getBatchDisplayKey(group)).join('|')
 
@@ -2832,12 +2857,19 @@ export function BranchBatchManagementSection({
           || { total: academicTestTotal, completed: 0, percentage: 0 },
       )
     ))
-    const statusLabel = allBatchStudentsCompleted
+    const needsCourseStartDateUpdate = Number(primaryBatch?.currentCycleNumber || group?.currentCycleNumber || 0) > 1
+      && String(primaryBatch?.currentCycleStatus || group?.currentCycleStatus || '').toUpperCase() === 'ACTIVE'
+      && !isCycleCourseDateUpdated(primaryBatch, group)
+    const statusLabel = needsCourseStartDateUpdate
+      ? 'Not Updated'
+      : allBatchStudentsCompleted
       ? 'Completed'
       : isInactiveBatchGroup(group)
         ? 'Inactive'
         : 'Active'
-    const statusDotState = allBatchStudentsCompleted
+    const statusDotState = needsCourseStartDateUpdate
+      ? 'inactive'
+      : allBatchStudentsCompleted
       ? 'completed'
       : batchStatusClass === 'active' || batchStatusClass === 'open'
         ? 'active'
