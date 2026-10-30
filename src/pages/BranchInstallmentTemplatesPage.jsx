@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from 'react'
 import {
   CalendarDays,
   CirclePlus,
-  Pencil,
   Trash2,
   X,
 } from 'lucide-react'
@@ -15,8 +14,6 @@ import {
   deleteBranchInstallmentTemplate,
   getBranchInstallmentTemplateSignature,
   listBranchInstallmentTemplates,
-  normalizeBranchInstallmentTemplate,
-  updateBranchInstallmentTemplate,
 } from '../services/branchInstallmentTemplateService'
 import '../styles/BranchInstallmentTemplatesPage.css'
 
@@ -43,6 +40,10 @@ function createEmptyTemplateForm() {
     allowCustomization: true,
     status: 'ACTIVE',
   }
+}
+
+function isCourseLinkedTemplate(template = {}) {
+  return Boolean(String(template.branchCourseId || template.course?.id || '').trim())
 }
 
 function deriveInstallmentCountFromTemplateName(templateName = '') {
@@ -91,7 +92,7 @@ function createValidationErrors(form) {
   }
 }
 
-async function findBranchDuplicateTemplate({ installmentCount, currentId = '' }) {
+async function findBranchDuplicateTemplate({ installmentCount }) {
   const normalizedCount = Number(installmentCount || 0)
   if (!normalizedCount) return null
 
@@ -116,14 +117,15 @@ async function findBranchDuplicateTemplate({ installmentCount, currentId = '' })
 
   return (
     aggregatedTemplates.find((template) => {
+      if (isCourseLinkedTemplate(template)) return false
       const existingCount = Number(template.installmentCount || 0)
-      return existingCount === normalizedCount && String(template.id) !== String(currentId)
+      return existingCount === normalizedCount
     }) || null
   )
 }
 
 export function BranchInstallmentTemplatesPage() {
-  const pageSize = 3
+  const pageSize = 5
   const [templates, setTemplates] = useState([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -133,14 +135,12 @@ export function BranchInstallmentTemplatesPage() {
   const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [totalCount, setTotalCount] = useState(0)
-  const [editingTemplateId, setEditingTemplateId] = useState('')
   const [form, setForm] = useState(() => createEmptyTemplateForm())
   const [touched, setTouched] = useState({})
   const [deleteTarget, setDeleteTarget] = useState(null)
   const [isCreateOpen, setIsCreateOpen] = useState(false)
   const validation = useMemo(() => createValidationErrors(form), [form])
   const [openActionMenuId, setOpenActionMenuId] = useState(null)
-  const [actionMenuPinned, setActionMenuPinned] = useState(false)
   const submitLockRef = useRef(false)
   const loadRequestIdRef = useRef(0)
   const loadTemplates = useMemo(() => async (nextPage = 1) => {
@@ -160,7 +160,10 @@ export function BranchInstallmentTemplatesPage() {
       })
       const uniqueTemplates = []
       const seenSignatures = new Set()
-      ;(result.data || []).forEach((template) => {
+      const branchTemplates = (result.data || []).filter(
+        (template) => !isCourseLinkedTemplate(template),
+      )
+      branchTemplates.forEach((template) => {
         const signature = getBranchInstallmentTemplateSignature(template)
         if (seenSignatures.has(signature)) return
         seenSignatures.add(signature)
@@ -245,22 +248,7 @@ export function BranchInstallmentTemplatesPage() {
     })
   }
   const resetForm = () => {
-    setEditingTemplateId('')
     setForm(createEmptyTemplateForm())
-    setTouched({})
-    setError('')
-  }
-
-  const startEdit = (template) => {
-    const normalized = normalizeBranchInstallmentTemplate(template)
-    setEditingTemplateId(normalized.id)
-    setIsCreateOpen(true)
-    setForm({
-      templateName: normalized.templateName || '',
-      installmentCount: String(normalized.installmentCount || 1),
-      allowCustomization: Boolean(normalized.allowCustomization ?? true),
-      status: normalized.status || 'ACTIVE',
-    })
     setTouched({})
     setError('')
   }
@@ -289,7 +277,7 @@ export function BranchInstallmentTemplatesPage() {
 
       const duplicateExists = await findBranchDuplicateTemplate({
         installmentCount: form.installmentCount,
-        currentId: editingTemplateId,
+
       })
 
       if (duplicateExists) {
@@ -315,15 +303,11 @@ export function BranchInstallmentTemplatesPage() {
           status: String(form.status || 'ACTIVE').trim(),
         }
 
-        if (editingTemplateId) {
-          await updateBranchInstallmentTemplate(editingTemplateId, payload)
-        } else {
-          await createBranchInstallmentTemplate(payload)
-        }
+        await createBranchInstallmentTemplate(payload)
 
         resetForm()
         setIsCreateOpen(false)
-        await loadTemplates(editingTemplateId ? page : 1)
+        await loadTemplates(1)
       } catch (err) {
         if (err?.status === 409) {
           setError(
@@ -354,58 +338,28 @@ export function BranchInstallmentTemplatesPage() {
 
   const handleDelete = async () => {
     if (!deleteTarget) return
+
     setSaving(true)
     try {
-      const targetInstallmentCount = Math.max(1, Number(deleteTarget.installmentCount) || 1)
-      const latestResult = await listBranchInstallmentTemplates({
-        page: 1,
-        limit: 100,
-        search: '',
-        sortBy: 'createdAt',
-        sortOrder: 'desc',
-      })
-      const matchingTemplates = (latestResult.data || []).filter(
-        (template) => Math.max(1, Number(template.installmentCount) || 1) === targetInstallmentCount,
-      )
-      const templatesToDelete = matchingTemplates.some((template) => String(template.id) === String(deleteTarget.id))
-        ? matchingTemplates
-        : [deleteTarget]
-
-      await Promise.all(
-        templatesToDelete.map((template) => deleteBranchInstallmentTemplate(template.id)),
-      )
-
+      await deleteBranchInstallmentTemplate(deleteTarget.id)
       setDeleteTarget(null)
-      setSearchTerm('')
-      setAppliedSearchTerm('')
-      setPage(1)
+      setOpenActionMenuId(null)
+      await loadTemplates(page)
     } catch (err) {
-      if (err?.status === 409) {
-        setError(
-          err?.body?.message ||
-          err?.body?.error ||
-          `An installment plan with ${Number(
-            form.installmentCount
-          )} installments already exists.`
-        )
-      } else {
-        setError(
-          err?.body?.message ||
-          err?.body?.error ||
-          err?.message ||
-          'Unable to save installment template.'
-        )
-      }
+      setError(
+        err?.body?.message ||
+        err?.body?.error ||
+        err?.message ||
+        'Unable to delete installment template.'
+      )
     } finally {
       setSaving(false)
     }
   }
-
   useEffect(() => {
     const handleOutsideClick = (event) => {
       if (!event.target.closest('.installment-action-menu')) {
         setOpenActionMenuId(null)
-        setActionMenuPinned(false)
       }
     }
 
@@ -481,9 +435,7 @@ export function BranchInstallmentTemplatesPage() {
           </p>
 
           <h3>
-            {editingTemplateId
-              ? 'Edit Installment Template'
-              : 'Create Installment Template'}
+            Create Installment Template
           </h3>
         </div>
 
@@ -608,11 +560,7 @@ export function BranchInstallmentTemplatesPage() {
           disabled={saving}
           onClick={submitForm}
         >
-          {saving
-            ? 'Saving...'
-            : editingTemplateId
-              ? 'Update Template'
-              : 'Create Template'}
+          {saving ? 'Saving...' : 'Create Template'}
         </Button>
 
       </div>
@@ -762,10 +710,8 @@ export function BranchInstallmentTemplatesPage() {
                     event.preventDefault()
                     if (openActionMenuId === template.id) {
                       setOpenActionMenuId(null)
-                      setActionMenuPinned(false)
                     } else {
                       setOpenActionMenuId(template.id)
-                      setActionMenuPinned(true)
                     }
                   }}
                 >
@@ -777,22 +723,9 @@ export function BranchInstallmentTemplatesPage() {
                 <div className="installment-action-dropdown">
                   <button
                     type="button"
-                    onClick={() => {
-                      setOpenActionMenuId(null)
-                      setActionMenuPinned(false)
-                      startEdit(template)
-                    }}
-                  >
-                    <Pencil size={14} strokeWidth={2.2} />
-                    Edit
-                  </button>
-
-                  <button
-                    type="button"
                     className="is-danger"
                     onClick={() => {
                       setOpenActionMenuId(null)
-                      setActionMenuPinned(false)
                       confirmDelete(template)
                     }}
                   >

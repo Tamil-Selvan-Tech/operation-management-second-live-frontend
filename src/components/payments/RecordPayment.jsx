@@ -373,7 +373,7 @@ const getCourseInstallmentSlice = (studentRecord = {}, enrollments = [], selecte
 const EMPTY_STUDENT = {};
 
 
-const RecordPayment = ({ student, students = [], onClose, branchProfile = null }) => {
+const RecordPayment = ({ student, students = [], onClose, branchProfile = null, branchAdminName = "" }) => {
   const initialStudent = student?.studentId ? student : null;
 
   // =========================================================
@@ -390,7 +390,6 @@ const RecordPayment = ({ student, students = [], onClose, branchProfile = null }
     collectedBy: "",
     branch: "",
     notes: "",
-    paymentProof: null,
     ...(getPendingInstallmentDefaults(initialStudent || null) || {}),
   }));
 
@@ -484,6 +483,33 @@ const RecordPayment = ({ student, students = [], onClose, branchProfile = null }
     }
     return baseActiveStudent;
   }, [shouldUseCoursePaymentData, selectedPaymentEnrollment, selectedCourseInstallments, baseActiveStudent, isParallelArrangement, parallelTotalCourseFee]);
+
+  const autoCollectedBy = String(
+    branchAdminName ||
+      branchProfile?.branchAdminName ||
+      branchProfile?.adminName ||
+      branchProfile?.name ||
+      activeStudent?.branchAdminName ||
+      activeStudent?.branchAdmin ||
+      ""
+  ).trim();
+  const autoBranchName = String(
+    branchProfile?.branchName ||
+      branchProfile?.name ||
+      activeStudent?.branchName ||
+      activeStudent?.branch ||
+      ""
+  ).trim();
+
+  useEffect(() => {
+    if (!autoCollectedBy && !autoBranchName) return;
+
+    setFormData((current) => ({
+      ...current,
+      collectedBy: String(current.collectedBy || "").trim() || autoCollectedBy,
+      branch: String(current.branch || "").trim() || autoBranchName,
+    }));
+  }, [autoCollectedBy, autoBranchName]);
   const paymentAgainstNumber = Number(String(formData.payAgainst || '').match(/Installment\s+(\d+)/i)?.[1] || 0);
   const courseLocalInstallmentIndex = shouldUseCoursePaymentData
     ? activeStudent.installmentSchedule?.findIndex((item) => Number(item.installmentNumber || item.number) === paymentAgainstNumber) ?? -1
@@ -1020,19 +1046,6 @@ const RecordPayment = ({ student, students = [], onClose, branchProfile = null }
     }));
   };
 
-  // =========================================================
-  // FILE CHANGE
-  // =========================================================
-
-  const handleFileChange = (event) => {
-    const file =
-      event.target.files?.[0] || null;
-
-    setFormData((previous) => ({
-      ...previous,
-      paymentProof: file,
-    }));
-  };
 
   // =========================================================
   // FORM VALIDATION
@@ -1230,16 +1243,6 @@ const RecordPayment = ({ student, students = [], onClose, branchProfile = null }
       );
 
       setPaymentSaved(true);
-
-      console.log(
-        "Payment saved successfully:",
-        {
-          student: activeStudent,
-          ...formData,
-          receiptNumber:
-            savedReceiptNumber,
-        }
-      );
 
       return true;
     } catch (error) {
@@ -2539,35 +2542,6 @@ const RecordPayment = ({ student, students = [], onClose, branchProfile = null }
 
             </div>
 
-            {/* =================================================
-                PAYMENT PROOF
-            ================================================= */}
-
-            <div className="payment-form-group">
-
-              <label htmlFor="paymentProof">
-                Payment Proof
-              </label>
-
-              <div className="payment-file-upload">
-
-                <input
-                  type="file"
-                  id="paymentProof"
-                  onChange={
-                    handleFileChange
-                  }
-                />
-
-                <span>
-                  {formData.paymentProof
-                    ? formData.paymentProof.name
-                    : "Upload payment proof"}
-                </span>
-
-              </div>
-
-            </div>
 
             {/* =================================================
                 FOOTER

@@ -73,8 +73,9 @@ export function getBranchInstallmentTemplateSignature(template = {}) {
   const planType = String(template.planType || template.templateType || 'CUSTOM').trim().toUpperCase()
   const status = String(template.status || 'ACTIVE').trim().toUpperCase()
   const allowCustomization = String(Boolean(template.allowCustomization ?? true))
+  const branchCourseId = normalizeText(template.branchCourseId || template.course?.id)
 
-  return [templateName, installmentCount, planType, status, allowCustomization].join('|')
+  return [branchCourseId, templateName, installmentCount, planType, status, allowCustomization].join('|')
 }
 
 export function normalizeBranchInstallmentTemplate(template) {
