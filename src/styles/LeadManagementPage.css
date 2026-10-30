@@ -1243,3 +1243,12 @@ body:has(.lead-followup-backdrop) .branch-dashboard-app-shell .super-admin-sideb
 .lead-list-tabs{display:flex;gap:22px;margin:0 0 14px;border-bottom:1px solid #dbe4f0}.lead-list-tabs button{padding:11px 3px;border:0;border-bottom:2px solid transparent;background:transparent;color:#64748b;font-family:inherit;font-size:13px;font-weight:600;line-height:1.4;cursor:pointer}.lead-list-tabs button.is-active{border-bottom-color:#2563eb;color:#2563eb}.lead-table-card.is-archived .lead-table{min-width:1100px}.lead-deleted-table td{font-size:12px}.lead-deleted-table td:nth-child(7){font-weight:600;color:#1e3a5f}.lead-deleted-table td:nth-child(9){white-space:nowrap}@media(max-width:700px){.lead-list-tabs{margin-bottom:10px}.lead-list-tabs button{font-size:12px}}
 
 .lead-deleted-row{cursor:pointer}.lead-deleted-row:hover,.lead-deleted-row:focus{background:#f3f7ff;outline:none}
+
+/* Render lead action menus above the horizontally scrolling table viewport. */
+.lead-table .lead-actions-menu{position:fixed!important;top:auto!important;right:auto!important;bottom:auto!important;left:auto!important;z-index:20000!important}
+
+/* Pin the complete actions dropdown above scrollable table clipping. */
+.lead-table tbody tr:nth-last-child(-n + 2) .lead-actions-menu{position:fixed!important;top:auto!important;right:auto!important;bottom:auto!important;left:auto!important}
+.lead-actions-menu{display:none;grid-auto-flow:row;align-content:start;min-height:max-content}
+.lead-actions:hover .lead-actions-menu,.lead-actions.is-open .lead-actions-menu{display:grid!important}
+.lead-actions-menu>button{position:static!important;inset:auto!important;display:block!important;width:100%!important;height:34px!important;min-height:34px!important;margin:0!important;transform:none!important;float:none!important}
