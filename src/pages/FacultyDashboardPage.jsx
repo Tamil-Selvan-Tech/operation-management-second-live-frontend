@@ -781,8 +781,7 @@ function normalizeWorkStudentId(value = '') {
 function getStudentAttendanceKeys(student = {}) {
   const nestedStudent = student?.student && typeof student.student === 'object' ? student.student : {}
   const enrollment = student?.enrollment || student?.courseEnrollment || {}
-
-  return Array.from(new Set([
+  const identityKeys = Array.from(new Set([
     student?.id,
     student?.studentId,
     student?.studentCode,
@@ -794,6 +793,10 @@ function getStudentAttendanceKeys(student = {}) {
     enrollment?.studentCode,
     student?.emailAddress,
   ].map(normalizeWorkStudentId).filter(Boolean)))
+  const courseId = normalizeWorkStudentId(student?.courseId || enrollment?.courseId || nestedStudent?.courseId)
+  const batchId = normalizeWorkStudentId(student?.batchId || enrollment?.batchId || nestedStudent?.batchId)
+  if (!courseId && !batchId) return identityKeys
+  return identityKeys.map((key) => `${key}|${courseId}|${batchId}`)
 }
 
 function getWorkStudentIds(entry = {}) {
@@ -5083,6 +5086,8 @@ export function FacultyDashboardPage() {
     const students = selectedStudents.map((student) => ({
       studentId: getTodayWorkStudentId(student),
       studentName: String(student?.studentName || student?.name || '').trim(),
+      courseId: String(todayWorkCourse?.id || todayWorkCourse?.courseId || '').trim(),
+      batchId: String(selectedStudentsBatch?.batchId || selectedStudentsBatch?.batchEntryId || selectedStudentsBatch?.id || '').trim(),
       status: String(todayWorkForm.attendanceByStudent?.[getTodayWorkStudentId(student)] || '').toUpperCase(),
     }))
     if (students.some((student) => !['PRESENT', 'ABSENT'].includes(student.status))) {
