@@ -549,6 +549,13 @@ function isCourseCompletionComplete(student = {}, courseId = '', courseName = ''
     return (normalizedCourseId && entryCourseId === normalizedCourseId)
       || (normalizedCourseName && entryCourseName === normalizedCourseName)
   })
+  // The backend status is calculated from the enrollment's cycle-scoped
+  // course progress, academic tests, projects, and pending count. Use it as
+  // the authoritative result once the displayed course progress is 100%.
+  const backendCompletion = matchingEnrollments.find((entry) => (
+    String(entry?.courseCompletion || entry?.courseCompletionStatus || '').trim().toUpperCase() === 'COMPLETED'
+  ))
+  if (Number(progress) >= 100 && backendCompletion) return true
   const activeEnrollment = matchingEnrollments.find((entry) => {
     const status = String(entry?.status || entry?.recordStatus || '').trim().toUpperCase()
     const enrollmentProgress = Number(entry?.courseProgress ?? entry?.courseCompletionPercentage ?? entry?.progress)
@@ -558,11 +565,6 @@ function isCourseCompletionComplete(student = {}, courseId = '', courseName = ''
   if (activeEnrollment) {
     const activeProgress = Number(activeEnrollment.courseProgress ?? activeEnrollment.courseCompletionPercentage ?? activeEnrollment.progress)
     if (Number.isFinite(activeProgress) && activeProgress < 100) return false
-    if (activeEnrollment.courseCompletedAt || activeEnrollment.completedAt) return true
-  } else {
-    const completedEnrollment = matchingEnrollments[0]
-    if (completedEnrollment?.courseCompletedAt || completedEnrollment?.completedAt
-      || (normalizedCourseId && String(student?.courseId || '').trim().toLowerCase() === normalizedCourseId && student?.courseCompletedAt)) return true
   }
   return Number(progress) >= 100
     && hasRequiredAcademicResult
@@ -663,6 +665,24 @@ function isCompletedStudentReportRecord(student = {}) {
   // Imported report rows are historical completed records. Keep a student
   // with an active enrollment visible if it also has an older completed course.
   return isDiscontinued || (hasCompletedDate && !hasActiveEnrollment) || hasCompletedLifecycleStatus
+}
+
+function isBatchFreezeActiveForStudent(student = {}, batchGroups = []) {
+  const studentBatchKeys = new Set([
+    student?.batchId,
+    student?.batchEntryId,
+    student?.batchName,
+    ...(Array.isArray(student?.courseEnrollments) ? student.courseEnrollments.flatMap((entry) => [entry?.batchId, entry?.batchName]) : []),
+  ].map((value) => String(value || '').trim().toLowerCase()).filter(Boolean))
+  if (!studentBatchKeys.size) return false
+  const batches = (Array.isArray(batchGroups) ? batchGroups : []).flatMap((group) => Array.isArray(group?.batches) && group.batches.length ? group.batches : [group])
+  return batches.some((batch) => {
+    const batchKeys = [batch?.id, batch?.batchId, batch?.batchName].map((value) => String(value || '').trim().toLowerCase()).filter(Boolean)
+    if (!batchKeys.some((key) => studentBatchKeys.has(key))) return false
+    return String(batch?.currentCycleStatus || '').trim().toUpperCase() === 'COMPLETED'
+      && batch?.freezeUntil
+      && new Date(batch.freezeUntil).getTime() > Date.now()
+  })
 }
 
 function getBranchEntityPrefix(branchCode, entityPrefix) {
@@ -8114,7 +8134,10 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
 
     setIsBranchStudentsLoading(true)
     try {
-      const freshRecords = await refreshBranchStudents(branchStudentScope, { includeProgress: false })
+      // Course Completion is derived from the backend's academic/project
+      // progress snapshot. Do not omit that snapshot on the main Students
+      // table, otherwise a 100% course is rendered as In Progress.
+      const freshRecords = await refreshBranchStudents(branchStudentScope, { includeProgress: true })
       if (requestId === branchStudentReloadRequestRef.current) {
         setBranchStudents(freshRecords)
       }
@@ -10117,7 +10140,7 @@ useEffect(() => {
     if (!isBranchAcademicProgressLoaded) return []
     const q = appliedStudentSearchTerm.trim().toLowerCase()
     return branchStudentsForDisplay
-      .filter((student) => !isCompletedStudentReportRecord(student))
+      .filter((student) => isBatchFreezeActiveForStudent(student, branchBatchGroups) || !isCompletedStudentReportRecord(student))
       .filter((student) => {
         if (!q) return true
         return [student?.studentId, student?.studentName, student?.email, student?.phone]
@@ -10161,7 +10184,7 @@ useEffect(() => {
         const comparison = String(leftValue).localeCompare(String(rightValue), undefined, { numeric: true, sensitivity: 'base' })
         return studentSortOrder === 'asc' ? comparison : -comparison
       })
-  }, [appliedStudentSearchTerm, branchStudentsForDisplay, courseCompletedStudentKeys, isBranchAcademicProgressLoaded, isCourseCompletedFilter, studentCourseFilter, studentSortBy, studentSortOrder, studentStatusFilter])
+  }, [appliedStudentSearchTerm, branchBatchGroups, branchStudentsForDisplay, courseCompletedStudentKeys, isBranchAcademicProgressLoaded, isCourseCompletedFilter, studentCourseFilter, studentSortBy, studentSortOrder, studentStatusFilter])
 
   const totalStudentPages = isCourseCompletedFilter
     ? 1
@@ -10365,7 +10388,7 @@ useEffect(() => {
         courseProgress: entry?.courseProgress ?? entry?.courseCompletionPercentage ?? entry?.progress ?? student?.courseProgress,
       }))
     })
-  }, [branchAcademicProgressByStudent, branchCourseCards, branchStudentsForDisplay, facultyTodayWorkEntries, isBranchAcademicProgressLoaded])
+  }, [branchAcademicProgressByStudent, branchBatchGroups, branchCourseCards, branchStudentsForDisplay, facultyTodayWorkEntries, isBranchAcademicProgressLoaded])
 
   const branchStudentProgressByNotificationKey = useMemo(() => {
     const progressByStudentKey = new Map()
@@ -13099,7 +13122,8 @@ else {
             && isCourseCompletionComplete(stu, stu.courseId, stu.courseName || stu.courseInterested, studentCourseProgress, branchAcademicProgressByStudent, effectiveCourse)
             
           if (isCourseCompletedFilter && !singleCourseCompleted) return null
-          if (!isCourseCompletedFilter && (isStudentDiscontinued || singleCourseCompleted || isCompletedStudentReportRecord(stu))) return null
+          const batchFreezeActive = isBatchFreezeActiveForStudent(stu, branchBatchGroups)
+          if (!isCourseCompletedFilter && !batchFreezeActive && (isStudentDiscontinued || singleCourseCompleted || isCompletedStudentReportRecord(stu))) return null
 
           return (
             <tr
