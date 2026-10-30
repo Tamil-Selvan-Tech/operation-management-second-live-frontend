@@ -2468,6 +2468,8 @@ export function FacultyDashboardPage() {
   const [pendingTodayWorkSubmission, setPendingTodayWorkSubmission] = useState(null)
   const [attendanceSavedPrompt, setAttendanceSavedPrompt] = useState(null)
   const [attendanceWarningPopup, setAttendanceWarningPopup] = useState(null)
+  const [batchCompletionPopup, setBatchCompletionPopup] = useState(null)
+  const batchCompletionNoticeKeyRef = useRef('')
   const attendanceWarningLevelRef = useRef(0)
   const [todayWorkAttendanceSearch, setTodayWorkAttendanceSearch] = useState('')
   const [attendanceClock, setAttendanceClock] = useState(() => new Date())
@@ -3849,12 +3851,19 @@ export function FacultyDashboardPage() {
             ? row.projects
             : (row?.project ? [row.project] : [])
           const completedTests = tests.filter((test) => {
-            const status = String(test?.final?.status || '').toUpperCase()
+            const statusRows = [
+              test?.final,
+              ...(Array.isArray(test?.attempts) ? test.attempts : []),
+              ...(Array.isArray(test?.retestAttempts) ? test.retestAttempts : []),
+            ]
             const projectCompleted = projects.some((project) => (
               Number(project?.testNumber) === Number(test?.testNumber) &&
               project?.marksAwarded != null
             ))
-            return ['SUBMITTED', 'EVALUATED'].includes(status) && (test?.testType !== 'TEST_AND_PROJECT' || projectCompleted)
+            const testCompleted = statusRows.some((item) => (
+              ['SUBMITTED', 'EVALUATED'].includes(String(item?.status || '').toUpperCase())
+            ))
+            return testCompleted && (test?.testType !== 'TEST_AND_PROJECT' || projectCompleted)
           }).length
           const standaloneProjectCount = projects.filter((project) => (
             project?.marksAwarded != null &&
@@ -3925,6 +3934,48 @@ export function FacultyDashboardPage() {
     return selectedStudentsCourseBatches.find((batch) => getFacultyFlowBatchKey(batch) === normalizedBatchId) || null
   }, [selectedStudentsBatchId, selectedStudentsCourseBatches])
 
+  const selectedStudentsBatchProgress = useMemo(() => {
+    if (!selectedStudentsBatch) return null
+    const batchKey = getFacultyFlowBatchKey(selectedStudentsBatch)
+    return facultyAcademicBatchProgress.get(batchKey) ||
+      facultyAcademicBatchProgress.get(normalizeWorkStudentId(batchKey)) ||
+      null
+  }, [facultyAcademicBatchProgress, selectedStudentsBatch])
+
+  const selectedStudentsBatchCycleStatus = String(selectedStudentsBatch?.currentCycleStatus || '').toUpperCase()
+  const selectedStudentsBatchHasActiveCycle = ['ACTIVE', 'PLANNED'].includes(selectedStudentsBatchCycleStatus)
+  const selectedStudentsBatchCompleted = Boolean(selectedStudentsBatch) && !selectedStudentsBatchHasActiveCycle && (
+    String(selectedStudentsBatch?.completionStatus || '').toUpperCase() === 'COMPLETED' ||
+    selectedStudentsBatchCycleStatus === 'COMPLETED' ||
+    (Number(selectedStudentsBatchProgress?.total || 0) > 0 &&
+      Number(selectedStudentsBatchProgress?.completed || 0) >= Number(selectedStudentsBatchProgress.total))
+  )
+
+  useEffect(() => {
+    if (!selectedStudentsBatch || !selectedStudentsBatchCompleted) {
+      setBatchCompletionPopup(null)
+      return
+    }
+
+    const batchKey = getFacultyFlowBatchKey(selectedStudentsBatch)
+    const cycleKey = String(
+      selectedStudentsBatch?.currentCycleId ||
+      selectedStudentsBatch?.activeCycleId ||
+      selectedStudentsBatch?.currentCycleNumber ||
+      selectedStudentsBatch?.currentCycleName ||
+      selectedStudentsBatch?.currentCycleStatus ||
+      'completed',
+    ).trim()
+    const noticeKey = `${batchKey}:${cycleKey}`
+
+    if (batchCompletionNoticeKeyRef.current === noticeKey) return
+
+    batchCompletionNoticeKeyRef.current = noticeKey
+    setBatchCompletionPopup({
+      batchName: selectedStudentsBatch?.batchName || selectedStudentsBatch?.code || 'This batch',
+    })
+  }, [selectedStudentsBatch, selectedStudentsBatchCompleted])
+
   useEffect(() => {
     const batchId = String(selectedStudentsBatch?.id || selectedStudentsBatch?.batchId || '').trim()
     if (!batchId) {
@@ -3961,13 +4012,28 @@ export function FacultyDashboardPage() {
             .filter(Boolean)
           if (!studentKeys.length) return
           const tests = Array.isArray(row?.tests) ? row.tests : []
-          const projectCompleted = row?.project?.marksAwarded != null
+          const projects = Array.isArray(row?.projects)
+            ? row.projects
+            : (row?.project ? [row.project] : [])
           const completedTests = tests.filter((test) => {
-            const status = String(test?.final?.status || '').toUpperCase()
-            const testCompleted = ['SUBMITTED', 'EVALUATED'].includes(status)
+            const statusRows = [
+              test?.final,
+              ...(Array.isArray(test?.attempts) ? test.attempts : []),
+              ...(Array.isArray(test?.retestAttempts) ? test.retestAttempts : []),
+            ]
+            const testCompleted = statusRows.some((item) => (
+              ['SUBMITTED', 'EVALUATED'].includes(String(item?.status || '').toUpperCase())
+            ))
+            const projectCompleted = projects.some((project) => (
+              Number(project?.testNumber) === Number(test?.testNumber) &&
+              project?.marksAwarded != null
+            ))
             return testCompleted && (test?.testType !== 'TEST_AND_PROJECT' || projectCompleted)
           }).length
-          const standaloneProjectCompleted = projectCompleted && !tests.some((test) => test?.testType === 'TEST_AND_PROJECT')
+          const standaloneProjectCompleted = projects.some((project) => (
+            project?.marksAwarded != null &&
+            !tests.some((test) => Number(test?.testNumber) === Number(project?.testNumber) && test?.testType === 'TEST_AND_PROJECT')
+          ))
           studentKeys.forEach((key) => progressByStudent.set(key, {
             completedEvaluations: completedTests + (standaloneProjectCompleted ? 1 : 0),
           }))
@@ -6862,6 +6928,11 @@ const nextName = trimmedValue
                         <BookOpen size={16} />
                         <span>Attendance</span>
                       </button>
+                      {selectedStudentsBatchCompleted ? (
+                        <span className="faculty-batch-completed-label" role="status">
+                          Batch Completed
+                        </span>
+                      ) : null}
                       <button
                         type="button"
                         className={`faculty-today-work-trigger faculty-today-work-trigger--progress ${facultyWeekOffStatus.isWeekOff ? 'is-read-only' : ''}`.trim()}
@@ -8455,6 +8526,33 @@ const nextName = trimmedValue
               onClick={() => setAttendanceWarningPopup(null)}
             >
               <X size={18} strokeWidth={2.4} />
+            </button>
+          </div>
+        </div>
+      ) : null}
+
+      {batchCompletionPopup ? (
+        <div className="faculty-batch-completion-backdrop" role="presentation">
+          <div
+            className="faculty-batch-completion-popup"
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="faculty-batch-completion-title"
+          >
+            <div className="faculty-batch-completion-icon" aria-hidden="true">
+              <CheckCircle2 size={28} strokeWidth={2.4} />
+            </div>
+            <div className="faculty-batch-completion-copy">
+              <span className="faculty-batch-completion-kicker">Batch Completed</span>
+              <h3 id="faculty-batch-completion-title">{batchCompletionPopup.batchName}</h3>
+              <p>All students have moved to Completed Student Records.</p>
+            </div>
+            <button
+              type="button"
+              className="faculty-batch-completion-button"
+              onClick={() => setBatchCompletionPopup(null)}
+            >
+              OK
             </button>
           </div>
         </div>
