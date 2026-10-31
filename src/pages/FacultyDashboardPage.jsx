@@ -1785,7 +1785,50 @@ function normalizeFacultyNotification(notification = {}) {
     recipientLabel: String(source.recipientLabel || '').trim(),
     requestReason: String(source.requestReason || '').trim(),
     facultySkillAssignmentId: String(source.facultySkillAssignmentId || '').trim(),
+    studentStatus: String(source.studentStatus || source.studentLifecycle || '').trim(),
+    targetSection: String(source.targetSection || '').trim(),
+    actionUrl: String(source.actionUrl || source.targetUrl || source.redirectTo || '').trim(),
   }
+}
+
+function normalizeFacultyStudentView(value = '') {
+  const normalized = String(value || '').trim().toLowerCase()
+  if (normalized === 'active' || normalized === 'active-students') return 'active'
+  if (['completed', 'records', 'completed-students', 'course-completion', 'course-completion-students'].includes(normalized)) return 'records'
+  if (['discontinued', 'discontinued-students'].includes(normalized)) return 'discontinued'
+  return ''
+}
+
+function getFacultyNotificationStudentView(notification = {}) {
+  const explicitRoute = String(notification.actionUrl || '').trim()
+  if (explicitRoute) {
+    try {
+      const parsed = new URL(explicitRoute, window.location.origin)
+      if (parsed.pathname === '/dashboard/faculty/students') {
+        const explicitView = normalizeFacultyStudentView(parsed.searchParams.get('view'))
+        if (explicitView) return explicitView
+      }
+    } catch {
+      // Ignore malformed notification URLs and fall back to the notification text.
+    }
+  }
+
+  const explicitView = normalizeFacultyStudentView(
+    notification.targetSection || notification.studentStatus || notification.statusKey || notification.statusLabel,
+  )
+  if (explicitView) return explicitView
+
+  const searchableText = [
+    notification.kind,
+    notification.title,
+    notification.actionLabel,
+    notification.message,
+  ].join(' ').toLowerCase()
+
+  if (/(course\s+completion|completed\s+student|completed\s+students|student\s+completed)/i.test(searchableText)) return 'records'
+  if (/(active\s+student|active\s+students|student\s+activated)/i.test(searchableText)) return 'active'
+  if (/(discontinued\s+student|discontinued\s+students|student\s+discontinued)/i.test(searchableText)) return 'discontinued'
+  return ''
 }
 
 function groupFacultyNotifications(notifications = []) {
@@ -2312,6 +2355,7 @@ export function FacultyDashboardPage() {
   const isAcademicTestListRoute = location.pathname.replace(/\/+$/, '') === '/dashboard/faculty/exams/academic-tests' && new URLSearchParams(location.search).get('view') === 'list'
   const isAcademicCreateRoute = isAcademicTestRoute && new URLSearchParams(location.search).get('create') === '1'
   const isStudentExamReportRoute = /^\/dashboard\/faculty\/exams\/reports\/[^/]+\/[^/]+$/.test(location.pathname)
+  const requestedStudentView = normalizeFacultyStudentView(new URLSearchParams(location.search).get('view'))
   const facultyRouteSection = location.pathname === '/dashboard/faculty/dashboard' ? 'dashboard' : location.pathname === '/dashboard/faculty/courses' ? 'my-courses' : ['/dashboard/faculty/batches', '/dashboard/faculty/my-batches'].includes(location.pathname) ? 'my-batches' : location.pathname === '/dashboard/faculty/calendar' ? 'my-calendar' : location.pathname === '/dashboard/faculty/students' ? 'students' : location.pathname === '/dashboard/faculty/leave-requests' ? 'leave-requests' : location.pathname === '/dashboard/faculty/notifications' ? 'notifications' : location.pathname.startsWith('/dashboard/faculty/skill-development') ? 'skill-development' : location.pathname === '/dashboard/faculty/profile' ? 'profile' : isExamsRoute || isAssessmentsRoute || isExamReportsRoute || isAcademicTestRoute ? 'exams' : ''
   const userRole = String(user?.role || '').trim().toLowerCase()
   const [activeSection, setActiveSection] = useState(facultyRouteSection || 'dashboard')
@@ -2336,7 +2380,8 @@ export function FacultyDashboardPage() {
 
   useEffect(() => {
     if (facultyRouteSection) setActiveSection(facultyRouteSection)
-  }, [facultyRouteSection])
+    if (facultyRouteSection === 'students' && requestedStudentView) setStudentsViewMode(requestedStudentView)
+  }, [facultyRouteSection, requestedStudentView])
 
   useEffect(() => {
     let active = true
@@ -2436,7 +2481,7 @@ export function FacultyDashboardPage() {
   const [batchPage, setBatchPage] = useState(1)
   const [facultyBatchWeekTypeFilter, setFacultyBatchWeekTypeFilter] = useState('all')
   const [studentsPage, setStudentsPage] = useState(1)
-  const [studentsViewMode, setStudentsViewMode] = useState('active')
+  const [studentsViewMode, setStudentsViewMode] = useState(() => requestedStudentView || 'active')
   const [studentRecordsSearch, setStudentRecordsSearch] = useState('')
   const [studentRecordsPage, setStudentRecordsPage] = useState(1)
   const [academicTestModalStudent, setAcademicTestModalStudent] = useState(null)
@@ -6063,6 +6108,36 @@ const nextName = trimmedValue
     setActiveSection(section)
   }
 
+  const navigateToFacultyStudentView = (view) => {
+    const normalizedView = normalizeFacultyStudentView(view)
+    if (!normalizedView) return false
+    setDismissedSidebarGroup('students')
+    setActiveSection('students')
+    setStudentsViewMode(normalizedView)
+    setSelectedStudentsCourseId('')
+    setSelectedStudentsBatchId('')
+    setExpandedSidebarGroups((current) => ({ ...current, students: true }))
+    navigate(`/dashboard/faculty/students?view=${encodeURIComponent(normalizedView)}`)
+    return true
+  }
+
+  const openFacultyNotificationDestination = (notification) => {
+    const studentView = getFacultyNotificationStudentView(notification)
+    if (studentView) {
+      navigateToFacultyStudentView(studentView)
+      return true
+    }
+    if (notification?.facultySkillAssignmentId) {
+      navigate('/dashboard/faculty/skill-development')
+      return true
+    }
+    if (notification?.kind === 'FACULTY_REPORT_SHARED' && notification?.academicTestId) {
+      navigate('/dashboard/faculty/exams/academic-tests')
+      return true
+    }
+    return false
+  }
+
   useEffect(() => {
     try { window.localStorage.setItem('cispro.faculty-sidebar-collapsed', String(isSidebarCollapsed)) } catch { /* ignore storage failures */ }
   }, [isSidebarCollapsed])
@@ -6130,12 +6205,7 @@ const nextName = trimmedValue
                         type="button"
                         className={`super-admin-sidebar-subitem ${studentsViewMode === entry.id ? 'is-active' : ''}`.trim()}
                         onClick={() => {
-                          setDismissedSidebarGroup('students')
-                          handleSidebarSectionChange('students')
-                          setStudentsViewMode(entry.id)
-                          setSelectedStudentsCourseId('')
-                          setSelectedStudentsBatchId('')
-                          setExpandedSidebarGroups((current) => ({ ...current, students: true }))
+                          navigateToFacultyStudentView(entry.id)
                         }}
                       >
                         <span className="super-admin-sidebar-subitem-icon" aria-hidden="true"><ChildIcon size={15} strokeWidth={2.1} /></span>
@@ -6348,11 +6418,7 @@ const nextName = trimmedValue
             className="notification-card is-unread"
             onClick={async () => {
               setNotificationOpen(false)
-              if (notification.facultySkillAssignmentId) {
-                navigate('/dashboard/faculty/skill-development')
-              } else if (notification.kind === 'FACULTY_REPORT_SHARED' && notification.academicTestId) {
-                navigate('/dashboard/faculty/exams/academic-tests')
-              } else {
+              if (!openFacultyNotificationDestination(notification)) {
                 setActiveSection('notifications')
               }
               try {
@@ -7977,11 +8043,7 @@ const nextName = trimmedValue
                           label={group.label}
                           items={group.items}
                           onViewNotification={async (notification) => {
-                            if (notification.facultySkillAssignmentId) {
-                              navigate('/dashboard/faculty/skill-development')
-                            } else if (notification.kind === 'FACULTY_REPORT_SHARED' && notification.academicTestId) {
-                              navigate('/dashboard/faculty/exams/academic-tests')
-                            }
+                            openFacultyNotificationDestination(notification)
                             if (!notification.read) {
                               try {
                                 if (isFacultyProgressNotification(notification)) {

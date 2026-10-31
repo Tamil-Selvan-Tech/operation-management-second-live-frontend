@@ -2397,6 +2397,10 @@ const RecordPayment = ({ student, students = [], onClose, branchProfile = null, 
                   Cheque
                 </option>
 
+                <option value="Other">
+                  Other
+                </option>
+
               </select>
 
               {errors.paymentMode && (
