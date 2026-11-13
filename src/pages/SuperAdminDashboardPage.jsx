@@ -3681,10 +3681,10 @@ const filteredBranches = useMemo(() => {
             </p>
 
             <div className="branch-delete-actions">
-              <button type="button" className="branch-delete-cancel" onClick={closeDeleteConfirm}>
+              <button type="button" className="branch-delete-cancel branch-account-delete-cancel" style={{ width: '120px', minWidth: '120px', maxWidth: '120px', height: '38px', minHeight: '38px', maxHeight: '38px', boxSizing: 'border-box' }} onClick={closeDeleteConfirm}>
                 Cancel
               </button>
-              <button type="button" className="branch-delete-danger" onClick={handleDeleteBranch} disabled={isDeleting}>
+              <button type="button" className="branch-delete-danger branch-account-delete-button" style={{ width: '120px', minWidth: '120px', maxWidth: '120px', height: '38px', minHeight: '38px', maxHeight: '38px', boxSizing: 'border-box' }} onClick={handleDeleteBranch} disabled={isDeleting}>
                 {isDeleting ? 'Deleting...' : 'Delete'}
               </button>
             </div>

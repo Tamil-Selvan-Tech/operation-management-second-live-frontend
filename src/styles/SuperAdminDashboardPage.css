@@ -4252,6 +4252,13 @@ body.super-admin-notification-menu-open .super-admin-content {
   color: #fff;
 }
 
+.branch-account-delete-cancel,
+.branch-account-delete-button {
+  width: 120px;
+  height: 38px;
+  box-sizing: border-box;
+}
+
 .branch-resend-modal .branch-delete-danger {
   border-color: #2563eb;
   background: linear-gradient(180deg, #3b82f6 0%, #2563eb 100%);
