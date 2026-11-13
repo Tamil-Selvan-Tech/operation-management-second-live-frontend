@@ -2396,6 +2396,10 @@ export function FacultyDashboardPage() {
   const [dismissedSidebarGroup, setDismissedSidebarGroup] = useState('')
   const [hasTemporaryAssignments, setHasTemporaryAssignments] = useState(false)
   const [showPreviousAttendance, setShowPreviousAttendance] = useState(false)
+
+  useEffect(() => {
+    if (activeSection !== 'students') setShowPreviousAttendance(false)
+  }, [activeSection])
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false)
   const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false)
   const [facultyWorkLogStatus, setFacultyWorkLogStatus] = useState(null)
@@ -7165,7 +7169,7 @@ const nextName = trimmedValue
                 />
               ) : null}
 
-              {activeSection === 'students' && !isStudentCalendarRoute ? (
+              {activeSection === 'students' && !isStudentCalendarRoute && !showPreviousAttendance ? (
                 <FacultyDashboardSection
                   title={facultyViewLabel}
                   actions={(
@@ -7901,7 +7905,21 @@ const nextName = trimmedValue
                 </FacultyDashboardSection>
               ) : null}
 
-              {activeSection === 'students' && !isStudentCalendarRoute && showPreviousAttendance ? <FacultyPreviousAttendance /> : null}
+              {activeSection === 'students' && !isStudentCalendarRoute && showPreviousAttendance ? (
+                <div className="faculty-previous-attendance-page">
+                  <div className="faculty-previous-attendance-page-header">
+                    <button
+                      type="button"
+                      className="faculty-today-work-trigger"
+                      onClick={() => setShowPreviousAttendance(false)}
+                    >
+                      <ChevronLeft size={16} />
+                      <span>Back to Students</span>
+                    </button>
+                  </div>
+                  <FacultyPreviousAttendance />
+                </div>
+              ) : null}
 
               {viewStudentDrawer ? (
                 <div className="student-drawer-backdrop">

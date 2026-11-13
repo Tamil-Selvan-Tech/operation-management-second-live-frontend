@@ -6973,3 +6973,13 @@ body.faculty-notification-menu-open .super-admin-content {
     justify-self: start;
   }
 }
+.faculty-previous-attendance-page {
+  display: grid;
+  gap: 14px;
+}
+
+.faculty-previous-attendance-page-header {
+  display: flex;
+  align-items: center;
+}
+

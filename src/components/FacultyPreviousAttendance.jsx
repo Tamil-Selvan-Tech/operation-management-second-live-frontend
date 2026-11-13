@@ -23,6 +23,23 @@ function formatDate(value) {
   const date = new Date(`${String(value).slice(0, 10)}T00:00:00`)
   return Number.isNaN(date.getTime()) ? value : date.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
 }
+function formatTime(value) {
+  const source = String(value || '').trim()
+  const match = source.match(/^(\d{1,2}):(\d{2})(?:\s*(AM|PM))?$/i)
+  if (!match) return source || '-'
+  let hour = Number(match[1])
+  const minute = match[2]
+  const period = match[3]?.toUpperCase()
+  if (period) return `${String(hour).padStart(2, '0')}:${minute} ${period}`
+  const meridiem = hour >= 12 ? 'PM' : 'AM'
+  hour = hour % 12 || 12
+  return `${String(hour).padStart(2, '0')}:${minute} ${meridiem}`
+}
+function formatTiming(value) {
+  const source = String(value || '').trim()
+  const parts = source.split(/\s*(?:-|–|—)\s*/)
+  return parts.length === 2 ? `${formatTime(parts[0])} - ${formatTime(parts[1])}` : formatTime(source)
+}
 function unwrapRows(payload) {
   const source = payload?.history || payload?.sessions || payload?.rows || payload?.data || payload
   return Array.isArray(source) ? source : []
@@ -35,7 +52,7 @@ function normalizeRow(row = {}) {
     attendanceDate: String(row.attendanceDate || row.date || '').slice(0, 10),
     batchName: row.batchName || row.batch?.batchName || '-',
     courseName: row.courseName || row.course?.name || '-',
-    batchTiming: row.batchTiming || row.timing || '-',
+    batchTiming: formatTiming(row.batchTiming || row.timing || '-'),
     originalFacultyName: row.originalFacultyName || row.originalFaculty || '-',
     handledBy: row.handledBy || row.actualFacultyName || row.facultyName || row.originalFacultyName || '-',
     sessionStatus: SESSION_STATUSES.has(status) ? status : 'MISSING',
