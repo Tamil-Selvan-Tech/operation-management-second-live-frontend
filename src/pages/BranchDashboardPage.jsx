@@ -19,6 +19,7 @@ import {
   Layers3,
   LogOut,
   Loader2,
+  Mail,
   MoreVertical,
   RefreshCcw,
   Shield,
@@ -4887,6 +4888,7 @@ const BRANCH_PAYMENT_HISTORY_PER_PAGE = 5
   const [discontinuationFollowUpDate, setDiscontinuationFollowUpDate] = useState('')
   const [isDiscontinuationReviewSaving, setIsDiscontinuationReviewSaving] = useState(false)
   const [branchNotificationRecords, setBranchNotificationRecords] = useState([])
+  const [isBranchNotificationsLoading, setIsBranchNotificationsLoading] = useState(true)
   const [branchNotificationSearch, setBranchNotificationSearch] = useState('')
   const [branchNotificationDatePreset, setBranchNotificationDatePreset] = useState('all')
   const [branchNotificationFromDate, setBranchNotificationFromDate] = useState('')
@@ -5190,6 +5192,7 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
       }
 
       const requestPromise = (async () => {
+        setIsBranchNotificationsLoading(true)
         const controller = new AbortController()
         const timeoutId = window.setTimeout(() => controller.abort(), BRANCH_NOTIFICATIONS_TIMEOUT_MS)
         try {
@@ -5301,6 +5304,7 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
         } finally {
           window.clearTimeout(timeoutId)
           branchNotificationsRequestRef.current = null
+          setIsBranchNotificationsLoading(false)
         }
       })()
 
@@ -11997,6 +12001,7 @@ useEffect(() => {
               <AvatarBadge />
               <div className="super-admin-profile-copy">
                 <strong>{branchAdminDisplay}</strong>
+                <span>{branchEmail}</span>
               </div>
               <ChevronDown size={16} strokeWidth={2.2} className="branch-dashboard-profile-caret" aria-hidden="true" />
             </button>
@@ -12611,7 +12616,21 @@ useEffect(() => {
                   </div>
 
                   <div className="notifications-feed">
-                    {paginatedBranchNotificationSections.length ? (
+                    {isBranchNotificationsLoading ? (
+                      <div className="branch-notification-page-skeleton" role="status" aria-label="Loading notifications">
+                        {Array.from({ length: 5 }, (_, index) => (
+                          <div className="branch-notification-page-skeleton-card" key={`notification-loading-${index}`} aria-hidden="true">
+                            <span className="branch-notification-skeleton-icon" />
+                            <span className="branch-notification-skeleton-copy">
+                              <i className="branch-notification-skeleton-line title" />
+                              <i className="branch-notification-skeleton-line body" />
+                              <i className="branch-notification-skeleton-line time" />
+                            </span>
+                            <span className="branch-notification-skeleton-line time" />
+                          </div>
+                        ))}
+                      </div>
+                    ) : paginatedBranchNotificationSections.length ? (
                       paginatedBranchNotificationSections.map((section) => (
                         <BranchNotificationGroup
                           key={section.label}
@@ -13828,7 +13847,11 @@ if (paidProgress >= 100) {
                     </div>
                   </div>
                   <div className="branch-course-table-shell branch-courses-table-shell">
-                    <table className={`branch-course-table ${visibleBranchCourses.length ? '' : 'is-empty'}`.trim()}>
+                    <table
+                      className={`branch-course-table ${visibleBranchCourses.length ? '' : 'is-empty'} ${isBranchCoursesLoading ? 'is-loading' : ''}`.trim()}
+                      aria-busy={isBranchCoursesLoading}
+                      aria-label={isBranchCoursesLoading ? 'Loading courses' : 'Courses'}
+                    >
                       <thead>
                         <tr>
                           <th>S.No</th>

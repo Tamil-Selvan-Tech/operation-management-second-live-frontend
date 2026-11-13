@@ -25,7 +25,7 @@
 .leave-stat-card.is-loading .leave-stat-icon { opacity: .72; }
 .institute-skeleton { display: block; border-radius: 6px; background: linear-gradient(90deg, #e8eef7 25%, #f8fbff 50%, #e8eef7 75%); background-size: 200% 100%; animation: institute-skeleton-shimmer 1.35s ease-in-out infinite; }
 .institute-stat-skeleton-value { width: 46px; height: 30px; border-radius: 7px; }
-.institute-leave-skeleton-row td { height: 54px; }
+.institute-leave-skeleton-row td { height: 62px; }
 .institute-cell-skeleton { height: 13px; }
 .institute-cell-skeleton.short { width: 24px; }
 .institute-cell-skeleton.date { width: 88px; }
@@ -33,7 +33,7 @@
 .institute-cell-skeleton.status { width: 68px; }
 .institute-cell-skeleton.count { width: 22px; }
 .institute-cell-skeleton.action { width: 36px; height: 36px; border-radius: 9px; }
-.institute-faculty-cell-skeleton { width: 78%; height: 13px; }
+.institute-faculty-cell-skeleton { width: 78%; height: 14px; border-radius: 999px; }
 .institute-faculty-cell-skeleton.cell-0,
 .institute-faculty-cell-skeleton.cell-7 { width: 24px; }
 .institute-faculty-cell-skeleton.cell-1 { width: 116px; }
