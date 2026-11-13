@@ -73,6 +73,7 @@ import {
 } from '../services/facultyNotificationService'
 import { useMobileMenu } from '../layouts/mobileMenuContext'
 import { FacultyAttendanceFlow } from '../components/FacultyAttendanceFlow'
+import { FacultyPreviousAttendance } from '../components/FacultyPreviousAttendance'
 import { BranchAttendanceInsights } from '../components/BranchAttendanceInsights'
 import { StudentAttendanceReportModal } from '../components/StudentAttendanceReportModal'
 import { StudentCalendarPage } from './StudentCalendarPage'
@@ -2394,6 +2395,7 @@ export function FacultyDashboardPage() {
   })
   const [dismissedSidebarGroup, setDismissedSidebarGroup] = useState('')
   const [hasTemporaryAssignments, setHasTemporaryAssignments] = useState(false)
+  const [showPreviousAttendance, setShowPreviousAttendance] = useState(false)
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false)
   const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false)
   const [facultyWorkLogStatus, setFacultyWorkLogStatus] = useState(null)
@@ -7186,6 +7188,15 @@ const nextName = trimmedValue
                         <BookOpen size={16} />
                         <span>Today's Work</span>
                       </button>
+                      <button
+                        type="button"
+                        className={`faculty-today-work-trigger faculty-previous-attendance-trigger ${showPreviousAttendance ? 'is-active' : ''}`.trim()}
+                        onClick={() => setShowPreviousAttendance((current) => !current)}
+                        title="Open Previous Attendance"
+                      >
+                        <CalendarDays size={16} />
+                        <span>Previous Attendance</span>
+                      </button>
                         </>
                       ) : null}
                     </div>
@@ -7881,6 +7892,8 @@ const nextName = trimmedValue
                   )}
                 </FacultyDashboardSection>
               ) : null}
+
+              {activeSection === 'students' && !isStudentCalendarRoute && showPreviousAttendance ? <FacultyPreviousAttendance /> : null}
 
               {viewStudentDrawer ? (
                 <div className="student-drawer-backdrop">
