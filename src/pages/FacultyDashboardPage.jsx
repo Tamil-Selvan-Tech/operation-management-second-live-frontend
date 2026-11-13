@@ -5206,9 +5206,17 @@ export function FacultyDashboardPage() {
       lateReason: attendanceLateReason.trim(),
     }))
     if (attendanceAction === 'late') {
-      students.forEach((student) => { student.status = 'LATE' })
-      if (!attendanceLateReason.trim()) {
+      // Late mode applies only to students marked Present. An Absent choice
+      // must remain ABSENT instead of being converted to LATE/PRESENT.
+      students.forEach((student) => {
+        if (student.status === 'PRESENT') student.status = 'LATE'
+      })
+      if (students.some((student) => student.status === 'LATE') && !attendanceLateReason.trim()) {
         setTodayWorkError('Late reason is required.')
+        return
+      }
+      if (students.some((student) => !['ABSENT', 'LATE'].includes(student.status))) {
+        setTodayWorkError('Choose Present or Absent for every selected student.')
         return
       }
     } else if (attendanceAction === 'edit') {
