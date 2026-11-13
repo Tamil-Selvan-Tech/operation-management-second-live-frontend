@@ -9,6 +9,11 @@ import '../styles/FacultyExamCourseGate.css'
  * Keeps the faculty exam pages consistent: course first, batches second,
  * and only then the page-specific exam workspace.
  */
+
+function FacultyExamRowsSkeleton({ columns = 5, rows = 5 }) {
+  return <>{Array.from({ length: rows }, (_, rowIndex) => <tr key={rowIndex} className="faculty-exam-course-skeleton-row" aria-hidden="true">{Array.from({ length: columns }, (_, columnIndex) => <td key={columnIndex}><span className={'faculty-exam-course-skeleton-line ' + (columnIndex === 1 ? 'is-wide' : '')} /></td>)}</tr>)}</>
+}
+
 export default function FacultyExamCourseGate({ title = 'Exams and Result', children }) {
   const isAcademicReport = title === 'Academic Test Report'
   const [courses, setCourses] = useState([])
@@ -120,7 +125,7 @@ export default function FacultyExamCourseGate({ title = 'Exams and Result', chil
       {error && <div className="faculty-exam-course-error">{error}</div>}
       <div className="faculty-exam-course-card">
         <table><thead><tr><th>S.No</th><th>Batch Name</th><th>Batch ID</th><th>Timing</th><th>Actions</th></tr></thead>
-          <tbody>{batchLoading ? <tr><td colSpan="5">Loading batches...</td></tr> : batches.length ? batches.map((batch, index) => <tr key={batch.id || batch.batchId || index}><td>{index + 1}</td><td><strong>{batch.batchName || batch.name || '-'}</strong></td><td>{batch.batchId || batch.id || '-'}</td><td>{batch.batchTiming || ([batch.startTime, batch.endTime].filter(Boolean).join(' - ') || '-')}</td><td><button type="button" className="faculty-exam-course-open" onClick={() => setOpenedBatch({ course: selectedCourse, batch })}>Open {title}<ChevronRight size={15} /></button></td></tr>) : <tr><td colSpan="5">No batches assigned to this course.</td></tr>}</tbody>
+          <tbody>{batchLoading ? <FacultyExamRowsSkeleton columns={5} rows={5} /> : batches.length ? batches.map((batch, index) => <tr key={batch.id || batch.batchId || index}><td>{index + 1}</td><td><strong>{batch.batchName || batch.name || '-'}</strong></td><td>{batch.batchId || batch.id || '-'}</td><td>{batch.batchTiming || ([batch.startTime, batch.endTime].filter(Boolean).join(' - ') || '-')}</td><td><button type="button" className="faculty-exam-course-open" onClick={() => setOpenedBatch({ course: selectedCourse, batch })}>Open {title}<ChevronRight size={15} /></button></td></tr>) : <tr><td colSpan="5">No batches assigned to this course.</td></tr>}</tbody>
         </table>
       </div>
     </div>
@@ -131,7 +136,7 @@ export default function FacultyExamCourseGate({ title = 'Exams and Result', chil
     {error && <div className="faculty-exam-course-error">{error}</div>}
     <div className="faculty-exam-course-card">
       <table><thead><tr><th>S.No</th><th>Course Code</th><th>Course Name</th><th>Total Batches</th><th>Actions</th></tr></thead>
-        <tbody>{loading ? <tr><td colSpan="5">Loading assigned courses...</td></tr> : courses.length ? courses.map((course, index) => <tr key={course.id || course.courseCode || index}><td>{index + 1}</td><td><strong>{course.courseCode || course.id || '-'}</strong></td><td>{course.name || course.courseName || '-'}</td><td>{course.totalBatches ?? course.batchCount ?? courseBatchCounts[course.id] ?? 0}</td><td><button type="button" className="faculty-exam-course-open" onClick={() => openBatches(course)}>View Batches <ChevronRight size={15} /></button></td></tr>) : <tr><td colSpan="5">No assigned courses found.</td></tr>}</tbody>
+        <tbody>{loading ? <FacultyExamRowsSkeleton columns={5} rows={5} /> : courses.length ? courses.map((course, index) => <tr key={course.id || course.courseCode || index}><td>{index + 1}</td><td><strong>{course.courseCode || course.id || '-'}</strong></td><td>{course.name || course.courseName || '-'}</td><td>{course.totalBatches ?? course.batchCount ?? courseBatchCounts[course.id] ?? 0}</td><td><button type="button" className="faculty-exam-course-open" onClick={() => openBatches(course)}>View Batches <ChevronRight size={15} /></button></td></tr>) : <tr><td colSpan="5">No assigned courses found.</td></tr>}</tbody>
       </table>
     </div>
   </div>

@@ -176,3 +176,15 @@
   }
 }
 .exam-cycle-notice{display:flex;align-items:center;gap:10px;margin:12px 0 18px;padding:11px 14px;border:1px solid #bfdbfe;border-radius:10px;background:#eff6ff;color:#1e40af;font-size:13px}.exam-cycle-notice strong{font-weight:700}.exam-cycle-notice span{color:#475569}
+
+.faculty-exam-report-skeleton { display:grid; gap:14px; padding:18px 0; }
+.faculty-exam-report-skeleton-heading { display:flex; justify-content:space-between; gap:16px; }
+.faculty-exam-report-skeleton-heading span { display:block; width:180px; height:16px; border-radius:6px; }
+.faculty-exam-report-skeleton-heading span:last-child { width:100px; }
+.faculty-exam-report-skeleton-heading span, .faculty-exam-report-skeleton-row span { background:linear-gradient(100deg,#e8eef6 20%,#f8fbff 42%,#e8eef6 64%); background-size:220% 100%; animation:faculty-exam-report-skeleton-shimmer 1.35s ease-in-out infinite; }
+.faculty-exam-report-skeleton-table { display:grid; gap:1px; overflow:hidden; border:1px solid #e2e8f0; border-radius:12px; background:#e2e8f0; }
+.faculty-exam-report-skeleton-row { display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); gap:12px; align-items:center; min-height:52px; padding:0 14px; background:#fff; }
+.faculty-exam-report-skeleton-row span { display:block; width:58%; height:11px; border-radius:6px; }
+.faculty-exam-report-skeleton-row span.is-wide { width:82%; }
+@keyframes faculty-exam-report-skeleton-shimmer { 0% { background-position:120% 0; } 100% { background-position:-120% 0; } }
+@media(max-width:640px) { .faculty-exam-report-skeleton-table { overflow-x:auto; } .faculty-exam-report-skeleton-row { min-width:680px; } }

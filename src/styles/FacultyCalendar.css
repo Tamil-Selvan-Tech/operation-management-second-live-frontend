@@ -50,3 +50,27 @@ body:has(.faculty-calendar-modal-backdrop) .super-admin-sidebar{display:block;fi
 .faculty-calendar-event--present small {
   display: none;
 }
+
+/* Calendar loading state */
+.faculty-calendar-page--loading { display: grid; gap: 18px; }
+.faculty-calendar-header--loading { min-height: 82px; }
+.faculty-calendar-skeleton-line, .faculty-calendar-skeleton-icon, .faculty-calendar-skeleton-button, .faculty-calendar-skeleton-navigation, .faculty-calendar-skeleton-months span, .faculty-calendar-skeleton-grid span { display: block; background: linear-gradient(100deg,#e8eef6 20%,#f8fbff 42%,#e8eef6 64%); background-size: 220% 100%; animation: faculty-calendar-skeleton-shimmer 1.35s ease-in-out infinite; }
+.faculty-calendar-skeleton-line { height: 12px; border-radius: 6px; margin: 8px 0; }
+.faculty-calendar-skeleton-line--eyebrow { width: 122px; height: 9px; }
+.faculty-calendar-skeleton-line--title { width: 210px; height: 28px; }
+.faculty-calendar-skeleton-line--wide { width: min(380px, 70vw); }
+.faculty-calendar-skeleton-button { width: 112px; height: 42px; border-radius: 10px; }
+.faculty-calendar-summary-card--loading { border-color:#e2e8f0; }
+.faculty-calendar-summary-card--loading .faculty-calendar-skeleton-icon { width:45px; height:45px; flex:0 0 45px; border-radius:13px; }
+.faculty-calendar-summary-card--loading .faculty-calendar-skeleton-line--label { width:100px; }
+.faculty-calendar-summary-card--loading .faculty-calendar-skeleton-line--value { width:76px; height:19px; }
+.faculty-calendar-summary-card--loading .faculty-calendar-skeleton-line--note { width:110px; }
+.faculty-calendar-card--loading { min-height:430px; }
+.faculty-calendar-skeleton-panel-head { display:flex; justify-content:space-between; gap:18px; }
+.faculty-calendar-skeleton-navigation { width:190px; height:62px; border-radius:14px; }
+.faculty-calendar-skeleton-months { display:flex; gap:10px; margin:24px 0 18px; }
+.faculty-calendar-skeleton-months span { width:88px; height:38px; border-radius:22px; }
+.faculty-calendar-skeleton-grid { display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); gap:12px; }
+.faculty-calendar-skeleton-grid span { min-height:105px; border-radius:14px; }
+@keyframes faculty-calendar-skeleton-shimmer { 0% { background-position:120% 0; } 100% { background-position:-120% 0; } }
+@media(max-width:600px) { .faculty-calendar-skeleton-panel-head { display:block; } .faculty-calendar-skeleton-navigation { margin-top:14px; } .faculty-calendar-skeleton-grid { gap:6px; } .faculty-calendar-skeleton-grid span { min-height:68px; } }

@@ -1947,9 +1947,64 @@ function FacultyDashboardSection({ title, description, actions, className = '', 
   )
 }
 
-function FacultyDashboardLoadingCards() {
-  return <div className="faculty-dashboard-overview-grid" aria-label="Loading dashboard overview">
-    {[1, 2].map((item) => <div key={item} className="faculty-dashboard-overview-card faculty-dashboard-overview-card--loading" />)}
+function FacultyDashboardLoadingCards({ count = 2 }) {
+  return <div className="faculty-dashboard-overview-grid" aria-label="Loading dashboard overview" aria-busy="true">
+    {Array.from({ length: count }, (_, index) => (
+      <div key={index} className="faculty-dashboard-overview-card faculty-dashboard-overview-card--loading">
+        <span className="faculty-dashboard-skeleton-line faculty-dashboard-skeleton-line--kicker" />
+        <span className="faculty-dashboard-skeleton-line faculty-dashboard-skeleton-line--title" />
+        <div className="faculty-dashboard-skeleton-meta">
+          <span className="faculty-dashboard-skeleton-line" />
+          <span className="faculty-dashboard-skeleton-line faculty-dashboard-skeleton-line--short" />
+        </div>
+        <span className="faculty-dashboard-skeleton-line faculty-dashboard-skeleton-line--wide" />
+        <span className="faculty-dashboard-skeleton-line faculty-dashboard-skeleton-line--note" />
+      </div>
+    ))}
+  </div>
+}
+
+function FacultyDashboardScheduleSkeleton({ variant = 'rows' }) {
+  if (variant === 'calendar') {
+    return <div className="faculty-dashboard-schedule-skeleton faculty-dashboard-schedule-skeleton--calendar" aria-label="Loading schedule" aria-busy="true">
+      <div className="faculty-dashboard-skeleton-calendar">
+        <div className="faculty-dashboard-skeleton-calendar-head"><span className="faculty-dashboard-skeleton-line faculty-dashboard-skeleton-line--short" /><span className="faculty-dashboard-skeleton-line faculty-dashboard-skeleton-line--tiny" /></div>
+        <div className="faculty-dashboard-skeleton-calendar-grid">{Array.from({ length: 35 }, (_, index) => <span key={index} />)}</div>
+      </div>
+      <div className="faculty-dashboard-skeleton-calendar-details">
+        <span className="faculty-dashboard-skeleton-line faculty-dashboard-skeleton-line--kicker" />
+        <span className="faculty-dashboard-skeleton-line faculty-dashboard-skeleton-line--wide" />
+        <span className="faculty-dashboard-skeleton-line" />
+        <span className="faculty-dashboard-skeleton-line faculty-dashboard-skeleton-line--short" />
+      </div>
+    </div>
+  }
+
+  return <div className={'faculty-dashboard-schedule-skeleton faculty-dashboard-schedule-skeleton--' + variant} aria-label="Loading dashboard section" aria-busy="true">
+    {Array.from({ length: variant === 'batches' ? 2 : 3 }, (_, index) => (
+      <div className="faculty-dashboard-skeleton-row" key={index}>
+        <span className="faculty-dashboard-skeleton-line faculty-dashboard-skeleton-line--time" />
+        <span className="faculty-dashboard-skeleton-line faculty-dashboard-skeleton-line--wide" />
+        <span className="faculty-dashboard-skeleton-line" />
+        <span className="faculty-dashboard-skeleton-line faculty-dashboard-skeleton-line--short" />
+        <span className="faculty-dashboard-skeleton-line faculty-dashboard-skeleton-line--status" />
+      </div>
+    ))}
+  </div>
+}
+
+function FacultyDashboardTableSkeleton({ columns = 6, rows = 5, className = '' }) {
+  return <div className={'faculty-dashboard-table-skeleton branch-dashboard-table-shell ' + className} aria-label="Loading table" aria-busy="true">
+    <table className="branch-dashboard-table">
+      <thead><tr>{Array.from({ length: columns }, (_, index) => <th key={index}><span className="faculty-dashboard-skeleton-line faculty-dashboard-skeleton-line--table-heading" /></th>)}</tr></thead>
+      <tbody>{Array.from({ length: rows }, (_, rowIndex) => <tr key={rowIndex}>{Array.from({ length: columns }, (_, columnIndex) => <td key={columnIndex}><span className={'faculty-dashboard-skeleton-line ' + (columnIndex === 0 ? 'faculty-dashboard-skeleton-line--short' : columnIndex === 1 ? 'faculty-dashboard-skeleton-line--wide' : '')} /></td>)}</tr>)}</tbody>
+    </table>
+  </div>
+}
+
+function FacultyDashboardNotificationSkeleton() {
+  return <div className="faculty-dashboard-notification-skeleton" aria-label="Loading notifications" aria-busy="true">
+    {Array.from({ length: 4 }, (_, index) => <article key={index} className="faculty-dashboard-notification-skeleton-item"><span className="faculty-dashboard-notification-skeleton-icon" /><div><span className="faculty-dashboard-skeleton-line faculty-dashboard-skeleton-line--wide" /><span className="faculty-dashboard-skeleton-line" /><span className="faculty-dashboard-skeleton-line faculty-dashboard-skeleton-line--short" /></div></article>)}
   </div>
 }
 
@@ -2014,7 +2069,7 @@ function FacultyDashboardOverview({ overview, loading, error, onRetry, todayAtte
   const hasProgressChart = progressBars.some((bar) => Number.isFinite(bar.percentage))
   const progressStudentsIncluded = selectedProgressBatch?.progress?.studentsIncluded ?? selectedProgressBatch?.studentCount ?? 0
   if (!batches.length) return <FacultyDashboardSection title="Attendance"><div className="faculty-dashboard-overview-empty"><strong>No batches assigned</strong><p>There are no active batches assigned to your faculty account.</p></div></FacultyDashboardSection>
-  return <><FacultyDashboardSection title="Attendance" description="Select a batch to view its attendance, or keep All Batches for the combined attendance of every assigned batch."><div className="faculty-dashboard-attendance-dashboard-layout"><div className="faculty-dashboard-single-card faculty-dashboard-single-card--attendance"><FacultyBatchOverviewCard batch={selectedBatch || { studentCount: 0, weekly: [], weeklyByMonth: [], monthlyYear: [] }} batchOptions={batches} selectedBatchId={selectedBatchId} onBatchChange={setSelectedBatchId} /></div>{todayAttendanceLoading ? <aside className="attendance-insights faculty-dashboard-today-attendance-loading"><p>Loading today's attendance…</p></aside> : todayAttendanceError ? <aside className="attendance-insights faculty-dashboard-today-attendance-loading"><p>{todayAttendanceError}</p></aside> : todayAttendance ? <BranchAttendanceInsights data={todayAttendance} /> : null}</div></FacultyDashboardSection><FacultyDashboardSection title="Overall Progress" description="Progress across every active student in the selected batch."><div className="faculty-dashboard-single-card"><article className="faculty-dashboard-progress-card"><div className="faculty-dashboard-batch-heading"><div><p className="faculty-dashboard-card-kicker">{selectedProgressBatch?.courseName || (selectedProgressBatchId === 'all' ? 'All assigned courses' : 'Course')}</p><h3>{selectedProgressBatch?.batchName || (selectedProgressBatchId === 'all' ? 'All Batches' : selectedProgressBatch?.batchId || 'Batch')}</h3></div><div className="faculty-dashboard-batch-selector"><label htmlFor="faculty-dashboard-progress-select">Batch</label><select id="faculty-dashboard-progress-select" value={selectedProgressBatchId} onChange={(event) => setSelectedProgressBatchId(event.target.value)}><option value="all">All Batches</option>{batches.map((batch) => <option key={batch.id} value={batch.id}>{batch.batchName || batch.batchId}</option>)}</select></div></div><div className="faculty-dashboard-batch-meta"><span>Students <strong>{selectedProgressBatch?.studentCount ?? '—'}</strong></span>{selectedProgressBatch?.batchId ? <span>Batch ID <strong>{selectedProgressBatch.batchId}</strong></span> : null}</div>{selectedProgressBatch?.studentCount === 0 ? <p className="faculty-dashboard-unmarked">No students assigned to this batch</p> : hasProgressChart ? <div className="faculty-dashboard-progress-chart-wrap"><div className="faculty-dashboard-progress-chart" role="img" aria-label={`Overall progress percentage chart for ${selectedProgressBatchId === 'all' ? 'all assigned batches' : selectedProgressBatch?.batchName || 'selected batch'}`}><div className="faculty-dashboard-progress-axis" aria-hidden="true"><span>100%</span><span>75%</span><span>50%</span><span>25%</span><span>0%</span></div><div className="faculty-dashboard-progress-bars">{progressBars.map((bar) => { const percentage = Number.isFinite(bar.percentage) ? Math.max(0, Math.min(100, bar.percentage)) : null; return <div key={bar.id} className="faculty-dashboard-progress-bar-item" title={`${bar.label}: ${percentage == null ? 'Progress not recorded' : `${formatPercent(percentage)} overall progress`}`}><strong>{percentage == null ? '—' : formatPercent(percentage)}</strong><div className="faculty-dashboard-progress-bar-track"><span style={{ height: `${percentage || 0}%` }} /></div><small>{bar.label}</small></div> })}</div></div><p className="faculty-dashboard-progress-note">Based on {progressStudentsIncluded} student{progressStudentsIncluded === 1 ? '' : 's'}</p></div> : <p className="faculty-dashboard-unmarked">Progress not recorded</p>}</article></div></FacultyDashboardSection></>
+  return <><FacultyDashboardSection title="Attendance" description="Select a batch to view its attendance, or keep All Batches for the combined attendance of every assigned batch."><div className="faculty-dashboard-attendance-dashboard-layout"><div className="faculty-dashboard-single-card faculty-dashboard-single-card--attendance"><FacultyBatchOverviewCard batch={selectedBatch || { studentCount: 0, weekly: [], weeklyByMonth: [], monthlyYear: [] }} batchOptions={batches} selectedBatchId={selectedBatchId} onBatchChange={setSelectedBatchId} /></div>{todayAttendanceLoading ? <aside className="attendance-insights faculty-dashboard-today-attendance-loading"><div className="faculty-dashboard-insights-skeleton" aria-label="Loading today's attendance" aria-busy="true"><span className="faculty-dashboard-skeleton-line faculty-dashboard-skeleton-line--kicker" /><span className="faculty-dashboard-skeleton-line faculty-dashboard-skeleton-line--title" /><span className="faculty-dashboard-skeleton-line faculty-dashboard-skeleton-line--wide" /><span className="faculty-dashboard-skeleton-line faculty-dashboard-skeleton-line--short" /></div></aside> : todayAttendanceError ? <aside className="attendance-insights faculty-dashboard-today-attendance-loading"><p>{todayAttendanceError}</p></aside> : todayAttendance ? <BranchAttendanceInsights data={todayAttendance} /> : null}</div></FacultyDashboardSection><FacultyDashboardSection title="Overall Progress" description="Progress across every active student in the selected batch."><div className="faculty-dashboard-single-card"><article className="faculty-dashboard-progress-card"><div className="faculty-dashboard-batch-heading"><div><p className="faculty-dashboard-card-kicker">{selectedProgressBatch?.courseName || (selectedProgressBatchId === 'all' ? 'All assigned courses' : 'Course')}</p><h3>{selectedProgressBatch?.batchName || (selectedProgressBatchId === 'all' ? 'All Batches' : selectedProgressBatch?.batchId || 'Batch')}</h3></div><div className="faculty-dashboard-batch-selector"><label htmlFor="faculty-dashboard-progress-select">Batch</label><select id="faculty-dashboard-progress-select" value={selectedProgressBatchId} onChange={(event) => setSelectedProgressBatchId(event.target.value)}><option value="all">All Batches</option>{batches.map((batch) => <option key={batch.id} value={batch.id}>{batch.batchName || batch.batchId}</option>)}</select></div></div><div className="faculty-dashboard-batch-meta"><span>Students <strong>{selectedProgressBatch?.studentCount ?? '—'}</strong></span>{selectedProgressBatch?.batchId ? <span>Batch ID <strong>{selectedProgressBatch.batchId}</strong></span> : null}</div>{selectedProgressBatch?.studentCount === 0 ? <p className="faculty-dashboard-unmarked">No students assigned to this batch</p> : hasProgressChart ? <div className="faculty-dashboard-progress-chart-wrap"><div className="faculty-dashboard-progress-chart" role="img" aria-label={`Overall progress percentage chart for ${selectedProgressBatchId === 'all' ? 'all assigned batches' : selectedProgressBatch?.batchName || 'selected batch'}`}><div className="faculty-dashboard-progress-axis" aria-hidden="true"><span>100%</span><span>75%</span><span>50%</span><span>25%</span><span>0%</span></div><div className="faculty-dashboard-progress-bars">{progressBars.map((bar) => { const percentage = Number.isFinite(bar.percentage) ? Math.max(0, Math.min(100, bar.percentage)) : null; return <div key={bar.id} className="faculty-dashboard-progress-bar-item" title={`${bar.label}: ${percentage == null ? 'Progress not recorded' : `${formatPercent(percentage)} overall progress`}`}><strong>{percentage == null ? '—' : formatPercent(percentage)}</strong><div className="faculty-dashboard-progress-bar-track"><span style={{ height: `${percentage || 0}%` }} /></div><small>{bar.label}</small></div> })}</div></div><p className="faculty-dashboard-progress-note">Based on {progressStudentsIncluded} student{progressStudentsIncluded === 1 ? '' : 's'}</p></div> : <p className="faculty-dashboard-unmarked">Progress not recorded</p>}</article></div></FacultyDashboardSection></>
 }
 
 const FACULTY_DASHBOARD_CLASS_STATUSES = new Set([
@@ -2228,15 +2283,15 @@ function FacultyDashboardScheduleSections({ batches = [], todayWorkEntries = [],
         description="Classes scheduled for the current date."
         actions={<button type="button" className="faculty-dashboard-view-all" onClick={onViewAll}>View All <span aria-hidden="true">→</span></button>}
       >
-        {loading ? <div className="faculty-dashboard-schedule-loading">Loading today’s classes…</div> : error ? <div className="faculty-dashboard-overview-empty"><strong>Today’s classes unavailable</strong><p>{error}</p></div> : classesToday.length ? <div className="faculty-dashboard-class-table"><div className="faculty-dashboard-class-table-head"><span><Clock3 size={13} aria-hidden="true" />Time</span><span><BookOpen size={13} aria-hidden="true" />Course</span><span><Users size={13} aria-hidden="true" />Batch</span><span><Layers3 size={13} aria-hidden="true" />Module</span><span><CheckCircle2 size={13} aria-hidden="true" />Status</span></div>{classesToday.map((event, index) => { const status = event.status || event.code || 'Scheduled'; const todayWorkModule = facultyDashboardTodayWorkModule(event, todayWorkEntries); return <article className={`faculty-dashboard-class-item faculty-dashboard-class-item--accent-${index % 5}`} key={event.id || `${event.batchId || event.batchName}-${index}`}><strong><Clock3 size={15} aria-hidden="true" />{facultyDashboardEventTiming(event)}</strong><span><BookOpen size={15} aria-hidden="true" />{event.courseName || event.courseCode || 'Course'}</span><span><Users size={15} aria-hidden="true" />{event.batchName || event.batchId || '—'}</span><small><Layers3 size={14} aria-hidden="true" />{todayWorkModule || '—'}</small><em className={facultyDashboardStatusClass(status)}><CheckCircle2 size={13} aria-hidden="true" />{status}</em></article> })}</div> : <div className="faculty-dashboard-schedule-empty">No classes scheduled for today</div>}
+        {loading ? <FacultyDashboardScheduleSkeleton /> : error ? <div className="faculty-dashboard-overview-empty"><strong>Today’s classes unavailable</strong><p>{error}</p></div> : classesToday.length ? <div className="faculty-dashboard-class-table"><div className="faculty-dashboard-class-table-head"><span><Clock3 size={13} aria-hidden="true" />Time</span><span><BookOpen size={13} aria-hidden="true" />Course</span><span><Users size={13} aria-hidden="true" />Batch</span><span><Layers3 size={13} aria-hidden="true" />Module</span><span><CheckCircle2 size={13} aria-hidden="true" />Status</span></div>{classesToday.map((event, index) => { const status = event.status || event.code || 'Scheduled'; const todayWorkModule = facultyDashboardTodayWorkModule(event, todayWorkEntries); return <article className={`faculty-dashboard-class-item faculty-dashboard-class-item--accent-${index % 5}`} key={event.id || `${event.batchId || event.batchName}-${index}`}><strong><Clock3 size={15} aria-hidden="true" />{facultyDashboardEventTiming(event)}</strong><span><BookOpen size={15} aria-hidden="true" />{event.courseName || event.courseCode || 'Course'}</span><span><Users size={15} aria-hidden="true" />{event.batchName || event.batchId || '—'}</span><small><Layers3 size={14} aria-hidden="true" />{todayWorkModule || '—'}</small><em className={facultyDashboardStatusClass(status)}><CheckCircle2 size={13} aria-hidden="true" />{status}</em></article> })}</div> : <div className="faculty-dashboard-schedule-empty">No classes scheduled for today</div>}
       </FacultyDashboardSection>
 
       <FacultyDashboardSection title="My Batches" description="All batches assigned to you, including weekday and weekend batches.">
-        {batchesLoading ? <div className="faculty-dashboard-schedule-loading">Loading assigned batches…</div> : batches.length ? <div className="faculty-dashboard-assigned-batches">{batches.map((batch) => <article className="faculty-dashboard-assigned-batch" key={batch.id || batch.batchId}><div><strong>{batch.batchName || batch.batchId || 'Batch'}</strong><span>{batch.course || batch.courseName || 'Course'}</span></div><dl><div><dt>Timing</dt><dd>{batch.timing || '—'}</dd></div><div><dt>Schedule</dt><dd>{batch.weekType || '—'}</dd></div><div><dt>Students</dt><dd>{Number.isFinite(Number(batch.students)) ? batch.students : '—'}</dd></div><div><dt>Status</dt><dd>{batch.status || '—'}</dd></div></dl></article>)}</div> : <div className="faculty-dashboard-schedule-empty">No batches assigned</div>}
+        {batchesLoading ? <FacultyDashboardScheduleSkeleton variant="batches" /> : batches.length ? <div className="faculty-dashboard-assigned-batches">{batches.map((batch) => <article className="faculty-dashboard-assigned-batch" key={batch.id || batch.batchId}><div><strong>{batch.batchName || batch.batchId || 'Batch'}</strong><span>{batch.course || batch.courseName || 'Course'}</span></div><dl><div><dt>Timing</dt><dd>{batch.timing || '—'}</dd></div><div><dt>Schedule</dt><dd>{batch.weekType || '—'}</dd></div><div><dt>Students</dt><dd>{Number.isFinite(Number(batch.students)) ? batch.students : '—'}</dd></div><div><dt>Status</dt><dd>{batch.status || '—'}</dd></div></dl></article>)}</div> : <div className="faculty-dashboard-schedule-empty">No batches assigned</div>}
       </FacultyDashboardSection>
 
       <FacultyDashboardSection title="My Schedule" description="Your schedule from the same faculty calendar used by My Calendar.">
-        {loading ? <div className="faculty-dashboard-schedule-loading">Loading schedule…</div> : error ? <div className="faculty-dashboard-overview-empty"><strong>Schedule unavailable</strong><p>{error}</p></div> : <div className="faculty-dashboard-schedule-layout"><div className="faculty-dashboard-calendar-card"><div className="faculty-dashboard-calendar-head"><button type="button" onClick={() => setMonth((current) => new Date(current.getFullYear(), current.getMonth() - 1, 1))} aria-label="Previous month"><ChevronLeft size={16} /></button><strong>{monthLabel}</strong><button type="button" onClick={() => setMonth((current) => new Date(current.getFullYear(), current.getMonth() + 1, 1))} aria-label="Next month"><ChevronRight size={16} /></button></div><div className="faculty-dashboard-calendar-weekdays">{['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day, index) => <span key={`${day}-${index}`}>{day}</span>)}</div><div className="faculty-dashboard-calendar-grid">{monthDays.map((date, index) => { if (!date) return <span key={`empty-${index}`} />; const dateKey = facultyDashboardDateKey(date); const tooltip = eventTooltipsByDate.get(dateKey) || ''; return <button type="button" key={dateKey} className={`${dateKey === selectedDate ? 'is-selected ' : ''}${dateKey === today ? 'is-today' : ''}`} onClick={() => setSelectedDate(dateKey)} data-tooltip={tooltip}>{date.getDate()}{eventDates.has(dateKey) ? <i aria-label="Scheduled event" /> : null}</button> })}</div></div><div className="faculty-dashboard-schedule-details"><span className="faculty-dashboard-card-kicker">{facultyDashboardParseDate(selectedDate)?.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</span>{selectedEvents.length ? <div className="faculty-dashboard-class-list">{selectedEvents.map((event, index) => <article className="faculty-dashboard-class-item" key={event.id || `${event.batchId || event.batchName}-${index}`}><strong>{facultyDashboardEventTiming(event)}</strong><span>{event.courseName || event.courseCode || 'Course'}</span><small>Batch: {event.batchName || event.batchId || '—'}{facultyDashboardEventModule(event) ? ` · Module: ${facultyDashboardEventModule(event)}` : ''}</small></article>)}</div> : <div className="faculty-dashboard-schedule-empty">{batches.length ? 'No classes scheduled' : 'Your schedule will appear here once a course and batch are assigned.'}</div>}</div></div>}
+        {loading ? <FacultyDashboardScheduleSkeleton variant="calendar" /> : error ? <div className="faculty-dashboard-overview-empty"><strong>Schedule unavailable</strong><p>{error}</p></div> : <div className="faculty-dashboard-schedule-layout"><div className="faculty-dashboard-calendar-card"><div className="faculty-dashboard-calendar-head"><button type="button" onClick={() => setMonth((current) => new Date(current.getFullYear(), current.getMonth() - 1, 1))} aria-label="Previous month"><ChevronLeft size={16} /></button><strong>{monthLabel}</strong><button type="button" onClick={() => setMonth((current) => new Date(current.getFullYear(), current.getMonth() + 1, 1))} aria-label="Next month"><ChevronRight size={16} /></button></div><div className="faculty-dashboard-calendar-weekdays">{['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day, index) => <span key={`${day}-${index}`}>{day}</span>)}</div><div className="faculty-dashboard-calendar-grid">{monthDays.map((date, index) => { if (!date) return <span key={`empty-${index}`} />; const dateKey = facultyDashboardDateKey(date); const tooltip = eventTooltipsByDate.get(dateKey) || ''; return <button type="button" key={dateKey} className={`${dateKey === selectedDate ? 'is-selected ' : ''}${dateKey === today ? 'is-today' : ''}`} onClick={() => setSelectedDate(dateKey)} data-tooltip={tooltip}>{date.getDate()}{eventDates.has(dateKey) ? <i aria-label="Scheduled event" /> : null}</button> })}</div></div><div className="faculty-dashboard-schedule-details"><span className="faculty-dashboard-card-kicker">{facultyDashboardParseDate(selectedDate)?.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</span>{selectedEvents.length ? <div className="faculty-dashboard-class-list">{selectedEvents.map((event, index) => <article className="faculty-dashboard-class-item" key={event.id || `${event.batchId || event.batchName}-${index}`}><strong>{facultyDashboardEventTiming(event)}</strong><span>{event.courseName || event.courseCode || 'Course'}</span><small>Batch: {event.batchName || event.batchId || '—'}{facultyDashboardEventModule(event) ? ` · Module: ${facultyDashboardEventModule(event)}` : ''}</small></article>)}</div> : <div className="faculty-dashboard-schedule-empty">{batches.length ? 'No classes scheduled' : 'Your schedule will appear here once a course and batch are assigned.'}</div>}</div></div>}
       </FacultyDashboardSection>
     </div>
   )
@@ -2295,7 +2350,7 @@ function OtherFacultyBatchesSection({ onOpenTemporaryWork, onAssignmentVisibilit
 
   return <FacultyDashboardSection title="Other Faculty Batches" description="Temporary leave-related batches assigned to you for the current and upcoming dates.">
     {studentLoading ? (
-      <div className="faculty-my-batches-empty"><strong>Loading students...</strong></div>
+      <FacultyDashboardTableSkeleton columns={9} rows={5} className="faculty-other-batches-students-loading" />
     ) : studentView ? (
       calendarStudent ? (
         <StudentCalendarPage
@@ -2330,7 +2385,7 @@ function OtherFacultyBatchesSection({ onOpenTemporaryWork, onAssignmentVisibilit
     ) : studentError ? (
       <div className="faculty-my-batches-empty"><strong>{studentError}</strong></div>
     ) : loading ? (
-      <div className="faculty-my-batches-loading-card"><strong>Loading temporary batches...</strong></div>
+      <FacultyDashboardTableSkeleton columns={7} rows={4} className="faculty-other-batches-loading" />
     ) : error ? (
       <div className="faculty-my-batches-empty"><strong>{error}</strong></div>
     ) : batches.length ? (
@@ -2411,12 +2466,16 @@ export function FacultyDashboardPage() {
 
   useEffect(() => {
     let active = true
+    setFacultyWeekOffRequestsLoading(true)
     getMyWeekOffRequests()
       .then((requests) => {
         if (active) setFacultyWeekOffRequests(Array.isArray(requests) ? requests : [])
       })
       .catch(() => {
         if (active) setFacultyWeekOffRequests([])
+      })
+      .finally(() => {
+        if (active) setFacultyWeekOffRequestsLoading(false)
       })
     return () => { active = false }
   }, [])
@@ -2469,7 +2528,8 @@ export function FacultyDashboardPage() {
   const [todayAttendance, setTodayAttendance] = useState(null)
   const [todayAttendanceLoading, setTodayAttendanceLoading] = useState(true)
   const [todayAttendanceError, setTodayAttendanceError] = useState('')
-  const [facultyNotifications, setFacultyNotifications] =useState([])
+  const [facultyNotifications, setFacultyNotifications] = useState([])
+  const [facultyNotificationsLoading, setFacultyNotificationsLoading] = useState(true)
   const [notificationOpen, setNotificationOpen] =useState(false)
   const [notificationStoreVersion, setNotificationStoreVersion] = useState(0)
   const [todayWorkEntries, setTodayWorkEntries] = useState([])
@@ -2482,6 +2542,7 @@ export function FacultyDashboardPage() {
   const [notificationPage, setNotificationPage] = useState(1)
   const [facultyProfile, setFacultyProfile] = useState(null)
   const [facultyWeekOffRequests, setFacultyWeekOffRequests] = useState([])
+  const [facultyWeekOffRequestsLoading, setFacultyWeekOffRequestsLoading] = useState(true)
   const [weekOffValidationMessage, setWeekOffValidationMessage] = useState('')
   const [branchCourses, setBranchCourses] = useState([])
   const [courseCatalog, setCourseCatalog] = useState([])
@@ -2593,6 +2654,8 @@ export function FacultyDashboardPage() {
         )
       } catch (error) {
         console.error('Failed to load faculty notifications', error)
+      } finally {
+        if (isMounted) setFacultyNotificationsLoading(false)
       }
     }
 
@@ -6135,7 +6198,7 @@ const nextName = trimmedValue
     [paginatedNotifications],
   )
 
-  const summaryCardsLoading = dashboardOverviewLoading || dashboardSummaryLoading
+  const summaryCardsLoading = dashboardOverviewLoading || dashboardSummaryLoading || facultyWeekOffRequestsLoading
   const stats = [
     { label: 'Assigned Courses', value: summaryCardsLoading ? 'Loading...' : String(dashboardOverview?.courseIds?.length ?? new Set(assignedCourseIds).size ?? 0), note: summaryCardsLoading ? 'Loading course data' : 'Active courses', icon: BookOpen, tone: 'blue' },
     { label: 'Total Batches', value: summaryCardsLoading ? 'Loading...' : (dashboardSummary?.totalBatches ?? '0'), note: summaryCardsLoading ? 'Loading batch data' : 'Across all Courses', icon: Layers3, tone: 'purple' },
@@ -6291,10 +6354,8 @@ const nextName = trimmedValue
       <nav className="super-admin-sidebar-nav">
         {[
           { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-          { id: 'courses', label: 'Course', icon: BookOpen, children: [
-            { id: 'my-batches', label: 'Batches', icon: Layers3 },
-            { id: 'course-progress', label: 'Course Progress', icon: BarChart3, route: 'my-courses' },
-          ] },
+          { id: 'my-courses', label: 'Course', icon: BookOpen },
+          { id: 'my-batches', label: 'Batch', icon: Layers3 },
           { id: 'students', label: 'Student Management', icon: Users },
           { id: 'skill-development', label: 'Skill Development', icon: GraduationCap },
           { id: 'exams', label: 'Exams', icon: BookOpen },
@@ -6479,7 +6540,9 @@ const nextName = trimmedValue
           onClick={() => setNotificationOpen((current) => !current)}
         >
           <Bell size={22} strokeWidth={2.1} />
-          <span className="super-admin-notification-badge">{unreadNotificationCount}</span>
+          {unreadNotificationCount > 0 ? (
+            <span className="super-admin-notification-badge">{unreadNotificationCount}</span>
+          ) : null}
         </button>
 {notificationOpen ? (
   <div
@@ -6626,8 +6689,13 @@ const nextName = trimmedValue
         <div className="branch-dashboard-profile-menu-wrap" ref={profileMenuRef}>
           <button
             type="button"
-            className="super-admin-profile branch-dashboard-profile-trigger"
-            onClick={() => setIsProfileMenuOpen((current) => !current)}
+            className="super-admin-profile branch-dashboard-profile-trigger faculty-profile-trigger"
+            onClick={() => {
+              setNotificationOpen(false)
+              setIsProfileMenuOpen((current) => !current)
+            }}
+            aria-haspopup="menu"
+            aria-expanded={isProfileMenuOpen}
           >
             <span className="super-admin-avatar" aria-hidden="true">
               <span className="super-admin-avatar-mark">
@@ -6641,9 +6709,47 @@ const nextName = trimmedValue
           </button>
 
           {isProfileMenuOpen ? (
-            <div className="branch-dashboard-profile-menu" role="menu" aria-label="Faculty profile menu">
+            <div className="branch-dashboard-profile-menu faculty-profile-menu" role="menu" aria-label="Faculty profile menu">
               <button
                 type="button"
+                className="faculty-profile-menu-close"
+                aria-label="Close faculty profile menu"
+                onClick={() => setIsProfileMenuOpen(false)}
+              >
+                <X size={17} strokeWidth={2.3} />
+              </button>
+              <div className="branch-dashboard-profile-menu-header">
+                <span className="super-admin-avatar" aria-hidden="true">
+                  <span className="super-admin-avatar-mark">
+                    <ShieldCheck size={18} strokeWidth={2.2} />
+                  </span>
+                </span>
+                <div>
+                  <strong>{facultyName}</strong>
+                  <span>Faculty Instructor</span>
+                </div>
+              </div>
+
+              <div className="branch-dashboard-profile-menu-details">
+                <div>
+                  <Mail size={15} aria-hidden="true" />
+                  <span>
+                    <small>Email</small>
+                    <strong>{currentFacultyIdentity.facultyEmail || facultyDetails.email || user?.email || 'Not available'}</strong>
+                  </span>
+                </div>
+                <div>
+                  <ShieldCheck size={15} aria-hidden="true" />
+                  <span>
+                    <small>Role</small>
+                    <strong>Faculty</strong>
+                  </span>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                role="menuitem"
                 className="branch-dashboard-profile-menu-item"
                 onClick={() => {
                   setActiveSection('profile')
@@ -6653,7 +6759,8 @@ const nextName = trimmedValue
                 <CircleUserRound size={16} strokeWidth={2.1} />
                 <span>Profile</span>
               </button>
-              <button type="button" className="branch-dashboard-profile-menu-item is-danger" onClick={handleLogoutClick}>
+
+              <button type="button" role="menuitem" className="branch-dashboard-profile-menu-item is-danger" onClick={handleLogoutClick}>
                 <LogOut size={16} strokeWidth={2.1} />
                 <span>Logout</span>
               </button>
@@ -6722,7 +6829,7 @@ const nextName = trimmedValue
   ))
 
   return (
-    <section className={`super-admin-page ${isSidebarCollapsed ? 'is-sidebar-collapsed' : ''}`.trim()}>
+    <section className={`super-admin-page faculty-dashboard-page ${isSidebarCollapsed ? 'is-sidebar-collapsed' : ''}`.trim()}>
       <div className="super-admin-shell">
         {renderSidebar()}
 
@@ -6813,10 +6920,7 @@ const nextName = trimmedValue
                   className="faculty-course-section"
                 >
                   {coursesLoading ? (
-                    <div className="faculty-my-batches-loading-card">
-                      <strong>Loading course details</strong>
-                      <p>We&apos;re pulling the exact course record assigned to you.</p>
-                    </div>
+                    <FacultyDashboardTableSkeleton columns={4} rows={3} className="faculty-course-loading-table" />
                   ) : coursesError ? (
                     <div className="faculty-my-batches-loading-card">
                       <strong>Course details unavailable</strong>
@@ -7068,7 +7172,8 @@ const nextName = trimmedValue
                       onChange={setFacultyBatchWeekTypeFilter}
                     />
                   </div>
-                  <div className="branch-dashboard-table-shell">
+                  {coursesLoading ? <FacultyDashboardTableSkeleton columns={7} rows={5} className="faculty-batches-loading-table" /> : (
+                    <div className="branch-dashboard-table-shell">
                     <table className="branch-dashboard-table">
                       <thead>
                         <tr>
@@ -7120,7 +7225,8 @@ const nextName = trimmedValue
                         />
                       </div>
                     ) : null}
-                  </div>
+                    </div>
+                  )}
                 </FacultyDashboardSection>
               ) : null}
 
@@ -7182,7 +7288,7 @@ const nextName = trimmedValue
                     </div>
                   )}
                 >
-                  {studentsViewMode !== 'active' ? (
+                  {coursesLoading ? <FacultyDashboardTableSkeleton columns={studentsViewMode === 'active' ? 9 : 7} rows={6} className="faculty-students-loading-table" /> : studentsViewMode !== 'active' ? (
                     <div className="faculty-students-flow-stage faculty-student-records-stage">
                       <div className="faculty-student-records-toolbar">
                         <div>
@@ -8114,7 +8220,9 @@ const nextName = trimmedValue
                   </div>
 
                   <div className="faculty-notifications-feed">
-                    {groupedNotifications.length ? (
+                    {facultyNotificationsLoading ? (
+                      <FacultyDashboardNotificationSkeleton />
+                    ) : groupedNotifications.length ? (
                       groupedNotifications.map((group) => (
                           <FacultyNotificationGroup
                           key={group.label}

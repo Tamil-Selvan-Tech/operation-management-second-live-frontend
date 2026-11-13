@@ -5,6 +5,11 @@ import { getFacultyStudentExamReport } from '../services/examService'
 import { ReportsTabs } from './FacultyExamReportsPage'
 import '../styles/FacultyExamReports.css'
 
+
+function FacultyStudentReportSkeleton() {
+  return <div className="faculty-exam-report-skeleton" aria-label="Loading student report" aria-busy="true"><div className="faculty-exam-report-skeleton-heading"><span /><span /></div><div className="faculty-exam-report-skeleton-table">{Array.from({ length: 6 }, (_, rowIndex) => <div key={rowIndex} className="faculty-exam-report-skeleton-row">{Array.from({ length: 6 }, (_, columnIndex) => <span key={columnIndex} className={columnIndex === 0 ? 'is-wide' : ''} />)}</div>)}</div></div>
+}
+
 export function FacultyStudentExamReportPage({ embedded = false }) {
   const navigate = useNavigate()
   const { moduleId, batchId } = useParams()
@@ -19,7 +24,7 @@ export function FacultyStudentExamReportPage({ embedded = false }) {
 
   const tabs = <ReportsTabs active="tests" navigate={navigate} showSend={false} />
 
-  if (loading) return <section className={`exam-reports-page ${embedded ? 'exam-page-embedded' : ''}`}>{tabs}<p className="exam-muted">Loading student report...</p></section>
+  if (loading) return <section className={`exam-reports-page ${embedded ? 'exam-page-embedded' : ''}`}>{tabs}<FacultyStudentReportSkeleton /></section>
   if (error || !report) return <section className={`exam-reports-page ${embedded ? 'exam-page-embedded' : ''}`}>{tabs}<div className="exam-error">{error || 'Unable to load student report.'}</div><button className="exam-secondary" onClick={() => navigate('/dashboard/faculty/exams/reports')}>Back to Reports</button></section>
 
   const pageSize = 5
