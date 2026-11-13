@@ -843,8 +843,12 @@ function displayAttendanceStatus(value) {
   return status === 'LATE' ? 'PRESENT' : status
 }
 
-function extractStudentAttendanceStatuses(payload = {}) {
+function extractStudentAttendanceStatuses(payload = {}, targetDate = getAttendanceDateKey()) {
   const source = payload?.data ?? payload
+  const responseDate = String(source?.date || source?.attendanceDate || '').slice(0, 10)
+  // Attendance responses are date-scoped. Never hydrate the current screen
+  // with a response produced for yesterday (or any other day).
+  if (responseDate && responseDate !== targetDate) return {}
   const rows = [
     ...(Array.isArray(source) ? source : []),
     ...(Array.isArray(source?.students) ? source.students : []),
@@ -859,7 +863,9 @@ function extractStudentAttendanceStatuses(payload = {}) {
 
   rows.forEach((row) => {
     const studentKeys = getStudentAttendanceKeys(row)
-    const saveStatus = (value) => {
+    const saveStatus = (value, recordDate = '') => {
+      const normalizedRecordDate = String(recordDate || '').slice(0, 10)
+      if (normalizedRecordDate && normalizedRecordDate !== targetDate) return
       const status = displayAttendanceStatus(value)
       if (!studentKeys.length || !isAttendanceMarkedStatus(status)) return
       studentKeys.forEach((key) => {
@@ -869,7 +875,10 @@ function extractStudentAttendanceStatuses(payload = {}) {
 
     saveStatus(row?.attendanceStatus || row?.attendanceStatusLabel || row?.status)
     ;(Array.isArray(row?.records) ? row.records : []).forEach((record) => {
-      saveStatus(record?.attendanceStatus || record?.attendanceStatusLabel || record?.status)
+      saveStatus(
+        record?.attendanceStatus || record?.attendanceStatusLabel || record?.status,
+        record?.attendanceDate || record?.date,
+      )
     })
   })
 
@@ -4264,7 +4273,7 @@ export function FacultyDashboardPage() {
           batchId: selectedStudentsBatch?.batchId || selectedStudentsBatch?.batchEntryId || selectedStudentsBatch?.id || '',
         })
         if (active) {
-          const refreshedStatuses = extractStudentAttendanceStatuses(overview)
+          const refreshedStatuses = extractStudentAttendanceStatuses(overview, attendanceDate)
           // Keep the just-saved local status when an immediate refresh still
           // returns a stale or incomplete attendance overview.
           setStudentAttendanceStatuses((current) => ({
@@ -5271,7 +5280,7 @@ export function FacultyDashboardPage() {
       }, {})
       setStudentAttendanceStatuses((current) => ({
         ...current,
-        ...extractStudentAttendanceStatuses(response),
+        ...extractStudentAttendanceStatuses(response, getAttendanceDateKey()),
         ...savedStatuses,
       }))
       saveStudentCalendarAttendance(getAttendanceDateKey(), students)
