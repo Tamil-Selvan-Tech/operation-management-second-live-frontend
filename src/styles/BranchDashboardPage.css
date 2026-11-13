@@ -923,7 +923,8 @@
   top: calc(100% + 10px);
   right: 0;
   z-index: 100000;
-  min-width: 220px;
+  width: 300px;
+  min-width: 300px;
   padding: 8px;
   border: 1px solid #dbe4f0;
   border-radius: 16px;
@@ -1608,6 +1609,8 @@ body.branch-notification-menu-open .main-area {
 
 .branch-management-skeleton-row td { height: 58px; }
 .branch-management-skeleton-row td span { display: block; width: 72%; height: 13px; border-radius: 5px; background: linear-gradient(90deg, #edf2f7 25%, #f8fafc 50%, #edf2f7 75%); background-size: 200% 100%; animation: branch-student-table-shimmer 1.2s ease-in-out infinite; }
+.branch-courses-table.is-loading .branch-management-skeleton-row td { height: 64px; }
+.branch-courses-table.is-loading .branch-management-skeleton-row td span { height: 14px; border-radius: 999px; }
 .branch-management-skeleton-row td:nth-child(2) span,
 .branch-management-skeleton-row td:nth-child(3) span { width: 86%; }
 .branch-management-skeleton-row td:nth-child(4) span,

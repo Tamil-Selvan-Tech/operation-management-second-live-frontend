@@ -105,7 +105,6 @@
 .faculty-skill-page:has(.faculty-skill-summary-grid) .faculty-skill-search{max-width:360px;flex:0 1 360px}
 .faculty-skill-clickable-row{cursor:pointer}.faculty-skill-clickable-row:hover{background:#f8fbff}
 .faculty-skill-progress{gap:8px;min-width:115px;max-width:135px}.faculty-skill-progress-track{height:5px!important;flex:1;min-width:75px;background:#e8eef5!important;border-radius:999px;overflow:hidden;box-shadow:inset 0 1px 2px #0f172a12}.faculty-skill-progress-track i{display:block;height:100%;background:linear-gradient(90deg,#22c55e,#16a34a);border-radius:inherit;transition:width .3s ease}.faculty-skill-progress b{color:#166534;font-size:.78rem;font-weight:800;min-width:34px}
-
 .faculty-skill-table-skeleton { overflow:hidden; }
 .faculty-skill-table-skeleton table { min-width:0!important; }
 .faculty-skill-table-skeleton th, .faculty-skill-table-skeleton td { height:52px; }
@@ -114,3 +113,4 @@
 .faculty-skill-skeleton-line--wide { width:82%; }
 @keyframes faculty-skill-skeleton-shimmer { 0% { background-position:120% 0; } 100% { background-position:-120% 0; } }
 @media(max-width:760px) { .faculty-skill-table-skeleton { overflow-x:auto; } .faculty-skill-table-skeleton table { min-width:760px!important; } }
+.faculty-skill-loading-row td{height:64px!important}.faculty-skill-loading-row td span{display:block;width:72%;height:14px;border-radius:999px;background:linear-gradient(90deg,#edf2f7 25%,#f8fafc 50%,#edf2f7 75%);background-size:200% 100%;animation:faculty-skill-table-shimmer 1.2s ease-in-out infinite}.faculty-skill-loading-row td:nth-child(1) span{width:86%}.faculty-skill-loading-row td:nth-child(2) span{width:78%}.faculty-skill-loading-row td:nth-child(6) span{width:92%;height:8px}.faculty-skill-loading-row td:nth-child(8) span{width:42%}@keyframes faculty-skill-table-shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
