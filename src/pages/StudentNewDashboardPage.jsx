@@ -196,17 +196,25 @@ function getSessionDisplayStatus(session) {
   return 'Completed'
 }
 
+function getTodayClassAssignmentLabel(session = {}) {
+  const value = String(session.assignmentType || session.code || '').toUpperCase()
+  if (session.isReplacement || session.replacementFacultyName || value === 'REASSIGNED' || value === 'REPLACEMENT') return 'Class: Reassigned / Replacement'
+  if (session.combinedFacultyName || value === 'COMBINED') return 'Class: Combined'
+  return ''
+}
+
 function normalizeTodayClassSession(session = {}) {
   const replacement = session?.replacementSession || session?.replacement || session?.reassignedSession || {}
   const combined = session?.combinedSession || {}
   const startTime = replacement.startTime || replacement.replacementStartTime || session.replacementStartTime || session.rescheduledStartTime || combined.startTime || session.startTime || session.fromTime
   const endTime = replacement.endTime || replacement.replacementEndTime || session.replacementEndTime || session.rescheduledEndTime || combined.endTime || session.endTime || session.toTime
+  const facultyName = replacement.facultyName || replacement.replacementFacultyName || session.replacementFacultyName || session.combinedFacultyName || combined.facultyName || session.facultyName
   return {
     ...session,
     startTime,
     endTime,
     moduleName: session.moduleName || session.submoduleName || session.module || session.topicName || combined.moduleName || replacement.moduleName,
-    facultyName: replacement.facultyName || replacement.replacementFacultyName || session.replacementFacultyName || session.combinedFacultyName || combined.facultyName || session.facultyName,
+    facultyName: [facultyName, getTodayClassAssignmentLabel(session)].filter(Boolean).join(' · '),
     room: session.room || session.roomName || session.classroom || replacement.room || combined.room,
     mode: session.mode || session.courseMode || replacement.mode || combined.mode,
     batchName: session.batchName || replacement.batchName || combined.batchName,
@@ -228,10 +236,29 @@ function getTodayClassSessions(todayAttendance, student) {
   const source = calendarSessions.some((event) => event?.isReplacement || event?.assignmentType || event?.replacementFacultyName || event?.combinedFacultyName)
     ? calendarSessions
     : apiSessions
-  return source
+  const grouped = new Map()
+  source
     .filter((session) => !sessionDateKey(session) || sessionDateKey(session) === today)
     .map(normalizeTodayClassSession)
     .filter((session) => session.startTime || session.endTime || session.moduleName || session.facultyName)
+    .forEach((session) => {
+      const key = `${session.courseId || session.courseName || ''}|${session.batchId || session.batchName || ''}|${session.startTime || ''}|${session.endTime || ''}`
+      const isAssigned = Boolean(
+        session.isReplacement
+        || session.replacementFacultyName
+        || session.combinedFacultyName
+        || ['REASSIGNED', 'REPLACEMENT', 'COMBINED'].includes(String(session.assignmentType || session.code || '').toUpperCase()),
+      )
+      const previous = grouped.get(key)
+      const previousIsAssigned = previous && Boolean(
+        previous.isReplacement
+        || previous.replacementFacultyName
+        || previous.combinedFacultyName
+        || ['REASSIGNED', 'REPLACEMENT', 'COMBINED'].includes(String(previous.assignmentType || previous.code || '').toUpperCase()),
+      )
+      if (!previous || (isAssigned && !previousIsAssigned)) grouped.set(key, session)
+    })
+  return [...grouped.values()]
     .sort((left, right) => timeToMinutes(left.startTime) - timeToMinutes(right.startTime))
 }
 
@@ -1081,7 +1108,14 @@ export function StudentNewDashboardPage() {
  const courseAttendanceBatch = selectedAttendanceCourse?.batchName || batchName
  const todayCourseSessions = activeDashboardCourses.flatMap((course) => {
    const overview = attendanceOverviews[String(course.courseId || '')]
-   return (Array.isArray(overview?.todayAttendance?.sessions) ? overview.todayAttendance.sessions : []).map((session) => ({ ...session, courseId: session.courseId || course.courseId, courseName: session.courseName || course.courseName }))
+   return (Array.isArray(overview?.todayAttendance?.sessions) ? overview.todayAttendance.sessions : []).map((session) => ({
+     ...session,
+     // Student dashboard shows the final attendance outcome only. Late is a
+     // marking method, not a separate student-facing attendance status.
+     status: String(session.status || '').toUpperCase() === 'LATE' ? 'PRESENT' : session.status,
+     courseId: session.courseId || course.courseId,
+     courseName: session.courseName || course.courseName,
+   }))
  })
  const currentWeekday = new Date().toLocaleDateString('en-US', { weekday: 'long' }).toUpperCase()
  const todayAttendanceRows = activeDashboardCourses.flatMap((course) => {
@@ -1097,13 +1131,23 @@ export function StudentNewDashboardPage() {
  const facultyWeeklyOffCoursesToday = todayAttendanceRows.filter((row) => String(row.status || '').toUpperCase() === 'FACULTY_WEEKLY_OFF')
  const todayAttendance = attendanceOverview?.todayAttendance || null
  const todaySessions = todayCourseSessions
- const todayClassSessions = useMemo(() => activeDashboardCourses.flatMap((course) => {
-   const overview = attendanceOverviews[String(course.courseId || '')]
-   const isPrimaryCourse = String(course.courseId || '') === String(student?.courseId || student?.course?.id || '')
-   const courseCalendarEvents = (student?.calendarEvents || []).filter((event) => String(event?.courseId || '') === String(course.courseId || '') || (isPrimaryCourse && !event?.courseId))
-   const courseStudent = { ...student, courseName: course.courseName, batchName: course.batchName, calendarEvents: courseCalendarEvents }
-   return getTodayClassSessions(overview?.todayAttendance, courseStudent).map((session) => ({ ...session, courseName: session.courseName || course.courseName, batchName: session.batchName || course.batchName }))
- }), [attendanceOverviews, activeDashboardCourses, student])
+ const todayClassSessions = useMemo(() => {
+   const grouped = new Map()
+   activeDashboardCourses.flatMap((course) => {
+     const overview = attendanceOverviews[String(course.courseId || '')]
+     const isPrimaryCourse = String(course.courseId || '') === String(student?.courseId || student?.course?.id || '')
+     const courseCalendarEvents = (student?.calendarEvents || []).filter((event) => String(event?.courseId || '') === String(course.courseId || '') || (isPrimaryCourse && !event?.courseId))
+     const courseStudent = { ...student, courseName: course.courseName, batchName: course.batchName, calendarEvents: courseCalendarEvents }
+     return getTodayClassSessions(overview?.todayAttendance, courseStudent).map((session) => ({ ...session, courseName: session.courseName || course.courseName, batchName: session.batchName || course.batchName }))
+   }).forEach((session) => {
+     const key = `${session.courseName || session.courseId || ''}|${session.batchName || session.batchId || ''}|${session.startTime || ''}|${session.endTime || ''}`
+     const assigned = Boolean(session.isReplacement || session.replacementFacultyName || session.combinedFacultyName || ['REASSIGNED', 'REPLACEMENT', 'COMBINED'].includes(String(session.assignmentType || session.code || '').toUpperCase()))
+     const previous = grouped.get(key)
+     const previousAssigned = previous && Boolean(previous.isReplacement || previous.replacementFacultyName || previous.combinedFacultyName || ['REASSIGNED', 'REPLACEMENT', 'COMBINED'].includes(String(previous.assignmentType || previous.code || '').toUpperCase()))
+     if (!previous || (assigned && !previousAssigned)) grouped.set(key, session)
+   })
+   return [...grouped.values()]
+ }, [attendanceOverviews, activeDashboardCourses, student])
  const todaySummary = todaySessions.reduce((summary, session) => {
    const status = String(session.status || 'NOT_MARKED').toUpperCase()
    summary.totalSessions += 1

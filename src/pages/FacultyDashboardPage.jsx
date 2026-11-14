@@ -2243,12 +2243,33 @@ function FacultyDashboardScheduleSections({ batches = [], todayWorkEntries = [],
     () => (Array.isArray(calendar?.events) ? calendar.events : []).filter((event) => String(event?.date || '').slice(0, 10)),
     [calendar],
   )
-  const classesToday = useMemo(
-    () => events.filter((event) => String(event?.date || '').slice(0, 10) === today && FACULTY_DASHBOARD_CLASS_STATUSES.has(facultyDashboardEventStatus(event))),
-    [events, today],
-  )
+  const classesToday = useMemo(() => {
+    const grouped = new Map()
+    events
+      .filter((event) => String(event?.date || '').slice(0, 10) === today && FACULTY_DASHBOARD_CLASS_STATUSES.has(facultyDashboardEventStatus(event)))
+      .forEach((event) => {
+        const key = `${event?.batchRecordId || event?.batchId || event?.batchName || ''}|${event?.startTime || ''}|${event?.endTime || ''}`
+        const previous = grouped.get(key)
+        const assigned = ['REASSIGNED', 'COMBINED', 'REPLACEMENT'].includes(String(event?.code || event?.assignmentType || '').toUpperCase())
+        const previousAssigned = previous && ['REASSIGNED', 'COMBINED', 'REPLACEMENT'].includes(String(previous?.code || previous?.assignmentType || '').toUpperCase())
+        if (!previous || (assigned && !previousAssigned)) grouped.set(key, event)
+      })
+    return [...grouped.values()]
+  }, [events, today])
   const selectedEvents = useMemo(
-    () => events.filter((event) => String(event?.date || '').slice(0, 10) === selectedDate && FACULTY_DASHBOARD_CLASS_STATUSES.has(facultyDashboardEventStatus(event))),
+    () => {
+      const grouped = new Map()
+      events
+        .filter((event) => String(event?.date || '').slice(0, 10) === selectedDate && FACULTY_DASHBOARD_CLASS_STATUSES.has(facultyDashboardEventStatus(event)))
+        .forEach((event) => {
+          const key = `${event?.batchRecordId || event?.batchId || event?.batchName || ''}|${event?.startTime || ''}|${event?.endTime || ''}`
+          const previous = grouped.get(key)
+          const assigned = ['REASSIGNED', 'COMBINED', 'REPLACEMENT'].includes(String(event?.code || event?.assignmentType || '').toUpperCase())
+          const previousAssigned = previous && ['REASSIGNED', 'COMBINED', 'REPLACEMENT'].includes(String(previous?.code || previous?.assignmentType || '').toUpperCase())
+          if (!previous || (assigned && !previousAssigned)) grouped.set(key, event)
+        })
+      return [...grouped.values()]
+    },
     [events, selectedDate],
   )
   const monthDays = useMemo(() => {
