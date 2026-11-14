@@ -52,7 +52,7 @@ import {
   saveFacultyBatchAttendanceState,
 } from '../lib/facultyAttendanceStore'
 import { enrichStudentsWithFacultyReferences, getFacultyBatchEntriesForCourse, getFacultyBatchStudentRecords, getFacultyCourseIds, getFacultyCourses, getMatchingStudents, getUniqueStudentCountForFacultyRecords, getUniqueStudentCountForFacultyScope } from '../lib/facultyFlow'
-import { editBranchStudentAttendance, getCurrentFacultyAttendanceOverview, markFacultyStudentAttendance, logoutFacultyAttendance, logoutFacultyWebsite } from '../services/attendanceService'
+import { editBranchStudentAttendance, getCurrentFacultyAttendanceOverview, getFacultyAttendanceStatus, markFacultyStudentAttendance, logoutFacultyAttendance, logoutFacultyWebsite } from '../services/attendanceService'
 import { getFacultyDashboardOverview, getFacultyMyBatchesSummary } from '../services/dashboardService'
 import { PaginationBar } from '../components/PaginationBar'
 import { listCourses } from '../services/courseService'
@@ -2418,6 +2418,45 @@ function formatClassTimeForDashboard(value) {
   return `${hour % 12 || 12}:${match[2]} ${hour >= 12 ? 'PM' : 'AM'}`
 }
 
+function parseAttendanceMinutes(value) {
+  const match = String(value || '').trim().match(/^(\d{1,2}):(\d{2})(?:\s*(AM|PM))?$/i)
+  if (!match) return null
+  let hour = Number(match[1])
+  const minute = Number(match[2])
+  const period = String(match[3] || '').toUpperCase()
+  if (period) {
+    if (hour < 1 || hour > 12) return null
+    if (period === 'AM' && hour === 12) hour = 0
+    if (period === 'PM' && hour !== 12) hour += 12
+  }
+  return hour <= 23 && minute <= 59 ? hour * 60 + minute : null
+}
+
+function getCurrentAttendanceMinutes(value = new Date()) {
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Asia/Calcutta',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).formatToParts(new Date(value))
+  const hour = Number(parts.find((part) => part.type === 'hour')?.value || 0)
+  const minute = Number(parts.find((part) => part.type === 'minute')?.value || 0)
+  return hour * 60 + minute
+}
+
+function getBatchClockWindow(batch = {}) {
+  const raw = String(batch?.timing || batch?.batchTiming || (
+    batch?.startTime && batch?.endTime
+      ? `${batch.startTime}${batch.startPeriod ? ` ${batch.startPeriod}` : ''} - ${batch.endTime}${batch.endPeriod ? ` ${batch.endPeriod}` : ''}`
+      : ''
+  )).trim()
+  const parts = raw.split(/\s*-\s*/)
+  if (parts.length !== 2) return null
+  const start = parseAttendanceMinutes(parts[0])
+  const end = parseAttendanceMinutes(parts[1])
+  return start == null || end == null || end <= start ? null : { start, end }
+}
+
 export function FacultyDashboardPage() {
   const { user, signOut } = useAuth()
   const location = useLocation()
@@ -2556,6 +2595,8 @@ export function FacultyDashboardPage() {
   const [statusFilter, setStatusFilter] = useState('all')
   const [notificationPage, setNotificationPage] = useState(1)
   const [facultyProfile, setFacultyProfile] = useState(null)
+  const [facultyAttendanceStatus, setFacultyAttendanceStatus] = useState(null)
+  const [facultyAttendanceStatusLoaded, setFacultyAttendanceStatusLoaded] = useState(false)
   const [facultyWeekOffRequests, setFacultyWeekOffRequests] = useState([])
   const [facultyWeekOffRequestsLoading, setFacultyWeekOffRequestsLoading] = useState(true)
   const [weekOffValidationMessage, setWeekOffValidationMessage] = useState('')
@@ -2653,6 +2694,28 @@ export function FacultyDashboardPage() {
     const intervalId = window.setInterval(() => setAttendanceClock(new Date()), 1000)
     return () => window.clearInterval(intervalId)
   }, [selectedStudentsBatchId, temporarySessionContext])
+
+  useEffect(() => {
+    let active = true
+    const loadFacultyAttendanceStatus = async () => {
+      try {
+        const status = await getFacultyAttendanceStatus()
+        if (active) {
+          setFacultyAttendanceStatus(status || null)
+          setFacultyAttendanceStatusLoaded(true)
+        }
+      } catch {
+        // Attendance remains usable if the optional work-log status endpoint
+        // is temporarily unavailable; the backend still validates leave.
+      }
+    }
+    void loadFacultyAttendanceStatus()
+    const intervalId = window.setInterval(loadFacultyAttendanceStatus, 30000)
+    return () => {
+      active = false
+      window.clearInterval(intervalId)
+    }
+  }, [])
 
   useEffect(() => {
     let isMounted = true
@@ -4901,6 +4964,10 @@ export function FacultyDashboardPage() {
       showWeekOffValidation()
       return
     }
+    if (mode === 'attendance' && facultyLeaveAttendanceLocked) {
+      setTodayWorkError('Attendance is disabled because an approved leave or permission window is active for this batch.')
+      return
+    }
     setTodayWorkMode(mode)
     if (mode === 'attendance') {
       try { setAttendanceAction(window.localStorage.getItem('cispro:faculty-attendance-action') || 'normal') } catch {}
@@ -5147,6 +5214,13 @@ export function FacultyDashboardPage() {
   const setTodayWorkAttendance = (studentId, status) => {
     const normalizedStudentId = String(studentId || '').trim()
     if (!normalizedStudentId) return
+
+    const existingStudent = studentsFlowVisibleStudents.find((student) => getTodayWorkStudentId(student) === normalizedStudentId)
+    const existingStatus = getCurrentStudentAttendanceStatus(studentAttendanceStatuses, existingStudent)
+    if (attendanceAction === 'late' && isAttendanceMarkedStatus(existingStatus)) {
+      setTodayWorkError('This student attendance is already saved. Use Edit Attendance to change it.')
+      return
+    }
 
     const attendanceWindow = resolveBatchAttendanceWindow(
       attendanceBatchTiming,
@@ -6828,9 +6902,20 @@ const nextName = trimmedValue
     const status = getCurrentStudentAttendanceStatus(studentAttendanceStatuses, student)
     return isAttendanceMarkedStatus(status) || status === 'LATE'
   })
+  const hasUnmarkedSavedAttendance = studentsFlowVisibleStudents.some((student) => {
+    const status = getCurrentStudentAttendanceStatus(studentAttendanceStatuses, student)
+    return !isAttendanceMarkedStatus(status) && status !== 'LATE'
+  })
   const normalAttendanceEnabled = !hasSavedTodayAttendance && todayWorkAttendanceWindow.isEditable && !temporarySessionWindowLocked
-  const lateAttendanceEnabled = !hasSavedTodayAttendance && todayWorkAttendanceWindow.isLateAvailable && !temporarySessionWindowLocked
-  const editAttendanceEnabled = hasSavedTodayAttendance && !temporarySessionWindowLocked
+  // A batch may be saved in parts (for example, one student was marked during
+  // normal time and another still needs late attendance). Keep Late enabled
+  // after the window closes while there are still unmarked students. The
+  // backend rejects attempts to overwrite an already saved student.
+  const lateAttendanceEnabled = hasUnmarkedSavedAttendance && todayWorkAttendanceWindow.isLateAvailable && !temporarySessionWindowLocked
+  // Corrections are locked while the normal attendance window is open. Once
+  // the window closes, an already saved attendance can be corrected through
+  // Edit Attendance.
+  const editAttendanceEnabled = hasSavedTodayAttendance && !todayWorkAttendanceWindow.isEditable && !temporarySessionWindowLocked
   const attendanceWindowLocked = temporarySessionWindowLocked || (todayWorkMode === 'attendance' && (
     (attendanceAction === 'normal' && !normalAttendanceEnabled)
     || (attendanceAction === 'late' && !lateAttendanceEnabled)
@@ -6840,9 +6925,19 @@ const nextName = trimmedValue
     activeTemporaryAttendanceSession?.isOriginalRescheduledSession
     || (!hasTemporaryAttendanceOverride && !isAttendanceDayForBatch(selectedStudentsBatch))
   )
+  const approvedLeaveWindows = Array.isArray(facultyAttendanceStatus?.approvedLeaveWindows)
+    ? facultyAttendanceStatus.approvedLeaveWindows
+    : []
+  const currentAttendanceMinutes = getCurrentAttendanceMinutes(facultyAttendanceStatus?.currentServerTime || new Date())
+  const facultyLeaveAttendanceLocked = Boolean(facultyAttendanceStatus?.exemption?.exempt)
+    || approvedLeaveWindows.some((window) => {
+      const leaveStart = parseAttendanceMinutes(window?.startTime)
+      const leaveEnd = parseAttendanceMinutes(window?.endTime)
+      return leaveStart != null && leaveEnd != null && currentAttendanceMinutes >= leaveStart && currentAttendanceMinutes < leaveEnd
+    })
 
   useEffect(() => {
-    if (!selectedStudentsBatchId || !todayWorkAttendanceWindow.isReminder || !hasUnmarkedAttendance) {
+    if (!facultyAttendanceStatusLoaded || facultyLeaveAttendanceLocked || !selectedStudentsBatchId || !todayWorkAttendanceWindow.isReminder || !hasUnmarkedAttendance) {
       attendanceWarningLevelRef.current = 0
       setAttendanceWarningPopup(null)
       return
@@ -6855,7 +6950,7 @@ const nextName = trimmedValue
         message: todayWorkAttendanceWindow.reason,
       })
     }
-  }, [hasUnmarkedAttendance, selectedStudentsBatchId, todayWorkAttendanceWindow.isReminder, todayWorkAttendanceWindow.warningMinutes, todayWorkAttendanceWindow.reason])
+  }, [facultyAttendanceStatusLoaded, facultyLeaveAttendanceLocked, hasUnmarkedAttendance, selectedStudentsBatchId, todayWorkAttendanceWindow.isReminder, todayWorkAttendanceWindow.warningMinutes, todayWorkAttendanceWindow.reason])
 
   const visibleAttendanceStudents = studentsFlowVisibleStudents.filter((student) => {
     if (!normalizedAttendanceSearch) return true
@@ -7304,8 +7399,8 @@ const nextName = trimmedValue
                       <button
                         type="button"
                         className={`faculty-today-work-trigger ${facultyWeekOffStatus.isWeekOff ? 'is-read-only' : ''}`.trim()}
-                        disabled={attendanceWeekTypeLocked || !studentsFlowActionableStudents.length}
-                        title={attendanceWeekTypeLocked ? `Attendance is disabled today for this ${selectedStudentsBatch?.weekType === 'WEEKEND' ? 'weekend' : 'weekday'} batch` : 'Open Attendance'}
+                        disabled={attendanceWeekTypeLocked || facultyLeaveAttendanceLocked || !studentsFlowActionableStudents.length}
+                        title={facultyLeaveAttendanceLocked ? 'Attendance is disabled during approved leave or permission' : attendanceWeekTypeLocked ? `Attendance is disabled today for this ${selectedStudentsBatch?.weekType === 'WEEKEND' ? 'weekend' : 'weekday'} batch` : 'Open Attendance'}
                         onClick={() => openTodayWorkModal('attendance')}
                       >
                         <BookOpen size={16} />
@@ -8792,6 +8887,8 @@ const nextName = trimmedValue
                     const studentId = getTodayWorkStudentId(student)
                     const studentName = String(student?.studentName || student?.name || `Student ${index + 1}`).trim()
                     const status = todayWorkForm.attendanceByStudent?.[studentId] || ''
+                    const savedStudentStatus = getCurrentStudentAttendanceStatus(studentAttendanceStatuses, student)
+                    const studentAttendanceLocked = attendanceAction === 'late' && isAttendanceMarkedStatus(savedStudentStatus)
                     const isPresentStudent = status === 'PRESENT'
                     const checked = isPresentStudent && todayWorkForm.selectedStudentIds.includes(studentId)
                     const discontinued = isDiscontinuedStudent(student)
@@ -8834,7 +8931,7 @@ const nextName = trimmedValue
                               type="button"
                               className={`faculty-today-work-attendance-button faculty-today-work-attendance-button--present${status === 'PRESENT' ? ' is-active' : ''}`}
                               onClick={() => setTodayWorkAttendance(studentId, 'PRESENT')}
-                              disabled={attendanceWindowLocked}
+                              disabled={attendanceWindowLocked || studentAttendanceLocked}
                             >
                               <Check size={14} strokeWidth={2.5} aria-hidden="true" />
                               Present
@@ -8843,7 +8940,7 @@ const nextName = trimmedValue
                               type="button"
                               className={`faculty-today-work-attendance-button faculty-today-work-attendance-button--absent${status === 'ABSENT' ? ' is-active' : ''}`}
                               onClick={() => setTodayWorkAttendance(studentId, 'ABSENT')}
-                              disabled={attendanceWindowLocked}
+                              disabled={attendanceWindowLocked || studentAttendanceLocked}
                             >
                               <X size={14} strokeWidth={2.5} aria-hidden="true" />
                               Absent

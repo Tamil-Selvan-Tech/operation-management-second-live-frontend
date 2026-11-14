@@ -86,10 +86,11 @@ function getBatchStudentTodayStatus(student = {}, facultyRecords = [], savedAtte
   const attendance = resolveStudentBatchAttendanceStatus(student, facultyRecords)
   const resolvedStatus = String(attendance?.status || '').trim()
 
-  if (resolvedStatus === 'Present' || resolvedStatus === 'Absent') {
+  const normalizedResolvedStatus = resolvedStatus.toUpperCase() === 'LATE' ? 'Present' : resolvedStatus
+  if (normalizedResolvedStatus === 'Present' || normalizedResolvedStatus === 'Absent') {
     return {
-      label: resolvedStatus,
-      toneClass: resolvedStatus === 'Present' ? 'is-present' : 'is-absent',
+      label: normalizedResolvedStatus,
+      toneClass: normalizedResolvedStatus === 'Present' ? 'is-present' : 'is-absent',
     }
   }
 
@@ -106,12 +107,13 @@ function getBatchStudentTodayStatus(student = {}, facultyRecords = [], savedAtte
 
     for (const key of recordKeys) {
       const recordStatus = String(savedRecords[key] || '').trim().toLowerCase()
-      if (recordStatus === 'present') return { label: 'Present', toneClass: 'is-present' }
+      if (recordStatus === 'present' || recordStatus === 'late') return { label: 'Present', toneClass: 'is-present' }
       if (recordStatus === 'absent') return { label: 'Absent', toneClass: 'is-absent' }
     }
 
     const orderedStatuses = Object.values(savedRecords)
       .map((value) => String(value || '').trim().toLowerCase())
+      .map((value) => value === 'late' ? 'present' : value)
       .filter((value) => value === 'present' || value === 'absent')
 
     if (studentIndex >= 0 && studentIndex < orderedStatuses.length) {

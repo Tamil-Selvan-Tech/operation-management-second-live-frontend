@@ -229,8 +229,9 @@ function extractAttendanceStatuses(payload = {}, filters = {}) {
     const rawStatus = String(row?.attendanceStatus || row?.attendanceStatusLabel || row?.status || '').trim().toUpperCase()
     const rowDate = String(row?.attendanceDate || row?.date || '').trim()
     const hasExpectedDate = !expectedDate || rowDate === expectedDate || responseDate === expectedDate || row?.attendanceMarkedAt || row?.markedAt
-    if (studentId && matchesScope(rowScope) && ['PRESENT', 'ABSENT'].includes(rawStatus) && hasExpectedDate) {
-      statuses[studentId] = rawStatus
+    const normalizedRowStatus = rawStatus === 'LATE' ? 'PRESENT' : rawStatus
+    if (studentId && matchesScope(rowScope) && ['PRESENT', 'ABSENT'].includes(normalizedRowStatus) && hasExpectedDate) {
+      statuses[studentId] = normalizedRowStatus
     }
 
     const records = Array.isArray(row?.records) ? row.records : []
@@ -244,7 +245,8 @@ function extractAttendanceStatuses(payload = {}, filters = {}) {
       if (expectedDate && recordDate !== expectedDate && responseDate !== expectedDate) return
       if (!matchesScope(getScope(row, record))) return
       const recordStatus = String(record?.attendanceStatus || record?.attendanceStatusLabel || record?.status || '').trim().toUpperCase()
-      if (recordStudentId && ['PRESENT', 'ABSENT'].includes(recordStatus)) statuses[recordStudentId] = recordStatus
+      const normalizedRecordStatus = recordStatus === 'LATE' ? 'PRESENT' : recordStatus
+      if (recordStudentId && ['PRESENT', 'ABSENT'].includes(normalizedRecordStatus)) statuses[recordStudentId] = normalizedRecordStatus
     })
   })
 
@@ -1557,8 +1559,9 @@ export function BranchBatchManagementSection({
     detailStudents.forEach((student) => {
       const studentKey = normalizeMatchKey(student?.studentId || student?.id || student?._id || '')
       const localStatus = String(getStudentCalendarAttendance(student)?.[todayKey] || '').trim().toUpperCase()
-      if (studentKey && ['PRESENT', 'ABSENT'].includes(localStatus)) {
-        localStatuses[studentKey] = localStatus
+      const normalizedLocalStatus = localStatus === 'LATE' ? 'PRESENT' : localStatus
+      if (studentKey && ['PRESENT', 'ABSENT'].includes(normalizedLocalStatus)) {
+        localStatuses[studentKey] = normalizedLocalStatus
       }
     })
 
