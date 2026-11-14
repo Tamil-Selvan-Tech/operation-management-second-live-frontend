@@ -299,6 +299,27 @@ export async function getFacultyAttendanceBatches() {
   }
 }
 
+export async function getFacultyPreviousAttendance({ from, to } = {}) {
+  const params = new URLSearchParams()
+  if (from) params.set('from', from)
+  if (to) params.set('to', to)
+  const response = await request(`/faculty/attendance/history${params.toString() ? `?${params.toString()}` : ''}`)
+  return unwrapFacultyAttendanceResponse(response)
+}
+
+export async function getFacultyHistoricalAttendanceSession(sessionId) {
+  const response = await request(`/faculty/attendance/history/${encodeURIComponent(sessionId)}`)
+  return unwrapFacultyAttendanceResponse(response)
+}
+
+export async function updateFacultyHistoricalAttendance(sessionId, payload = {}) {
+  const response = await request(`/faculty/attendance/history/${encodeURIComponent(sessionId)}`, {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+  })
+  return unwrapFacultyAttendanceResponse(response)
+}
+
 export async function getFacultyAttendancePermission() {
   const response = await request('/faculty/attendance/permission')
   return unwrapFacultyAttendanceResponse(response)
