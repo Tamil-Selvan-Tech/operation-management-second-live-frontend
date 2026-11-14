@@ -6655,6 +6655,14 @@ body.faculty-notification-menu-open .super-admin-content {
   margin-bottom: 18px;
 }
 
+.faculty-other-batches-student-toolbar { display: flex; justify-content: flex-start; margin: 0 0 12px; }
+.faculty-other-batches-student-toolbar input { width: min(320px, 100%); min-height: 40px; padding: 9px 12px; border: 1px solid #d6e0ef; border-radius: 8px; color: #17345f; background: #fff; font: inherit; }
+.faculty-other-batches-pagination { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 14px; color: #64748b; font-size: .86rem; }
+.faculty-other-batches-pagination > div { display: flex; align-items: center; gap: 8px; }
+.faculty-other-batches-pagination button { min-height: 34px; padding: 7px 11px; border: 1px solid #d6e0ef; border-radius: 8px; color: #17345f; background: #fff; font: inherit; font-weight: 700; cursor: pointer; }
+.faculty-other-batches-pagination button:disabled { opacity: .5; cursor: not-allowed; }
+@media (max-width: 700px) { .faculty-other-batches-pagination { align-items: stretch; flex-direction: column; } .faculty-other-batches-pagination > div { justify-content: space-between; } }
+
 .faculty-emergency-delegated-card { margin-bottom: 1.25rem; padding: 1.25rem; border: 1px solid #d7e4f5; border-radius: 16px; background: #f8fbff; }
 .faculty-emergency-session-list { display: grid; gap: .75rem; }
 .faculty-emergency-session { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: .9rem 1rem; border: 1px solid #dbe7f3; border-radius: 12px; background: #fff; }

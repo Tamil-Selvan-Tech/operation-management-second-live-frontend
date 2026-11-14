@@ -2304,6 +2304,8 @@ function OtherFacultyBatchesSection({ onOpenTemporaryWork, onAssignmentVisibilit
   const [calendarStudent, setCalendarStudent] = useState(null)
   const [studentLoading, setStudentLoading] = useState(false)
   const [studentError, setStudentError] = useState('')
+  const [studentSearch, setStudentSearch] = useState('')
+  const [studentPage, setStudentPage] = useState(1)
 
   useEffect(() => {
     let active = true
@@ -2321,6 +2323,8 @@ function OtherFacultyBatchesSection({ onOpenTemporaryWork, onAssignmentVisibilit
     try {
       const result = await getTemporaryBatchStudents(item.id)
       setStudentView({ ...result, item })
+      setStudentSearch('')
+      setStudentPage(1)
     } catch (err) {
       setStudentError(err.message || 'Unable to load students')
     } finally {
@@ -2346,6 +2350,15 @@ function OtherFacultyBatchesSection({ onOpenTemporaryWork, onAssignmentVisibilit
 
   const activeStudentSession = studentView?.session || studentView?.item || null
   const temporarySessionEditable = isTemporarySessionEditable(activeStudentSession)
+  const filteredTemporaryStudents = (studentView?.students || []).filter((student) => {
+    const query = studentSearch.trim().toLowerCase()
+    if (!query) return true
+    return [student?.studentName, student?.studentId, student?.emailAddress]
+      .some((value) => String(value || '').toLowerCase().includes(query))
+  })
+  const temporaryStudentPageCount = Math.max(1, Math.ceil(filteredTemporaryStudents.length / 5))
+  const safeTemporaryStudentPage = Math.min(studentPage, temporaryStudentPageCount)
+  const paginatedTemporaryStudents = filteredTemporaryStudents.slice((safeTemporaryStudentPage - 1) * 5, safeTemporaryStudentPage * 5)
 
   return <FacultyDashboardSection title="Other Faculty Batches" description="Temporary leave-related batches assigned to you for the current and upcoming dates.">
     {studentLoading ? (
@@ -2373,12 +2386,24 @@ function OtherFacultyBatchesSection({ onOpenTemporaryWork, onAssignmentVisibilit
           </button>
         </div>
         {studentView.students?.length ? (
+          <>
+          <div className="faculty-other-batches-student-toolbar">
+            <input
+              type="search"
+              value={studentSearch}
+              onChange={(event) => { setStudentSearch(event.target.value); setStudentPage(1) }}
+              placeholder="Search student name or ID..."
+              aria-label="Search student name or ID"
+            />
+          </div>
           <div className="branch-dashboard-table-shell">
             <table className="branch-dashboard-table">
               <thead><tr><th>S.No</th><th>Student ID</th><th>Name</th><th>Email</th><th>Phone</th><th>Paid Progress</th><th>Course Progress</th><th>Attendance</th><th>Actions</th></tr></thead>
-              <tbody>{studentView.students.map((student, index) => <tr key={student.id}><td>{index + 1}</td><td>{student.studentId}</td><td>{student.studentName}</td><td>{student.emailAddress || '-'}</td><td>{student.mobileNumber || '-'}</td><td>{student.paidProgress ?? '-'}{student.paidProgress != null ? '%' : ''}</td><td>{student.courseProgress ?? '-'}{student.courseProgress != null ? '%' : ''}</td><td>{student.attendance || 'UNMARKED'}</td><td><div className="faculty-other-batches-student-actions"><button type="button" className="faculty-other-batches-action-button" onClick={() => setCalendarStudent(student)}>View Calendar</button></div></td></tr>)}</tbody>
+              <tbody>{paginatedTemporaryStudents.map((student, index) => { const attendance = String(student.attendance || 'UNMARKED').toUpperCase(); const attendanceLabel = attendance === 'PRESENT' ? 'Present' : attendance === 'ABSENT' ? 'Absent' : 'Unmarked'; return <tr key={student.id}><td>{((safeTemporaryStudentPage - 1) * 5) + index + 1}</td><td>{student.studentId}</td><td>{student.studentName}</td><td>{student.emailAddress || '-'}</td><td>{student.mobileNumber || '-'}</td><td>{student.paidProgress ?? '-'}{student.paidProgress != null ? '%' : ''}</td><td>{student.courseProgress ?? '-'}{student.courseProgress != null ? '%' : ''}</td><td><span className={`faculty-student-attendance-pill faculty-student-attendance-pill--${attendance.toLowerCase()}`}><i className="faculty-student-attendance-dot" aria-hidden="true" />{attendanceLabel}</span></td><td><div className="faculty-other-batches-student-actions"><button type="button" className="faculty-other-batches-action-button" onClick={() => setCalendarStudent(student)}>View Calendar</button></div></td></tr> })}</tbody>
             </table>
           </div>
+          {filteredTemporaryStudents.length ? <div className="faculty-other-batches-pagination"><span>Showing {((safeTemporaryStudentPage - 1) * 5) + 1}-{Math.min(safeTemporaryStudentPage * 5, filteredTemporaryStudents.length)} of {filteredTemporaryStudents.length} students</span><div><button type="button" onClick={() => setStudentPage((page) => Math.max(1, page - 1))} disabled={safeTemporaryStudentPage === 1}>Previous</button><strong>Page {safeTemporaryStudentPage} of {temporaryStudentPageCount}</strong><button type="button" onClick={() => setStudentPage((page) => Math.min(temporaryStudentPageCount, page + 1))} disabled={safeTemporaryStudentPage === temporaryStudentPageCount}>Next</button></div></div> : <p>No students match your search.</p>}
+          </>
         ) : <p>No students found for this batch.</p>}
       </div>
     ) : studentError ? (
@@ -2461,7 +2486,7 @@ export function FacultyDashboardPage() {
   const isAcademicCreateRoute = isAcademicTestRoute && new URLSearchParams(location.search).get('create') === '1'
   const isStudentExamReportRoute = /^\/dashboard\/faculty\/exams\/reports\/[^/]+\/[^/]+$/.test(location.pathname)
   const requestedStudentView = normalizeFacultyStudentView(new URLSearchParams(location.search).get('view'))
-  const facultyRouteSection = location.pathname === '/dashboard/faculty/dashboard' ? 'dashboard' : location.pathname === '/dashboard/faculty/courses' ? 'my-courses' : ['/dashboard/faculty/batches', '/dashboard/faculty/my-batches'].includes(location.pathname) ? 'my-batches' : location.pathname === '/dashboard/faculty/calendar' ? 'my-calendar' : location.pathname === '/dashboard/faculty/students' ? 'students' : location.pathname === '/dashboard/faculty/leave-requests' ? 'leave-requests' : location.pathname === '/dashboard/faculty/notifications' ? 'notifications' : location.pathname.startsWith('/dashboard/faculty/skill-development') ? 'skill-development' : location.pathname === '/dashboard/faculty/profile' ? 'profile' : isExamsRoute || isAssessmentsRoute || isExamReportsRoute || isAcademicTestRoute ? 'exams' : ''
+  const facultyRouteSection = location.pathname === '/dashboard/faculty/dashboard' ? 'dashboard' : location.pathname === '/dashboard/faculty/courses' ? 'my-courses' : ['/dashboard/faculty/batches', '/dashboard/faculty/my-batches'].includes(location.pathname) ? 'my-batches' : location.pathname === '/dashboard/faculty/calendar' ? 'my-calendar' : location.pathname === '/dashboard/faculty/students' ? 'students' : location.pathname === '/dashboard/faculty/other-faculty-batches' ? 'other-faculty-batches' : location.pathname === '/dashboard/faculty/leave-requests' ? 'leave-requests' : location.pathname === '/dashboard/faculty/notifications' ? 'notifications' : location.pathname.startsWith('/dashboard/faculty/skill-development') ? 'skill-development' : location.pathname === '/dashboard/faculty/profile' ? 'profile' : isExamsRoute || isAssessmentsRoute || isExamReportsRoute || isAcademicTestRoute ? 'exams' : ''
   const userRole = String(user?.role || '').trim().toLowerCase()
   const [activeSection, setActiveSection] = useState(facultyRouteSection || 'dashboard')
   const [expandedSidebarGroups, setExpandedSidebarGroups] = useState({
@@ -6415,7 +6440,7 @@ const nextName = trimmedValue
 
   const handleSidebarSectionChange = (section) => {
     if (requireWorkLogLogin()) return
-    const routeBySection = { dashboard: '/dashboard/faculty/dashboard', 'my-courses': '/dashboard/faculty/courses', 'my-batches': '/dashboard/faculty/batches', 'my-calendar': '/dashboard/faculty/calendar', exams: '/dashboard/faculty/exams', students: '/dashboard/faculty/students', 'leave-requests': '/dashboard/faculty/leave-requests', notifications: '/dashboard/faculty/notifications', profile: '/dashboard/faculty/profile', 'skill-development': '/dashboard/faculty/skill-development' }
+    const routeBySection = { dashboard: '/dashboard/faculty/dashboard', 'my-courses': '/dashboard/faculty/courses', 'my-batches': '/dashboard/faculty/batches', 'my-calendar': '/dashboard/faculty/calendar', exams: '/dashboard/faculty/exams', students: '/dashboard/faculty/students', 'other-faculty-batches': '/dashboard/faculty/other-faculty-batches', 'leave-requests': '/dashboard/faculty/leave-requests', notifications: '/dashboard/faculty/notifications', profile: '/dashboard/faculty/profile', 'skill-development': '/dashboard/faculty/skill-development' }
     if (routeBySection[section]) {
       navigate(routeBySection[section])
       return
