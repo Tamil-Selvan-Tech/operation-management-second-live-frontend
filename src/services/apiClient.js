@@ -35,9 +35,14 @@ let sessionExpiredHandler = null
 let sessionExpiredNotified = false
 let lastRefreshFailureStatus = null
 export let impersonateBranchId = null
+export let impersonateSalesAdminId = null
 
 export function setImpersonateBranchId(id) {
   impersonateBranchId = id || null
+}
+
+export function setImpersonateSalesAdminId(id) {
+  impersonateSalesAdminId = id || null
 }
 
 function parseFileNameFromContentDisposition(headerValue = '') {
@@ -139,7 +144,7 @@ function persistRefreshedTokens(nextAccessToken, nextRefreshToken) {
 }
 
 async function request(path, options = {}, retryCount = 0) {
-  const { skipAuth, headers: optionHeaders, body, impersonateBranchId: requestBranchId, timeoutMs = REQUEST_TIMEOUT_MS, ...fetchOptions } = options
+  const { skipAuth, headers: optionHeaders, body, impersonateBranchId: requestBranchId, impersonateSalesAdminId: requestSalesAdminId, timeoutMs = REQUEST_TIMEOUT_MS, ...fetchOptions } = options
   const headers = new Headers(optionHeaders || {})
   const controller = new AbortController()
   let didTimeout = false
@@ -168,6 +173,11 @@ async function request(path, options = {}, retryCount = 0) {
   const branchIdForRequest = requestBranchId || impersonateBranchId
   if (branchIdForRequest) {
     headers.set('X-Impersonate-Branch-Id', branchIdForRequest)
+  }
+
+  const salesAdminIdForRequest = requestSalesAdminId || impersonateSalesAdminId
+  if (salesAdminIdForRequest) {
+    headers.set('X-Impersonate-Sales-Admin-Id', salesAdminIdForRequest)
   }
 
   if (body && !(typeof FormData !== 'undefined' && body instanceof FormData) && !headers.has('Content-Type')) {

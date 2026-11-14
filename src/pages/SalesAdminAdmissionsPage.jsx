@@ -188,7 +188,7 @@ export function SalesAdminAdmissionsPage({ readOnlySalesAdmin = false, salesAdmi
       if (search.trim()) params.set('search', search.trim())
       const [result, requests] = await Promise.all([
         request(`/sales-admins/admissions?${params}`),
-        listSalesAdminBatchRequests().catch((reason) => {
+        listSalesAdminBatchRequests(salesAdminId).catch((reason) => {
           console.warn('Unable to load admission batch requests:', reason?.message || reason)
           return []
         }),
@@ -205,7 +205,7 @@ export function SalesAdminAdmissionsPage({ readOnlySalesAdmin = false, salesAdmi
       loadInFlightRef.current = false
       setLoading(false)
     }
-  }, [branchId, courseId, page, search, sortBy, status])
+  }, [branchId, courseId, page, search, sortBy, status, salesAdminId])
   useEffect(() => {
     const timer = window.setTimeout(() => { void load() }, 0)
     return () => window.clearTimeout(timer)
@@ -219,22 +219,22 @@ export function SalesAdminAdmissionsPage({ readOnlySalesAdmin = false, salesAdmi
   }, [load])
   useEffect(() => {
     let active = true
-    request('/sales-admins/admissions/pending-reminder')
+    request(`/sales-admins/admissions/pending-reminder` + (salesAdminId ? `?salesAdminId=` + encodeURIComponent(salesAdminId) : ''))
       .then((response) => {
         if (active && (response?.data?.notificationCreated || response?.data?.notificationUpdated || response?.data?.notificationRemoved)) window.dispatchEvent(new Event('lead-notification-updated'))
       })
       .catch((reason) => console.warn('Unable to refresh the pending HOT admission reminder:', reason?.message || reason))
     return () => { active = false }
-  }, [])
+  }, [salesAdminId])
 
   const startAdmission = async (leadId) => {
     if (blockInactiveAction()) return
     setError('')
     try {
-      const result = unwrap(await request(`/sales-admins/admissions/leads/${encodeURIComponent(leadId)}/start`, { method: 'POST' }))
+      const result = unwrap(await request(`/sales-admins/admissions/leads/${encodeURIComponent(leadId)}/start` + (salesAdminId ? `?salesAdminId=` + encodeURIComponent(salesAdminId) : ''), { method: 'POST' }))
       let lead = result.lead
       if (lead && !lead.admissionContext) {
-        const details = unwrap(await request(`/sales-admins/admissions/leads/${encodeURIComponent(leadId)}`))
+        const details = unwrap(await request(`/sales-admins/admissions/leads/${encodeURIComponent(leadId)}` + (salesAdminId ? `?salesAdminId=` + encodeURIComponent(salesAdminId) : '')))
         lead = details.lead || lead
       }
       setActiveLead(lead)
@@ -266,7 +266,7 @@ export function SalesAdminAdmissionsPage({ readOnlySalesAdmin = false, salesAdmi
     setFeeDetailsError('')
     setFeeDetailsLoading(true)
     try {
-      const response = unwrap(await request(`/sales-admins/admissions/students/${encodeURIComponent(row.admissionStudent.id)}/fee-details`))
+      const response = unwrap(await request(`/sales-admins/admissions/students/${encodeURIComponent(row.admissionStudent.id)}/fee-details` + (salesAdminId ? `?salesAdminId=` + encodeURIComponent(salesAdminId) : '')))
       setViewStudent((current) => current ? { ...current, feeDetails: response.feeDetails || response } : current)
     } catch (reason) {
       setFeeDetailsError(reason?.message || 'Unable to load student fee details.')
@@ -281,8 +281,8 @@ export function SalesAdminAdmissionsPage({ readOnlySalesAdmin = false, salesAdmi
     setRequestSaving(true)
     setRequestError('')
     try {
-      if (requestingBatchRequest?.id) await resendSalesAdminBatchRequest(requestingBatchRequest.id)
-      else await createSalesAdminBatchRequest(requestingLead.id)
+      if (requestingBatchRequest?.id) await resendSalesAdminBatchRequest(requestingBatchRequest.id, salesAdminId)
+      else await createSalesAdminBatchRequest(requestingLead.id, salesAdminId)
       setRequestingLead(null)
       setRequestingBatchRequest(null)
       await load()

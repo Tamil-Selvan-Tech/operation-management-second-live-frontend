@@ -4298,7 +4298,8 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
       : requestedSidebarSection || routeSection
   const [resolvedBranchRoleAccess, setResolvedBranchRoleAccess] = useState('')
   const [isSalesAdminDashboardMode, setIsSalesAdminDashboardMode] = useState(false)
-  const hasLeadManagementAccess = String(resolvedBranchRoleAccess || user?.roleAccess || session?.user?.roleAccess || '').toUpperCase() === 'BRANCH_ADMIN_SALES_ADMIN'
+  const isSuperAdminEmbeddedView = embeddedMode && !admissionOnlyMode && String(role || '').toUpperCase().replace(/[^A-Z0-9]/g, '') === 'SUPERADMIN'
+  const hasLeadManagementAccess = isSuperAdminEmbeddedView || String(resolvedBranchRoleAccess || user?.roleAccess || session?.user?.roleAccess || '').toUpperCase() === 'BRANCH_ADMIN_SALES_ADMIN'
 
 
 
@@ -12556,8 +12557,8 @@ useEffect(() => {
               {activeSection === 'progress-notifications' ? <ProgressNotificationsView branch={branchScope} /> : null}
               {activeSection === 'faculty-edit-requests' ? <FacultyEditRequestsView /> : null}
               {activeSection === 'discontinuations' ? <BranchDiscontinuationManagementPage /> : null}
-              {activeSection === 'lead-management' ? <LeadManagementPage /> : null}
-              {activeSection === 'sales-crm-admissions' ? <SalesAdminAdmissionsPage key={location.search} /> : null}
+              {activeSection === 'lead-management' ? <LeadManagementPage salesAdminId={branchData?.salesAdminId || ''} /> : null}
+              {activeSection === 'sales-crm-admissions' ? <SalesAdminAdmissionsPage key={location.search} salesAdminId={branchData?.salesAdminId || ''} /> : null}
               {activeSection === 'sales-crm-reports' ? <SalesCrmReportPage branchScoped branchId={branchProfile?.id || branchData?.id || ''} branchName={branchProfile?.branchName || branchData?.branchName || ''} /> : null}
               {activeSection === 'branch-reports' ? (
                 <BranchReportsAnalyticsPage
