@@ -6975,11 +6975,22 @@ body.faculty-notification-menu-open .super-admin-content {
 }
 .faculty-previous-attendance-page {
   display: grid;
-  gap: 14px;
+  gap: 0;
 }
 
 .faculty-previous-attendance-page-header {
   display: flex;
   align-items: center;
+}
+
+.faculty-previous-attendance-page-header .faculty-today-work-trigger {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  padding-left: 0;
+}
+
+.faculty-previous-attendance-page .faculty-previous-attendance {
+  margin-top: 0;
 }
 

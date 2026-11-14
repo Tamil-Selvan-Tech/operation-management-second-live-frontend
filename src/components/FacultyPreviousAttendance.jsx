@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { CalendarDays, ChevronLeft, ChevronRight, Eye, Pencil, RefreshCw, X } from 'lucide-react'
+import { AlertCircle, CalendarOff, CheckCircle2, ChevronLeft, ChevronRight, ClipboardCheck, Eye, Filter, Pencil, RefreshCw, RotateCcw, X } from 'lucide-react'
 import {
   getFacultyHistoricalAttendanceSession,
   getFacultyAttendanceBatches,
@@ -7,6 +7,7 @@ import {
   updateFacultyHistoricalAttendance,
 } from '../services/attendanceService'
 import '../styles/FacultyPreviousAttendance.css'
+import { FacultySessionStudentsTable } from './FacultySessionStudentsTable'
 
 const SESSION_STATUSES = new Set(['COMPLETED', 'MISSING', 'WEEK OFF', 'HOLIDAY', 'LEAVE', 'RESCHEDULED'])
 const NO_ACTION_STATUSES = new Set(['WEEK OFF', 'HOLIDAY', 'LEAVE', 'RESCHEDULED'])
@@ -75,14 +76,19 @@ function displayStudentAttendanceType(student = {}) {
 }
 
 export function FacultyPreviousAttendance() {
-  const [month, setMonth] = useState(() => monthKey(new Date()))
+  const month = monthKey(new Date())
   const [rows, setRows] = useState([])
   const [stats, setStats] = useState({})
   const [historyStart, setHistoryStart] = useState('')
-  const [showAllHistory, setShowAllHistory] = useState(true)
+  const showAllHistory = true
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [selectedDate, setSelectedDate] = useState('')
+  const [dateFilterMode, setDateFilterMode] = useState('all')
+  const [fromDateFilter, setFromDateFilter] = useState('')
+  const [toDateFilter, setToDateFilter] = useState('')
+  const [statusFilter, setStatusFilter] = useState('ALL')
+  const [batchFilter, setBatchFilter] = useState('ALL')
+  const [page, setPage] = useState(1)
   const [selected, setSelected] = useState(null)
   const [editor, setEditor] = useState(null)
   const [saving, setSaving] = useState(false)
@@ -117,7 +123,21 @@ export function FacultyPreviousAttendance() {
   }, [])
   useEffect(() => { void load() }, [load])
 
-  const filteredRows = useMemo(() => selectedDate ? rows.filter((row) => row.attendanceDate === selectedDate) : rows, [rows, selectedDate])
+  const batchOptions = useMemo(() => [...new Set(rows.map((row) => row.batchName).filter((value) => value && value !== '-'))].sort((left, right) => left.localeCompare(right)), [rows])
+  const filteredRows = useMemo(() => rows.filter((row) => {
+    const matchesDate = dateFilterMode === 'range'
+      ? (!fromDateFilter || row.attendanceDate >= fromDateFilter) && (!toDateFilter || row.attendanceDate <= toDateFilter)
+      : true
+    const matchesStatus = statusFilter === 'ALL' || row.sessionStatus === statusFilter
+    const matchesBatch = batchFilter === 'ALL' || row.batchName === batchFilter
+    return matchesDate && matchesStatus && matchesBatch
+  }), [batchFilter, dateFilterMode, fromDateFilter, rows, statusFilter, toDateFilter])
+  const totalPages = Math.max(1, Math.ceil(filteredRows.length / 5))
+  const safePage = Math.min(page, totalPages)
+  const paginatedRows = useMemo(() => filteredRows.slice((safePage - 1) * 5, safePage * 5), [filteredRows, safePage])
+  const resetFilters = () => {
+    setFromDateFilter(''); setToDateFilter(''); setDateFilterMode('all'); setStatusFilter('ALL'); setBatchFilter('ALL'); setPage(1)
+  }
   const derivedStats = useMemo(() => ({
     completed: stats.completed ?? rows.filter((row) => row.sessionStatus === 'COMPLETED').length,
     missing: stats.missing ?? rows.filter((row) => row.sessionStatus === 'MISSING').length,
@@ -168,20 +188,35 @@ export function FacultyPreviousAttendance() {
     }
   }
 
-  const moveMonth = (delta) => {
-    const [year, currentMonth] = month.split('-').map(Number)
-    setMonth(monthKey(new Date(year, currentMonth - 1 + delta, 1))); setSelectedDate(''); setShowAllHistory(false)
-  }
+  useEffect(() => { setPage(1) }, [batchFilter, dateFilterMode, fromDateFilter, statusFilter, toDateFilter])
 
   return <section className="faculty-previous-attendance">
-    <div className="faculty-previous-attendance-header"><div><span className="faculty-previous-eyebrow">FACULTY ATTENDANCE</span><h2>Previous Attendance</h2><p>Review month-wise batch sessions. Today Attendance remains unchanged above.</p></div><button type="button" className="faculty-previous-refresh" onClick={() => void load()} disabled={loading}><RefreshCw size={16} className={loading ? 'faculty-previous-spin' : ''} /> Refresh</button></div>
-    <div className="faculty-previous-toolbar"><button type="button" onClick={() => moveMonth(-1)} aria-label="Previous month"><ChevronLeft /></button><label><CalendarDays size={17} /><input type="month" value={month} onChange={(event) => { setMonth(event.target.value); setSelectedDate(''); setShowAllHistory(false) }} /></label><button type="button" onClick={() => moveMonth(1)} aria-label="Next month"><ChevronRight /></button></div>
-    <div className="faculty-previous-stat-grid">{[['Completed Sessions', derivedStats.completed, 'completed'], ['Missing Sessions', derivedStats.missing, 'missing'], ['Non-working Days', derivedStats.nonWorking, 'non-working'], ['Today Work Submitted', derivedStats.todayWork, 'work']].map(([label, value, tone]) => <article key={label} className={`faculty-previous-stat faculty-previous-stat--${tone}`}><span>{label}</span><strong>{value}</strong></article>)}</div>
-    <div className="faculty-previous-calendar"><button type="button" className={showAllHistory && !selectedDate ? 'is-active' : ''} onClick={() => { setSelectedDate(''); setShowAllHistory(true) }}>All history</button><button type="button" className={!showAllHistory && !selectedDate ? 'is-active' : ''} onClick={() => { setSelectedDate(''); setShowAllHistory(false) }}>Selected month</button>{Array.from(new Set(rows.map((row) => row.attendanceDate))).sort().map((date) => <button key={date} type="button" className={selectedDate === date ? 'is-active' : ''} onClick={() => setSelectedDate(date)}>{formatDate(date)}</button>)}</div>
+    <div className="faculty-previous-attendance-header"><div><span className="faculty-previous-eyebrow">FACULTY ATTENDANCE</span><h2>Previous Attendance</h2></div><button type="button" className="faculty-previous-refresh" onClick={() => void load()} disabled={loading}><RefreshCw size={16} className={loading ? 'faculty-previous-spin' : ''} /> Refresh</button></div>
+    <div className="faculty-previous-stat-grid">
+      {[
+        ['Completed Sessions', derivedStats.completed, 'completed', CheckCircle2],
+        ['Missing Sessions', derivedStats.missing, 'missing', AlertCircle],
+        ['Non-working Days', derivedStats.nonWorking, 'non-working', CalendarOff],
+        ['Today Work Submitted', derivedStats.todayWork, 'work', ClipboardCheck],
+      ].map(([label, value, tone, Icon]) => <article key={label} className={`faculty-previous-stat faculty-previous-stat--${tone}`}><div className="faculty-previous-stat-icon"><Icon size={18} /></div><div><span>{label}</span><strong>{value}</strong></div></article>)}
+    </div>
+    <div className="faculty-previous-filter-panel">
+      <div className="faculty-previous-filter-heading"><Filter size={16} /><span>Filter attendance history</span><button type="button" onClick={resetFilters}><RotateCcw size={14} /> Reset</button></div>
+      <div className="faculty-previous-filter-grid">
+        <label><span>Date mode</span><select value={dateFilterMode} onChange={(event) => { setDateFilterMode(event.target.value); setFromDateFilter(''); setToDateFilter('') }}><option value="all">All dates</option><option value="range">Date range</option></select></label>
+        {dateFilterMode === 'range' ? <><label><span>From date</span><input type="date" value={fromDateFilter} onChange={(event) => setFromDateFilter(event.target.value)} /></label><label><span>To date</span><input type="date" min={fromDateFilter || undefined} value={toDateFilter} onChange={(event) => setToDateFilter(event.target.value)} /></label></> : null}
+        <label><span>Status</span><select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}><option value="ALL">All status</option>{['COMPLETED', 'MISSING', 'WEEK OFF', 'HOLIDAY', 'LEAVE', 'RESCHEDULED'].map((status) => <option key={status} value={status}>{status}</option>)}</select></label>
+        <label><span>Batch</span><select value={batchFilter} onChange={(event) => setBatchFilter(event.target.value)}><option value="ALL">All batches</option>{batchOptions.map((batch) => <option key={batch} value={batch}>{batch}</option>)}</select></label>
+      </div>
+    </div>
     {error ? <div className="faculty-previous-error" role="alert">{error}</div> : null}
-    {loading ? <div className="faculty-previous-empty">Loading attendance history…</div> : !filteredRows.length ? <div className="faculty-previous-empty"><strong>No attendance sessions for this month</strong><span>Only saved database records are shown here.</span></div> : <div className="faculty-previous-table-wrap"><table className="faculty-previous-table"><thead><tr><th>Attendance Date</th><th>Batch</th><th>Course</th><th>Timing</th><th>Original Faculty</th><th>Handled By</th><th>Status</th><th>Today Work</th><th>Action</th></tr></thead><tbody>{filteredRows.map((row) => <tr key={row.id}><td>{formatDate(row.attendanceDate)}</td><td><strong>{row.batchName}</strong></td><td>{row.courseName}</td><td>{row.batchTiming}</td><td>{row.originalFacultyName}</td><td>{row.handledBy}</td><td><StatusBadge value={row.sessionStatus} /></td><td><StatusBadge value={row.todayWorkStatus} /></td><td><div className="faculty-previous-actions"><button type="button" onClick={() => void openSession(row)} title="View session"><Eye size={16} /> View</button>{!NO_ACTION_STATUSES.has(row.sessionStatus) ? <button type="button" onClick={() => void openSession(row, true)} title="Edit session"><Pencil size={16} /> Edit</button> : null}</div></td></tr>)}</tbody></table></div>}
-    {selected ? <div className="faculty-previous-modal-backdrop" role="presentation" onClick={() => setSelected(null)}><aside className="faculty-previous-modal faculty-previous-session-modal" role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()}><button type="button" className="faculty-previous-modal-close" onClick={() => setSelected(null)} aria-label="Close"><X /></button><span className="faculty-previous-eyebrow">SESSION DETAILS</span><h3>{selected.batchName}</h3><p>{formatDate(selected.attendanceDate)} · {selected.courseName} · {selected.batchTiming}</p>{selected.loading ? <div className="faculty-previous-empty">Loading student attendance…</div> : selected.error ? <div className="faculty-previous-error">{selected.error}</div> : <><dl className="faculty-previous-detail-grid"><dt>Session status</dt><dd><StatusBadge value={selected.sessionStatus} /></dd><dt>Original Faculty</dt><dd>{selected.originalFacultyName}</dd><dt>Handled By</dt><dd>{selected.handledBy}</dd><dt>Today Work</dt><dd>{selected.todayWorkStatus}</dd></dl><div className="faculty-previous-student-table-wrap"><table className="faculty-previous-student-table"><thead><tr><th>S.No</th><th>Student ID</th><th>Student Name</th><th>Attendance</th><th>Attendance Type</th><th>Marked At</th><th>Action</th></tr></thead><tbody>{(selected.students || selected.attendance || []).map((student, index) => { const studentId = student.studentId || student.id || ''; const rawStatus = String(student.status || student.attendanceStatus || '').toUpperCase(); const isEditing = studentEdit?.studentId === studentId; return <tr key={studentId || index}><td>{index + 1}</td><td>{studentId || '-'}</td><td><strong>{student.studentName || student.name || '-'}</strong></td><td>{isEditing ? <select className="faculty-previous-inline-select" value={studentEdit.status} onChange={(event) => setStudentEdit((current) => ({ ...current, status: event.target.value }))}><option value="PRESENT">PRESENT</option><option value="ABSENT">ABSENT</option></select> : <StatusBadge value={displayStudentAttendanceStatus(student)} />}</td><td>{displayStudentAttendanceType(student)}</td><td>{student.markedAt ? new Date(student.markedAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : '-'}</td><td>{isEditing ? <div className="faculty-previous-inline-actions"><button type="button" onClick={() => void saveStudentEdit()} disabled={studentEdit.saving}>{studentEdit.saving ? 'Saving…' : 'Save'}</button><button type="button" onClick={() => setStudentEdit(null)}>Cancel</button></div> : <button type="button" className="faculty-previous-row-edit" onClick={() => setStudentEdit({ studentId, status: rawStatus === 'ABSENT' ? 'ABSENT' : 'PRESENT', saving: false, error: '' })}><Pencil size={14} /> Edit</button>}</td></tr> })}</tbody></table>{studentEdit?.error ? <div className="faculty-previous-error">{studentEdit.error}</div> : null}</div></>}</aside></div> : null}
+    {loading ? <div className="faculty-previous-table-wrap faculty-previous-table-skeleton"><table className="faculty-previous-table"><thead><tr><th>Attendance Date</th><th>Batch</th><th>Course</th><th>Timing</th><th>Original Faculty</th><th>Handled By</th><th>Status</th><th>Today Work</th><th>Action</th></tr></thead><tbody>{Array.from({ length: 5 }, (_, index) => <tr key={`attendance-skeleton-${index}`}>{Array.from({ length: 9 }, (_, cellIndex) => <td key={`attendance-skeleton-${index}-${cellIndex}`}><span className="faculty-previous-skeleton-line" /></td>)}</tr>)}</tbody></table></div> : !filteredRows.length ? <div className="faculty-previous-empty"><strong>No attendance sessions match these filters</strong><span>Try clearing one or more filters.</span></div> : <>
+      <div className="faculty-previous-table-wrap"><table className="faculty-previous-table"><thead><tr><th>Attendance Date</th><th>Batch</th><th>Course</th><th>Timing</th><th>Original Faculty</th><th>Handled By</th><th>Status</th><th>Today Work</th><th>Action</th></tr></thead><tbody>{paginatedRows.map((row) => <tr key={row.id} className="faculty-previous-clickable-row" onClick={() => void openSession(row)} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); void openSession(row) } }} role="button" tabIndex={0}><td>{formatDate(row.attendanceDate)}</td><td><strong>{row.batchName}</strong></td><td>{row.courseName}</td><td>{row.batchTiming}</td><td>{row.originalFacultyName}</td><td>{row.handledBy}</td><td><StatusBadge value={row.sessionStatus} /></td><td><StatusBadge value={row.todayWorkStatus} /></td><td><div className="faculty-previous-actions"><button type="button" onClick={(event) => { event.stopPropagation(); void openSession(row) }} title="View session"><Eye size={16} /> View</button></div></td></tr>)}</tbody></table></div>
+      <div className="faculty-previous-pagination"><span>Showing {((safePage - 1) * 5) + 1}–{Math.min(safePage * 5, filteredRows.length)} of {filteredRows.length} records</span><div><button type="button" onClick={() => setPage((current) => Math.max(1, current - 1))} disabled={safePage === 1}><ChevronLeft size={15} /> Previous</button><strong>Page {safePage} of {totalPages}</strong><button type="button" onClick={() => setPage((current) => Math.min(totalPages, current + 1))} disabled={safePage === totalPages}>Next <ChevronRight size={15} /></button></div></div>
+    </>}
+    {selected ? <div className="faculty-previous-modal-backdrop" role="presentation" onClick={() => setSelected(null)}><aside className="faculty-previous-modal faculty-previous-session-modal" role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()}><button type="button" className="faculty-previous-modal-close" onClick={() => setSelected(null)} aria-label="Close"><X /></button><span className="faculty-previous-eyebrow">SESSION DETAILS</span><h3>{selected.batchName}</h3><p>{formatDate(selected.attendanceDate)} · {selected.courseName} · {selected.batchTiming}</p>{selected.loading ? <div className="faculty-previous-empty">Loading student attendance…</div> : selected.error ? <div className="faculty-previous-error">{selected.error}</div> : <><dl className="faculty-previous-detail-grid"><dt>Session status</dt><dd><StatusBadge value={selected.sessionStatus} /></dd><dt>Original Faculty</dt><dd>{selected.originalFacultyName}</dd><dt>Handled By</dt><dd>{selected.handledBy}</dd></dl><div className="faculty-previous-student-table-wrap"><table className="faculty-previous-student-table"><thead><tr><th>S.No</th><th>Student ID</th><th>Student Name</th><th>Attendance</th><th>Attendance Type</th><th>Marked At</th><th>Action</th></tr></thead><tbody>{(selected.students || selected.attendance || []).map((student, index) => { const studentId = student.studentId || student.id || ''; const rawStatus = String(student.status || student.attendanceStatus || '').toUpperCase(); const isEditing = studentEdit?.studentId === studentId; return <tr key={studentId || index}><td>{index + 1}</td><td>{studentId || '-'}</td><td><strong>{student.studentName || student.name || '-'}</strong></td><td>{isEditing ? <select className="faculty-previous-inline-select" value={studentEdit.status} onChange={(event) => setStudentEdit((current) => ({ ...current, status: event.target.value }))}><option value="PRESENT">PRESENT</option><option value="ABSENT">ABSENT</option></select> : <StatusBadge value={displayStudentAttendanceStatus(student)} />}</td><td>{displayStudentAttendanceType(student)}</td><td>{student.markedAt ? new Date(student.markedAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : '-'}</td><td>{isEditing ? <div className="faculty-previous-inline-actions"><button type="button" onClick={() => void saveStudentEdit()} disabled={studentEdit.saving}>{studentEdit.saving ? 'Saving…' : 'Save'}</button><button type="button" onClick={() => setStudentEdit(null)}>Cancel</button></div> : <button type="button" className="faculty-previous-row-edit" onClick={() => setStudentEdit({ studentId, status: rawStatus === 'ABSENT' ? 'ABSENT' : 'PRESENT', saving: false, error: '' })}><Pencil size={14} /> Edit</button>}</td></tr> })}</tbody></table>{studentEdit?.error ? <div className="faculty-previous-error">{studentEdit.error}</div> : null}</div></>}</aside></div> : null}
     {editor ? <div className="faculty-previous-modal-backdrop" role="presentation"><aside className="faculty-previous-modal" role="dialog" aria-modal="true"><button type="button" className="faculty-previous-modal-close" onClick={() => setEditor(null)} aria-label="Close"><X /></button><span className="faculty-previous-eyebrow">HISTORICAL CORRECTION</span><h3>Edit {editor.batchName}</h3><p>Original attendance date: {formatDate(editor.attendanceDate)}</p><div className="faculty-previous-students">{(editor.students || editor.attendance || []).map((student, index) => <label key={student.studentId || student.id || index} className="faculty-previous-student"><span>{student.studentName || student.name || student.studentId}</span><select value={student.status || student.attendanceStatus || 'UNMARKED'} onChange={(event) => setEditor((current) => ({ ...current, students: (current.students || current.attendance || []).map((item, itemIndex) => itemIndex === index ? { ...item, status: event.target.value } : item) }))}><option>PRESENT</option><option>ABSENT</option><option>LATE</option><option>UNMARKED</option></select></label>)}</div><textarea value={editor.editReason || ''} onChange={(event) => setEditor((current) => ({ ...current, editReason: event.target.value }))} placeholder="Correction reason" /><button type="button" className="faculty-previous-save" onClick={() => void save()} disabled={saving}>{saving ? 'Saving…' : 'Save correction'}</button>{editor.error ? <div className="faculty-previous-error">{editor.error}</div> : null}</aside></div> : null}
+    {selected ? <div className="faculty-previous-modal-backdrop" role="presentation"><aside className="faculty-previous-modal faculty-previous-session-modal faculty-previous-session-modal-v2" role="dialog" aria-modal="true"><button type="button" className="faculty-previous-modal-close" onClick={() => setSelected(null)} aria-label="Close"><X /></button><span className="faculty-previous-eyebrow">SESSION DETAILS</span><h3>{selected.batchName}</h3><p>{formatDate(selected.attendanceDate)} · {selected.courseName} · {selected.batchTiming}</p>{selected.loading ? <div className="faculty-previous-student-skeleton">{Array.from({ length: 5 }, (_, index) => <div key={index}><span /><span /><span /></div>)}</div> : selected.error ? <div className="faculty-previous-error">{selected.error}</div> : <FacultySessionStudentsTable students={selected.students || selected.attendance || []} studentEdit={studentEdit} setStudentEdit={setStudentEdit} saveStudentEdit={saveStudentEdit} StatusBadge={StatusBadge} />}</aside></div> : null}
   </section>
 }
 
