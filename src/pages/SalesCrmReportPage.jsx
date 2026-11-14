@@ -88,7 +88,7 @@ function ReportDownloadSelect({ value, options, onChange, ariaLabel }) {
 }
 
 function ReportSkeleton() {
-  return <div className="sales-crm-report-skeleton" aria-label="Loading report" aria-live="polite">
+  return <div className="sales-crm-report-skeleton" role="status" aria-label="Loading Sales CRM report" aria-live="polite">
     <div className="sales-crm-report-skeleton-metrics">{Array.from({ length: 8 }, (_, index) => <div className="sales-crm-report-skeleton-card" key={index}><i /><i /><i /></div>)}</div>
     <div className="sales-crm-report-skeleton-section"><i /><div>{STAGES.map(([key]) => <i key={key} />)}</div></div>
     <div className="sales-crm-report-skeleton-section sales-crm-report-skeleton-table"><i />{Array.from({ length: 5 }, (_, index) => <i key={index} />)}</div>

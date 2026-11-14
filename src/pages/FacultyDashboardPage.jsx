@@ -52,7 +52,7 @@ import {
   saveFacultyBatchAttendanceState,
 } from '../lib/facultyAttendanceStore'
 import { enrichStudentsWithFacultyReferences, getFacultyBatchEntriesForCourse, getFacultyBatchStudentRecords, getFacultyCourseIds, getFacultyCourses, getMatchingStudents, getUniqueStudentCountForFacultyRecords, getUniqueStudentCountForFacultyScope } from '../lib/facultyFlow'
-import { editBranchStudentAttendance, getCurrentFacultyAttendanceOverview, markFacultyStudentAttendance, logoutFacultyAttendance, logoutFacultyWebsite } from '../services/attendanceService'
+import { editBranchStudentAttendance, getCurrentFacultyAttendanceOverview, getFacultyAttendanceStatus, markFacultyStudentAttendance, logoutFacultyAttendance, logoutFacultyWebsite } from '../services/attendanceService'
 import { getFacultyDashboardOverview, getFacultyMyBatchesSummary } from '../services/dashboardService'
 import { PaginationBar } from '../components/PaginationBar'
 import { listCourses } from '../services/courseService'
@@ -73,6 +73,7 @@ import {
 } from '../services/facultyNotificationService'
 import { useMobileMenu } from '../layouts/mobileMenuContext'
 import { FacultyAttendanceFlow } from '../components/FacultyAttendanceFlow'
+import { FacultyPreviousAttendance } from '../components/FacultyPreviousAttendance'
 import { BranchAttendanceInsights } from '../components/BranchAttendanceInsights'
 import { StudentAttendanceReportModal } from '../components/StudentAttendanceReportModal'
 import { StudentCalendarPage } from './StudentCalendarPage'
@@ -293,19 +294,8 @@ function getAttendanceBatchTiming(batch = {}) {
 
 function isTemporarySessionEditable(session, now = new Date()) {
   const date = String(session?.effectiveDate || session?.replacementDate || session?.sessionDate || '').trim()
-  const start = String(session?.effectiveStartTime || session?.replacementStartTime || session?.originalStartTime || '').trim()
-  const end = String(session?.effectiveEndTime || session?.replacementEndTime || session?.originalEndTime || '').trim()
-  const parseMinutes = (value) => {
-    const match = value.match(/^(\d{1,2}):(\d{2})$/)
-    if (!match) return null
-    return Number(match[1]) * 60 + Number(match[2])
-  }
   const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Calcutta' }).format(now)
-  const startMinutes = parseMinutes(start)
-  const endMinutes = parseMinutes(end)
-  if (!date || date !== today || startMinutes == null || endMinutes == null || endMinutes <= startMinutes) return false
-  const currentMinutes = now.getHours() * 60 + now.getMinutes()
-  return currentMinutes >= startMinutes && currentMinutes < endMinutes
+  return Boolean(date && date === today)
 }
 
 function doesFacultyBatchBelongToCourse(batch = {}, course = {}) {
@@ -843,8 +833,12 @@ function displayAttendanceStatus(value) {
   return status === 'LATE' ? 'PRESENT' : status
 }
 
-function extractStudentAttendanceStatuses(payload = {}) {
+function extractStudentAttendanceStatuses(payload = {}, targetDate = getAttendanceDateKey()) {
   const source = payload?.data ?? payload
+  const responseDate = String(source?.date || source?.attendanceDate || '').slice(0, 10)
+  // Attendance responses are date-scoped. Never hydrate the current screen
+  // with a response produced for yesterday (or any other day).
+  if (responseDate && responseDate !== targetDate) return {}
   const rows = [
     ...(Array.isArray(source) ? source : []),
     ...(Array.isArray(source?.students) ? source.students : []),
@@ -859,7 +853,9 @@ function extractStudentAttendanceStatuses(payload = {}) {
 
   rows.forEach((row) => {
     const studentKeys = getStudentAttendanceKeys(row)
-    const saveStatus = (value) => {
+    const saveStatus = (value, recordDate = '') => {
+      const normalizedRecordDate = String(recordDate || '').slice(0, 10)
+      if (normalizedRecordDate && normalizedRecordDate !== targetDate) return
       const status = displayAttendanceStatus(value)
       if (!studentKeys.length || !isAttendanceMarkedStatus(status)) return
       studentKeys.forEach((key) => {
@@ -869,7 +865,10 @@ function extractStudentAttendanceStatuses(payload = {}) {
 
     saveStatus(row?.attendanceStatus || row?.attendanceStatusLabel || row?.status)
     ;(Array.isArray(row?.records) ? row.records : []).forEach((record) => {
-      saveStatus(record?.attendanceStatus || record?.attendanceStatusLabel || record?.status)
+      saveStatus(
+        record?.attendanceStatus || record?.attendanceStatusLabel || record?.status,
+        record?.attendanceDate || record?.date,
+      )
     })
   })
 
@@ -1947,9 +1946,64 @@ function FacultyDashboardSection({ title, description, actions, className = '', 
   )
 }
 
-function FacultyDashboardLoadingCards() {
-  return <div className="faculty-dashboard-overview-grid" aria-label="Loading dashboard overview">
-    {[1, 2].map((item) => <div key={item} className="faculty-dashboard-overview-card faculty-dashboard-overview-card--loading" />)}
+function FacultyDashboardLoadingCards({ count = 2 }) {
+  return <div className="faculty-dashboard-overview-grid" aria-label="Loading dashboard overview" aria-busy="true">
+    {Array.from({ length: count }, (_, index) => (
+      <div key={index} className="faculty-dashboard-overview-card faculty-dashboard-overview-card--loading">
+        <span className="faculty-dashboard-skeleton-line faculty-dashboard-skeleton-line--kicker" />
+        <span className="faculty-dashboard-skeleton-line faculty-dashboard-skeleton-line--title" />
+        <div className="faculty-dashboard-skeleton-meta">
+          <span className="faculty-dashboard-skeleton-line" />
+          <span className="faculty-dashboard-skeleton-line faculty-dashboard-skeleton-line--short" />
+        </div>
+        <span className="faculty-dashboard-skeleton-line faculty-dashboard-skeleton-line--wide" />
+        <span className="faculty-dashboard-skeleton-line faculty-dashboard-skeleton-line--note" />
+      </div>
+    ))}
+  </div>
+}
+
+function FacultyDashboardScheduleSkeleton({ variant = 'rows' }) {
+  if (variant === 'calendar') {
+    return <div className="faculty-dashboard-schedule-skeleton faculty-dashboard-schedule-skeleton--calendar" aria-label="Loading schedule" aria-busy="true">
+      <div className="faculty-dashboard-skeleton-calendar">
+        <div className="faculty-dashboard-skeleton-calendar-head"><span className="faculty-dashboard-skeleton-line faculty-dashboard-skeleton-line--short" /><span className="faculty-dashboard-skeleton-line faculty-dashboard-skeleton-line--tiny" /></div>
+        <div className="faculty-dashboard-skeleton-calendar-grid">{Array.from({ length: 35 }, (_, index) => <span key={index} />)}</div>
+      </div>
+      <div className="faculty-dashboard-skeleton-calendar-details">
+        <span className="faculty-dashboard-skeleton-line faculty-dashboard-skeleton-line--kicker" />
+        <span className="faculty-dashboard-skeleton-line faculty-dashboard-skeleton-line--wide" />
+        <span className="faculty-dashboard-skeleton-line" />
+        <span className="faculty-dashboard-skeleton-line faculty-dashboard-skeleton-line--short" />
+      </div>
+    </div>
+  }
+
+  return <div className={'faculty-dashboard-schedule-skeleton faculty-dashboard-schedule-skeleton--' + variant} aria-label="Loading dashboard section" aria-busy="true">
+    {Array.from({ length: variant === 'batches' ? 2 : 3 }, (_, index) => (
+      <div className="faculty-dashboard-skeleton-row" key={index}>
+        <span className="faculty-dashboard-skeleton-line faculty-dashboard-skeleton-line--time" />
+        <span className="faculty-dashboard-skeleton-line faculty-dashboard-skeleton-line--wide" />
+        <span className="faculty-dashboard-skeleton-line" />
+        <span className="faculty-dashboard-skeleton-line faculty-dashboard-skeleton-line--short" />
+        <span className="faculty-dashboard-skeleton-line faculty-dashboard-skeleton-line--status" />
+      </div>
+    ))}
+  </div>
+}
+
+function FacultyDashboardTableSkeleton({ columns = 6, rows = 5, className = '' }) {
+  return <div className={'faculty-dashboard-table-skeleton branch-dashboard-table-shell ' + className} aria-label="Loading table" aria-busy="true">
+    <table className="branch-dashboard-table">
+      <thead><tr>{Array.from({ length: columns }, (_, index) => <th key={index}><span className="faculty-dashboard-skeleton-line faculty-dashboard-skeleton-line--table-heading" /></th>)}</tr></thead>
+      <tbody>{Array.from({ length: rows }, (_, rowIndex) => <tr key={rowIndex}>{Array.from({ length: columns }, (_, columnIndex) => <td key={columnIndex}><span className={'faculty-dashboard-skeleton-line ' + (columnIndex === 0 ? 'faculty-dashboard-skeleton-line--short' : columnIndex === 1 ? 'faculty-dashboard-skeleton-line--wide' : '')} /></td>)}</tr>)}</tbody>
+    </table>
+  </div>
+}
+
+function FacultyDashboardNotificationSkeleton() {
+  return <div className="faculty-dashboard-notification-skeleton" aria-label="Loading notifications" aria-busy="true">
+    {Array.from({ length: 4 }, (_, index) => <article key={index} className="faculty-dashboard-notification-skeleton-item"><span className="faculty-dashboard-notification-skeleton-icon" /><div><span className="faculty-dashboard-skeleton-line faculty-dashboard-skeleton-line--wide" /><span className="faculty-dashboard-skeleton-line" /><span className="faculty-dashboard-skeleton-line faculty-dashboard-skeleton-line--short" /></div></article>)}
   </div>
 }
 
@@ -2014,7 +2068,7 @@ function FacultyDashboardOverview({ overview, loading, error, onRetry, todayAtte
   const hasProgressChart = progressBars.some((bar) => Number.isFinite(bar.percentage))
   const progressStudentsIncluded = selectedProgressBatch?.progress?.studentsIncluded ?? selectedProgressBatch?.studentCount ?? 0
   if (!batches.length) return <FacultyDashboardSection title="Attendance"><div className="faculty-dashboard-overview-empty"><strong>No batches assigned</strong><p>There are no active batches assigned to your faculty account.</p></div></FacultyDashboardSection>
-  return <><FacultyDashboardSection title="Attendance" description="Select a batch to view its attendance, or keep All Batches for the combined attendance of every assigned batch."><div className="faculty-dashboard-attendance-dashboard-layout"><div className="faculty-dashboard-single-card faculty-dashboard-single-card--attendance"><FacultyBatchOverviewCard batch={selectedBatch || { studentCount: 0, weekly: [], weeklyByMonth: [], monthlyYear: [] }} batchOptions={batches} selectedBatchId={selectedBatchId} onBatchChange={setSelectedBatchId} /></div>{todayAttendanceLoading ? <aside className="attendance-insights faculty-dashboard-today-attendance-loading"><p>Loading today's attendance…</p></aside> : todayAttendanceError ? <aside className="attendance-insights faculty-dashboard-today-attendance-loading"><p>{todayAttendanceError}</p></aside> : todayAttendance ? <BranchAttendanceInsights data={todayAttendance} /> : null}</div></FacultyDashboardSection><FacultyDashboardSection title="Overall Progress" description="Progress across every active student in the selected batch."><div className="faculty-dashboard-single-card"><article className="faculty-dashboard-progress-card"><div className="faculty-dashboard-batch-heading"><div><p className="faculty-dashboard-card-kicker">{selectedProgressBatch?.courseName || (selectedProgressBatchId === 'all' ? 'All assigned courses' : 'Course')}</p><h3>{selectedProgressBatch?.batchName || (selectedProgressBatchId === 'all' ? 'All Batches' : selectedProgressBatch?.batchId || 'Batch')}</h3></div><div className="faculty-dashboard-batch-selector"><label htmlFor="faculty-dashboard-progress-select">Batch</label><select id="faculty-dashboard-progress-select" value={selectedProgressBatchId} onChange={(event) => setSelectedProgressBatchId(event.target.value)}><option value="all">All Batches</option>{batches.map((batch) => <option key={batch.id} value={batch.id}>{batch.batchName || batch.batchId}</option>)}</select></div></div><div className="faculty-dashboard-batch-meta"><span>Students <strong>{selectedProgressBatch?.studentCount ?? '—'}</strong></span>{selectedProgressBatch?.batchId ? <span>Batch ID <strong>{selectedProgressBatch.batchId}</strong></span> : null}</div>{selectedProgressBatch?.studentCount === 0 ? <p className="faculty-dashboard-unmarked">No students assigned to this batch</p> : hasProgressChart ? <div className="faculty-dashboard-progress-chart-wrap"><div className="faculty-dashboard-progress-chart" role="img" aria-label={`Overall progress percentage chart for ${selectedProgressBatchId === 'all' ? 'all assigned batches' : selectedProgressBatch?.batchName || 'selected batch'}`}><div className="faculty-dashboard-progress-axis" aria-hidden="true"><span>100%</span><span>75%</span><span>50%</span><span>25%</span><span>0%</span></div><div className="faculty-dashboard-progress-bars">{progressBars.map((bar) => { const percentage = Number.isFinite(bar.percentage) ? Math.max(0, Math.min(100, bar.percentage)) : null; return <div key={bar.id} className="faculty-dashboard-progress-bar-item" title={`${bar.label}: ${percentage == null ? 'Progress not recorded' : `${formatPercent(percentage)} overall progress`}`}><strong>{percentage == null ? '—' : formatPercent(percentage)}</strong><div className="faculty-dashboard-progress-bar-track"><span style={{ height: `${percentage || 0}%` }} /></div><small>{bar.label}</small></div> })}</div></div><p className="faculty-dashboard-progress-note">Based on {progressStudentsIncluded} student{progressStudentsIncluded === 1 ? '' : 's'}</p></div> : <p className="faculty-dashboard-unmarked">Progress not recorded</p>}</article></div></FacultyDashboardSection></>
+  return <><FacultyDashboardSection title="Attendance" description="Select a batch to view its attendance, or keep All Batches for the combined attendance of every assigned batch."><div className="faculty-dashboard-attendance-dashboard-layout"><div className="faculty-dashboard-single-card faculty-dashboard-single-card--attendance"><FacultyBatchOverviewCard batch={selectedBatch || { studentCount: 0, weekly: [], weeklyByMonth: [], monthlyYear: [] }} batchOptions={batches} selectedBatchId={selectedBatchId} onBatchChange={setSelectedBatchId} /></div>{todayAttendanceLoading ? <aside className="attendance-insights faculty-dashboard-today-attendance-loading"><div className="faculty-dashboard-insights-skeleton" aria-label="Loading today's attendance" aria-busy="true"><span className="faculty-dashboard-skeleton-line faculty-dashboard-skeleton-line--kicker" /><span className="faculty-dashboard-skeleton-line faculty-dashboard-skeleton-line--title" /><span className="faculty-dashboard-skeleton-line faculty-dashboard-skeleton-line--wide" /><span className="faculty-dashboard-skeleton-line faculty-dashboard-skeleton-line--short" /></div></aside> : todayAttendanceError ? <aside className="attendance-insights faculty-dashboard-today-attendance-loading"><p>{todayAttendanceError}</p></aside> : todayAttendance ? <BranchAttendanceInsights data={todayAttendance} /> : null}</div></FacultyDashboardSection><FacultyDashboardSection title="Overall Progress" description="Progress across every active student in the selected batch."><div className="faculty-dashboard-single-card"><article className="faculty-dashboard-progress-card"><div className="faculty-dashboard-batch-heading"><div><p className="faculty-dashboard-card-kicker">{selectedProgressBatch?.courseName || (selectedProgressBatchId === 'all' ? 'All assigned courses' : 'Course')}</p><h3>{selectedProgressBatch?.batchName || (selectedProgressBatchId === 'all' ? 'All Batches' : selectedProgressBatch?.batchId || 'Batch')}</h3></div><div className="faculty-dashboard-batch-selector"><label htmlFor="faculty-dashboard-progress-select">Batch</label><select id="faculty-dashboard-progress-select" value={selectedProgressBatchId} onChange={(event) => setSelectedProgressBatchId(event.target.value)}><option value="all">All Batches</option>{batches.map((batch) => <option key={batch.id} value={batch.id}>{batch.batchName || batch.batchId}</option>)}</select></div></div><div className="faculty-dashboard-batch-meta"><span>Students <strong>{selectedProgressBatch?.studentCount ?? '—'}</strong></span>{selectedProgressBatch?.batchId ? <span>Batch ID <strong>{selectedProgressBatch.batchId}</strong></span> : null}</div>{selectedProgressBatch?.studentCount === 0 ? <p className="faculty-dashboard-unmarked">No students assigned to this batch</p> : hasProgressChart ? <div className="faculty-dashboard-progress-chart-wrap"><div className="faculty-dashboard-progress-chart" role="img" aria-label={`Overall progress percentage chart for ${selectedProgressBatchId === 'all' ? 'all assigned batches' : selectedProgressBatch?.batchName || 'selected batch'}`}><div className="faculty-dashboard-progress-axis" aria-hidden="true"><span>100%</span><span>75%</span><span>50%</span><span>25%</span><span>0%</span></div><div className="faculty-dashboard-progress-bars">{progressBars.map((bar) => { const percentage = Number.isFinite(bar.percentage) ? Math.max(0, Math.min(100, bar.percentage)) : null; return <div key={bar.id} className="faculty-dashboard-progress-bar-item" title={`${bar.label}: ${percentage == null ? 'Progress not recorded' : `${formatPercent(percentage)} overall progress`}`}><strong>{percentage == null ? '—' : formatPercent(percentage)}</strong><div className="faculty-dashboard-progress-bar-track"><span style={{ height: `${percentage || 0}%` }} /></div><small>{bar.label}</small></div> })}</div></div><p className="faculty-dashboard-progress-note">Based on {progressStudentsIncluded} student{progressStudentsIncluded === 1 ? '' : 's'}</p></div> : <p className="faculty-dashboard-unmarked">Progress not recorded</p>}</article></div></FacultyDashboardSection></>
 }
 
 const FACULTY_DASHBOARD_CLASS_STATUSES = new Set([
@@ -2189,12 +2243,33 @@ function FacultyDashboardScheduleSections({ batches = [], todayWorkEntries = [],
     () => (Array.isArray(calendar?.events) ? calendar.events : []).filter((event) => String(event?.date || '').slice(0, 10)),
     [calendar],
   )
-  const classesToday = useMemo(
-    () => events.filter((event) => String(event?.date || '').slice(0, 10) === today && FACULTY_DASHBOARD_CLASS_STATUSES.has(facultyDashboardEventStatus(event))),
-    [events, today],
-  )
+  const classesToday = useMemo(() => {
+    const grouped = new Map()
+    events
+      .filter((event) => String(event?.date || '').slice(0, 10) === today && FACULTY_DASHBOARD_CLASS_STATUSES.has(facultyDashboardEventStatus(event)))
+      .forEach((event) => {
+        const key = `${event?.batchRecordId || event?.batchId || event?.batchName || ''}|${event?.startTime || ''}|${event?.endTime || ''}`
+        const previous = grouped.get(key)
+        const assigned = ['REASSIGNED', 'COMBINED', 'REPLACEMENT'].includes(String(event?.code || event?.assignmentType || '').toUpperCase())
+        const previousAssigned = previous && ['REASSIGNED', 'COMBINED', 'REPLACEMENT'].includes(String(previous?.code || previous?.assignmentType || '').toUpperCase())
+        if (!previous || (assigned && !previousAssigned)) grouped.set(key, event)
+      })
+    return [...grouped.values()]
+  }, [events, today])
   const selectedEvents = useMemo(
-    () => events.filter((event) => String(event?.date || '').slice(0, 10) === selectedDate && FACULTY_DASHBOARD_CLASS_STATUSES.has(facultyDashboardEventStatus(event))),
+    () => {
+      const grouped = new Map()
+      events
+        .filter((event) => String(event?.date || '').slice(0, 10) === selectedDate && FACULTY_DASHBOARD_CLASS_STATUSES.has(facultyDashboardEventStatus(event)))
+        .forEach((event) => {
+          const key = `${event?.batchRecordId || event?.batchId || event?.batchName || ''}|${event?.startTime || ''}|${event?.endTime || ''}`
+          const previous = grouped.get(key)
+          const assigned = ['REASSIGNED', 'COMBINED', 'REPLACEMENT'].includes(String(event?.code || event?.assignmentType || '').toUpperCase())
+          const previousAssigned = previous && ['REASSIGNED', 'COMBINED', 'REPLACEMENT'].includes(String(previous?.code || previous?.assignmentType || '').toUpperCase())
+          if (!previous || (assigned && !previousAssigned)) grouped.set(key, event)
+        })
+      return [...grouped.values()]
+    },
     [events, selectedDate],
   )
   const monthDays = useMemo(() => {
@@ -2228,15 +2303,15 @@ function FacultyDashboardScheduleSections({ batches = [], todayWorkEntries = [],
         description="Classes scheduled for the current date."
         actions={<button type="button" className="faculty-dashboard-view-all" onClick={onViewAll}>View All <span aria-hidden="true">→</span></button>}
       >
-        {loading ? <div className="faculty-dashboard-schedule-loading">Loading today’s classes…</div> : error ? <div className="faculty-dashboard-overview-empty"><strong>Today’s classes unavailable</strong><p>{error}</p></div> : classesToday.length ? <div className="faculty-dashboard-class-table"><div className="faculty-dashboard-class-table-head"><span><Clock3 size={13} aria-hidden="true" />Time</span><span><BookOpen size={13} aria-hidden="true" />Course</span><span><Users size={13} aria-hidden="true" />Batch</span><span><Layers3 size={13} aria-hidden="true" />Module</span><span><CheckCircle2 size={13} aria-hidden="true" />Status</span></div>{classesToday.map((event, index) => { const status = event.status || event.code || 'Scheduled'; const todayWorkModule = facultyDashboardTodayWorkModule(event, todayWorkEntries); return <article className={`faculty-dashboard-class-item faculty-dashboard-class-item--accent-${index % 5}`} key={event.id || `${event.batchId || event.batchName}-${index}`}><strong><Clock3 size={15} aria-hidden="true" />{facultyDashboardEventTiming(event)}</strong><span><BookOpen size={15} aria-hidden="true" />{event.courseName || event.courseCode || 'Course'}</span><span><Users size={15} aria-hidden="true" />{event.batchName || event.batchId || '—'}</span><small><Layers3 size={14} aria-hidden="true" />{todayWorkModule || '—'}</small><em className={facultyDashboardStatusClass(status)}><CheckCircle2 size={13} aria-hidden="true" />{status}</em></article> })}</div> : <div className="faculty-dashboard-schedule-empty">No classes scheduled for today</div>}
+        {loading ? <FacultyDashboardScheduleSkeleton /> : error ? <div className="faculty-dashboard-overview-empty"><strong>Today’s classes unavailable</strong><p>{error}</p></div> : classesToday.length ? <div className="faculty-dashboard-class-table"><div className="faculty-dashboard-class-table-head"><span><Clock3 size={13} aria-hidden="true" />Time</span><span><BookOpen size={13} aria-hidden="true" />Course</span><span><Users size={13} aria-hidden="true" />Batch</span><span><Layers3 size={13} aria-hidden="true" />Module</span><span><CheckCircle2 size={13} aria-hidden="true" />Status</span></div>{classesToday.map((event, index) => { const status = event.status || event.code || 'Scheduled'; const todayWorkModule = facultyDashboardTodayWorkModule(event, todayWorkEntries); return <article className={`faculty-dashboard-class-item faculty-dashboard-class-item--accent-${index % 5}`} key={event.id || `${event.batchId || event.batchName}-${index}`}><strong><Clock3 size={15} aria-hidden="true" />{facultyDashboardEventTiming(event)}</strong><span><BookOpen size={15} aria-hidden="true" />{event.courseName || event.courseCode || 'Course'}</span><span><Users size={15} aria-hidden="true" />{event.batchName || event.batchId || '—'}</span><small><Layers3 size={14} aria-hidden="true" />{todayWorkModule || '—'}</small><em className={facultyDashboardStatusClass(status)}><CheckCircle2 size={13} aria-hidden="true" />{status}</em></article> })}</div> : <div className="faculty-dashboard-schedule-empty">No classes scheduled for today</div>}
       </FacultyDashboardSection>
 
       <FacultyDashboardSection title="My Batches" description="All batches assigned to you, including weekday and weekend batches.">
-        {batchesLoading ? <div className="faculty-dashboard-schedule-loading">Loading assigned batches…</div> : batches.length ? <div className="faculty-dashboard-assigned-batches">{batches.map((batch) => <article className="faculty-dashboard-assigned-batch" key={batch.id || batch.batchId}><div><strong>{batch.batchName || batch.batchId || 'Batch'}</strong><span>{batch.course || batch.courseName || 'Course'}</span></div><dl><div><dt>Timing</dt><dd>{batch.timing || '—'}</dd></div><div><dt>Schedule</dt><dd>{batch.weekType || '—'}</dd></div><div><dt>Students</dt><dd>{Number.isFinite(Number(batch.students)) ? batch.students : '—'}</dd></div><div><dt>Status</dt><dd>{batch.status || '—'}</dd></div></dl></article>)}</div> : <div className="faculty-dashboard-schedule-empty">No batches assigned</div>}
+        {batchesLoading ? <FacultyDashboardScheduleSkeleton variant="batches" /> : batches.length ? <div className="faculty-dashboard-assigned-batches">{batches.map((batch) => <article className="faculty-dashboard-assigned-batch" key={batch.id || batch.batchId}><div><strong>{batch.batchName || batch.batchId || 'Batch'}</strong><span>{batch.course || batch.courseName || 'Course'}</span></div><dl><div><dt>Timing</dt><dd>{batch.timing || '—'}</dd></div><div><dt>Schedule</dt><dd>{batch.weekType || '—'}</dd></div><div><dt>Students</dt><dd>{Number.isFinite(Number(batch.students)) ? batch.students : '—'}</dd></div><div><dt>Status</dt><dd>{batch.status || '—'}</dd></div></dl></article>)}</div> : <div className="faculty-dashboard-schedule-empty">No batches assigned</div>}
       </FacultyDashboardSection>
 
       <FacultyDashboardSection title="My Schedule" description="Your schedule from the same faculty calendar used by My Calendar.">
-        {loading ? <div className="faculty-dashboard-schedule-loading">Loading schedule…</div> : error ? <div className="faculty-dashboard-overview-empty"><strong>Schedule unavailable</strong><p>{error}</p></div> : <div className="faculty-dashboard-schedule-layout"><div className="faculty-dashboard-calendar-card"><div className="faculty-dashboard-calendar-head"><button type="button" onClick={() => setMonth((current) => new Date(current.getFullYear(), current.getMonth() - 1, 1))} aria-label="Previous month"><ChevronLeft size={16} /></button><strong>{monthLabel}</strong><button type="button" onClick={() => setMonth((current) => new Date(current.getFullYear(), current.getMonth() + 1, 1))} aria-label="Next month"><ChevronRight size={16} /></button></div><div className="faculty-dashboard-calendar-weekdays">{['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day, index) => <span key={`${day}-${index}`}>{day}</span>)}</div><div className="faculty-dashboard-calendar-grid">{monthDays.map((date, index) => { if (!date) return <span key={`empty-${index}`} />; const dateKey = facultyDashboardDateKey(date); const tooltip = eventTooltipsByDate.get(dateKey) || ''; return <button type="button" key={dateKey} className={`${dateKey === selectedDate ? 'is-selected ' : ''}${dateKey === today ? 'is-today' : ''}`} onClick={() => setSelectedDate(dateKey)} data-tooltip={tooltip}>{date.getDate()}{eventDates.has(dateKey) ? <i aria-label="Scheduled event" /> : null}</button> })}</div></div><div className="faculty-dashboard-schedule-details"><span className="faculty-dashboard-card-kicker">{facultyDashboardParseDate(selectedDate)?.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</span>{selectedEvents.length ? <div className="faculty-dashboard-class-list">{selectedEvents.map((event, index) => <article className="faculty-dashboard-class-item" key={event.id || `${event.batchId || event.batchName}-${index}`}><strong>{facultyDashboardEventTiming(event)}</strong><span>{event.courseName || event.courseCode || 'Course'}</span><small>Batch: {event.batchName || event.batchId || '—'}{facultyDashboardEventModule(event) ? ` · Module: ${facultyDashboardEventModule(event)}` : ''}</small></article>)}</div> : <div className="faculty-dashboard-schedule-empty">{batches.length ? 'No classes scheduled' : 'Your schedule will appear here once a course and batch are assigned.'}</div>}</div></div>}
+        {loading ? <FacultyDashboardScheduleSkeleton variant="calendar" /> : error ? <div className="faculty-dashboard-overview-empty"><strong>Schedule unavailable</strong><p>{error}</p></div> : <div className="faculty-dashboard-schedule-layout"><div className="faculty-dashboard-calendar-card"><div className="faculty-dashboard-calendar-head"><button type="button" onClick={() => setMonth((current) => new Date(current.getFullYear(), current.getMonth() - 1, 1))} aria-label="Previous month"><ChevronLeft size={16} /></button><strong>{monthLabel}</strong><button type="button" onClick={() => setMonth((current) => new Date(current.getFullYear(), current.getMonth() + 1, 1))} aria-label="Next month"><ChevronRight size={16} /></button></div><div className="faculty-dashboard-calendar-weekdays">{['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day, index) => <span key={`${day}-${index}`}>{day}</span>)}</div><div className="faculty-dashboard-calendar-grid">{monthDays.map((date, index) => { if (!date) return <span key={`empty-${index}`} />; const dateKey = facultyDashboardDateKey(date); const tooltip = eventTooltipsByDate.get(dateKey) || ''; return <button type="button" key={dateKey} className={`${dateKey === selectedDate ? 'is-selected ' : ''}${dateKey === today ? 'is-today' : ''}`} onClick={() => setSelectedDate(dateKey)} data-tooltip={tooltip}>{date.getDate()}{eventDates.has(dateKey) ? <i aria-label="Scheduled event" /> : null}</button> })}</div></div><div className="faculty-dashboard-schedule-details"><span className="faculty-dashboard-card-kicker">{facultyDashboardParseDate(selectedDate)?.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</span>{selectedEvents.length ? <div className="faculty-dashboard-class-list">{selectedEvents.map((event, index) => <article className="faculty-dashboard-class-item" key={event.id || `${event.batchId || event.batchName}-${index}`}><strong>{facultyDashboardEventTiming(event)}</strong><span>{event.courseName || event.courseCode || 'Course'}</span><small>Batch: {event.batchName || event.batchId || '—'}{facultyDashboardEventModule(event) ? ` · Module: ${facultyDashboardEventModule(event)}` : ''}</small></article>)}</div> : <div className="faculty-dashboard-schedule-empty">{batches.length ? 'No classes scheduled' : 'Your schedule will appear here once a course and batch are assigned.'}</div>}</div></div>}
       </FacultyDashboardSection>
     </div>
   )
@@ -2250,6 +2325,8 @@ function OtherFacultyBatchesSection({ onOpenTemporaryWork, onAssignmentVisibilit
   const [calendarStudent, setCalendarStudent] = useState(null)
   const [studentLoading, setStudentLoading] = useState(false)
   const [studentError, setStudentError] = useState('')
+  const [studentSearch, setStudentSearch] = useState('')
+  const [studentPage, setStudentPage] = useState(1)
 
   useEffect(() => {
     let active = true
@@ -2267,6 +2344,8 @@ function OtherFacultyBatchesSection({ onOpenTemporaryWork, onAssignmentVisibilit
     try {
       const result = await getTemporaryBatchStudents(item.id)
       setStudentView({ ...result, item })
+      setStudentSearch('')
+      setStudentPage(1)
     } catch (err) {
       setStudentError(err.message || 'Unable to load students')
     } finally {
@@ -2292,10 +2371,19 @@ function OtherFacultyBatchesSection({ onOpenTemporaryWork, onAssignmentVisibilit
 
   const activeStudentSession = studentView?.session || studentView?.item || null
   const temporarySessionEditable = isTemporarySessionEditable(activeStudentSession)
+  const filteredTemporaryStudents = (studentView?.students || []).filter((student) => {
+    const query = studentSearch.trim().toLowerCase()
+    if (!query) return true
+    return [student?.studentName, student?.studentId, student?.emailAddress]
+      .some((value) => String(value || '').toLowerCase().includes(query))
+  })
+  const temporaryStudentPageCount = Math.max(1, Math.ceil(filteredTemporaryStudents.length / 5))
+  const safeTemporaryStudentPage = Math.min(studentPage, temporaryStudentPageCount)
+  const paginatedTemporaryStudents = filteredTemporaryStudents.slice((safeTemporaryStudentPage - 1) * 5, safeTemporaryStudentPage * 5)
 
   return <FacultyDashboardSection title="Other Faculty Batches" description="Temporary leave-related batches assigned to you for the current and upcoming dates.">
     {studentLoading ? (
-      <div className="faculty-my-batches-empty"><strong>Loading students...</strong></div>
+      <FacultyDashboardTableSkeleton columns={9} rows={5} className="faculty-other-batches-students-loading" />
     ) : studentView ? (
       calendarStudent ? (
         <StudentCalendarPage
@@ -2309,28 +2397,40 @@ function OtherFacultyBatchesSection({ onOpenTemporaryWork, onAssignmentVisibilit
         <h3>{studentView.session?.batchName || studentView.item?.batchName}</h3>
         <p>{studentView.session?.courseName || studentView.item?.courseName || '-'} · {formatDisplayDate(studentView.session?.replacementDate || studentView.item?.effectiveDate)} · {formatClassTimeForDashboard(studentView.session?.replacementStartTime || studentView.item?.effectiveStartTime)} - {formatClassTimeForDashboard(studentView.session?.replacementEndTime || studentView.item?.effectiveEndTime)}</p>
         <div className="faculty-student-action-buttons faculty-other-batches-session-actions">
-          <button type="button" className="faculty-today-work-trigger" disabled={!temporarySessionEditable} title={temporarySessionEditable ? 'Open Attendance' : 'Attendance opens during the assigned session time'} onClick={() => onOpenTemporaryWork?.(activeStudentSession, studentView.students, 'attendance')}>
+          <button type="button" className="faculty-today-work-trigger" disabled={!temporarySessionEditable} title={temporarySessionEditable ? 'Open Attendance for today\'s assigned class' : 'This temporary assignment is available only on its assigned date'} onClick={() => onOpenTemporaryWork?.(activeStudentSession, studentView.students, 'attendance')}>
             <span>▣</span>
             <span>Attendance</span>
           </button>
-          <button type="button" className="faculty-today-work-trigger faculty-today-work-trigger--progress" disabled={!temporarySessionEditable} title={temporarySessionEditable ? "Open Today's Work" : "Today's Work opens during the assigned session time"} onClick={() => onOpenTemporaryWork?.(activeStudentSession, studentView.students, 'progress')}>
+          <button type="button" className="faculty-today-work-trigger faculty-today-work-trigger--progress" disabled={!temporarySessionEditable} title={temporarySessionEditable ? "Open Today's Work for today's assigned class" : 'This temporary assignment is available only on its assigned date'} onClick={() => onOpenTemporaryWork?.(activeStudentSession, studentView.students, 'progress')}>
             <span>▣</span>
             <span>Today's Work</span>
           </button>
         </div>
         {studentView.students?.length ? (
+          <>
+          <div className="faculty-other-batches-student-toolbar">
+            <input
+              type="search"
+              value={studentSearch}
+              onChange={(event) => { setStudentSearch(event.target.value); setStudentPage(1) }}
+              placeholder="Search student name or ID..."
+              aria-label="Search student name or ID"
+            />
+          </div>
           <div className="branch-dashboard-table-shell">
             <table className="branch-dashboard-table">
               <thead><tr><th>S.No</th><th>Student ID</th><th>Name</th><th>Email</th><th>Phone</th><th>Paid Progress</th><th>Course Progress</th><th>Attendance</th><th>Actions</th></tr></thead>
-              <tbody>{studentView.students.map((student, index) => <tr key={student.id}><td>{index + 1}</td><td>{student.studentId}</td><td>{student.studentName}</td><td>{student.emailAddress || '-'}</td><td>{student.mobileNumber || '-'}</td><td>{student.paidProgress ?? '-'}{student.paidProgress != null ? '%' : ''}</td><td>{student.courseProgress ?? '-'}{student.courseProgress != null ? '%' : ''}</td><td>{student.attendance || 'UNMARKED'}</td><td><div className="faculty-other-batches-student-actions"><button type="button" className="faculty-other-batches-action-button" onClick={() => setCalendarStudent(student)}>View Calendar</button></div></td></tr>)}</tbody>
+              <tbody>{paginatedTemporaryStudents.map((student, index) => { const attendance = String(student.attendance || 'UNMARKED').toUpperCase(); const attendanceLabel = attendance === 'PRESENT' ? 'Present' : attendance === 'ABSENT' ? 'Absent' : 'Unmarked'; return <tr key={student.id}><td>{((safeTemporaryStudentPage - 1) * 5) + index + 1}</td><td>{student.studentId}</td><td>{student.studentName}</td><td>{student.emailAddress || '-'}</td><td>{student.mobileNumber || '-'}</td><td>{student.paidProgress ?? '-'}{student.paidProgress != null ? '%' : ''}</td><td>{student.courseProgress ?? '-'}{student.courseProgress != null ? '%' : ''}</td><td><span className={`faculty-student-attendance-pill faculty-student-attendance-pill--${attendance.toLowerCase()}`}><i className="faculty-student-attendance-dot" aria-hidden="true" />{attendanceLabel}</span></td><td><div className="faculty-other-batches-student-actions"><button type="button" className="faculty-other-batches-action-button" onClick={() => setCalendarStudent(student)}>View Calendar</button></div></td></tr> })}</tbody>
             </table>
           </div>
+          {filteredTemporaryStudents.length ? <div className="faculty-other-batches-pagination"><span>Showing {((safeTemporaryStudentPage - 1) * 5) + 1}-{Math.min(safeTemporaryStudentPage * 5, filteredTemporaryStudents.length)} of {filteredTemporaryStudents.length} students</span><div><button type="button" onClick={() => setStudentPage((page) => Math.max(1, page - 1))} disabled={safeTemporaryStudentPage === 1}>Previous</button><strong>Page {safeTemporaryStudentPage} of {temporaryStudentPageCount}</strong><button type="button" onClick={() => setStudentPage((page) => Math.min(temporaryStudentPageCount, page + 1))} disabled={safeTemporaryStudentPage === temporaryStudentPageCount}>Next</button></div></div> : <p>No students match your search.</p>}
+          </>
         ) : <p>No students found for this batch.</p>}
       </div>
     ) : studentError ? (
       <div className="faculty-my-batches-empty"><strong>{studentError}</strong></div>
     ) : loading ? (
-      <div className="faculty-my-batches-loading-card"><strong>Loading temporary batches...</strong></div>
+      <FacultyDashboardTableSkeleton columns={7} rows={4} className="faculty-other-batches-loading" />
     ) : error ? (
       <div className="faculty-my-batches-empty"><strong>{error}</strong></div>
     ) : batches.length ? (
@@ -2353,6 +2453,45 @@ function formatClassTimeForDashboard(value) {
   return `${hour % 12 || 12}:${match[2]} ${hour >= 12 ? 'PM' : 'AM'}`
 }
 
+function parseAttendanceMinutes(value) {
+  const match = String(value || '').trim().match(/^(\d{1,2}):(\d{2})(?:\s*(AM|PM))?$/i)
+  if (!match) return null
+  let hour = Number(match[1])
+  const minute = Number(match[2])
+  const period = String(match[3] || '').toUpperCase()
+  if (period) {
+    if (hour < 1 || hour > 12) return null
+    if (period === 'AM' && hour === 12) hour = 0
+    if (period === 'PM' && hour !== 12) hour += 12
+  }
+  return hour <= 23 && minute <= 59 ? hour * 60 + minute : null
+}
+
+function getCurrentAttendanceMinutes(value = new Date()) {
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Asia/Calcutta',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).formatToParts(new Date(value))
+  const hour = Number(parts.find((part) => part.type === 'hour')?.value || 0)
+  const minute = Number(parts.find((part) => part.type === 'minute')?.value || 0)
+  return hour * 60 + minute
+}
+
+function getBatchClockWindow(batch = {}) {
+  const raw = String(batch?.timing || batch?.batchTiming || (
+    batch?.startTime && batch?.endTime
+      ? `${batch.startTime}${batch.startPeriod ? ` ${batch.startPeriod}` : ''} - ${batch.endTime}${batch.endPeriod ? ` ${batch.endPeriod}` : ''}`
+      : ''
+  )).trim()
+  const parts = raw.split(/\s*-\s*/)
+  if (parts.length !== 2) return null
+  const start = parseAttendanceMinutes(parts[0])
+  const end = parseAttendanceMinutes(parts[1])
+  return start == null || end == null || end <= start ? null : { start, end }
+}
+
 export function FacultyDashboardPage() {
   const { user, signOut } = useAuth()
   const location = useLocation()
@@ -2368,7 +2507,7 @@ export function FacultyDashboardPage() {
   const isAcademicCreateRoute = isAcademicTestRoute && new URLSearchParams(location.search).get('create') === '1'
   const isStudentExamReportRoute = /^\/dashboard\/faculty\/exams\/reports\/[^/]+\/[^/]+$/.test(location.pathname)
   const requestedStudentView = normalizeFacultyStudentView(new URLSearchParams(location.search).get('view'))
-  const facultyRouteSection = location.pathname === '/dashboard/faculty/dashboard' ? 'dashboard' : location.pathname === '/dashboard/faculty/courses' ? 'my-courses' : ['/dashboard/faculty/batches', '/dashboard/faculty/my-batches'].includes(location.pathname) ? 'my-batches' : location.pathname === '/dashboard/faculty/calendar' ? 'my-calendar' : location.pathname === '/dashboard/faculty/students' ? 'students' : location.pathname === '/dashboard/faculty/leave-requests' ? 'leave-requests' : location.pathname === '/dashboard/faculty/notifications' ? 'notifications' : location.pathname.startsWith('/dashboard/faculty/skill-development') ? 'skill-development' : location.pathname === '/dashboard/faculty/profile' ? 'profile' : isExamsRoute || isAssessmentsRoute || isExamReportsRoute || isAcademicTestRoute ? 'exams' : ''
+  const facultyRouteSection = location.pathname === '/dashboard/faculty/dashboard' ? 'dashboard' : location.pathname === '/dashboard/faculty/courses' ? 'my-courses' : ['/dashboard/faculty/batches', '/dashboard/faculty/my-batches'].includes(location.pathname) ? 'my-batches' : location.pathname === '/dashboard/faculty/calendar' ? 'my-calendar' : location.pathname === '/dashboard/faculty/students' ? 'students' : location.pathname === '/dashboard/faculty/other-faculty-batches' ? 'other-faculty-batches' : location.pathname === '/dashboard/faculty/leave-requests' ? 'leave-requests' : location.pathname === '/dashboard/faculty/notifications' ? 'notifications' : location.pathname.startsWith('/dashboard/faculty/skill-development') ? 'skill-development' : location.pathname === '/dashboard/faculty/profile' ? 'profile' : isExamsRoute || isAssessmentsRoute || isExamReportsRoute || isAcademicTestRoute ? 'exams' : ''
   const userRole = String(user?.role || '').trim().toLowerCase()
   const [activeSection, setActiveSection] = useState(facultyRouteSection || 'dashboard')
   const [expandedSidebarGroups, setExpandedSidebarGroups] = useState({
@@ -2385,6 +2524,11 @@ export function FacultyDashboardPage() {
   })
   const [dismissedSidebarGroup, setDismissedSidebarGroup] = useState('')
   const [hasTemporaryAssignments, setHasTemporaryAssignments] = useState(false)
+  const [showPreviousAttendance, setShowPreviousAttendance] = useState(false)
+
+  useEffect(() => {
+    if (activeSection !== 'students') setShowPreviousAttendance(false)
+  }, [activeSection])
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false)
   const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false)
   const [facultyWorkLogStatus, setFacultyWorkLogStatus] = useState(null)
@@ -2411,12 +2555,16 @@ export function FacultyDashboardPage() {
 
   useEffect(() => {
     let active = true
+    setFacultyWeekOffRequestsLoading(true)
     getMyWeekOffRequests()
       .then((requests) => {
         if (active) setFacultyWeekOffRequests(Array.isArray(requests) ? requests : [])
       })
       .catch(() => {
         if (active) setFacultyWeekOffRequests([])
+      })
+      .finally(() => {
+        if (active) setFacultyWeekOffRequestsLoading(false)
       })
     return () => { active = false }
   }, [])
@@ -2469,7 +2617,8 @@ export function FacultyDashboardPage() {
   const [todayAttendance, setTodayAttendance] = useState(null)
   const [todayAttendanceLoading, setTodayAttendanceLoading] = useState(true)
   const [todayAttendanceError, setTodayAttendanceError] = useState('')
-  const [facultyNotifications, setFacultyNotifications] =useState([])
+  const [facultyNotifications, setFacultyNotifications] = useState([])
+  const [facultyNotificationsLoading, setFacultyNotificationsLoading] = useState(true)
   const [notificationOpen, setNotificationOpen] =useState(false)
   const [notificationStoreVersion, setNotificationStoreVersion] = useState(0)
   const [todayWorkEntries, setTodayWorkEntries] = useState([])
@@ -2481,7 +2630,10 @@ export function FacultyDashboardPage() {
   const [statusFilter, setStatusFilter] = useState('all')
   const [notificationPage, setNotificationPage] = useState(1)
   const [facultyProfile, setFacultyProfile] = useState(null)
+  const [facultyAttendanceStatus, setFacultyAttendanceStatus] = useState(null)
+  const [facultyAttendanceStatusLoaded, setFacultyAttendanceStatusLoaded] = useState(false)
   const [facultyWeekOffRequests, setFacultyWeekOffRequests] = useState([])
+  const [facultyWeekOffRequestsLoading, setFacultyWeekOffRequestsLoading] = useState(true)
   const [weekOffValidationMessage, setWeekOffValidationMessage] = useState('')
   const [branchCourses, setBranchCourses] = useState([])
   const [courseCatalog, setCourseCatalog] = useState([])
@@ -2579,6 +2731,28 @@ export function FacultyDashboardPage() {
   }, [selectedStudentsBatchId, temporarySessionContext])
 
   useEffect(() => {
+    let active = true
+    const loadFacultyAttendanceStatus = async () => {
+      try {
+        const status = await getFacultyAttendanceStatus()
+        if (active) {
+          setFacultyAttendanceStatus(status || null)
+          setFacultyAttendanceStatusLoaded(true)
+        }
+      } catch {
+        // Attendance remains usable if the optional work-log status endpoint
+        // is temporarily unavailable; the backend still validates leave.
+      }
+    }
+    void loadFacultyAttendanceStatus()
+    const intervalId = window.setInterval(loadFacultyAttendanceStatus, 30000)
+    return () => {
+      active = false
+      window.clearInterval(intervalId)
+    }
+  }, [])
+
+  useEffect(() => {
     let isMounted = true
 
     const loadNotifications = async () => {
@@ -2593,6 +2767,8 @@ export function FacultyDashboardPage() {
         )
       } catch (error) {
         console.error('Failed to load faculty notifications', error)
+      } finally {
+        if (isMounted) setFacultyNotificationsLoading(false)
       }
     }
 
@@ -4255,6 +4431,21 @@ export function FacultyDashboardPage() {
       studentAttendanceContextRef.current = attendanceContextKey
       setStudentAttendanceStatuses({})
     }
+    const temporaryStatuses = {}
+    const temporaryBatchId = String(temporarySessionContext?.item?.batchId || '').trim()
+    const selectedBatchId = String(selectedStudentsBatch?.batchId || '').trim()
+    if (temporaryBatchId && selectedBatchId && temporaryBatchId === selectedBatchId) {
+      ;(temporarySessionContext?.students || []).forEach((student) => {
+        const status = displayAttendanceStatus(student?.attendance)
+        if (!isAttendanceMarkedStatus(status)) return
+        getStudentAttendanceKeys(student).forEach((key) => {
+          temporaryStatuses[key] = status
+        })
+      })
+    }
+    if (Object.keys(temporaryStatuses).length) {
+      setStudentAttendanceStatuses((current) => ({ ...current, ...temporaryStatuses }))
+    }
     const loadStudentAttendance = async () => {
       try {
         const overview = await getCurrentFacultyAttendanceOverview({
@@ -4264,11 +4455,12 @@ export function FacultyDashboardPage() {
           batchId: selectedStudentsBatch?.batchId || selectedStudentsBatch?.batchEntryId || selectedStudentsBatch?.id || '',
         })
         if (active) {
-          const refreshedStatuses = extractStudentAttendanceStatuses(overview)
+          const refreshedStatuses = extractStudentAttendanceStatuses(overview, attendanceDate)
           // Keep the just-saved local status when an immediate refresh still
           // returns a stale or incomplete attendance overview.
           setStudentAttendanceStatuses((current) => ({
             ...current,
+            ...temporaryStatuses,
             ...refreshedStatuses,
           }))
         }
@@ -4287,7 +4479,7 @@ export function FacultyDashboardPage() {
       window.removeEventListener(FACULTY_ATTENDANCE_SYNC_EVENT, refresh)
       window.removeEventListener('cispro:faculty-dashboard-refresh', refresh)
     }
-  }, [attendanceDate, currentFacultyIdentity.facultyId, selectedStudentsBatch, selectedStudentsCourse, selectedStudentsCourse?.courseId, selectedStudentsCourse?.id])
+  }, [attendanceDate, currentFacultyIdentity.facultyId, selectedStudentsBatch, selectedStudentsCourse, selectedStudentsCourse?.courseId, selectedStudentsCourse?.id, temporarySessionContext])
 
   const selectedBatchStudents = useMemo(() => {
     if (temporarySessionContext?.students?.length && selectedStudentsBatch?.batchId === temporarySessionContext.item?.batchId) return temporarySessionContext.students
@@ -4811,6 +5003,17 @@ export function FacultyDashboardPage() {
       effectiveStartTime: session?.effectiveStartTime || session?.replacementStartTime || session?.originalStartTime,
       effectiveEndTime: session?.effectiveEndTime || session?.replacementEndTime || session?.originalEndTime,
     }
+    const seededStatuses = {}
+    ;(Array.isArray(sessionStudents) ? sessionStudents : []).forEach((student) => {
+      const status = displayAttendanceStatus(student?.attendance)
+      if (!isAttendanceMarkedStatus(status)) return
+      getStudentAttendanceKeys(student).forEach((key) => {
+        seededStatuses[key] = status
+      })
+    })
+    if (Object.keys(seededStatuses).length) {
+      setStudentAttendanceStatuses((current) => ({ ...current, ...seededStatuses }))
+    }
     setTemporarySessionContext({ item, students: Array.isArray(sessionStudents) ? sessionStudents : [] })
     setSelectedStudentsCourseId(String(item.courseId || '').trim())
     setSelectedStudentsBatchId(String(item.batchId || '').trim())
@@ -4821,6 +5024,10 @@ export function FacultyDashboardPage() {
   const openTodayWorkModal = (mode = 'attendance') => {
     if (facultyWeekOffStatus.isWeekOff) {
       showWeekOffValidation()
+      return
+    }
+    if (mode === 'attendance' && facultyLeaveAttendanceLocked) {
+      setTodayWorkError('Attendance is disabled because an approved leave or permission window is active for this batch.')
       return
     }
     setTodayWorkMode(mode)
@@ -4885,7 +5092,7 @@ export function FacultyDashboardPage() {
       progressPercentage: 0,
       attendanceByStudent: Object.fromEntries(statusStudentIds.map((studentId) => {
         const student = studentsFlowVisibleStudents.find((item) => getTodayWorkStudentId(item) === studentId)
-        return [studentId, getCurrentStudentAttendanceStatus(studentAttendanceStatuses, student)]
+        return [studentId, getCurrentStudentAttendanceStatus(studentAttendanceStatuses, student) || displayAttendanceStatus(student?.attendance)]
       })),
       submoduleStatuses: initialSubmoduleStatuses,
       submoduleStatusById: initialSubmoduleStatusById,
@@ -5070,11 +5277,22 @@ export function FacultyDashboardPage() {
     const normalizedStudentId = String(studentId || '').trim()
     if (!normalizedStudentId) return
 
+    const existingStudent = studentsFlowVisibleStudents.find((student) => getTodayWorkStudentId(student) === normalizedStudentId)
+    const existingStatus = getCurrentStudentAttendanceStatus(studentAttendanceStatuses, existingStudent)
+    if (attendanceAction === 'late' && isAttendanceMarkedStatus(existingStatus)) {
+      setTodayWorkError('This student attendance is already saved. Use Edit Attendance to change it.')
+      return
+    }
+
     const attendanceWindow = resolveBatchAttendanceWindow(
       attendanceBatchTiming,
     )
     if (attendanceAction === 'normal' && !attendanceWindow.isEditable) {
       setTodayWorkError(attendanceWindow.reason || 'Attendance is closed for this batch.')
+      return
+    }
+    if (attendanceAction === 'late' && !attendanceWindow.isLateAvailable) {
+      setTodayWorkError('Late attendance is not available for this batch right now.')
       return
     }
 
@@ -5176,6 +5394,10 @@ export function FacultyDashboardPage() {
       setTodayWorkError(attendanceWindow.reason || 'Attendance is closed for this batch.')
       return
     }
+    if (attendanceAction === 'late' && !attendanceWindow.isLateAvailable) {
+      setTodayWorkError('Late attendance is not available for this batch right now.')
+      return
+    }
 
     const selectedStudents = todayWorkForm.applyToAllStudents
       ? studentsFlowActionableStudents
@@ -5195,9 +5417,17 @@ export function FacultyDashboardPage() {
       lateReason: attendanceLateReason.trim(),
     }))
     if (attendanceAction === 'late') {
-      students.forEach((student) => { student.status = 'LATE' })
-      if (!attendanceLateReason.trim()) {
+      // Late mode applies only to students marked Present. An Absent choice
+      // must remain ABSENT instead of being converted to LATE/PRESENT.
+      students.forEach((student) => {
+        if (student.status === 'PRESENT') student.status = 'LATE'
+      })
+      if (students.some((student) => student.status === 'LATE') && !attendanceLateReason.trim()) {
         setTodayWorkError('Late reason is required.')
+        return
+      }
+      if (students.some((student) => !['ABSENT', 'LATE'].includes(student.status))) {
+        setTodayWorkError('Choose Present or Absent for every selected student.')
         return
       }
     } else if (attendanceAction === 'edit') {
@@ -5249,6 +5479,7 @@ export function FacultyDashboardPage() {
         batchCode: String(selectedStudentsBatch?.batchCode || selectedStudentsBatch?.code || '').trim(),
         batchName: String(selectedStudentsBatch?.batchName || selectedStudentsBatch?.code || '').trim(),
         submissionMode: 'faculty-dashboard-attendance',
+        attendanceMode: attendanceAction,
         students,
       }
       const response = attendanceAction === 'edit'
@@ -5271,7 +5502,7 @@ export function FacultyDashboardPage() {
       }, {})
       setStudentAttendanceStatuses((current) => ({
         ...current,
-        ...extractStudentAttendanceStatuses(response),
+        ...extractStudentAttendanceStatuses(response, getAttendanceDateKey()),
         ...savedStatuses,
       }))
       saveStudentCalendarAttendance(getAttendanceDateKey(), students)
@@ -6135,7 +6366,7 @@ const nextName = trimmedValue
     [paginatedNotifications],
   )
 
-  const summaryCardsLoading = dashboardOverviewLoading || dashboardSummaryLoading
+  const summaryCardsLoading = dashboardOverviewLoading || dashboardSummaryLoading || facultyWeekOffRequestsLoading
   const stats = [
     { label: 'Assigned Courses', value: summaryCardsLoading ? 'Loading...' : String(dashboardOverview?.courseIds?.length ?? new Set(assignedCourseIds).size ?? 0), note: summaryCardsLoading ? 'Loading course data' : 'Active courses', icon: BookOpen, tone: 'blue' },
     { label: 'Total Batches', value: summaryCardsLoading ? 'Loading...' : (dashboardSummary?.totalBatches ?? '0'), note: summaryCardsLoading ? 'Loading batch data' : 'Across all Courses', icon: Layers3, tone: 'purple' },
@@ -6230,7 +6461,7 @@ const nextName = trimmedValue
 
   const handleSidebarSectionChange = (section) => {
     if (requireWorkLogLogin()) return
-    const routeBySection = { dashboard: '/dashboard/faculty/dashboard', 'my-courses': '/dashboard/faculty/courses', 'my-batches': '/dashboard/faculty/batches', 'my-calendar': '/dashboard/faculty/calendar', exams: '/dashboard/faculty/exams', students: '/dashboard/faculty/students', 'leave-requests': '/dashboard/faculty/leave-requests', notifications: '/dashboard/faculty/notifications', profile: '/dashboard/faculty/profile', 'skill-development': '/dashboard/faculty/skill-development' }
+    const routeBySection = { dashboard: '/dashboard/faculty/dashboard', 'my-courses': '/dashboard/faculty/courses', 'my-batches': '/dashboard/faculty/batches', 'my-calendar': '/dashboard/faculty/calendar', exams: '/dashboard/faculty/exams', students: '/dashboard/faculty/students', 'other-faculty-batches': '/dashboard/faculty/other-faculty-batches', 'leave-requests': '/dashboard/faculty/leave-requests', notifications: '/dashboard/faculty/notifications', profile: '/dashboard/faculty/profile', 'skill-development': '/dashboard/faculty/skill-development' }
     if (routeBySection[section]) {
       navigate(routeBySection[section])
       return
@@ -6291,23 +6522,20 @@ const nextName = trimmedValue
       <nav className="super-admin-sidebar-nav">
         {[
           { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-          { id: 'courses', label: 'Course', icon: BookOpen, children: [
-            { id: 'my-batches', label: 'Batches', icon: Layers3 },
-            { id: 'course-progress', label: 'Course Progress', icon: BarChart3, route: 'my-courses' },
-          ] },
+          { id: 'my-courses', label: 'Course', icon: BookOpen },
+          { id: 'my-batches', label: 'Batch', icon: Layers3 },
           { id: 'students', label: 'Student Management', icon: Users },
           { id: 'skill-development', label: 'Skill Development', icon: GraduationCap },
           { id: 'exams', label: 'Exams', icon: BookOpen },
-          { id: 'other-faculty-batches', label: 'Other Faculty Batches', icon: Layers3 },
           { id: 'leave-management', label: 'Leave Management', icon: CalendarDays, children: [
             { id: 'leave-requests', label: 'Leave Requests', icon: FileText },
             { id: 'my-calendar', label: 'Calendar', icon: CalendarDays },
           ] },
           { id: 'notifications', label: 'Notifications', icon: Bell },
           { id: 'profile', label: 'Profile', icon: CircleUserRound },
-        ].filter((item) => item.id !== 'other-faculty-batches' || hasTemporaryAssignments).map((item) => {
+        ].map((item) => {
           const Icon = item.icon
-          const isActive = activeSection === item.id || (item.id === 'exams' && (isExamsRoute || isAssessmentsRoute || isExamReportsRoute || isAcademicTestRoute))
+          const isActive = activeSection === item.id || (item.id === 'students' && activeSection === 'other-faculty-batches') || (item.id === 'exams' && (isExamsRoute || isAssessmentsRoute || isExamReportsRoute || isAcademicTestRoute))
           const studentNavigation = (
             <>
               <div className="super-admin-sidebar-parent-row">
@@ -6327,21 +6555,26 @@ const nextName = trimmedValue
                   <ChevronDown size={16} strokeWidth={2.2} className={expandedSidebarGroups.students ? 'is-expanded' : ''} aria-hidden="true" />
                 </button>
               </div>
-              {(expandedSidebarGroups.students || isSidebarCollapsed) ? (
+              {(expandedSidebarGroups.students || isSidebarCollapsed || activeSection === 'other-faculty-batches') ? (
                 <div className="super-admin-sidebar-submenu">
                   <div className="super-admin-sidebar-submenu-title">Student Management</div>
                   {[
                     { id: 'active', label: 'Active Students', icon: Users },
                     { id: 'records', label: 'Course Completion Students', icon: CheckCircle2 },
                     { id: 'discontinued', label: 'Discontinued Students', icon: ShieldCheck },
+                    ...(hasTemporaryAssignments ? [{ id: 'other-faculty-batches', label: 'Other Faculty Batches', icon: Layers3 }] : []),
                   ].map((entry) => {
                     const ChildIcon = entry.icon
                     return (
                       <button
                         key={entry.id}
                         type="button"
-                        className={`super-admin-sidebar-subitem ${studentsViewMode === entry.id ? 'is-active' : ''}`.trim()}
+                        className={`super-admin-sidebar-subitem ${studentsViewMode === entry.id || activeSection === entry.id ? 'is-active' : ''}`.trim()}
                         onClick={() => {
+                          if (entry.id === 'other-faculty-batches') {
+                            handleSidebarSectionChange('other-faculty-batches')
+                            return
+                          }
                           navigateToFacultyStudentView(entry.id)
                         }}
                       >
@@ -6479,7 +6712,9 @@ const nextName = trimmedValue
           onClick={() => setNotificationOpen((current) => !current)}
         >
           <Bell size={22} strokeWidth={2.1} />
-          <span className="super-admin-notification-badge">{unreadNotificationCount}</span>
+          {unreadNotificationCount > 0 ? (
+            <span className="super-admin-notification-badge">{unreadNotificationCount}</span>
+          ) : null}
         </button>
 {notificationOpen ? (
   <div
@@ -6626,8 +6861,13 @@ const nextName = trimmedValue
         <div className="branch-dashboard-profile-menu-wrap" ref={profileMenuRef}>
           <button
             type="button"
-            className="super-admin-profile branch-dashboard-profile-trigger"
-            onClick={() => setIsProfileMenuOpen((current) => !current)}
+            className="super-admin-profile branch-dashboard-profile-trigger faculty-profile-trigger"
+            onClick={() => {
+              setNotificationOpen(false)
+              setIsProfileMenuOpen((current) => !current)
+            }}
+            aria-haspopup="menu"
+            aria-expanded={isProfileMenuOpen}
           >
             <span className="super-admin-avatar" aria-hidden="true">
               <span className="super-admin-avatar-mark">
@@ -6641,9 +6881,47 @@ const nextName = trimmedValue
           </button>
 
           {isProfileMenuOpen ? (
-            <div className="branch-dashboard-profile-menu" role="menu" aria-label="Faculty profile menu">
+            <div className="branch-dashboard-profile-menu faculty-profile-menu" role="menu" aria-label="Faculty profile menu">
               <button
                 type="button"
+                className="faculty-profile-menu-close"
+                aria-label="Close faculty profile menu"
+                onClick={() => setIsProfileMenuOpen(false)}
+              >
+                <X size={17} strokeWidth={2.3} />
+              </button>
+              <div className="branch-dashboard-profile-menu-header">
+                <span className="super-admin-avatar" aria-hidden="true">
+                  <span className="super-admin-avatar-mark">
+                    <ShieldCheck size={18} strokeWidth={2.2} />
+                  </span>
+                </span>
+                <div>
+                  <strong>{facultyName}</strong>
+                  <span>Faculty Instructor</span>
+                </div>
+              </div>
+
+              <div className="branch-dashboard-profile-menu-details">
+                <div>
+                  <Mail size={15} aria-hidden="true" />
+                  <span>
+                    <small>Email</small>
+                    <strong>{currentFacultyIdentity.facultyEmail || facultyDetails.email || user?.email || 'Not available'}</strong>
+                  </span>
+                </div>
+                <div>
+                  <ShieldCheck size={15} aria-hidden="true" />
+                  <span>
+                    <small>Role</small>
+                    <strong>Faculty</strong>
+                  </span>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                role="menuitem"
                 className="branch-dashboard-profile-menu-item"
                 onClick={() => {
                   setActiveSection('profile')
@@ -6653,7 +6931,8 @@ const nextName = trimmedValue
                 <CircleUserRound size={16} strokeWidth={2.1} />
                 <span>Profile</span>
               </button>
-              <button type="button" className="branch-dashboard-profile-menu-item is-danger" onClick={handleLogoutClick}>
+
+              <button type="button" role="menuitem" className="branch-dashboard-profile-menu-item is-danger" onClick={handleLogoutClick}>
                 <LogOut size={16} strokeWidth={2.1} />
                 <span>Logout</span>
               </button>
@@ -6685,15 +6964,46 @@ const nextName = trimmedValue
     })
   }, [isTodayWorkModalOpen, studentAttendanceStatuses, studentsFlowVisibleStudents, todayWorkForm.attendanceByStudent])
   const temporarySessionWindowLocked = Boolean(temporarySessionContext) && !isTemporarySessionEditable(temporarySessionContext.item, attendanceClock)
-  const attendanceWindowLocked = temporarySessionWindowLocked || (todayWorkMode === 'attendance' && attendanceAction === 'normal' && !todayWorkAttendanceWindow.isEditable)
+  const hasSavedTodayAttendance = studentsFlowVisibleStudents.some((student) => {
+    const status = getCurrentStudentAttendanceStatus(studentAttendanceStatuses, student)
+    return isAttendanceMarkedStatus(status) || status === 'LATE'
+  })
+  const hasUnmarkedSavedAttendance = studentsFlowVisibleStudents.some((student) => {
+    const status = getCurrentStudentAttendanceStatus(studentAttendanceStatuses, student)
+    return !isAttendanceMarkedStatus(status) && status !== 'LATE'
+  })
+  const normalAttendanceEnabled = !hasSavedTodayAttendance && todayWorkAttendanceWindow.isEditable && !temporarySessionWindowLocked
+  // A batch may be saved in parts (for example, one student was marked during
+  // normal time and another still needs late attendance). Keep Late enabled
+  // after the window closes while there are still unmarked students. The
+  // backend rejects attempts to overwrite an already saved student.
+  const lateAttendanceEnabled = hasUnmarkedSavedAttendance && todayWorkAttendanceWindow.isLateAvailable && !temporarySessionWindowLocked
+  // Corrections are locked while the normal attendance window is open. Once
+  // the window closes, an already saved attendance can be corrected through
+  // Edit Attendance.
+  const editAttendanceEnabled = hasSavedTodayAttendance && !todayWorkAttendanceWindow.isEditable && !temporarySessionWindowLocked
+  const attendanceWindowLocked = temporarySessionWindowLocked || (todayWorkMode === 'attendance' && (
+    (attendanceAction === 'normal' && !normalAttendanceEnabled)
+    || (attendanceAction === 'late' && !lateAttendanceEnabled)
+  ))
   const hasTemporaryAttendanceOverride = Boolean(activeTemporaryAttendanceSession)
   const attendanceWeekTypeLocked = Boolean(selectedStudentsBatch) && (
     activeTemporaryAttendanceSession?.isOriginalRescheduledSession
     || (!hasTemporaryAttendanceOverride && !isAttendanceDayForBatch(selectedStudentsBatch))
   )
+  const approvedLeaveWindows = Array.isArray(facultyAttendanceStatus?.approvedLeaveWindows)
+    ? facultyAttendanceStatus.approvedLeaveWindows
+    : []
+  const currentAttendanceMinutes = getCurrentAttendanceMinutes(facultyAttendanceStatus?.currentServerTime || new Date())
+  const facultyLeaveAttendanceLocked = Boolean(facultyAttendanceStatus?.exemption?.exempt)
+    || approvedLeaveWindows.some((window) => {
+      const leaveStart = parseAttendanceMinutes(window?.startTime)
+      const leaveEnd = parseAttendanceMinutes(window?.endTime)
+      return leaveStart != null && leaveEnd != null && currentAttendanceMinutes >= leaveStart && currentAttendanceMinutes < leaveEnd
+    })
 
   useEffect(() => {
-    if (!selectedStudentsBatchId || !todayWorkAttendanceWindow.isReminder || !hasUnmarkedAttendance) {
+    if (!facultyAttendanceStatusLoaded || facultyLeaveAttendanceLocked || !selectedStudentsBatchId || !todayWorkAttendanceWindow.isReminder || !hasUnmarkedAttendance) {
       attendanceWarningLevelRef.current = 0
       setAttendanceWarningPopup(null)
       return
@@ -6706,7 +7016,7 @@ const nextName = trimmedValue
         message: todayWorkAttendanceWindow.reason,
       })
     }
-  }, [hasUnmarkedAttendance, selectedStudentsBatchId, todayWorkAttendanceWindow.isReminder, todayWorkAttendanceWindow.warningMinutes, todayWorkAttendanceWindow.reason])
+  }, [facultyAttendanceStatusLoaded, facultyLeaveAttendanceLocked, hasUnmarkedAttendance, selectedStudentsBatchId, todayWorkAttendanceWindow.isReminder, todayWorkAttendanceWindow.warningMinutes, todayWorkAttendanceWindow.reason])
 
   const visibleAttendanceStudents = studentsFlowVisibleStudents.filter((student) => {
     if (!normalizedAttendanceSearch) return true
@@ -6722,7 +7032,7 @@ const nextName = trimmedValue
   ))
 
   return (
-    <section className={`super-admin-page ${isSidebarCollapsed ? 'is-sidebar-collapsed' : ''}`.trim()}>
+    <section className={`super-admin-page faculty-dashboard-page ${isSidebarCollapsed ? 'is-sidebar-collapsed' : ''}`.trim()}>
       <div className="super-admin-shell">
         {renderSidebar()}
 
@@ -6813,10 +7123,7 @@ const nextName = trimmedValue
                   className="faculty-course-section"
                 >
                   {coursesLoading ? (
-                    <div className="faculty-my-batches-loading-card">
-                      <strong>Loading course details</strong>
-                      <p>We&apos;re pulling the exact course record assigned to you.</p>
-                    </div>
+                    <FacultyDashboardTableSkeleton columns={4} rows={3} className="faculty-course-loading-table" />
                   ) : coursesError ? (
                     <div className="faculty-my-batches-loading-card">
                       <strong>Course details unavailable</strong>
@@ -7068,7 +7375,8 @@ const nextName = trimmedValue
                       onChange={setFacultyBatchWeekTypeFilter}
                     />
                   </div>
-                  <div className="branch-dashboard-table-shell">
+                  {coursesLoading ? <FacultyDashboardTableSkeleton columns={7} rows={5} className="faculty-batches-loading-table" /> : (
+                    <div className="branch-dashboard-table-shell">
                     <table className="branch-dashboard-table">
                       <thead>
                         <tr>
@@ -7120,7 +7428,8 @@ const nextName = trimmedValue
                         />
                       </div>
                     ) : null}
-                  </div>
+                    </div>
+                  )}
                 </FacultyDashboardSection>
               ) : null}
 
@@ -7146,7 +7455,7 @@ const nextName = trimmedValue
                 />
               ) : null}
 
-              {activeSection === 'students' && !isStudentCalendarRoute ? (
+              {activeSection === 'students' && !isStudentCalendarRoute && !showPreviousAttendance ? (
                 <FacultyDashboardSection
                   title={facultyViewLabel}
                   actions={(
@@ -7156,8 +7465,8 @@ const nextName = trimmedValue
                       <button
                         type="button"
                         className={`faculty-today-work-trigger ${facultyWeekOffStatus.isWeekOff ? 'is-read-only' : ''}`.trim()}
-                        disabled={attendanceWeekTypeLocked || !studentsFlowActionableStudents.length}
-                        title={attendanceWeekTypeLocked ? `Attendance is disabled today for this ${selectedStudentsBatch?.weekType === 'WEEKEND' ? 'weekend' : 'weekday'} batch` : 'Open Attendance'}
+                        disabled={attendanceWeekTypeLocked || facultyLeaveAttendanceLocked || !studentsFlowActionableStudents.length}
+                        title={facultyLeaveAttendanceLocked ? 'Attendance is disabled during approved leave or permission' : attendanceWeekTypeLocked ? `Attendance is disabled today for this ${selectedStudentsBatch?.weekType === 'WEEKEND' ? 'weekend' : 'weekday'} batch` : 'Open Attendance'}
                         onClick={() => openTodayWorkModal('attendance')}
                       >
                         <BookOpen size={16} />
@@ -7177,12 +7486,21 @@ const nextName = trimmedValue
                         <BookOpen size={16} />
                         <span>Today's Work</span>
                       </button>
+                      <button
+                        type="button"
+                        className={`faculty-today-work-trigger faculty-previous-attendance-trigger ${showPreviousAttendance ? 'is-active' : ''}`.trim()}
+                        onClick={() => setShowPreviousAttendance((current) => !current)}
+                        title="Open Previous Attendance"
+                      >
+                        <CalendarDays size={16} />
+                        <span>Previous Attendance</span>
+                      </button>
                         </>
                       ) : null}
                     </div>
                   )}
                 >
-                  {studentsViewMode !== 'active' ? (
+                  {coursesLoading ? <FacultyDashboardTableSkeleton columns={studentsViewMode === 'active' ? 9 : 7} rows={6} className="faculty-students-loading-table" /> : studentsViewMode !== 'active' ? (
                     <div className="faculty-students-flow-stage faculty-student-records-stage">
                       <div className="faculty-student-records-toolbar">
                         <div>
@@ -7873,6 +8191,22 @@ const nextName = trimmedValue
                 </FacultyDashboardSection>
               ) : null}
 
+              {activeSection === 'students' && !isStudentCalendarRoute && showPreviousAttendance ? (
+                <div className="faculty-previous-attendance-page">
+                  <div className="faculty-previous-attendance-page-header">
+                    <button
+                      type="button"
+                      className="faculty-today-work-trigger"
+                      onClick={() => setShowPreviousAttendance(false)}
+                    >
+                      <ChevronLeft size={16} />
+                      <span>Back to Students</span>
+                    </button>
+                  </div>
+                  <FacultyPreviousAttendance />
+                </div>
+              ) : null}
+
               {viewStudentDrawer ? (
                 <div className="student-drawer-backdrop">
                   <aside
@@ -8114,7 +8448,9 @@ const nextName = trimmedValue
                   </div>
 
                   <div className="faculty-notifications-feed">
-                    {groupedNotifications.length ? (
+                    {facultyNotificationsLoading ? (
+                      <FacultyDashboardNotificationSkeleton />
+                    ) : groupedNotifications.length ? (
                       groupedNotifications.map((group) => (
                           <FacultyNotificationGroup
                           key={group.label}
@@ -8579,9 +8915,9 @@ const nextName = trimmedValue
 
                 {todayWorkMode === 'attendance' ? (
                     <div className="faculty-today-work-attendance-mode-actions">
-                      <button type="button" className={attendanceAction === 'normal' ? 'is-active' : ''} onClick={() => { setAttendanceMode('normal'); setTodayWorkError('') }} disabled={!todayWorkAttendanceWindow.isEditable}>Normal Attendance</button>
-                      <button type="button" className={attendanceAction === 'late' ? 'is-active is-late' : 'is-late'} onClick={() => { setAttendanceMode('late'); setTodayWorkError('') }} disabled={!todayWorkAttendanceWindow.isLateAvailable}>Mark Late Attendance</button>
-                      <button type="button" className={attendanceAction === 'edit' ? 'is-active is-edit' : 'is-edit'} onClick={() => { setAttendanceMode('edit'); setTodayWorkError('') }}>Edit Attendance</button>
+                      <button type="button" className={attendanceAction === 'normal' ? 'is-active' : ''} onClick={() => { setAttendanceMode('normal'); setTodayWorkError('') }} disabled={!normalAttendanceEnabled}>Normal Attendance</button>
+                      <button type="button" className={attendanceAction === 'late' ? 'is-active is-late' : 'is-late'} onClick={() => { setAttendanceMode('late'); setTodayWorkError('') }} disabled={!lateAttendanceEnabled}>Mark Late Attendance</button>
+                      <button type="button" className={attendanceAction === 'edit' ? 'is-active is-edit' : 'is-edit'} onClick={() => { setAttendanceMode('edit'); setTodayWorkError('') }} disabled={!editAttendanceEnabled}>Edit Attendance</button>
                     </div>
                   ) : null}
                 {todayWorkMode === 'attendance' && attendanceAction === 'late' ? (
@@ -8617,6 +8953,8 @@ const nextName = trimmedValue
                     const studentId = getTodayWorkStudentId(student)
                     const studentName = String(student?.studentName || student?.name || `Student ${index + 1}`).trim()
                     const status = todayWorkForm.attendanceByStudent?.[studentId] || ''
+                    const savedStudentStatus = getCurrentStudentAttendanceStatus(studentAttendanceStatuses, student) || displayAttendanceStatus(student?.attendance)
+                    const studentAttendanceLocked = attendanceAction === 'late' && isAttendanceMarkedStatus(savedStudentStatus)
                     const isPresentStudent = status === 'PRESENT'
                     const checked = isPresentStudent && todayWorkForm.selectedStudentIds.includes(studentId)
                     const discontinued = isDiscontinuedStudent(student)
@@ -8659,7 +8997,7 @@ const nextName = trimmedValue
                               type="button"
                               className={`faculty-today-work-attendance-button faculty-today-work-attendance-button--present${status === 'PRESENT' ? ' is-active' : ''}`}
                               onClick={() => setTodayWorkAttendance(studentId, 'PRESENT')}
-                              disabled={attendanceWindowLocked}
+                              disabled={attendanceWindowLocked || studentAttendanceLocked}
                             >
                               <Check size={14} strokeWidth={2.5} aria-hidden="true" />
                               Present
@@ -8668,7 +9006,7 @@ const nextName = trimmedValue
                               type="button"
                               className={`faculty-today-work-attendance-button faculty-today-work-attendance-button--absent${status === 'ABSENT' ? ' is-active' : ''}`}
                               onClick={() => setTodayWorkAttendance(studentId, 'ABSENT')}
-                              disabled={attendanceWindowLocked}
+                              disabled={attendanceWindowLocked || studentAttendanceLocked}
                             >
                               <X size={14} strokeWidth={2.5} aria-hidden="true" />
                               Absent

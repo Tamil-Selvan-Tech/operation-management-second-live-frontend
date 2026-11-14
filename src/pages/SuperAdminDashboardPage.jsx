@@ -46,7 +46,7 @@ import { BranchDashboardPage } from './BranchDashboardPage'
 import { SalesAdminDashboardPage } from './SalesAdminDashboardPage'
 import { Student360Page } from './Student360Page'
 import StudentCalendarPage from './StudentCalendarPage'
-import { request, setImpersonateBranchId } from '../services/apiClient'
+import { request, setImpersonateBranchId, setImpersonateSalesAdminId } from '../services/apiClient'
 import { assignBranchAccess, listBranchAccessUsers } from '../services/userRoleManagementService'
 import { SuperAdminOverallDashboard } from '../components/SuperAdminOverallDashboard'
 import { SuperAdminMetricDetailPage } from '../components/SuperAdminMetricDetailPage'
@@ -590,10 +590,51 @@ function getInitialSuperAdminSection(search = '') {
   return ['branches', 'branch-admin', 'faculty', 'sales-admin', 'user-role', 'students', 'exams-results', 'academic-tests', 'leave-management', 'faculty-leave', 'discontinuations', 'helpdesk', 'settings', 'profile', 'reports', 'metric-branches', 'metric-students', 'metric-admissions', 'metric-total-payment', 'metric-month-payment', 'metric-outstanding', 'metric-month-due', 'metric-today-due', 'metric-overdue', 'metric-due-students', 'metric-today-collection'].includes(section) ? section : 'dashboard'
 }
 
+const SUPER_ADMIN_EMBEDDED_VIEW_STORAGE_KEY = 'cispro.super-admin-embedded-view'
+
+function readPersistedEmbeddedView() {
+  if (typeof window === 'undefined') return null
+  try {
+    const raw = window.sessionStorage.getItem(SUPER_ADMIN_EMBEDDED_VIEW_STORAGE_KEY)
+    if (!raw) return null
+    const stored = JSON.parse(raw)
+    const mode = stored?.mode === 'sales' ? 'sales' : stored?.mode === 'branch' ? 'branch' : ''
+    const target = mode === 'sales' ? stored?.salesAdmin : stored?.branch
+    if (!mode || !target || !(target.id || target.branchId)) {
+      window.sessionStorage.removeItem(SUPER_ADMIN_EMBEDDED_VIEW_STORAGE_KEY)
+      return null
+    }
+    const branchId = target.id || target.branchId || null
+    const salesAdminId = mode === 'sales' ? (target.salesAdminId || null) : null
+    setImpersonateBranchId(branchId)
+    setImpersonateSalesAdminId(salesAdminId)
+    return { mode, branch: mode === 'branch' ? target : null, salesAdmin: mode === 'sales' ? target : null }
+  } catch {
+    try { window.sessionStorage.removeItem(SUPER_ADMIN_EMBEDDED_VIEW_STORAGE_KEY) } catch { /* ignore storage failures */ }
+    return null
+  }
+}
+
+function persistEmbeddedView(mode, target) {
+  if (typeof window === 'undefined' || !target) return
+  try {
+    window.sessionStorage.setItem(SUPER_ADMIN_EMBEDDED_VIEW_STORAGE_KEY, JSON.stringify({
+      mode,
+      branch: mode === 'branch' ? target : null,
+      salesAdmin: mode === 'sales' ? target : null,
+    }))
+  } catch { /* ignore storage failures */ }
+}
+
+function clearPersistedEmbeddedView() {
+  if (typeof window === 'undefined') return
+  try { window.sessionStorage.removeItem(SUPER_ADMIN_EMBEDDED_VIEW_STORAGE_KEY) } catch { /* ignore storage failures */ }
+}
 export function SuperAdminDashboardPage() {
   const navigate = useNavigate()
   const location = useLocation()
   const { signOut, user } = useAuth()
+  const [persistedEmbeddedView] = useState(() => readPersistedEmbeddedView())
   const [activeSection, setActiveSection] = useState(() => getInitialSuperAdminSection(location.search))
   const [isSectionLoading, setIsSectionLoading] = useState(true)
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false)
@@ -650,8 +691,8 @@ export function SuperAdminDashboardPage() {
   const [viewDashboardBranch, setViewDashboardBranch] = useState(null)
   const [viewDashboardMode, setViewDashboardMode] = useState('branch')
   const [isViewDashboardConfirmOpen, setIsViewDashboardConfirmOpen] = useState(false)
-  const [embeddedBranch, setEmbeddedBranch] = useState(null)
-  const [embeddedSalesAdmin, setEmbeddedSalesAdmin] = useState(null)
+  const [embeddedBranch, setEmbeddedBranch] = useState(() => persistedEmbeddedView?.mode === 'branch' ? persistedEmbeddedView.branch : null)
+  const [embeddedSalesAdmin, setEmbeddedSalesAdmin] = useState(() => persistedEmbeddedView?.mode === 'sales' ? persistedEmbeddedView.salesAdmin : null)
   const [embeddedStudentEditId, setEmbeddedStudentEditId] = useState('')
   const [superAdminStudentView, setSuperAdminStudentView] = useState(null)
   const [superAdminStudentCourseData, setSuperAdminStudentCourseData] = useState({ courses: [], batches: [], facultyWork: [] })
@@ -1671,9 +1712,12 @@ const filteredBranches = useMemo(() => {
   }
 
   const handleConfirmViewDashboard = () => {
-    if (viewDashboardMode === 'sales') setEmbeddedSalesAdmin(viewDashboardBranch)
+    const mode = viewDashboardMode === 'sales' ? 'sales' : 'branch'
+    persistEmbeddedView(mode, viewDashboardBranch)
+    if (mode === 'sales') setEmbeddedSalesAdmin(viewDashboardBranch)
     else setEmbeddedBranch(viewDashboardBranch)
     setImpersonateBranchId(viewDashboardBranch?.id || viewDashboardBranch?.branchId || null)
+    setImpersonateSalesAdminId(viewDashboardBranch?.salesAdminId || null)
     setIsViewDashboardConfirmOpen(false)
     setViewDashboardBranch(null)
   }
@@ -1688,10 +1732,12 @@ const filteredBranches = useMemo(() => {
   }
 
   const handleConfirmExitDashboard = () => {
+    clearPersistedEmbeddedView()
     setEmbeddedBranch(null)
     setEmbeddedSalesAdmin(null)
     setEmbeddedStudentEditId('')
     setImpersonateBranchId(null)
+    setImpersonateSalesAdminId(null)
     setIsExitDashboardConfirmOpen(false)
   }
 
@@ -1966,6 +2012,9 @@ const filteredBranches = useMemo(() => {
   }
 
   const handleConfirmLogout = async () => {
+    clearPersistedEmbeddedView()
+    setImpersonateBranchId(null)
+    setImpersonateSalesAdminId(null)
     closeLogoutConfirm()
     try {
       await signOut()
@@ -2016,6 +2065,7 @@ const filteredBranches = useMemo(() => {
             setEmbeddedStudentEditId('')
           }}
           onEmbeddedStudent360Back={() => {
+            clearPersistedEmbeddedView()
             setEmbeddedBranch(null)
             setEmbeddedStudentEditId('')
             setImpersonateBranchId(null)
@@ -3681,10 +3731,10 @@ const filteredBranches = useMemo(() => {
             </p>
 
             <div className="branch-delete-actions">
-              <button type="button" className="branch-delete-cancel" onClick={closeDeleteConfirm}>
+              <button type="button" className="branch-delete-cancel branch-account-delete-cancel" style={{ width: '120px', minWidth: '120px', maxWidth: '120px', height: '38px', minHeight: '38px', maxHeight: '38px', boxSizing: 'border-box' }} onClick={closeDeleteConfirm}>
                 Cancel
               </button>
-              <button type="button" className="branch-delete-danger" onClick={handleDeleteBranch} disabled={isDeleting}>
+              <button type="button" className="branch-delete-danger branch-account-delete-button" style={{ width: '120px', minWidth: '120px', maxWidth: '120px', height: '38px', minHeight: '38px', maxHeight: '38px', boxSizing: 'border-box' }} onClick={handleDeleteBranch} disabled={isDeleting}>
                 {isDeleting ? 'Deleting...' : 'Delete'}
               </button>
             </div>

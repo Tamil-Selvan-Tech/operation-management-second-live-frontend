@@ -14,6 +14,11 @@ const includes = (type, part) => part === 'paper' ? type === 'TEST' || type === 
 const normalizeEditorQuestions = (items = [], defaultMarks = 1) => items.map((question) => ({ questionType: question.questionType || 'MCQ', marks: question.marks || defaultMarks, ...question }))
 
 function StatusBadge({ value }) { const label = String(value || 'NOT_PREPARED').replaceAll('_', ' ').toLowerCase().replace(/\b\w/g, (character) => character.toUpperCase()); return <span className={`academic-preparation-status is-${String(value || 'NOT_PREPARED').toLowerCase().replaceAll('_', '-')}`}>{label}</span> }
+
+function AcademicPreparationLoadingSkeleton() {
+  return <section className="academic-preparation-page academic-preparation-page--loading" aria-label="Loading preparation details" aria-busy="true"><div className="academic-preparation-loading-heading"><span /><span /><span /></div><div className="academic-preparation-loading-table">{Array.from({ length: 5 }, (_, rowIndex) => <div key={rowIndex} className="academic-preparation-loading-row">{Array.from({ length: 7 }, (_, columnIndex) => <span key={columnIndex} className={columnIndex === 0 ? 'is-wide' : ''} />)}</div>)}</div></section>
+}
+
 const scheduleDateLabel = (value) => value ? new Intl.DateTimeFormat('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).format(new Date(`${value}T00:00:00`)) : '-'
 const scheduleTimeLabel = (value) => { const [hours, minutes] = String(value || '').split(':').map(Number); if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return value || '-'; const period = hours >= 12 ? 'PM' : 'AM'; return `${hours % 12 || 12}:${String(minutes).padStart(2, '0')} ${period}` }
 const scheduleIsStarted = (schedule) => { const startTime = schedule?.rawStartTime || schedule?.startTime; return schedule && startTime ? new Date(`${schedule.testDate}T${startTime}:00+05:30`).getTime() <= Date.now() : false }
@@ -394,7 +399,7 @@ export default function AcademicTestPreparationPage({ facultyCourseProgressByBat
   const openScheduleEditor = (schedule) => { setScheduleEditor(schedule); setScheduleForm({ testDate: schedule.testDate || '', startTime: schedule.startTime || '10:00', endTime: schedule.endTime || '11:00' }) }
   const saveSchedule = async () => { if (!scheduleEditor) return; setScheduleSaving(true); setError(''); try { await updateFacultyScheduledAcademicTest(scheduleEditor.id, scheduleForm); setScheduleEditor(null); setScheduledTests(await listFacultyScheduledAcademicTests()); setMessage('Academic Test schedule updated successfully.') } catch (e) { setError(e.message || 'Unable to update test schedule.') } finally { setScheduleSaving(false) } }
   const cancelSchedule = async () => { if (!cancelTarget) return; setScheduleSaving(true); setError(''); try { await cancelFacultyScheduledAcademicTest(cancelTarget.id); setCancelTarget(null); setScheduledTests(await listFacultyScheduledAcademicTests()); setMessage('Academic Test cancelled successfully.') } catch (e) { setError(e.message || 'Unable to cancel test.') } finally { setScheduleSaving(false) } }
-  if (loading) return <section className="academic-preparation-page"><p>Loading preparation details...</p></section>
+  if (loading) return <AcademicPreparationLoadingSkeleton />
   if (!data) return <section className="academic-preparation-page"><div className="academic-test-error">{error || 'Preparation details not found.'}</div></section>
   const openBuilder = (test) => { setSaveConfirmation(null); setMessage(''); setError(''); setShowBuilder(true); navigate(`/dashboard/faculty/exams/academic-tests/${test.academicTestItemId}/${batchId}?view=builder`) }
   const tests = (data.tests || [data]).filter((test) => !scheduleFor(test)?.isRetest && (data.testType !== 'PROJECT' || test.testType === 'PROJECT'))

@@ -388,7 +388,7 @@ function getAttendanceEntries(student = {}) {
     const date = String(entry?.attendanceDate || entry?.dateKey || entry?.date || entry?.day || '').slice(0, 10)
     if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return
     const rawStatus = String(entry?.status || entry?.attendanceStatus || entry?.result || '').trim().toLowerCase()
-    const status = rawStatus === 'present'
+    const status = ['present', 'late'].includes(rawStatus)
       ? 'present'
       : rawStatus === 'absent'
         ? 'absent'

@@ -44,3 +44,16 @@
 .academic-project-preview-actions > button:nth-last-child(2){height:40px;min-height:40px;width:max-content;align-self:flex-start}
 .academic-preparation-question:not(.is-assessment) > .academic-preparation-field.compact:last-of-type{display:none}
 .academic-preparation-project-grid ~ .academic-preparation-field:nth-of-type(2){display:none}
+
+.academic-preparation-page--loading { display:grid; gap:18px; }
+.academic-preparation-loading-heading { display:grid; gap:10px; padding:12px 0; }
+.academic-preparation-loading-heading span, .academic-preparation-loading-row span { display:block; height:12px; border-radius:6px; background:linear-gradient(100deg,#e8eef6 20%,#f8fbff 42%,#e8eef6 64%); background-size:220% 100%; animation:academic-preparation-skeleton-shimmer 1.35s ease-in-out infinite; }
+.academic-preparation-loading-heading span:first-child { width:125px; height:10px; }
+.academic-preparation-loading-heading span:nth-child(2) { width:260px; height:30px; }
+.academic-preparation-loading-heading span:last-child { width:min(420px,72vw); }
+.academic-preparation-loading-table { display:grid; gap:1px; overflow:hidden; border:1px solid #e2e8f0; border-radius:14px; background:#e2e8f0; }
+.academic-preparation-loading-row { display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); align-items:center; gap:14px; min-height:58px; padding:0 16px; background:#fff; }
+.academic-preparation-loading-row span { width:58%; }
+.academic-preparation-loading-row span.is-wide { width:82%; }
+@keyframes academic-preparation-skeleton-shimmer { 0% { background-position:120% 0; } 100% { background-position:-120% 0; } }
+@media(max-width:700px) { .academic-preparation-loading-table { overflow-x:auto; } .academic-preparation-loading-row { min-width:720px; } }

@@ -114,3 +114,4 @@
 .user-role-table tbody tr.is-actions-open td:last-child{z-index:1002}
 .user-role-table tbody tr:not(.is-actions-open) td:last-child{z-index:1}
 .user-role-actions-menu.is-open-up{top:auto!important;bottom:calc(100% + 6px)!important}
+.user-role-delete-confirm-actions .user-role-delete-cancel,.user-role-delete-confirm-actions .user-role-delete-button{width:130px!important;min-width:130px!important;max-width:130px!important;height:40px!important;min-height:40px!important;max-height:40px!important;box-sizing:border-box;padding:8px 12px!important;transform:none!important}

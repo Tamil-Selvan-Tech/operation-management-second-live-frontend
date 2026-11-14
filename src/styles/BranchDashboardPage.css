@@ -923,7 +923,8 @@
   top: calc(100% + 10px);
   right: 0;
   z-index: 100000;
-  min-width: 220px;
+  width: 300px;
+  min-width: 300px;
   padding: 8px;
   border: 1px solid #dbe4f0;
   border-radius: 16px;
@@ -1608,6 +1609,8 @@ body.branch-notification-menu-open .main-area {
 
 .branch-management-skeleton-row td { height: 58px; }
 .branch-management-skeleton-row td span { display: block; width: 72%; height: 13px; border-radius: 5px; background: linear-gradient(90deg, #edf2f7 25%, #f8fafc 50%, #edf2f7 75%); background-size: 200% 100%; animation: branch-student-table-shimmer 1.2s ease-in-out infinite; }
+.branch-courses-table.is-loading .branch-management-skeleton-row td { height: 64px; }
+.branch-courses-table.is-loading .branch-management-skeleton-row td span { height: 14px; border-radius: 999px; }
 .branch-management-skeleton-row td:nth-child(2) span,
 .branch-management-skeleton-row td:nth-child(3) span { width: 86%; }
 .branch-management-skeleton-row td:nth-child(4) span,
@@ -15455,6 +15458,97 @@ body.branch-notification-menu-open .main-area {
   .branch-dashboard-fee-skeleton > div { width: min(100%, 270px); }
   .branch-dashboard-mini-skeleton-meta { width: 78px; flex-basis: 78px; }
 }
+.faculty-dashboard-page .branch-dashboard-stats {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+@media (max-width: 1000px) {
+  .faculty-dashboard-page .branch-dashboard-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 620px) {
+  .faculty-dashboard-page .branch-dashboard-stats {
+    grid-template-columns: 1fr;
+  }
+}
+
+.faculty-profile-trigger .super-admin-profile-copy {
+  width: clamp(112px, 12vw, 158px);
+  min-width: 112px;
+  max-width: 158px;
+}
+
+.faculty-profile-trigger .super-admin-profile-copy strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.faculty-profile-menu {
+  min-width: min(292px, calc(100vw - 24px));
+  padding: 0 0 8px;
+  overflow: hidden;
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+}
+
+.faculty-profile-menu-close {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: #8193aa;
+  cursor: pointer;
+}
+
+.faculty-profile-menu-close:hover,
+.faculty-profile-menu-close:focus-visible {
+  background: #f1f5f9;
+  color: #334155;
+  outline: none;
+}
+
+.faculty-profile-menu .branch-dashboard-profile-menu-item {
+  margin: 0 8px;
+  width: calc(100% - 16px);
+}
+
+.faculty-profile-menu .branch-dashboard-profile-menu-header,
+.faculty-profile-menu .branch-dashboard-profile-menu-details {
+  padding-left: 18px;
+  padding-right: 18px;
+}
+
+.faculty-profile-menu .branch-dashboard-profile-menu-header {
+  padding-right: 48px;
+}
+
+@media (max-width: 560px) {
+  .faculty-profile-trigger .super-admin-profile-copy {
+    width: clamp(78px, 28vw, 124px);
+    min-width: 0;
+    max-width: 124px;
+  }
+
+  .faculty-profile-menu {
+    right: -4px;
+    min-width: min(292px, calc(100vw - 24px));
+  }
+}
+
 .branch-dashboard-profile-menu-header { display: flex; align-items: center; gap: 11px; padding: 16px 18px 13px; border-bottom: 1px solid #e8eef6; }
 .branch-dashboard-profile-menu-header > div { display: grid; gap: 3px; min-width: 0; }
 .branch-dashboard-profile-menu-header strong { color: #173d6c; font-size: .86rem; }
@@ -15488,3 +15582,24 @@ body.branch-notification-menu-open .main-area {
 .installment-delete-actions,
 .course-module-delete-modal .branch-modal-actions,
 .branch-success-modal.super-admin-logout-modal .branch-modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 22px; }
+
+/* Keep the faculty name and chevron together without reserving a large empty header slot. */
+.faculty-profile-trigger {
+  justify-content: flex-start;
+  gap: 8px;
+}
+
+.faculty-profile-trigger .super-admin-profile-copy {
+  width: auto;
+  min-width: 64px;
+  max-width: 132px;
+  flex: 0 1 auto;
+}
+
+@media (max-width: 560px) {
+  .faculty-profile-trigger .super-admin-profile-copy {
+    min-width: 0;
+    max-width: 112px;
+    flex-basis: auto;
+  }
+}
