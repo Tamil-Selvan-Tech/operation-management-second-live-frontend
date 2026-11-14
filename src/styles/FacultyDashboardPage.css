@@ -6973,7 +6973,6 @@ body.faculty-notification-menu-open .super-admin-content {
     justify-self: start;
   }
 }
-
 /* Faculty dashboard loading states: keep the layout stable while each widget resolves. */
 .faculty-dashboard-overview-card--loading {
   display: grid;
@@ -7231,3 +7230,23 @@ body.faculty-notification-menu-open .super-admin-content {
 .faculty-weekoff-skeleton-row span:first-child { width:42%; }
 @keyframes faculty-weekoff-skeleton-shimmer { 0% { background-position:120% 0; } 100% { background-position:-120% 0; } }
 @media(max-width:640px) { .faculty-weekoff-skeleton { overflow-x:auto; } .faculty-weekoff-skeleton-row { min-width:620px; } }
+.faculty-previous-attendance-page {
+  display: grid;
+  gap: 0;
+}
+
+.faculty-previous-attendance-page-header {
+  display: flex;
+  align-items: center;
+}
+
+.faculty-previous-attendance-page-header .faculty-today-work-trigger {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  padding-left: 0;
+}
+
+.faculty-previous-attendance-page .faculty-previous-attendance {
+  margin-top: 0;
+}

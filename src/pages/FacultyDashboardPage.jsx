@@ -73,6 +73,7 @@ import {
 } from '../services/facultyNotificationService'
 import { useMobileMenu } from '../layouts/mobileMenuContext'
 import { FacultyAttendanceFlow } from '../components/FacultyAttendanceFlow'
+import { FacultyPreviousAttendance } from '../components/FacultyPreviousAttendance'
 import { BranchAttendanceInsights } from '../components/BranchAttendanceInsights'
 import { StudentAttendanceReportModal } from '../components/StudentAttendanceReportModal'
 import { StudentCalendarPage } from './StudentCalendarPage'
@@ -2449,6 +2450,11 @@ export function FacultyDashboardPage() {
   })
   const [dismissedSidebarGroup, setDismissedSidebarGroup] = useState('')
   const [hasTemporaryAssignments, setHasTemporaryAssignments] = useState(false)
+  const [showPreviousAttendance, setShowPreviousAttendance] = useState(false)
+
+  useEffect(() => {
+    if (activeSection !== 'students') setShowPreviousAttendance(false)
+  }, [activeSection])
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false)
   const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false)
   const [facultyWorkLogStatus, setFacultyWorkLogStatus] = useState(null)
@@ -5149,6 +5155,10 @@ export function FacultyDashboardPage() {
       setTodayWorkError(attendanceWindow.reason || 'Attendance is closed for this batch.')
       return
     }
+    if (attendanceAction === 'late' && !attendanceWindow.isLateAvailable) {
+      setTodayWorkError('Late attendance is not available for this batch right now.')
+      return
+    }
 
     setTodayWorkForm((current) => ({
       ...current,
@@ -5248,6 +5258,10 @@ export function FacultyDashboardPage() {
       setTodayWorkError(attendanceWindow.reason || 'Attendance is closed for this batch.')
       return
     }
+    if (attendanceAction === 'late' && !attendanceWindow.isLateAvailable) {
+      setTodayWorkError('Late attendance is not available for this batch right now.')
+      return
+    }
 
     const selectedStudents = todayWorkForm.applyToAllStudents
       ? studentsFlowActionableStudents
@@ -5267,9 +5281,17 @@ export function FacultyDashboardPage() {
       lateReason: attendanceLateReason.trim(),
     }))
     if (attendanceAction === 'late') {
-      students.forEach((student) => { student.status = 'LATE' })
-      if (!attendanceLateReason.trim()) {
+      // Late mode applies only to students marked Present. An Absent choice
+      // must remain ABSENT instead of being converted to LATE/PRESENT.
+      students.forEach((student) => {
+        if (student.status === 'PRESENT') student.status = 'LATE'
+      })
+      if (students.some((student) => student.status === 'LATE') && !attendanceLateReason.trim()) {
         setTodayWorkError('Late reason is required.')
+        return
+      }
+      if (students.some((student) => !['ABSENT', 'LATE'].includes(student.status))) {
+        setTodayWorkError('Choose Present or Absent for every selected student.')
         return
       }
     } else if (attendanceAction === 'edit') {
@@ -5321,6 +5343,7 @@ export function FacultyDashboardPage() {
         batchCode: String(selectedStudentsBatch?.batchCode || selectedStudentsBatch?.code || '').trim(),
         batchName: String(selectedStudentsBatch?.batchName || selectedStudentsBatch?.code || '').trim(),
         submissionMode: 'faculty-dashboard-attendance',
+        attendanceMode: attendanceAction,
         students,
       }
       const response = attendanceAction === 'edit'
@@ -6801,7 +6824,17 @@ const nextName = trimmedValue
     })
   }, [isTodayWorkModalOpen, studentAttendanceStatuses, studentsFlowVisibleStudents, todayWorkForm.attendanceByStudent])
   const temporarySessionWindowLocked = Boolean(temporarySessionContext) && !isTemporarySessionEditable(temporarySessionContext.item, attendanceClock)
-  const attendanceWindowLocked = temporarySessionWindowLocked || (todayWorkMode === 'attendance' && attendanceAction === 'normal' && !todayWorkAttendanceWindow.isEditable)
+  const hasSavedTodayAttendance = studentsFlowVisibleStudents.some((student) => {
+    const status = getCurrentStudentAttendanceStatus(studentAttendanceStatuses, student)
+    return isAttendanceMarkedStatus(status) || status === 'LATE'
+  })
+  const normalAttendanceEnabled = !hasSavedTodayAttendance && todayWorkAttendanceWindow.isEditable && !temporarySessionWindowLocked
+  const lateAttendanceEnabled = !hasSavedTodayAttendance && todayWorkAttendanceWindow.isLateAvailable && !temporarySessionWindowLocked
+  const editAttendanceEnabled = hasSavedTodayAttendance && !temporarySessionWindowLocked
+  const attendanceWindowLocked = temporarySessionWindowLocked || (todayWorkMode === 'attendance' && (
+    (attendanceAction === 'normal' && !normalAttendanceEnabled)
+    || (attendanceAction === 'late' && !lateAttendanceEnabled)
+  ))
   const hasTemporaryAttendanceOverride = Boolean(activeTemporaryAttendanceSession)
   const attendanceWeekTypeLocked = Boolean(selectedStudentsBatch) && (
     activeTemporaryAttendanceSession?.isOriginalRescheduledSession
@@ -7261,7 +7294,7 @@ const nextName = trimmedValue
                 />
               ) : null}
 
-              {activeSection === 'students' && !isStudentCalendarRoute ? (
+              {activeSection === 'students' && !isStudentCalendarRoute && !showPreviousAttendance ? (
                 <FacultyDashboardSection
                   title={facultyViewLabel}
                   actions={(
@@ -7291,6 +7324,15 @@ const nextName = trimmedValue
                       >
                         <BookOpen size={16} />
                         <span>Today's Work</span>
+                      </button>
+                      <button
+                        type="button"
+                        className={`faculty-today-work-trigger faculty-previous-attendance-trigger ${showPreviousAttendance ? 'is-active' : ''}`.trim()}
+                        onClick={() => setShowPreviousAttendance((current) => !current)}
+                        title="Open Previous Attendance"
+                      >
+                        <CalendarDays size={16} />
+                        <span>Previous Attendance</span>
                       </button>
                         </>
                       ) : null}
@@ -7986,6 +8028,22 @@ const nextName = trimmedValue
                     </>
                   )}
                 </FacultyDashboardSection>
+              ) : null}
+
+              {activeSection === 'students' && !isStudentCalendarRoute && showPreviousAttendance ? (
+                <div className="faculty-previous-attendance-page">
+                  <div className="faculty-previous-attendance-page-header">
+                    <button
+                      type="button"
+                      className="faculty-today-work-trigger"
+                      onClick={() => setShowPreviousAttendance(false)}
+                    >
+                      <ChevronLeft size={16} />
+                      <span>Back to Students</span>
+                    </button>
+                  </div>
+                  <FacultyPreviousAttendance />
+                </div>
               ) : null}
 
               {viewStudentDrawer ? (
@@ -8696,9 +8754,9 @@ const nextName = trimmedValue
 
                 {todayWorkMode === 'attendance' ? (
                     <div className="faculty-today-work-attendance-mode-actions">
-                      <button type="button" className={attendanceAction === 'normal' ? 'is-active' : ''} onClick={() => { setAttendanceMode('normal'); setTodayWorkError('') }} disabled={!todayWorkAttendanceWindow.isEditable}>Normal Attendance</button>
-                      <button type="button" className={attendanceAction === 'late' ? 'is-active is-late' : 'is-late'} onClick={() => { setAttendanceMode('late'); setTodayWorkError('') }} disabled={!todayWorkAttendanceWindow.isLateAvailable}>Mark Late Attendance</button>
-                      <button type="button" className={attendanceAction === 'edit' ? 'is-active is-edit' : 'is-edit'} onClick={() => { setAttendanceMode('edit'); setTodayWorkError('') }}>Edit Attendance</button>
+                      <button type="button" className={attendanceAction === 'normal' ? 'is-active' : ''} onClick={() => { setAttendanceMode('normal'); setTodayWorkError('') }} disabled={!normalAttendanceEnabled}>Normal Attendance</button>
+                      <button type="button" className={attendanceAction === 'late' ? 'is-active is-late' : 'is-late'} onClick={() => { setAttendanceMode('late'); setTodayWorkError('') }} disabled={!lateAttendanceEnabled}>Mark Late Attendance</button>
+                      <button type="button" className={attendanceAction === 'edit' ? 'is-active is-edit' : 'is-edit'} onClick={() => { setAttendanceMode('edit'); setTodayWorkError('') }} disabled={!editAttendanceEnabled}>Edit Attendance</button>
                     </div>
                   ) : null}
                 {todayWorkMode === 'attendance' && attendanceAction === 'late' ? (
