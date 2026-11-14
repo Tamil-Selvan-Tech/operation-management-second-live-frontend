@@ -429,6 +429,7 @@ export function AppRouter() {
             <Route path="/dashboard/faculty/exams/academic-tests/:itemId/:batchId" element={<FacultyMyBatchesPage />} />
             <Route path="/dashboard/faculty/exams/reports/:moduleId/:batchId" element={<FacultyMyBatchesPage />} />
             <Route path="/dashboard/faculty/students" element={<FacultyMyBatchesPage />} />
+            <Route path="/dashboard/faculty/other-faculty-batches" element={<FacultyMyBatchesPage />} />
             <Route path="/dashboard/faculty/leave-requests" element={<FacultyMyBatchesPage />} />
             <Route path="/dashboard/faculty/notifications" element={<FacultyMyBatchesPage />} />
             <Route path="/dashboard/faculty/skill-development" element={<FacultyMyBatchesPage />} />
