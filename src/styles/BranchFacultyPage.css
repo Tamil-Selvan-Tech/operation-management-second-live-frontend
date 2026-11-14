@@ -2242,6 +2242,9 @@ aside.branch-course-view-drawer .branch-course-view-edit {
 }
 
 .branch-faculty-attendance-badge.logged-out { color: #b91c1c; background: #fee2e2; }
+.branch-faculty-attendance-badge.worklog-completed,
+.branch-faculty-attendance-badge.auto-closed { color: #b91c1c; background: #fee2e2; }
+.branch-faculty-attendance-badge.website-logged-out-worklog-active { color: #166534; background: #dcfce7; }
 .branch-faculty-attendance-badge.on-permission,
 .branch-faculty-attendance-badge.half-day { color: #a16207; background: #fef3c7; }
 .branch-faculty-attendance-badge.login-required { color: #1d4ed8; background: #dbeafe; }

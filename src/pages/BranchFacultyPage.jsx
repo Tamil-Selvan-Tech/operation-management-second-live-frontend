@@ -86,6 +86,9 @@ function attendanceStatusLabel(status) {
   return {
     LOGGED_IN: 'LOGGED IN',
     LOGGED_OUT: 'LOGGED OUT',
+    WORKLOG_COMPLETED: 'LOGGED OUT',
+    AUTO_CLOSED: 'AUTO CLOSED',
+    WEBSITE_LOGGED_OUT_WORKLOG_ACTIVE: 'LOGGED IN',
     ON_PERMISSION: 'ON PERMISSION',
     HALF_DAY: 'HALF DAY',
     LOGIN_REQUIRED: 'LOGIN REQUIRED',
@@ -98,6 +101,9 @@ function displayAttendanceStatus(attendance) {
   return attendance?.status || 'NOT_LOGGED_IN'
 }
 
+function hasOpenAttendanceSession(attendance = {}) {
+  return Boolean(attendance?.currentSession?.loginAt && !attendance?.currentSession?.logoutAt)
+}
 function normalizeMatchValue(value) {
   return String(value || '').trim().toLowerCase()
 }
@@ -1801,7 +1807,7 @@ export function BranchFacultyPage({ branchCode = '', branchId = '', branchBatchG
                       <div><span>Login Time</span><strong>{formatAttendanceTime(viewAttendance.firstLoginAt)}</strong></div>
                       {hasResumedAttendanceSession(viewAttendance) && <div><span>Re-Login Time</span><strong>{formatAttendanceTime(viewAttendance.currentSession.loginAt)}</strong></div>}
                       <div><span>Logout Time</span><strong>{formatAttendanceTime(viewAttendance.finalLogoutAt)}</strong></div>
-                      <div><span>{viewAttendance.status === 'LOGGED_OUT' ? 'Total Working Time' : 'Current Working Time'}</span><strong>{formatAttendanceDuration(viewAttendance.workingSeconds)}</strong></div>
+                      <div><span>{hasOpenAttendanceSession(viewAttendance) ? 'Current Working Time' : 'Total Working Time'}</span><strong>{formatAttendanceDuration(viewAttendance.workingSeconds)}</strong></div>
                     </div>
 
                     {['ON_PERMISSION', 'HALF_DAY', 'LOGIN_REQUIRED'].includes(viewAttendance.status) && viewAttendance.interruptionStartTime && (
