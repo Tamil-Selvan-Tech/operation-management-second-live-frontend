@@ -2861,6 +2861,12 @@ body.faculty-notification-menu-open .super-admin-content {
   cursor: not-allowed;
 }
 
+.faculty-today-work-attendance-button.is-active:disabled {
+  opacity: 1;
+  cursor: not-allowed;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.12);
+}
+
 .faculty-today-work-submodule-item input,
 .faculty-today-work-student-item input {
   width: 16px;
