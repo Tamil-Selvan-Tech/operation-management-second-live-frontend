@@ -102,6 +102,20 @@ export function SalesAdminDashboardPage({ embeddedBranchAdmin = false, embeddedS
   const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false)
   const [logoutLoading, setLogoutLoading] = useState(false)
   const [logoutError, setLogoutError] = useState('')
+  const [embeddedWorkLog, setEmbeddedWorkLog] = useState(null)
+
+  useEffect(() => {
+    if (!embeddedSuperAdmin || !embeddedSalesAdmin?.salesAdminId) return undefined
+    let active = true
+    request('/branches/me/sales-admins', { impersonateSalesAdminId: null })
+      .then((response) => {
+        const admins = response?.data?.salesAdmins || response?.salesAdmins || []
+        const target = admins.find((item) => String(item.userId || '') === String(embeddedSalesAdmin.salesAdminId) || String(item.id || '') === String(embeddedSalesAdmin.salesAdminCode || embeddedSalesAdmin.userCode))
+        if (active) setEmbeddedWorkLog(target?.workClock || embeddedSalesAdmin.workClock || null)
+      })
+      .catch(() => { if (active) setEmbeddedWorkLog(embeddedSalesAdmin.workClock || null) })
+    return () => { active = false }
+  }, [embeddedSuperAdmin, embeddedSalesAdmin])
 
   useEffect(() => {
     if (!isDashboard) return undefined
@@ -227,7 +241,7 @@ export function SalesAdminDashboardPage({ embeddedBranchAdmin = false, embeddedS
         <div className="super-admin-main">
           <header className="super-admin-topbar">
             <div className="super-admin-topbar-left"><button type="button" className="super-admin-sidebar-toggle" aria-label="Open navigation menu" onClick={() => setIsMobileSidebarOpen(true)}><LayoutGrid size={19} /></button><h1 className="super-admin-header-title">{isLeadManagement ? 'Lead Management' : isReports ? 'Monthly Reports' : isNotifications ? 'Notifications' : isAdmissions ? 'Student Admission' : isProfile ? 'My Profile' : 'Sales Admin Dashboard'}</h1></div>
-            <div className="super-admin-topbar-right">{!embeddedBranchAdmin && !embeddedSuperAdmin ? <SalesAdminWorkClock name={user?.name || 'Sales Admin'} salesAdminId={user?.userCode || user?.salesAdminId || ''} /> : null}{!embeddedBranchAdmin ? <NotificationBell targetUserId={embeddedSuperAdmin ? embeddedSalesAdmin?.salesAdminId : ''} readOnlyView={embeddedSuperAdmin} /> : null}<div className="super-admin-profile"><span className="super-admin-avatar"><span className="super-admin-avatar-mark"><UserRound size={19} /></span></span><div className="super-admin-profile-copy"><strong>{user?.name || 'Sales Admin'}</strong><span>{user?.email || 'salesadmin@cispro.com'}</span></div></div></div>
+            <div className="super-admin-topbar-right">{!embeddedBranchAdmin ? <SalesAdminWorkClock name={embeddedSuperAdmin ? (embeddedSalesAdmin?.fullName || embeddedSalesAdmin?.name || 'Sales Admin') : (user?.name || 'Sales Admin')} salesAdminId={embeddedSuperAdmin ? (embeddedSalesAdmin?.salesAdminCode || embeddedSalesAdmin?.userCode || embeddedSalesAdmin?.salesAdminId || '') : (user?.userCode || user?.salesAdminId || '')} readOnlyStatus={embeddedSuperAdmin ? (embeddedWorkLog || embeddedSalesAdmin?.workClock) : null} /> : null}{!embeddedBranchAdmin ? <NotificationBell targetUserId={embeddedSuperAdmin ? embeddedSalesAdmin?.salesAdminId : ''} readOnlyView={false} /> : null}{!embeddedSuperAdmin ? <div className="super-admin-profile"><span className="super-admin-avatar"><span className="super-admin-avatar-mark"><UserRound size={19} /></span></span><div className="super-admin-profile-copy"><strong>{user?.name || 'Sales Admin'}</strong><span>{user?.email || 'salesadmin@cispro.com'}</span></div></div> : null}</div>
           </header>
 
           <main className="super-admin-content">

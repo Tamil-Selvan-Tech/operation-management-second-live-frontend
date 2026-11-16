@@ -38,12 +38,13 @@ function statusMeta(status) {
   }[status] || ['Login Required', 'neutral']
 }
 
-export function SalesAdminWorkClock({ name = 'Sales Admin', salesAdminId = '', onStatusChange }) {
+export function SalesAdminWorkClock({ name = 'Sales Admin', salesAdminId = '', onStatusChange, readOnlyStatus = null }) {
   const [open, setOpen] = useState(false)
-  const [status, setStatus] = useState(null)
+  const [status, setStatus] = useState(() => readOnlyStatus ? { ...readOnlyStatus, _receivedAt: Date.now() } : null)
   const [now, setNow] = useState(() => Date.now())
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const isReadOnly = Boolean(readOnlyStatus)
 
   const refresh = useCallback(async () => {
     try {
@@ -59,15 +60,23 @@ export function SalesAdminWorkClock({ name = 'Sales Admin', salesAdminId = '', o
   }, [onStatusChange])
 
   useEffect(() => {
+    if (isReadOnly) {
+      const statusId = window.setTimeout(() => setStatus(readOnlyStatus ? { ...readOnlyStatus, _receivedAt: Date.now() } : null), 0)
+      return () => window.clearTimeout(statusId)
+    }
     const refreshId = window.setTimeout(() => { void refresh() }, 0)
     return () => window.clearTimeout(refreshId)
-  }, [refresh])
+  }, [isReadOnly, readOnlyStatus, refresh])
   useEffect(() => {
     if (!open) return undefined
     const clockId = window.setInterval(() => setNow(Date.now()), 1000)
     const pollId = window.setInterval(() => { void refresh() }, 15000)
     return () => { window.clearInterval(clockId); window.clearInterval(pollId) }
   }, [open, refresh])
+  useEffect(() => {
+    document.body.classList.toggle('sales-work-log-open', open)
+    return () => document.body.classList.remove('sales-work-log-open')
+  }, [open])
 
   const liveWorkingSeconds = useMemo(() => {
     const base = Number(status?.workingSeconds || 0)
@@ -119,7 +128,7 @@ export function SalesAdminWorkClock({ name = 'Sales Admin', salesAdminId = '', o
           <div className="sales-work-clock-metrics"><div><span>Login Time</span><strong>{timeLabel(status.firstLoginAt)}</strong></div><div><span>Logout Time</span><strong>{timeLabel(status.finalLogoutAt)}</strong></div><div><span>Working Time</span><strong>{duration(liveWorkingSeconds)}</strong></div></div>
           {status.mandatoryLoginRequired ? <p className="sales-work-clock-message">Please login your Work Log before continuing.</p> : null}
           {status.status === 'WEBSITE_LOGGED_OUT_WORK_CLOCK_ACTIVE' ? <p className="sales-work-clock-message">Your Work Log is still active for today and will resume when you return.</p> : null}
-          <div className="sales-work-clock-actions">{status.canLogin ? <button type="button" onClick={handleLogin} disabled={loading}><LogIn size={16} />{loading ? 'Saving...' : 'Login Work Log'}</button> : null}{status.canLogout ? <button type="button" className="is-logout" onClick={handleLogout} disabled={loading}><LogOut size={16} />{loading ? 'Saving...' : 'Logout Work Log'}</button> : null}</div>
+          {!isReadOnly ? <div className="sales-work-clock-actions">{status.canLogin ? <button type="button" onClick={handleLogin} disabled={loading}><LogIn size={16} />{loading ? 'Saving...' : 'Login Work Log'}</button> : null}{status.canLogout ? <button type="button" className="is-logout" onClick={handleLogout} disabled={loading}><LogOut size={16} />{loading ? 'Saving...' : 'Logout Work Log'}</button> : null}</div> : null}
         </>}
       </section>
     </div>

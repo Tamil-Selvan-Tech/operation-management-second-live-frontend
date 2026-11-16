@@ -5778,10 +5778,13 @@ body.super-admin-sidebar-open {
   top: 14px;
   right: 20px;
   z-index: 1100;
+  display: flex;
+  align-items: center;
+  height: 42px;
 }
 
 .sa-embedded-wrapper .super-admin-topbar-right {
-  padding-right: 190px;
+  padding-right: 170px;
 }
 
 .sa-embedded-exit-btn {
