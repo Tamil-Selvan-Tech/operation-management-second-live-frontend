@@ -5,6 +5,7 @@ import {
   getBranchAdminAttendanceStatus,
   getBranchAdminAttendanceStatusForSuperAdmin,
   loginBranchAdminAttendance,
+  logoutBranchAdminAttendance,
 } from '../services/attendanceService'
 import '../styles/BranchAdminAttendanceFlow.css'
 
@@ -114,8 +115,11 @@ export const BranchAdminAttendanceFlow = forwardRef(function BranchAdminAttendan
   const workingSeconds = useMemo(() => {
     const base = Number(status?.workingSeconds || 0)
     if (status?.status !== 'LOGGED_IN' || !status?.currentSession?.loginAt) return base
-    const loginAt = new Date(status.currentSession.loginAt).getTime()
-    return base + (Number.isFinite(loginAt) ? Math.max(0, Math.floor((liveNow.getTime() - loginAt) / 1000)) : 0)
+    // The API value already includes the open session through currentServerTime.
+    // Only add time elapsed since that response; adding from loginAt double-counts
+    // the entire active session.
+    const receivedAt = Number(status?._receivedAt || 0)
+    return base + (receivedAt ? Math.max(0, Math.floor((liveNow.getTime() - receivedAt) / 1000)) : 0)
   }, [liveNow, status])
 
   const handleLogin = async () => {
@@ -132,6 +136,25 @@ export const BranchAdminAttendanceFlow = forwardRef(function BranchAdminAttendan
       window.dispatchEvent(new CustomEvent('BRANCH_ADMIN_WORK_LOG_SYNC'))
     } catch (requestError) {
       setError(errorText(requestError, 'Unable to save Branch Admin Work Log login.'))
+      await refresh()
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleLogout = async () => {
+    if (readOnly || loading || status?.status !== 'LOGGED_IN') return
+    setLoading(true)
+    setError('')
+    try {
+      const next = await logoutBranchAdminAttendance({ logoutReason: 'Work Log completed for today' })
+      next._receivedAt = Date.now()
+      setStatus(next)
+      setNow(Date.now())
+      onStatusChange?.(next)
+      window.dispatchEvent(new CustomEvent('BRANCH_ADMIN_WORK_LOG_SYNC'))
+    } catch (requestError) {
+      setError(errorText(requestError, 'Unable to save Branch Admin Work Log logout.'))
       await refresh()
     } finally {
       setLoading(false)
@@ -185,6 +208,7 @@ export const BranchAdminAttendanceFlow = forwardRef(function BranchAdminAttendan
             </div>
             <div className="branch-admin-attendance-actions">
               {!readOnly && status.canLogin ? <button type="button" className="branch-admin-attendance-primary" onClick={handleLogin} disabled={loading}><LogIn size={17} /> {loading ? 'Saving…' : status.resumable ? 'Resume Work Log' : 'Login'}</button> : null}
+              {!readOnly && status.status === 'LOGGED_IN' ? <button type="button" className="branch-admin-attendance-primary branch-admin-attendance-logout" onClick={handleLogout} disabled={loading}>{loading ? 'Saving…' : 'Logout'}</button> : null}
               {!readOnly && !status.canLogin && status.status === 'WORKLOG_COMPLETED' ? <span className="branch-admin-attendance-complete">Today’s Work Log is complete.</span> : null}
               {readOnly ? <span className="branch-admin-attendance-read-only">Read-only Super Admin view</span> : null}
             </div>
