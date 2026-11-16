@@ -4495,6 +4495,118 @@ body.super-admin-notification-menu-open .super-admin-content {
   padding: 0;
 }
 
+.branch-view-work-log-card {
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+  border: 1px solid #dbe7f7;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #f8fbff 0%, #eef5ff 100%);
+  box-shadow: 0 8px 20px rgba(37, 99, 235, 0.06);
+}
+
+.branch-view-work-log-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.branch-view-work-log-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+}
+
+.branch-view-work-log-icon {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  flex: 0 0 auto;
+  border-radius: 10px;
+  color: #2563eb;
+  background: #dbeafe;
+}
+
+.branch-view-work-log-heading h3 {
+  margin: 0;
+  color: #1e3a8a;
+  font-size: 0.98rem;
+  font-weight: 900;
+}
+
+.branch-view-work-log-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 26px;
+  padding: 0 10px;
+  border-radius: 999px;
+  color: #166534;
+  background: #dcfce7;
+  font-size: 0.72rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.branch-view-work-log-status::before {
+  content: '';
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: currentColor;
+}
+
+.branch-view-work-log-status.is-not-logged-in {
+  color: #64748b;
+  background: #e2e8f0;
+}
+
+.branch-view-work-log-status.is-auto-closed {
+  color: #b42318;
+  background: #fee2e2;
+}
+
+.branch-view-work-log-state {
+  margin: 0;
+  color: #64748b;
+  font-size: 0.82rem;
+}
+
+.branch-view-work-log-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 9px;
+}
+
+.branch-view-work-log-grid > div {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+  padding: 10px 11px;
+  border: 1px solid #dbe7f7;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.82);
+}
+
+.branch-view-work-log-grid span {
+  color: #64748b;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.branch-view-work-log-grid strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: #172b4d;
+  font-size: 0.86rem;
+  font-weight: 800;
+}
+
 .branch-view-info-card-header {
   display: flex;
   align-items: center;
@@ -4747,6 +4859,10 @@ body.super-admin-notification-menu-open .super-admin-content {
 
   .branch-view-info-card {
     padding: 14px 14px 16px;
+  }
+
+  .branch-view-work-log-grid {
+    grid-template-columns: 1fr;
   }
 
   .branch-view-info-row {
@@ -5781,6 +5897,9 @@ body.super-admin-sidebar-open {
 }
 
 .sa-embedded-wrapper .super-admin-topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
   padding-right: 190px;
 }
 
@@ -5807,10 +5926,16 @@ body.super-admin-sidebar-open {
 
 /* Keep the embedded branch notification bell visible beside the exit action. */
 .sa-embedded-wrapper .branch-dashboard-notification-menu {
-  position: fixed;
-  top: 16px;
-  right: 200px;
+  position: static;
+  top: auto;
+  right: auto;
   z-index: 1201;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 42px;
+  width: 42px;
+  min-width: 42px;
 }
 
 .sa-embedded-wrapper .branch-dashboard-notification-button {

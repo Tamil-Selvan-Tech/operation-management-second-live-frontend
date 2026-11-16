@@ -15628,3 +15628,4 @@ body.branch-notification-menu-open .main-area {
     flex-basis: auto;
   }
 }
+.branch-dashboard-app-shell .super-admin-topbar-right{align-items:center;gap:12px}.branch-dashboard-app-shell .super-admin-topbar-right>.branch-admin-attendance-chip{flex:0 0 auto}.branch-dashboard-app-shell .super-admin-topbar-right>.branch-dashboard-notification-menu{display:inline-flex;align-items:center;justify-content:center;flex:0 0 42px;width:42px;min-width:42px}.branch-dashboard-app-shell .super-admin-topbar-right .branch-dashboard-notification-button{width:42px!important;height:42px!important;min-width:42px!important;padding:0!important}

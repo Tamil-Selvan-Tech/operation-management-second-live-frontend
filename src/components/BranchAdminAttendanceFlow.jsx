@@ -42,7 +42,7 @@ function formatDuration(seconds) {
   return `${String(hours).padStart(2, '0')}h ${String(minutes).padStart(2, '0')}m`
 }
 
-function statusMeta(status) {
+function statusMeta(status, readOnly = false) {
   const map = {
     NOT_LOGGED_IN: ['Not Logged In', 'neutral'],
     LOGGED_IN: ['Logged In', 'success'],
@@ -50,6 +50,7 @@ function statusMeta(status) {
     WORKLOG_COMPLETED: ['Work Log Completed', 'success'],
     AUTO_CLOSED: ['Auto Closed', 'danger'],
   }
+  if (readOnly && status === 'WEBSITE_LOGGED_OUT_WORKLOG_ACTIVE') return map.LOGGED_IN
   return map[status] || ['Not Logged In', 'neutral']
 }
 
@@ -109,7 +110,7 @@ export const BranchAdminAttendanceFlow = forwardRef(function BranchAdminAttendan
   const serverNow = status?.currentServerTime ? new Date(status.currentServerTime).getTime() : now
   const serverOffset = status?._receivedAt ? serverNow - status._receivedAt : 0
   const liveNow = useMemo(() => new Date(now + serverOffset), [now, serverOffset])
-  const [statusLabel, statusTone] = statusMeta(status?.status)
+  const [statusLabel, statusTone] = statusMeta(status?.status, readOnly)
   const workingSeconds = useMemo(() => {
     const base = Number(status?.workingSeconds || 0)
     if (status?.status !== 'LOGGED_IN' || !status?.currentSession?.loginAt) return base
@@ -205,7 +206,7 @@ export const BranchAdminAttendanceFlow = forwardRef(function BranchAdminAttendan
     >
       <CalendarDays size={18} />
       <span>Work Log</span>
-      {status?.status === 'LOGGED_IN' ? <span className="branch-admin-attendance-chip-dot" aria-label="Logged in" /> : null}
+      {status?.status === 'LOGGED_IN' || (readOnly && status?.status === 'WEBSITE_LOGGED_OUT_WORKLOG_ACTIVE') ? <span className="branch-admin-attendance-chip-dot" aria-label="Logged in" /> : null}
     </button>
     {modal}
   </>

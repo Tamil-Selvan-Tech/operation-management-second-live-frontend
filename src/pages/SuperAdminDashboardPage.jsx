@@ -39,6 +39,7 @@ import {
 import { PaginationBar } from '../components/PaginationBar'
 import { SuperAdminNotificationBell } from '../components/SuperAdminNotificationBell'
 import { BranchAttendanceReportModal } from '../components/BranchAttendanceReportModal'
+import { getBranchAdminAttendanceStatusForSuperAdmin } from '../services/attendanceService'
 import { listAllBranchCourses } from '../services/branchCourseService'
 import { listBranchBatches } from '../services/branchBatchService'
 import { listFacultyTodayWorkEntries } from '../lib/facultyTodayWorkStore'
@@ -187,6 +188,37 @@ function formatDisplayDate(value) {
     month: 'short',
     year: 'numeric',
   }).format(date)
+}
+
+function formatBranchWorkLogTime(value) {
+  if (!value) return '—'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return '—'
+  return new Intl.DateTimeFormat('en-IN', {
+    timeZone: 'Asia/Kolkata',
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  }).format(date)
+}
+
+function formatBranchWorkLogDuration(seconds) {
+  const total = Math.max(0, Number(seconds) || 0)
+  const hours = Math.floor(total / 3600)
+  const minutes = Math.floor((total % 3600) / 60)
+  return hours ? `${hours}h ${String(minutes).padStart(2, '0')}m` : `${minutes}m`
+}
+
+function branchWorkLogStatusLabel(value) {
+  return {
+    LOGGED_IN: 'Logged In',
+    // A website logout keeps the attendance work log open. From the
+    // read-only Super Admin view the admin is still considered logged in.
+    WEBSITE_LOGGED_OUT_WORKLOG_ACTIVE: 'Logged In',
+    WORKLOG_COMPLETED: 'Work Log Completed',
+    AUTO_CLOSED: 'Auto Closed',
+    NOT_LOGGED_IN: 'Not Logged In',
+  }[String(value || '').trim().toUpperCase()] || 'Not Logged In'
 }
 
 function getResendMailStatus(branch) {
@@ -686,6 +718,8 @@ export function SuperAdminDashboardPage() {
   const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false)
   const [isSuperAdminProfileOpen, setIsSuperAdminProfileOpen] = useState(false)
   const [viewTargetBranch, setViewTargetBranch] = useState(null)
+  const [branchAttendanceStatus, setBranchAttendanceStatus] = useState(null)
+  const [branchAttendanceLoading, setBranchAttendanceLoading] = useState(false)
   
   // Immersive Dashboard viewing states
   const [viewDashboardBranch, setViewDashboardBranch] = useState(null)
@@ -809,6 +843,34 @@ export function SuperAdminDashboardPage() {
 
     return () => window.clearTimeout(timerId)
   }, [loadBranches])
+
+  useEffect(() => {
+    const adminUserId = String(viewTargetBranch?.adminUserId || '').trim()
+    if (!viewTargetBranch || !adminUserId) {
+      setBranchAttendanceStatus(null)
+      setBranchAttendanceLoading(false)
+      return undefined
+    }
+
+    let active = true
+    setBranchAttendanceStatus(null)
+    setBranchAttendanceLoading(true)
+
+    getBranchAdminAttendanceStatusForSuperAdmin(adminUserId)
+      .then((attendance) => {
+        if (active) setBranchAttendanceStatus(attendance || null)
+      })
+      .catch(() => {
+        if (active) setBranchAttendanceStatus(null)
+      })
+      .finally(() => {
+        if (active) setBranchAttendanceLoading(false)
+      })
+
+    return () => {
+      active = false
+    }
+  }, [viewTargetBranch?.adminUserId])
 
   useEffect(() => {
     const refreshBranches = () => { void loadBranches() }
@@ -3379,6 +3441,30 @@ const filteredBranches = useMemo(() => {
             </div>
 
             <div className="branch-view-drawer-body">
+              <section className="branch-view-work-log-card" aria-labelledby="branch-view-work-log-title">
+                <div className="branch-view-work-log-heading">
+                  <div className="branch-view-work-log-title-wrap">
+                    <span className="branch-view-work-log-icon" aria-hidden="true">
+                      <BriefcaseBusiness size={18} strokeWidth={2.2} />
+                    </span>
+                    <h3 id="branch-view-work-log-title">Today's Work Log</h3>
+                  </div>
+                  {!branchAttendanceLoading ? (() => {
+                    const status = String(branchAttendanceStatus?.status || 'NOT_LOGGED_IN').trim().toLowerCase().replaceAll('_', '-')
+                    return <strong className={`branch-view-work-log-status is-${status}`}>{branchWorkLogStatusLabel(branchAttendanceStatus?.status)}</strong>
+                  })() : null}
+                </div>
+                {branchAttendanceLoading ? (
+                  <p className="branch-view-work-log-state">Loading attendance status...</p>
+                ) : (
+                  <div className="branch-view-work-log-grid">
+                    <div><span>Login Time</span><strong>{formatBranchWorkLogTime(branchAttendanceStatus?.firstLoginAt)}</strong></div>
+                    <div><span>Logout Time</span><strong>{formatBranchWorkLogTime(branchAttendanceStatus?.finalLogoutAt)}</strong></div>
+                    <div><span>Working Time</span><strong>{formatBranchWorkLogDuration(branchAttendanceStatus?.workingSeconds)}</strong></div>
+                  </div>
+                )}
+              </section>
+
               <section className="branch-view-info-card">
                 <div className="branch-view-info-card-header">
                   <span className="branch-view-info-icon" aria-hidden="true">
