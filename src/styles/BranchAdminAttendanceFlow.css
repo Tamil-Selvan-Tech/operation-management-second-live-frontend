@@ -1,0 +1,261 @@
+.branch-admin-attendance-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 0 14px;
+  border: 1px solid #cfe0f6;
+  border-radius: 12px;
+  background: #fff;
+  color: #2457a6;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 8px 20px rgba(43, 92, 160, .08);
+}
+
+.branch-admin-attendance-chip:hover,
+.branch-admin-attendance-chip:focus-visible {
+  border-color: #2d6cdf;
+  color: #174a96;
+  outline: none;
+}
+
+.branch-admin-attendance-chip-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #16a36a;
+  box-shadow: 0 0 0 3px #dcf8e9;
+}
+
+.branch-admin-attendance-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(17, 35, 61, .52);
+  backdrop-filter: blur(5px);
+}
+
+.branch-admin-attendance-modal {
+  width: min(760px, 100%);
+  max-height: min(720px, calc(100vh - 48px));
+  overflow: auto;
+  border: 1px solid #d5e2f5;
+  border-radius: 20px;
+  background: #fff;
+  box-shadow: 0 28px 70px rgba(16, 42, 79, .24);
+}
+
+.branch-admin-attendance-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 24px 26px 20px;
+  border-bottom: 1px solid #e4ebf5;
+}
+
+.branch-admin-attendance-eyebrow {
+  display: block;
+  margin-bottom: 5px;
+  color: #2f68c6;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+
+.branch-admin-attendance-header h2 {
+  margin: 0;
+  color: #153761;
+  font-size: 25px;
+  line-height: 1.15;
+}
+
+.branch-admin-attendance-close {
+  display: inline-grid;
+  width: 36px;
+  height: 36px;
+  place-items: center;
+  border: 1px solid #d5e2f5;
+  border-radius: 10px;
+  background: #fff;
+  color: #607898;
+  cursor: pointer;
+}
+
+.branch-admin-attendance-close:hover,
+.branch-admin-attendance-close:focus-visible {
+  border-color: #2d6cdf;
+  color: #2457a6;
+  outline: none;
+}
+
+.branch-admin-attendance-error,
+.branch-admin-attendance-info {
+  margin: 18px 26px 0;
+  padding: 11px 13px;
+  border-radius: 10px;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.branch-admin-attendance-error {
+  border: 1px solid #f4c3c3;
+  background: #fff2f2;
+  color: #b42318;
+}
+
+.branch-admin-attendance-info {
+  border: 1px solid #c8ddfa;
+  background: #f3f8ff;
+  color: #315a91;
+}
+
+.branch-admin-attendance-loading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 180px;
+  padding: 24px 26px;
+  color: #58718f;
+  font-size: 14px;
+}
+
+.branch-admin-attendance-spin {
+  animation: branch-admin-attendance-spin 1s linear infinite;
+}
+
+@keyframes branch-admin-attendance-spin {
+  to { transform: rotate(360deg); }
+}
+
+.branch-admin-attendance-identity {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 12px;
+  padding: 22px 26px 0;
+}
+
+.branch-admin-attendance-identity > div,
+.branch-admin-attendance-metrics > div {
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid #e0e9f6;
+  border-radius: 12px;
+  background: #f9fbff;
+}
+
+.branch-admin-attendance-identity span,
+.branch-admin-attendance-metrics span {
+  display: block;
+  margin-bottom: 5px;
+  color: #6b7e97;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.branch-admin-attendance-identity strong,
+.branch-admin-attendance-metrics strong {
+  display: block;
+  overflow: hidden;
+  color: #1d385d;
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.branch-admin-attendance-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 20px 26px 0;
+  padding: 8px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.branch-admin-attendance-status i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.branch-admin-attendance-status--success { background: #e2f8eb; color: #177245; }
+.branch-admin-attendance-status--warning { background: #fff3d7; color: #9a6512; }
+.branch-admin-attendance-status--danger { background: #ffe5e5; color: #b42318; }
+.branch-admin-attendance-status--neutral { background: #edf2f8; color: #667991; }
+
+.branch-admin-attendance-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  padding: 18px 26px 24px;
+}
+
+.branch-admin-attendance-actions {
+  display: flex;
+  align-items: center;
+  min-height: 68px;
+  padding: 0 26px 24px;
+}
+
+.branch-admin-attendance-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 42px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: 10px;
+  background: #2d6cdf;
+  color: #fff;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: 0 10px 22px rgba(45, 108, 223, .2);
+}
+
+.branch-admin-attendance-primary:disabled {
+  cursor: wait;
+  opacity: .65;
+}
+
+.branch-admin-attendance-complete {
+  color: #4c6684;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.branch-admin-attendance-read-only {
+  color: #5f7591;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+@media (max-width: 760px) {
+  .branch-admin-attendance-overlay { padding: 12px; }
+  .branch-admin-attendance-modal { max-height: calc(100vh - 24px); border-radius: 16px; }
+  .branch-admin-attendance-header { padding: 20px; }
+  .branch-admin-attendance-identity { grid-template-columns: repeat(2, minmax(0, 1fr)); padding: 18px 20px 0; }
+  .branch-admin-attendance-metrics { grid-template-columns: 1fr; padding: 16px 20px 20px; }
+  .branch-admin-attendance-error,
+  .branch-admin-attendance-info,
+  .branch-admin-attendance-status { margin-left: 20px; margin-right: 20px; }
+  .branch-admin-attendance-actions { padding: 0 20px 20px; }
+}
+
+@media (max-width: 420px) {
+  .branch-admin-attendance-chip { min-height: 36px; padding: 0 10px; }
+  .branch-admin-attendance-chip span:not(.branch-admin-attendance-chip-dot) { display: none; }
+  .branch-admin-attendance-identity { grid-template-columns: 1fr; }
+}

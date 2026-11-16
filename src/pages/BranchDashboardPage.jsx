@@ -66,7 +66,9 @@ import { CourseExcelUpload } from '../components/CourseExcelUpload'
 import { useCourseCalculations } from '../lib/useCourseCalculations'
 import { useAuth } from '../auth/useAuth'
 import { Button } from '../components/Button'
+import { BranchAdminAttendanceFlow } from '../components/BranchAdminAttendanceFlow'
 import { request, setImpersonateBranchId } from '../services/apiClient'
+import { logoutBranchAdminAttendance, logoutBranchAdminWebsite } from '../services/attendanceService'
 import { shareInFlightRequest } from '../lib/inFlightRequests'
 import { unwrapNotifications } from '../services/notificationService'
 import { getCurrentBranchProfile } from '../services/branchService'
@@ -4299,6 +4301,8 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
   const [resolvedBranchRoleAccess, setResolvedBranchRoleAccess] = useState('')
   const [isSalesAdminDashboardMode, setIsSalesAdminDashboardMode] = useState(false)
   const isSuperAdminEmbeddedView = embeddedMode && !admissionOnlyMode && String(role || '').toUpperCase().replace(/[^A-Z0-9]/g, '') === 'SUPERADMIN'
+  const isBranchAdminWorkLogEnabled = !embeddedMode && String(role || '').toUpperCase().replace(/[^A-Z0-9]/g, '') === 'BRANCHADMIN'
+  const isBranchAdminReadOnlyWorkLogView = Boolean(embeddedMode && branchData?.adminUserId)
   const hasLeadManagementAccess = isSuperAdminEmbeddedView || String(resolvedBranchRoleAccess || user?.roleAccess || session?.user?.roleAccess || '').toUpperCase() === 'BRANCH_ADMIN_SALES_ADMIN'
 
 
@@ -4461,7 +4465,11 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
   )
   const [branchProfile, setBranchProfile] = useState(null)
   const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false)
+  const [logoutLoading, setLogoutLoading] = useState(false)
+  const [logoutError, setLogoutError] = useState('')
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false)
+  const [branchWorkLogStatus, setBranchWorkLogStatus] = useState(null)
+  const branchAttendanceRef = useRef(null)
   const [isPaymentPlanRequiredOpen, setIsPaymentPlanRequiredOpen] = useState(false)
   const [isAddCourseOpen, setIsAddCourseOpen] = useState(false)
   const [isAddCourseSaving, setIsAddCourseSaving] = useState(false)
@@ -5750,11 +5758,14 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
 
   const openLogoutConfirm = () => {
     setIsProfileMenuOpen(false)
+    setLogoutError('')
     setIsLogoutConfirmOpen(true)
   }
 
   const closeLogoutConfirm = () => {
+    if (logoutLoading) return
     setIsLogoutConfirmOpen(false)
+    setLogoutError('')
   }
 
 
@@ -6026,11 +6037,32 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
     goToBranchSection('payments')
   }
 
-  const handleConfirmLogout = async () => {
-    closeLogoutConfirm()
-    setIsProfileMenuOpen(false)
-    await signOut()
-    navigate('/login', { replace: true })
+  const handleConfirmLogout = async (mode = 'return') => {
+    if (logoutLoading) return
+    setLogoutLoading(true)
+    setLogoutError('')
+    try {
+      if (isBranchAdminWorkLogEnabled) {
+        const isWorkLogAlreadyFinal = ['WORKLOG_COMPLETED', 'AUTO_CLOSED'].includes(String(branchWorkLogStatus?.status || ''))
+        if (mode === 'done' && !isWorkLogAlreadyFinal) {
+          try {
+            await logoutBranchAdminAttendance({ logoutReason: 'Work Log completed for today' })
+          } catch (error) {
+            const message = String(error?.body?.message || error?.message || '')
+            if (!/no active branch admin work log session|already completed|already closed/i.test(message)) throw error
+          }
+        }
+        await logoutBranchAdminWebsite()
+      }
+      setIsLogoutConfirmOpen(false)
+      setIsProfileMenuOpen(false)
+      await signOut()
+      navigate('/login', { replace: true })
+    } catch (error) {
+      setLogoutError(error?.body?.message || error?.message || 'Unable to complete logout. Please try again.')
+    } finally {
+      setLogoutLoading(false)
+    }
   }
 
   const branchTitle = branchProfile?.branchName || 'Branch Dashboard'
@@ -11852,6 +11884,17 @@ useEffect(() => {
         </div>
         <div className="super-admin-topbar-right">
         <>
+          {isBranchAdminWorkLogEnabled || isBranchAdminReadOnlyWorkLogView ? (
+            <BranchAdminAttendanceFlow
+              ref={branchAttendanceRef}
+              profileName={branchAdminDisplay}
+              branchId={branchProfile?.branchId || branchData?.branchId || ''}
+              userId={branchData?.adminUserId || ''}
+              initialStatus={branchData?.branchAdminAttendance || null}
+              readOnly={isBranchAdminReadOnlyWorkLogView}
+              onStatusChange={setBranchWorkLogStatus}
+            />
+          ) : null}
           <div ref={notificationMenuRef} className="notification-menu branch-dashboard-notification-menu">
             <button
               type="button"
@@ -20135,54 +20178,38 @@ if (paidProgress >= 100) {
         ) : null}
 
         {isLogoutConfirmOpen ? (
-          <div
-            className="branch-modal-backdrop"
-            role="presentation"
-          >
-            <div
-              className="branch-success-modal super-admin-logout-modal"
-              role="dialog"
-              aria-modal="true"
-              aria-labelledby="logout-confirm-title"
-              onClick={(event) => event.stopPropagation()}
-            >
-              {/* Close Button */}
-              <button
-                type="button"
-                className="branch-modal-close"
-                aria-label="Close logout confirmation"
-                onClick={closeLogoutConfirm}
-              >
+          <div className="branch-modal-backdrop" role="presentation">
+            <div className="branch-success-modal super-admin-logout-modal" role="dialog" aria-modal="true" aria-labelledby="logout-confirm-title" onClick={(event) => event.stopPropagation()}>
+              <button type="button" className="branch-modal-close" aria-label="Close logout confirmation" onClick={closeLogoutConfirm}>
                 <X size={22} strokeWidth={2} />
               </button>
-
-              {/* Logout Message */}
               <h2 id="logout-confirm-title">
-                Are you sure you want to logout?
+                {isBranchAdminWorkLogEnabled ? 'Confirm Logout' : 'Are you sure you want to logout?'}
               </h2>
-
-              {/* Actions */}
-              <div className="branch-modal-actions">
-                <button
-                  type="button"
-                  className="branch-modal-cancel"
-                  onClick={closeLogoutConfirm}
-                >
-                  Cancel
-                </button>
-
-                <button
-                  type="button"
-                  className="branch-modal-submit is-danger"
-                  onClick={handleConfirmLogout}
-                >
-                  Logout
-                </button>
+              <p className="branch-logout-description">
+                {isBranchAdminWorkLogEnabled ? 'Are you leaving for the day, or will you return to continue your work?' : 'Your session will be signed out securely.'}
+              </p>
+              {logoutError ? <p className="faculty-attendance-error" role="alert">{logoutError}</p> : null}
+              <div className={`branch-modal-actions${isBranchAdminWorkLogEnabled ? ' is-work-log-actions' : ''}`}>
+                {!isBranchAdminWorkLogEnabled ? <button type="button" className="branch-modal-cancel" disabled={logoutLoading} onClick={closeLogoutConfirm}>Cancel</button> : null}
+                {isBranchAdminWorkLogEnabled ? (
+                  <>
+                    <button type="button" className="branch-modal-cancel" disabled={logoutLoading} onClick={() => handleConfirmLogout('return')}>
+                      {logoutLoading ? 'Saving...' : 'Yes, I will Return'}
+                    </button>
+                    <button type="button" className="branch-modal-submit is-danger" disabled={logoutLoading} onClick={() => handleConfirmLogout('done')}>
+                      {logoutLoading ? 'Saving...' : 'No, I am Done for Today'}
+                    </button>
+                  </>
+                ) : (
+                  <button type="button" className="branch-modal-submit is-danger" disabled={logoutLoading} onClick={() => handleConfirmLogout('done')}>
+                    {logoutLoading ? 'Logging out...' : 'Logout'}
+                  </button>
+                )}
               </div>
             </div>
           </div>
         ) : null}
-
 
         {/* ── STUDENT SUCCESS POPUP ── */}
         {studentSuccessPopup ? (

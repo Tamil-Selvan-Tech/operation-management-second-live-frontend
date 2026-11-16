@@ -340,6 +340,47 @@ export async function logoutFacultyWebsite() {
   return unwrapFacultyAttendanceResponse(response)
 }
 
+export async function getBranchAdminAttendanceStatus() {
+  const response = await request('/branch/attendance/status')
+  return unwrapFacultyAttendanceResponse(response)
+}
+
+export async function getBranchAdminAttendanceStatusForSuperAdmin(userId) {
+  const id = String(userId || '').trim()
+  if (!id) throw new Error('Branch Admin user is required')
+  const response = await request(`/user-role-accounts/users/${encodeURIComponent(id)}/attendance-status`)
+  return unwrapFacultyAttendanceResponse(response)
+}
+
+export async function loginBranchAdminAttendance() {
+  const response = await request('/branch/attendance/login', { method: 'POST' })
+  return unwrapFacultyAttendanceResponse(response)
+}
+
+export async function logoutBranchAdminAttendance(payload = {}) {
+  const response = await request('/branch/attendance/logout', {
+    method: 'POST',
+    body: JSON.stringify({
+      workSummary: String(payload?.workSummary || '').trim(),
+      logoutReason: String(payload?.logoutReason || '').trim(),
+    }),
+  })
+  return unwrapFacultyAttendanceResponse(response)
+}
+
+export async function logoutBranchAdminWebsite() {
+  const response = await request('/branch/attendance/website-logout', { method: 'POST' })
+  return unwrapFacultyAttendanceResponse(response)
+}
+
+export async function getBranchAdminAttendanceHistory({ from, to } = {}) {
+  const params = new URLSearchParams()
+  if (from) params.set('from', from)
+  if (to) params.set('to', to)
+  const query = params.toString() ? `?${params.toString()}` : ''
+  const response = await request(`/branch/attendance/history${query}`)
+  return unwrapFacultyAttendanceResponse(response)
+}
 export async function getCurrentStudentAttendanceOverview(date = '') {
   const params = new URLSearchParams()
   if (String(date || '').trim()) {
