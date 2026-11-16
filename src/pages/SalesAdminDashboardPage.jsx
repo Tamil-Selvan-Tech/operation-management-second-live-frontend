@@ -6,6 +6,8 @@ import { useAuth } from '../auth/useAuth'
 import { LeadManagementPage } from './LeadManagementPage'
 import { SalesCrmReportPage } from './SalesCrmReportPage'
 import { NotificationBell } from '../components/NotificationBell'
+import { SalesAdminWorkClock } from '../components/SalesAdminWorkClock'
+import { logoutSalesAdminWebsite, logoutSalesAdminWorkClock } from '../services/salesAdminWorkClockService'
 import { SalesAdminNotificationsPage } from './SalesAdminNotificationsPage'
 import { SalesAdminAdmissionsPage } from './SalesAdminAdmissionsPage'
 import { SalesAdminProfilePage } from './SalesAdminProfilePage'
@@ -98,6 +100,8 @@ export function SalesAdminDashboardPage({ embeddedBranchAdmin = false, embeddedS
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false)
   const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false)
+  const [logoutLoading, setLogoutLoading] = useState(false)
+  const [logoutError, setLogoutError] = useState('')
 
   useEffect(() => {
     if (!isDashboard) return undefined
@@ -172,6 +176,29 @@ export function SalesAdminDashboardPage({ embeddedBranchAdmin = false, embeddedS
     setChartTooltip({ row, left: Math.max(8, Math.min(bounds.width - 174, pointerX + 12)), top: Math.max(8, Math.min(bounds.height - 78, pointerY - 58)) })
   }
 
+  const handleConfirmLogout = async (mode) => {
+    if (logoutLoading) return
+    setLogoutLoading(true)
+    setLogoutError('')
+    try {
+      if (mode === 'return') await logoutSalesAdminWebsite()
+      else {
+        try {
+          await logoutSalesAdminWorkClock()
+        } catch (reason) {
+          const message = String(reason?.body?.message || reason?.message || '')
+          if (!/already closed|no active sales admin work log/i.test(message)) throw reason
+        }
+      }
+      await signOut()
+      navigate('/login')
+    } catch (reason) {
+      setLogoutError(reason?.body?.message || reason?.message || 'Unable to complete logout. Please try again.')
+    } finally {
+      setLogoutLoading(false)
+    }
+  }
+
   return (
     <section className={`super-admin-page ${isSidebarCollapsed ? 'is-sidebar-collapsed' : ''} ${embeddedBranchAdmin ? 'is-embedded-branch-admin' : ''} ${embeddedSuperAdmin ? 'is-embedded-super-admin' : ''}`}>
       <div className="super-admin-shell">
@@ -200,7 +227,7 @@ export function SalesAdminDashboardPage({ embeddedBranchAdmin = false, embeddedS
         <div className="super-admin-main">
           <header className="super-admin-topbar">
             <div className="super-admin-topbar-left"><button type="button" className="super-admin-sidebar-toggle" aria-label="Open navigation menu" onClick={() => setIsMobileSidebarOpen(true)}><LayoutGrid size={19} /></button><h1 className="super-admin-header-title">{isLeadManagement ? 'Lead Management' : isReports ? 'Monthly Reports' : isNotifications ? 'Notifications' : isAdmissions ? 'Student Admission' : isProfile ? 'My Profile' : 'Sales Admin Dashboard'}</h1></div>
-            <div className="super-admin-topbar-right">{!embeddedBranchAdmin ? <NotificationBell targetUserId={embeddedSuperAdmin ? embeddedSalesAdmin?.salesAdminId : ''} readOnlyView={embeddedSuperAdmin} /> : null}<div className="super-admin-profile"><span className="super-admin-avatar"><span className="super-admin-avatar-mark"><UserRound size={19} /></span></span><div className="super-admin-profile-copy"><strong>{user?.name || 'Sales Admin'}</strong><span>{user?.email || 'salesadmin@cispro.com'}</span></div></div></div>
+            <div className="super-admin-topbar-right">{!embeddedBranchAdmin && !embeddedSuperAdmin ? <SalesAdminWorkClock name={user?.name || 'Sales Admin'} salesAdminId={user?.userCode || user?.salesAdminId || ''} /> : null}{!embeddedBranchAdmin ? <NotificationBell targetUserId={embeddedSuperAdmin ? embeddedSalesAdmin?.salesAdminId : ''} readOnlyView={embeddedSuperAdmin} /> : null}<div className="super-admin-profile"><span className="super-admin-avatar"><span className="super-admin-avatar-mark"><UserRound size={19} /></span></span><div className="super-admin-profile-copy"><strong>{user?.name || 'Sales Admin'}</strong><span>{user?.email || 'salesadmin@cispro.com'}</span></div></div></div>
           </header>
 
           <main className="super-admin-content">
@@ -336,7 +363,7 @@ export function SalesAdminDashboardPage({ embeddedBranchAdmin = false, embeddedS
           </main>
         </div>
       </div>
-      {isLogoutConfirmOpen ? <div className="sales-admin-modal-backdrop"><div className="sales-admin-confirm-modal sales-admin-logout-confirm-modal" role="dialog" aria-modal="true" aria-labelledby="sales-admin-logout-title"><button type="button" className="sales-admin-logout-confirm-close" aria-label="Close logout confirmation" onClick={() => setIsLogoutConfirmOpen(false)}>&times;</button><h2 id="sales-admin-logout-title">Are you sure you want to logout?</h2><div><button type="button" onClick={() => setIsLogoutConfirmOpen(false)}>Cancel</button><button type="button" className="is-logout-confirm" onClick={() => void signOut()}>Logout</button></div></div></div> : null}
+      {isLogoutConfirmOpen ? <div className="sales-admin-modal-backdrop"><div className="sales-admin-confirm-modal sales-admin-logout-confirm-modal" role="dialog" aria-modal="true" aria-labelledby="sales-admin-logout-title"><button type="button" className="sales-admin-logout-confirm-close" aria-label="Close logout confirmation" onClick={() => setIsLogoutConfirmOpen(false)} disabled={logoutLoading}>&times;</button><h2 id="sales-admin-logout-title">Confirm Logout</h2><p>Are you leaving for the day, or will you return to continue your work?</p>{logoutError ? <div className="sales-admin-dashboard-error" role="alert">{logoutError}</div> : null}<div><button type="button" onClick={() => void handleConfirmLogout('return')} disabled={logoutLoading}>{logoutLoading ? 'Saving...' : 'Yes, I’ll Return'}</button><button type="button" className="is-logout-confirm" onClick={() => void handleConfirmLogout('done')} disabled={logoutLoading}>{logoutLoading ? 'Saving...' : 'No, I’m Done for Today'}</button></div></div></div> : null}
     </section>
   )
 }

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { BriefcaseBusiness, FileSpreadsheet, GraduationCap, Mail, Phone, Search, Users } from 'lucide-react'
+import { BriefcaseBusiness, Clock3, FileSpreadsheet, GraduationCap, Mail, Phone, Search, Users } from 'lucide-react'
 import { request } from '../services/apiClient'
 import { SalesCrmReportSubmissionModal } from '../components/SalesCrmReportSubmissionModal'
 import '../styles/BranchSalesCrmPage.css'
@@ -12,6 +12,21 @@ function formatDate(value) {
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return String(value)
   return new Intl.DateTimeFormat('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).format(date)
+}
+
+function formatTime(value) {
+  if (!value) return '—'
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? '—' : new Intl.DateTimeFormat('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }).format(date)
+}
+
+function formatDuration(value = 0) {
+  const total = Math.max(0, Math.floor(Number(value) || 0))
+  return [Math.floor(total / 3600), Math.floor((total % 3600) / 60), total % 60].map((part) => String(part).padStart(2, '0')).join(':')
+}
+
+function workClockLabel(status) {
+  return { LOGGED_IN: 'Logged In', WEBSITE_LOGGED_OUT_WORK_CLOCK_ACTIVE: 'Will Return', WORK_CLOCK_COMPLETED: 'Completed', AUTO_CLOSED: 'Auto Closed', NOT_LOGGED_IN: 'Not Logged In' }[status] || 'Not Logged In'
 }
 
 export default function BranchSalesCrmPage({ view = 'admins', title = 'Sales & CRM', showReportAction = true }) {
@@ -149,10 +164,10 @@ export default function BranchSalesCrmPage({ view = 'admins', title = 'Sales & C
       <div className="branch-sales-crm-table-wrap">
         {activeTab === 'admins' ? (
           <table>
-            <thead><tr><th>Sales Admin ID</th><th>Name</th><th>Email</th><th>Phone Number</th><th>Branch</th><th>Status</th></tr></thead>
+            <thead><tr><th>Sales Admin ID</th><th>Name</th><th>Email</th><th>Phone Number</th><th>Branch</th><th>Account Status</th><th>Work Log</th></tr></thead>
             <tbody>
-              {loading ? Array.from({ length: PAGE_SIZE }, (_, index) => <tr key={`admin-skeleton-${index}`} className="branch-sales-crm-skeleton-row"><td><span /></td><td><span /></td><td><span /></td><td><span /></td><td><span /></td><td><span /></td></tr>)
-                : error ? <tr><td colSpan="6" className="branch-sales-crm-empty">Sales Admin details could not be loaded.</td></tr>
+              {loading ? Array.from({ length: PAGE_SIZE }, (_, index) => <tr key={`admin-skeleton-${index}`} className="branch-sales-crm-skeleton-row"><td colSpan="7"><span /></td></tr>)
+                : error ? <tr><td colSpan="7" className="branch-sales-crm-empty">Sales Admin details could not be loaded.</td></tr>
                   : pageRows.length ? pageRows.map((admin) => (
                     <tr key={admin.userId || admin.id}>
                       <td><strong className="branch-sales-crm-id">{admin.id || EMPTY}</strong></td>
@@ -161,8 +176,9 @@ export default function BranchSalesCrmPage({ view = 'admins', title = 'Sales & C
                       <td>{admin.phone ? <a href={`tel:${admin.phone}`}><Phone size={14} />{admin.phone}</a> : EMPTY}</td>
                       <td>{branch?.branchName || branch?.branchId || EMPTY}</td>
                       <td><span className={`branch-sales-crm-status${admin.status === 'ACTIVE' ? ' is-active' : ' is-inactive'}`}>{admin.status === 'ACTIVE' ? 'Active' : 'Inactive'}</span></td>
+                      <td><span className={`branch-sales-crm-work-clock is-${String(admin.workClock?.status || 'NOT_LOGGED_IN').toLowerCase().replaceAll('_', '-')}`}><Clock3 size={14} /><strong>{workClockLabel(admin.workClock?.status)}</strong><small>Login: {formatTime(admin.workClock?.firstLoginAt)} · Logout: {formatTime(admin.workClock?.finalLogoutAt)} · {formatDuration(admin.workClock?.workingSeconds)}</small></span></td>
                     </tr>
-                  )) : <tr><td colSpan="6" className="branch-sales-crm-empty"><Users size={23} /><strong>{hasLoaded && salesAdmins.length ? 'No matching Sales Admins' : 'No Sales Admins assigned'}</strong><span>{hasLoaded && salesAdmins.length ? 'Try another Sales Admin ID or name.' : 'Sales Admins assigned to this branch by Super Admin will appear here.'}</span></td></tr>}
+                  )) : <tr><td colSpan="7" className="branch-sales-crm-empty"><Users size={23} /><strong>{hasLoaded && salesAdmins.length ? 'No matching Sales Admins' : 'No Sales Admins assigned'}</strong><span>{hasLoaded && salesAdmins.length ? 'Try another Sales Admin ID or name.' : 'Sales Admins assigned to this branch by Super Admin will appear here.'}</span></td></tr>}
             </tbody>
           </table>
         ) : (
