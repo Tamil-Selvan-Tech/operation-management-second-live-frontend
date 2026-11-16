@@ -2591,6 +2591,28 @@ body.branch-notification-menu-open .main-area {
   min-width: 0;
 }
 
+.branch-profile-calendar-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  flex: 0 0 auto;
+  min-height: 40px;
+  padding: 0 14px;
+  border: 1px solid #bfdbfe;
+  border-radius: 10px;
+  color: #2563eb;
+  background: #eff6ff;
+  font-size: 0.86rem;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.branch-profile-calendar-button:hover {
+  border-color: #93c5fd;
+  background: #dbeafe;
+}
+
 .branch-profile-avatar {
   display: grid;
   place-items: center;

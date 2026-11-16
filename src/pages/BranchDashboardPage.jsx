@@ -11706,7 +11706,6 @@ useEffect(() => {
           { id: 'reports', label: 'Reports & Analytics', icon: BarChart3, children: [
             { id: 'sales-crm-reports', label: 'Lead Monthly Report', icon: FileText },
             { id: 'branch-reports', label: 'Report Downloads', icon: FileSpreadsheet },
-            { id: 'calendar', label: 'Calendar', icon: CalendarDays },
           ] },
           { id: 'helpdesk', label: 'Helpdesk & Support', icon: Headset, children: [] },
           { id: 'notifications', label: 'Notifications', icon: Bell },
@@ -15617,6 +15616,10 @@ if (paidProgress >= 100) {
                         <small>{branchTitle} • {branchLocation}</small>
                       </div>
                     </div>
+                    <button type="button" className="branch-profile-calendar-button" onClick={() => goToBranchSection('calendar')}>
+                      <CalendarDays size={17} strokeWidth={2.2} />
+                      <span>Calendar</span>
+                    </button>
                   </article>
 
                   <section className="branch-profile-details-section" aria-labelledby="branch-information-heading">
