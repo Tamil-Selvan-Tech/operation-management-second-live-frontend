@@ -107,7 +107,8 @@ export default function BranchCalendarPage() {
     ;(payload.instituteLeaves || []).forEach((item) => rows.push({ ...item, eventType: 'INSTITUTE_LEAVE', label: 'Institute Leave', color: 'orange', name: item.name, description: 'Institute-wide leave declared for this branch.' }))
     ;(payload.attendance || []).forEach((item) => {
       if (item.firstLoginAt) rows.push({ ...item, id: `${item.date}-login`, date: item.date, eventType: 'LOGIN', label: 'Login Time', color: 'blue', name: `Login · ${formatTime(item.firstLoginAt)}`, description: 'Branch Admin login record.' })
-      if (item.finalLogoutAt || item.sessions?.some((session) => session.logoutAt)) rows.push({ ...item, id: `${item.date}-logout`, date: item.date, eventType: 'LOGOUT', label: 'Logout Time', color: 'green', name: `Logout · ${formatTime(item.finalLogoutAt || item.sessions.find((session) => session.logoutAt)?.logoutAt)}`, description: 'Branch Admin logout record.' })
+      // A website logout is resumable and must not appear as final Work Log logout.
+      if (item.finalLogoutAt) rows.push({ ...item, id: `${item.date}-logout`, date: item.date, eventType: 'LOGOUT', label: 'Logout Time', color: 'green', name: `Logout · ${formatTime(item.finalLogoutAt)}`, description: 'Branch Admin logout record.' })
     })
     return rows
   }, [payload])
