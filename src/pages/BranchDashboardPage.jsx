@@ -143,6 +143,7 @@ import { StudentCalendarPage } from './StudentCalendarPage'
 import CompletedStudentsPage from './CompletedStudentsPage'
 import { BranchMonthlyReportModal } from '../components/BranchMonthlyReportModal'
 import { BranchReportsAnalyticsPage } from './BranchReportsAnalyticsPage'
+import BranchCalendarPage from './BranchCalendarPage'
 import { HelpdeskSupportPanel } from '../components/HelpdeskSupportPanel'
 import { AccountSettingsPanel } from '../components/AccountSettingsPanel'
 import RecordPayment from '../components/payments/RecordPayment'
@@ -2952,6 +2953,7 @@ function getBranchDashboardSectionFromPath(pathname = '', search = '') {
   if (section === 'sales-admin-directory') return 'sales-admin-directory'
   if (section === 'sales-crm-reports') return 'sales-crm-reports'
   if (section === 'branch-reports') return 'branch-reports'
+  if (section === 'calendar') return 'calendar'
   if (section === 'reports') return 'branch-reports'
   if (section === 'institute-leave') return 'institute-leave'
   if (section === 'faculty-leave') return 'faculty-leave'
@@ -4391,7 +4393,7 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
   }, [isSidebarFlyoutMode, openSidebarFlyout])
 
   useEffect(() => {
-  const parentByChild = { faculty: 'faculty', 'sales-admin-directory': 'faculty', 'sales-crm-admitted-students': 'sales-crm', 'sales-crm-admissions': 'lead-management', 'sales-crm-reports': 'reports', 'branch-reports': 'reports', 'lead-management': 'lead-management', students: 'academic', 'student-management': 'academic', 'completed-students': 'academic', courses: 'academic', batches: 'academic', installments: 'academic', payments: 'payments', 'exams-results': 'academic', 'academic-tests': 'academic', 'institute-leave': 'academic', 'faculty-leave': 'academic', 'progress-notifications': 'academic', 'faculty-edit-requests': 'academic', discontinuations: 'academic', 'helpdesk-tickets': 'helpdesk', 'helpdesk-knowledge-base': 'helpdesk', 'helpdesk-contact-support': 'helpdesk' }
+  const parentByChild = { calendar: 'reports', faculty: 'faculty', 'sales-admin-directory': 'faculty', 'sales-crm-admitted-students': 'sales-crm', 'sales-crm-admissions': 'lead-management', 'sales-crm-reports': 'reports', 'branch-reports': 'reports', 'lead-management': 'lead-management', students: 'academic', 'student-management': 'academic', 'completed-students': 'academic', courses: 'academic', batches: 'academic', installments: 'academic', payments: 'payments', 'exams-results': 'academic', 'academic-tests': 'academic', 'institute-leave': 'academic', 'faculty-leave': 'academic', 'progress-notifications': 'academic', 'faculty-edit-requests': 'academic', discontinuations: 'academic', 'helpdesk-tickets': 'helpdesk', 'helpdesk-knowledge-base': 'helpdesk', 'helpdesk-contact-support': 'helpdesk' }
     const parent = parentByChild[activeSection]
     if (!parent) return
     setExpandedSidebarGroups((current) => current[parent] ? current : { ...current, [parent]: true })
@@ -11704,6 +11706,7 @@ useEffect(() => {
           { id: 'reports', label: 'Reports & Analytics', icon: BarChart3, children: [
             { id: 'sales-crm-reports', label: 'Lead Monthly Report', icon: FileText },
             { id: 'branch-reports', label: 'Report Downloads', icon: FileSpreadsheet },
+            { id: 'calendar', label: 'Calendar', icon: CalendarDays },
           ] },
           { id: 'helpdesk', label: 'Helpdesk & Support', icon: Headset, children: [] },
           { id: 'notifications', label: 'Notifications', icon: Bell },
@@ -12610,6 +12613,7 @@ useEffect(() => {
                   branchId={branchProfile?.id || branchProfile?.branchId || branchData?.id || branchData?.branchId || ''}
                 />
               ) : null}
+              {activeSection === 'calendar' ? <BranchCalendarPage /> : null}
               {activeSection === 'exams-results' ? <BranchExamResultsPage branchId={branchProfile?.id || branchProfile?.branchId || branchData?.id || branchData?.branchId || ''} /> : null}
               {activeSection === 'academic-tests' ? <AcademicTestPage /> : null}
               {activeSection === 'notifications' ? (
