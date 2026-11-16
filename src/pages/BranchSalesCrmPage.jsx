@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { BriefcaseBusiness, Clock3, FileSpreadsheet, GraduationCap, Mail, Phone, Search, Users } from 'lucide-react'
+import { Activity, BriefcaseBusiness, CalendarDays, FileSpreadsheet, GraduationCap, Mail, Phone, Search, Users, X } from 'lucide-react'
 import { request } from '../services/apiClient'
 import { SalesCrmReportSubmissionModal } from '../components/SalesCrmReportSubmissionModal'
 import '../styles/BranchSalesCrmPage.css'
@@ -20,13 +20,20 @@ function formatTime(value) {
   return Number.isNaN(date.getTime()) ? '—' : new Intl.DateTimeFormat('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }).format(date)
 }
 
-function formatDuration(value = 0) {
+function formatDurationHuman(value = 0) {
   const total = Math.max(0, Math.floor(Number(value) || 0))
-  return [Math.floor(total / 3600), Math.floor((total % 3600) / 60), total % 60].map((part) => String(part).padStart(2, '0')).join(':')
+  const hours = Math.floor(total / 3600)
+  const minutes = Math.floor((total % 3600) / 60)
+  const seconds = total % 60
+  const parts = []
+  if (hours) parts.push(`${hours} hour${hours === 1 ? '' : 's'}`)
+  if (minutes || hours) parts.push(`${minutes} minute${minutes === 1 ? '' : 's'}`)
+  parts.push(`${seconds} second${seconds === 1 ? '' : 's'}`)
+  return parts.join(' ')
 }
 
-function workClockLabel(status) {
-  return { LOGGED_IN: 'Logged In', WEBSITE_LOGGED_OUT_WORK_CLOCK_ACTIVE: 'Will Return', WORK_CLOCK_COMPLETED: 'Completed', AUTO_CLOSED: 'Auto Closed', NOT_LOGGED_IN: 'Not Logged In' }[status] || 'Not Logged In'
+function workLogLabel(status) {
+  return { LOGGED_IN: 'Logged In', WEBSITE_LOGGED_OUT_WORK_CLOCK_ACTIVE: 'Logged Out', WORK_CLOCK_COMPLETED: 'Completed', WORK_LOG_COMPLETED: 'Completed', AUTO_CLOSED: 'Auto Closed', NOT_LOGGED_IN: 'Not Logged In' }[status] || 'Not Logged In'
 }
 
 export default function BranchSalesCrmPage({ view = 'admins', title = 'Sales & CRM', showReportAction = true }) {
@@ -46,6 +53,7 @@ export default function BranchSalesCrmPage({ view = 'admins', title = 'Sales & C
   const [statusFilter, setStatusFilter] = useState('ALL')
   const [sortBy, setSortBy] = useState('name')
   const [sendReportOpen, setSendReportOpen] = useState(false)
+  const [selectedAdmin, setSelectedAdmin] = useState(null)
 
   const loadSalesAdmins = useCallback(async () => {
     setLoadingAdmins(true)
@@ -78,6 +86,10 @@ export default function BranchSalesCrmPage({ view = 'admins', title = 'Sales & C
       setLoadingAdmissions(false)
     }
   }, [])
+
+  const openActivity = (admin) => {
+    setSelectedAdmin(admin)
+  }
 
   // Load the selected branch CRM view when its sidebar route opens.
   useEffect(() => {
@@ -157,26 +169,38 @@ export default function BranchSalesCrmPage({ view = 'admins', title = 'Sales & C
             </select>
           </div>
         ) : null}
-        {activeTab === 'admins' ? <select aria-label="Filter Sales Admin status" value={statusFilter} onChange={(event) => { setStatusFilter(event.target.value); setPage(1) }}><option value="ALL">All statuses</option><option value="ACTIVE">Active</option><option value="INACTIVE">Inactive</option></select> : null}
+        {activeTab === 'admins' ? <select aria-label="Filter Sales Admin status" value={statusFilter} onChange={(event) => { setStatusFilter(event.target.value); setPage(1) }}><option value="ALL">All Status</option><option value="ACTIVE">Active</option><option value="INACTIVE">Inactive</option></select> : null}
         <select aria-label="Sort records" value={sortBy} onChange={(event) => { setSortBy(event.target.value); setPage(1) }}><option value={activeTab === 'admins' ? 'name' : 'studentName'}>Name A-Z</option>{activeTab === 'admins' ? <option value="status">Status</option> : <option value="admissionDate">Latest admission</option>}</select>
       </div>
 
       <div className="branch-sales-crm-table-wrap">
         {activeTab === 'admins' ? (
           <table>
-            <thead><tr><th>Sales Admin ID</th><th>Name</th><th>Email</th><th>Phone Number</th><th>Branch</th><th>Account Status</th><th>Work Log</th></tr></thead>
+            <thead><tr><th>Sales Admin ID</th><th>Name</th><th>Email</th><th>Phone Number</th><th>Branch</th><th>Account Status</th><th>Action</th></tr></thead>
             <tbody>
               {loading ? Array.from({ length: PAGE_SIZE }, (_, index) => <tr key={`admin-skeleton-${index}`} className="branch-sales-crm-skeleton-row"><td colSpan="7"><span /></td></tr>)
                 : error ? <tr><td colSpan="7" className="branch-sales-crm-empty">Sales Admin details could not be loaded.</td></tr>
                   : pageRows.length ? pageRows.map((admin) => (
-                    <tr key={admin.userId || admin.id}>
+                    <tr
+                      key={admin.userId || admin.id}
+                      className="branch-sales-crm-admin-row"
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => openActivity(admin)}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter' || event.key === ' ') {
+                          event.preventDefault()
+                          openActivity(admin)
+                        }
+                      }}
+                    >
                       <td><strong className="branch-sales-crm-id">{admin.id || EMPTY}</strong></td>
                       <td><span className="branch-sales-crm-name"><BriefcaseBusiness size={15} />{admin.name || EMPTY}</span></td>
-                      <td>{admin.email ? <a href={`mailto:${admin.email}`}><Mail size={14} />{admin.email}</a> : EMPTY}</td>
-                      <td>{admin.phone ? <a href={`tel:${admin.phone}`}><Phone size={14} />{admin.phone}</a> : EMPTY}</td>
+                      <td>{admin.email ? <a href={`mailto:${admin.email}`} onClick={(event) => event.stopPropagation()}><Mail size={14} />{admin.email}</a> : EMPTY}</td>
+                      <td>{admin.phone ? <a href={`tel:${admin.phone}`} onClick={(event) => event.stopPropagation()}><Phone size={14} />{admin.phone}</a> : EMPTY}</td>
                       <td>{branch?.branchName || branch?.branchId || EMPTY}</td>
                       <td><span className={`branch-sales-crm-status${admin.status === 'ACTIVE' ? ' is-active' : ' is-inactive'}`}>{admin.status === 'ACTIVE' ? 'Active' : 'Inactive'}</span></td>
-                      <td><span className={`branch-sales-crm-work-clock is-${String(admin.workClock?.status || 'NOT_LOGGED_IN').toLowerCase().replaceAll('_', '-')}`}><Clock3 size={14} /><strong>{workClockLabel(admin.workClock?.status)}</strong><small>Login: {formatTime(admin.workClock?.firstLoginAt)} · Logout: {formatTime(admin.workClock?.finalLogoutAt)} · {formatDuration(admin.workClock?.workingSeconds)}</small></span></td>
+                      <td><button type="button" className="branch-sales-crm-view-activity" onClick={() => openActivity(admin)}><Activity size={15} />View</button></td>
                     </tr>
                   )) : <tr><td colSpan="7" className="branch-sales-crm-empty"><Users size={23} /><strong>{hasLoaded && salesAdmins.length ? 'No matching Sales Admins' : 'No Sales Admins assigned'}</strong><span>{hasLoaded && salesAdmins.length ? 'Try another Sales Admin ID or name.' : 'Sales Admins assigned to this branch by Super Admin will appear here.'}</span></td></tr>}
             </tbody>
@@ -218,6 +242,22 @@ export default function BranchSalesCrmPage({ view = 'admins', title = 'Sales & C
           </div>
         </footer>
       ) : null}
+
+      {selectedAdmin ? (() => {
+        const todayStatus = selectedAdmin.workClock?.status || 'NOT_LOGGED_IN'
+        const todayLogin = selectedAdmin.workClock?.firstLoginAt
+        const todayLogout = selectedAdmin.workClock?.finalLogoutAt
+        const todayDuration = selectedAdmin.workClock?.workingSeconds ?? 0
+        return <div className="branch-sales-crm-drawer-backdrop" role="presentation">
+          <aside className="branch-sales-crm-drawer" role="dialog" aria-modal="true" aria-labelledby="sales-admin-activity-title">
+            <header className="branch-sales-crm-drawer-header"><div><span className="branch-sales-crm-eyebrow">SALES ADMIN ACTIVITY</span><h2 id="sales-admin-activity-title">{selectedAdmin.name || EMPTY}</h2><p>{selectedAdmin.id || selectedAdmin.userId || EMPTY}</p></div><button type="button" onClick={() => setSelectedAdmin(null)} aria-label="Close activity panel"><X size={19} /></button></header>
+            <div className="branch-sales-crm-drawer-body">
+              <section className="branch-sales-crm-drawer-section"><h3><BriefcaseBusiness size={17} />Sales Admin Profile</h3><div className="branch-sales-crm-profile-grid"><div><span>Name</span><strong>{selectedAdmin.name || EMPTY}</strong></div><div><span>Sales Admin ID</span><strong>{selectedAdmin.id || EMPTY}</strong></div><div><span>Email Address</span><strong>{selectedAdmin.email || EMPTY}</strong></div><div><span>Phone Number</span><strong>{selectedAdmin.phone || EMPTY}</strong></div><div><span>Assigned Branch</span><strong>{branch?.branchName || branch?.branchId || EMPTY}</strong></div><div><span>Account Status</span><strong className={selectedAdmin.status === 'ACTIVE' ? 'is-green' : 'is-muted'}>{selectedAdmin.status === 'ACTIVE' ? 'Active' : 'Inactive'}</strong></div></div></section>
+              <section className="branch-sales-crm-drawer-section"><h3><CalendarDays size={17} />Today's Work Log</h3><div className="branch-sales-crm-today-status"><span className={`branch-sales-crm-status is-${String(todayStatus).toLowerCase().replaceAll('_', '-')}`}>{workLogLabel(todayStatus)}</span></div><div className="branch-sales-crm-work-log-metrics"><div><span>Login Time</span><strong>{formatTime(todayLogin)}</strong></div><div><span>Logout Time</span><strong>{formatTime(todayLogout)}</strong></div><div><span>Total Duration</span><strong>{formatDurationHuman(todayDuration)}</strong></div></div></section>
+            </div>
+          </aside>
+        </div>
+      })() : null}
     </section>
   )
 }
