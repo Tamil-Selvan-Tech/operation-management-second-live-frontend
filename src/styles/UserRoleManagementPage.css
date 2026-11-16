@@ -70,3 +70,48 @@
 .user-role-module-row.is-disabled{background:#f1f5f9;cursor:not-allowed;opacity:.62}.user-role-module-row.is-disabled:hover{background:#f1f5f9}.user-role-module-row.is-disabled .user-role-module-copy strong{color:#64748b}.user-role-module-row.is-disabled .user-role-lock{color:#475569;background:#e2e8f0}
 .user-role-step{border:0;background:transparent;padding:0;cursor:pointer;font:inherit}.user-role-step:focus-visible{outline:2px solid #2563eb;outline-offset:3px;border-radius:6px}
 .user-role-delete-confirm-actions .user-role-delete-cancel,.user-role-delete-confirm-actions .user-role-delete-button{width:130px!important;min-width:130px!important;max-width:130px!important;height:40px!important;min-height:40px!important;max-height:40px!important;box-sizing:border-box;padding:8px 12px!important;transform:none!important}
+
+/* Responsive account table and viewport-safe action menu. */
+.user-role-page{width:100%;max-width:1180px;min-width:0;margin-left:0;box-sizing:border-box}
+.user-role-table-card{width:100%;max-width:100%;min-width:0;box-sizing:border-box;overflow:visible}
+.user-role-table-wrap{width:100%;max-width:100%;min-width:0;overflow:visible}
+.user-role-table{width:100%;max-width:100%;min-width:0;table-layout:fixed}
+.user-role-table th,.user-role-table td{overflow-wrap:anywhere;word-break:break-word}
+.user-role-table th:nth-child(1),.user-role-table td:nth-child(1){width:6%}
+.user-role-table th:nth-child(2),.user-role-table td:nth-child(2){width:19%}
+.user-role-table th:nth-child(3),.user-role-table td:nth-child(3){width:15%}
+.user-role-table th:nth-child(4),.user-role-table td:nth-child(4){width:18%}
+.user-role-table th:nth-child(5),.user-role-table td:nth-child(5){width:17%}
+.user-role-table th:nth-child(6),.user-role-table td:nth-child(6){width:14%}
+.user-role-table th:nth-child(7),.user-role-table td:nth-child(7){width:11%}
+.user-role-actions-menu{top:calc(100% + 6px)!important;right:0!important;left:auto!important;bottom:auto!important;z-index:1000;min-width:148px;width:148px;max-width:calc(100vw - 24px);box-sizing:border-box}
+.user-role-actions-menu button{width:100%;min-width:0;white-space:normal;overflow-wrap:anywhere}
+@media(max-width:900px){
+  .user-role-table-card{padding:18px}
+  .user-role-table th,.user-role-table td{padding:10px 7px;font-size:11px}
+  .user-role-table th{font-size:9px}
+  .user-role-table td strong{font-size:12px}
+  .user-role-table td small{font-size:10px}
+  .user-role-view-button{padding:6px 8px;font-size:10px}
+}
+@media(max-width:640px){
+  .user-role-page{padding-left:0;padding-right:0}
+  .user-role-table-card{padding:12px 8px;border-radius:12px}
+  .user-role-table th,.user-role-table td{padding:9px 4px;font-size:10px}
+  .user-role-table th{font-size:8px;letter-spacing:.04em}
+  .user-role-table td strong{font-size:11px}
+  .user-role-table td small{font-size:9px;word-break:break-all}
+  .user-role-view-button{width:100%;padding:6px 3px;font-size:9px;gap:2px}
+  .user-role-view-button svg{width:12px;height:12px}
+  .user-role-actions-trigger{width:30px;height:30px}
+  .user-role-actions-menu{min-width:140px;width:140px}
+}
+@media(max-width:640px){
+  .user-role-external-table-tools .user-role-table-tools input{width:100%;max-width:100%}
+}
+
+/* Keep the opened row and its menu above neighbouring action cells. */
+.user-role-table tbody tr.is-actions-open{position:relative;z-index:1001}
+.user-role-table tbody tr.is-actions-open td:last-child{z-index:1002}
+.user-role-table tbody tr:not(.is-actions-open) td:last-child{z-index:1}
+.user-role-actions-menu.is-open-up{top:auto!important;bottom:calc(100% + 6px)!important}
