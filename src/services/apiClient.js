@@ -145,6 +145,7 @@ function persistRefreshedTokens(nextAccessToken, nextRefreshToken) {
 
 async function request(path, options = {}, retryCount = 0) {
   const { skipAuth, headers: optionHeaders, body, impersonateBranchId: requestBranchId, impersonateSalesAdminId: requestSalesAdminId, timeoutMs = REQUEST_TIMEOUT_MS, ...fetchOptions } = options
+  const hasRequestSalesAdminScope = Object.prototype.hasOwnProperty.call(options, 'impersonateSalesAdminId')
   const headers = new Headers(optionHeaders || {})
   const controller = new AbortController()
   let didTimeout = false
@@ -175,7 +176,7 @@ async function request(path, options = {}, retryCount = 0) {
     headers.set('X-Impersonate-Branch-Id', branchIdForRequest)
   }
 
-  const salesAdminIdForRequest = requestSalesAdminId || impersonateSalesAdminId
+  const salesAdminIdForRequest = hasRequestSalesAdminScope ? requestSalesAdminId : impersonateSalesAdminId
   if (salesAdminIdForRequest) {
     headers.set('X-Impersonate-Sales-Admin-Id', salesAdminIdForRequest)
   }
