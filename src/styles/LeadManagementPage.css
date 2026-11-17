@@ -747,10 +747,10 @@ body:has(.lead-followup-backdrop) .branch-dashboard-app-shell .super-admin-sideb
 }
 
 /* Lead Status and Lead Source are not shown in the lead table. */
-.lead-table th:nth-child(7),
-.lead-table td:nth-child(7),
-.lead-table th:nth-child(8),
-.lead-table td:nth-child(8) {
+.lead-table-card .lead-table th:nth-child(7),
+.lead-table-card .lead-table td:nth-child(7),
+.lead-table-card .lead-table th:nth-child(8),
+.lead-table-card .lead-table td:nth-child(8) {
   display: none !important;
 }
 
@@ -1269,3 +1269,42 @@ body:has(.lead-profile-modal) .lead-list-tabs{display:none}
 @media (max-width: 720px) { .lead-pending-table-head { flex-direction: column; padding: 15px; } .lead-pending-table-head > span { align-self: flex-start; } }
 
 .lead-course-warning { display: inline-flex; align-items: center; width: fit-content; margin-top: 5px; padding: 3px 8px; border: 1px solid #f3d39a; border-radius: 999px; background: #fff7e6; color: #9a5b00; font-size: 10px; font-weight: 700; line-height: 1.25; white-space: nowrap; }
+
+/* Consistent, compact pagination for active, pending and deleted lead lists. */
+.lead-pagination { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; padding: 14px 4px 4px; color: #64748b; font-size: 12px; }
+.lead-pagination-summary { color: #64748b; font-size: 12px; font-weight: 600; }
+.lead-pagination-controls { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 5px; }
+.lead-pagination-controls > span { display: inline-flex; align-items: center; gap: 5px; }
+.lead-pagination-controls button { min-width: 34px; height: 34px; padding: 0 10px; border: 1px solid #dbe4f0; border-radius: 8px; background: #fff; color: #315276; font-family: inherit; font-size: 12px; font-weight: 700; line-height: 1; cursor: pointer; transition: border-color .15s ease, background .15s ease, color .15s ease, box-shadow .15s ease; }
+.lead-pagination-controls button:hover:not(:disabled) { border-color: #2563eb; background: #f5f8ff; color: #2563eb; }
+.lead-pagination-controls button.is-current { border-color: #2563eb; background: #2563eb; color: #fff; box-shadow: 0 4px 10px rgba(37,99,235,.2); }
+.lead-pagination-controls button:disabled { cursor: not-allowed; opacity: .45; }
+.lead-pagination-ellipsis { min-width: 18px; color: #94a3b8; font-size: 14px; font-weight: 800; text-align: center; }
+@media (max-width: 720px) {
+  .lead-pagination { align-items: flex-start; flex-direction: column; padding-inline: 0; }
+  .lead-pagination-controls { width: 100%; justify-content: flex-start; }
+  .lead-pagination-edge { min-width: 34px !important; padding-inline: 7px !important; font-size: 0 !important; }
+  .lead-pagination-edge:first-child::before { content: '«'; font-size: 14px; }
+  .lead-pagination-edge:nth-child(2)::before { content: '‹'; font-size: 18px; }
+  .lead-pagination-edge:nth-last-child(2)::before { content: '›'; font-size: 18px; }
+  .lead-pagination-edge:last-child::before { content: '»'; font-size: 14px; }
+}
+
+.lead-tab-count { display: inline-flex; align-items: center; justify-content: center; min-width: 20px; height: 20px; margin-left: 6px; padding: 0 6px; border-radius: 999px; background: #eef4ff; color: #2563eb; font-size: 11px; font-weight: 800; line-height: 1; vertical-align: middle; }
+.lead-list-tabs button.is-active .lead-tab-count { background: #2563eb; color: #fff; }
+
+/* Pending completion actions stay visible even when the shared lead-table column rules are applied. */
+.lead-pending-table-card .lead-table th:last-child,
+.lead-pending-table-card .lead-table td:last-child {
+  display: table-cell !important;
+  min-width: 120px;
+  width: 120px;
+  white-space: nowrap;
+}
+.lead-pending-table-card .lead-table-scroll { overflow-x: auto !important; overflow-y: visible !important; }
+.lead-pending-table-card .lead-pending-complete-button { display: inline-flex !important; align-items: center; justify-content: center; min-width: 90px; }
+
+/* Keep wizard and detail close controls readable and consistently aligned. */
+.lead-modal-close { display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; padding: 0; border: 1px solid #dbe4f0; border-radius: 9px; background: #fff; color: #536b87; font-size: 0; line-height: 1; }
+.lead-modal-close:hover { border-color: #9dbce2; background: #f5f9ff; color: #1f5fb9; }
+.lead-modal-close svg { display: block; }
