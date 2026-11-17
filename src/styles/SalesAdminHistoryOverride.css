@@ -1,4 +1,14 @@
 .user-role-drawer-tabs > button:first-child{width:50%;flex:0 0 50%}
+.is-sales-admin-page .user-role-work-log-value.is-logged-in{color:#078456}
+.is-sales-admin-page .user-role-work-log-value.is-website-logged-out-work-clock-active{color:#078456}
+.is-sales-admin-page .user-role-work-log-value.is-work-clock-completed{color:#c73535}
+.is-sales-admin-page .user-role-work-log-value.is-worklog-completed{color:#c73535}
+.is-sales-admin-page .user-role-work-log-value.is-auto-closed{color:#c73535}
+.is-sales-admin-page .user-role-work-log-value.is-not-logged-in{color:#718096}
+.is-sales-admin-page .user-role-work-log-value{display:inline-flex;align-items:center;width:max-content;padding:5px 9px;border-radius:999px;font-size:10px;font-weight:800;letter-spacing:.03em;text-transform:uppercase}
+.is-sales-admin-page .user-role-work-log-value.is-logged-in,.is-sales-admin-page .user-role-work-log-value.is-website-logged-out-work-clock-active{background:#dcfce7}
+.is-sales-admin-page .user-role-work-log-value.is-work-clock-completed,.is-sales-admin-page .user-role-work-log-value.is-worklog-completed,.is-sales-admin-page .user-role-work-log-value.is-auto-closed{background:#fee2e2}
+.is-sales-admin-page .user-role-work-log-value.is-not-logged-in{background:#eef2f7}
 .user-role-sales-history-button{position:fixed;top:120px;right:26px;z-index:1082;width:calc(min(560px, 100vw) / 2 - 26px);height:42px;padding:0 12px;border:1px solid #d8e4f3;border-radius:0;background:#f7faff;color:#71829a;font:inherit;font-size:11px;font-weight:800;cursor:pointer}
 .user-role-sales-history-button:hover{background:#fff;color:#1d5fc5}
 .user-role-sales-history-button.is-active{color:#2868d2;background:#fff;box-shadow:inset 0 -3px 0 #2868d2}

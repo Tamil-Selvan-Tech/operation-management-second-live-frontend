@@ -28,16 +28,6 @@ function duration(value = 0) {
   return [Math.floor(total / 3600), Math.floor((total % 3600) / 60), total % 60].map((part) => String(part).padStart(2, '0')).join(':')
 }
 
-function statusMeta(status) {
-  return {
-    NOT_LOGGED_IN: ['Login Required', 'neutral'],
-    LOGGED_IN: ['Logged In', 'success'],
-    WEBSITE_LOGGED_OUT_WORK_CLOCK_ACTIVE: ['Logged Out — Will Return', 'warning'],
-    WORK_CLOCK_COMPLETED: ['Work Log Completed', 'success'],
-    AUTO_CLOSED: ['Auto Closed', 'danger'],
-  }[status] || ['Login Required', 'neutral']
-}
-
 export function SalesAdminWorkClock({ name = 'Sales Admin', salesAdminId = '', onStatusChange, readOnlyStatus = null }) {
   const [open, setOpen] = useState(false)
   const [status, setStatus] = useState(() => readOnlyStatus ? { ...readOnlyStatus, _receivedAt: Date.now() } : null)
@@ -80,11 +70,12 @@ export function SalesAdminWorkClock({ name = 'Sales Admin', salesAdminId = '', o
 
   const liveWorkingSeconds = useMemo(() => {
     const base = Number(status?.workingSeconds || 0)
-    if (status?.status !== 'LOGGED_IN' || !status?._receivedAt) return base
+    // A website logout means “I’ll return”, so the Work Log remains active.
+    // Keep the displayed duration running for that state as well as while
+    // the Sales Admin is actively logged in.
+    if (!['LOGGED_IN', 'WEBSITE_LOGGED_OUT_WORK_CLOCK_ACTIVE'].includes(status?.status) || !status?._receivedAt) return base
     return base + Math.max(0, Math.floor((now - status._receivedAt) / 1000))
   }, [now, status])
-  const [statusLabel, statusTone] = statusMeta(status?.status)
-
   const handleLogin = async () => {
     if (loading || !status?.canLogin) return
     setLoading(true); setError('')
@@ -124,10 +115,7 @@ export function SalesAdminWorkClock({ name = 'Sales Admin', salesAdminId = '', o
         {error ? <div className="sales-work-clock-error" role="alert">{error}</div> : null}
         {!status ? <div className="sales-work-clock-loading"><RefreshCw size={17} className="is-spinning" /> Loading Work Log...</div> : <>
           <div className="sales-work-clock-identity"><div><span>Sales Admin</span><strong>{status?.salesAdmin?.name || name}</strong></div><div><span>Sales Admin ID</span><strong>{status?.salesAdmin?.salesAdminId || salesAdminId || '-'}</strong></div><div><span>Date</span><strong>{dateLabel(status.attendanceDate)}</strong></div><div><span>Current Time</span><strong>{timeLabel(status.currentServerTime || now, true)}</strong></div></div>
-          <div className={`sales-work-clock-status is-${statusTone}`}><i />{statusLabel}</div>
           <div className="sales-work-clock-metrics"><div><span>Login Time</span><strong>{timeLabel(status.firstLoginAt)}</strong></div><div><span>Logout Time</span><strong>{timeLabel(status.finalLogoutAt)}</strong></div><div><span>Working Time</span><strong>{duration(liveWorkingSeconds)}</strong></div></div>
-          {status.mandatoryLoginRequired ? <p className="sales-work-clock-message">Please login your Work Log before continuing.</p> : null}
-          {status.status === 'WEBSITE_LOGGED_OUT_WORK_CLOCK_ACTIVE' ? <p className="sales-work-clock-message">Your Work Log is still active for today and will resume when you return.</p> : null}
           {!isReadOnly ? <div className="sales-work-clock-actions">{status.canLogin ? <button type="button" onClick={handleLogin} disabled={loading}><LogIn size={16} />{loading ? 'Saving...' : 'Login Work Log'}</button> : null}{status.canLogout ? <button type="button" className="is-logout" onClick={handleLogout} disabled={loading}><LogOut size={16} />{loading ? 'Saving...' : 'Logout Work Log'}</button> : null}</div> : null}
         </>}
       </section>
