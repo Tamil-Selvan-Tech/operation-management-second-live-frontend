@@ -794,6 +794,44 @@ function PerformanceRing({ percentage, size = 'normal' }) {
   return <div className={`student360-performance-ring ${size === 'small' ? 'is-small' : ''} ${evaluated ? '' : 'is-empty'}`.trim()} style={{ '--ring-value': `${safeValue * 3.6}deg` }}><span>{evaluated ? `${safeValue.toFixed(0)}%` : '—'}</span></div>
 }
 
+function SkillGroupedBarChart({ skills = [] }) {
+  if (!skills.length) return <div className="student360-no-data">No module reports available yet.</div>
+  const bars = [
+    { key: 'syllabus', label: 'Syllabus Tests' },
+    { key: 'assessment', label: 'Assessments' },
+    { key: 'overall', label: 'Overall' },
+  ]
+  return (
+    <div className="student360-skill-chart">
+      <div className="student360-subsection-heading"><div><h3>Skills</h3><p>Module-wise skill performance based on submitted reports.</p></div><span>{skills.length} module{skills.length === 1 ? '' : 's'}</span></div>
+      <div className="student360-skill-chart-legend">
+        {bars.map((bar) => <span key={bar.key}><i className={bar.key} />{bar.label}</span>)}
+      </div>
+      <div className="student360-skill-chart-body">
+        <div className="student360-skill-chart-y-axis">{[100, 80, 60, 40, 20, 0].map((value) => <span key={value}>{value}%</span>)}</div>
+        <div className="student360-skill-chart-plot">
+          <div className="student360-skill-chart-gridlines">{[100, 80, 60, 40, 20, 0].map((value) => <i key={value} />)}</div>
+          <div className="student360-skill-chart-groups">
+            {skills.map((skill) => (
+              <div className="student360-skill-chart-group" key={skill.moduleId || skill.moduleName}>
+                <div className="student360-skill-chart-bars">
+                  {bars.map((bar) => {
+                    const value = Number(skill[`${bar.key}Percentage`])
+                    const hasValue = Number.isFinite(value)
+                    const safeValue = hasValue ? Math.max(0, Math.min(100, value)) : 0
+                    return <div className="student360-skill-chart-bar-wrap" key={bar.key}><span className={`student360-skill-chart-value${hasValue ? '' : ' is-empty'}`}>{hasValue ? `${value}%` : '—'}</span><div className={`student360-skill-chart-bar ${bar.key}`} style={{ height: `${safeValue}%` }} aria-label={`${skill.moduleName} ${bar.label}: ${hasValue ? `${value}%` : 'No data'}`} /></div>
+                  })}
+                </div>
+                <span className="student360-skill-chart-module-name">{skill.moduleName}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function PerformanceSection({ studentId, branchId = '', courseId = '', courseName = '', batchId = '', batchName = '', academicReport = null, isMultiCourseStudent = false }) {
   const [data, setData] = useState({ skills: [], academic: [] })
   const [loading, setLoading] = useState(Boolean(studentId))
@@ -828,8 +866,8 @@ function PerformanceSection({ studentId, branchId = '', courseId = '', courseNam
 
   return <section className="student360-card student360-performance-card">
     <div className="student360-performance-header"><div><span className="student360-performance-kicker">PERFORMANCE</span><h2>Student Performance</h2><p>Track module skills and academic evaluation results.</p></div><button type="button" className="student360-performance-refresh" onClick={() => void load()} disabled={loading}>{loading ? 'Loading...' : 'Refresh'}</button></div>
-    {loading ? <div className="student360-no-data">Loading performance...</div> : error ? <div className="student360-performance-error"><span>{error}</span><button type="button" onClick={() => void load()}>Retry</button></div> : <div className="student360-performance-sections">
-      <section className="student360-performance-block student360-skills-block"><div className="student360-subsection-heading"><div><h3>Skills</h3><p>Module-wise skill performance based on submitted reports.</p></div><span>{data.skills.length} module{data.skills.length === 1 ? '' : 's'}</span></div>{data.skills.length ? <div className="student360-skill-grid">{data.skills.map((skill) => <article className="student360-skill-card" key={skill.moduleId || skill.moduleName}><div className="student360-skill-card-top"><div><span className="student360-skill-label">MODULE SKILL</span><h4>{skill.moduleName}</h4></div><PerformanceRing percentage={skill.overallPercentage} /></div><div className="student360-skill-footer"><span>{skill.testCount} submitted test{skill.testCount === 1 ? '' : 's'}</span><strong><i />Report Submitted</strong></div></article>)}</div> : <div className="student360-no-data">No module reports available yet.</div>}</section>
+    {loading ? <div className="student360-no-data">Loading performance...</div> : error ? <div className="student360-performance-error"><span>{error}</span><button type="button" onClick={() => void load()}>Retry</button></div> : <div className="student360-performance-sections"><SkillGroupedBarChart skills={data.skills} />
+      <section className="student360-performance-block student360-skills-block"><div className="student360-subsection-heading"><div><h3>Skills</h3><p>Module-wise skill performance based on submitted reports.</p></div><span>{data.skills.length} module{data.skills.length === 1 ? '' : 's'}</span></div>{data.skills.length ? <div className="student360-skill-grid">{data.skills.map((skill) => { const syllabusPercentage = skill.syllabusPercentage ?? null; const assessmentPercentage = skill.assessmentPercentage ?? null; return <article className="student360-skill-card" key={skill.moduleId || skill.moduleName}><div className="student360-skill-card-top"><div><span className="student360-skill-label">MODULE SKILL</span><h4>{skill.moduleName}</h4></div><PerformanceRing percentage={skill.overallPercentage} /></div><div className="student360-skill-breakdown"><span>Syllabus Tests: <strong>{syllabusPercentage == null ? '—' : `${syllabusPercentage}%`}</strong></span><span>Assessments: <strong>{assessmentPercentage == null ? '—' : `${assessmentPercentage}%`}</strong></span><span>Overall: <strong>{skill.overallPercentage == null ? '—' : `${skill.overallPercentage}%`}</strong></span></div><div className="student360-skill-footer"><span>{skill.testCount || 0} submitted test{skill.testCount === 1 ? '' : 's'}{skill.assessmentCount ? ` · ${skill.assessmentCount} assessment${skill.assessmentCount === 1 ? '' : 's'}` : ''}</span><strong><i />Report Submitted</strong></div></article> })}</div> : <div className="student360-no-data">No module reports available yet.</div>}</section>
       <section className="student360-performance-block student360-academic-block"><div className="student360-subsection-heading"><div><h3>Academic Performance</h3><p>Configured tests, test + project and project results for this course.</p></div><span>{data.academic.length} evaluation{data.academic.length === 1 ? '' : 's'}</span></div>{data.academic.length ? <div className="student360-academic-grid">{data.academic.map((evaluation) => { const evaluated = Number.isFinite(Number(evaluation.percentage)); const projectPercentage = Number(evaluation.projectPercentage); const hasProjectPercentage = Number.isFinite(projectPercentage); const submitted = ['SUBMITTED', 'EVALUATED', 'COMPLETED', 'GRADED'].includes(String(evaluation.status || '').toUpperCase()) || evaluated || hasProjectPercentage; const marks = evaluation.marksObtained != null && evaluation.totalMarks != null ? `${evaluation.marksObtained} / ${evaluation.totalMarks}` : evaluation.marksAwarded != null && evaluation.projectTotalMarks != null ? `${evaluation.marksAwarded} / ${evaluation.projectTotalMarks}` : ''; const value = evaluated ? `${Number(evaluation.percentage).toFixed(2).replace(/\\.00$/, '')}%` : 'Not Evaluated'; return <article className="student360-academic-card" key={evaluation.evaluationId || `${evaluation.name}-${evaluation.testNumber || evaluation.sequence || ''}`}><PerformanceRing percentage={evaluation.percentage ?? evaluation.projectPercentage} size="small" /><div className="student360-academic-copy"><span className="student360-academic-label">{evaluation.type || 'Evaluation'}</span><h4>{evaluation.name}</h4>{marks ? <span className="student360-academic-marks">{marks} marks</span> : null}<strong className={submitted ? 'is-submitted' : ''}><i />{submitted ? 'Report Submitted' : 'Not Evaluated'}</strong></div><span className="student360-academic-value">{value}{hasProjectPercentage ? ` · Project ${projectPercentage.toFixed(2).replace(/\\.00$/, '')}%` : ''}</span></article> })}</div> : <div className="student360-no-data">No academic evaluations configured yet.</div>}</section>
     </div>}
   </section>
@@ -1461,6 +1499,11 @@ export function Student360Page({
           <button type="button" className="student360-secondary-button student360-attendance-button" onClick={() => onDownloadAttendance?.(student)}><Download size={16} /> Attendance</button>
           <button type="button" className="student360-primary-button" onClick={() => onEdit?.(student)}><Edit3 size={16} /> Edit Student</button>
         </div>
+        <div className="student360-profile-course-grid" aria-label="Course, batch and faculty">
+          <article className="student360-profile-course-item"><span className="student360-summary-icon blue"><BookOpen size={18} /></span><div><span>Course</span><strong>{displayValue(selectedCourse.courseName || student.courseInterested || student.courseName)}</strong><small>{displayValue(selectedCourseCatalog?.courseType || selectedCourse.courseType || student.courseType || student.course?.courseType, 'Course type not set')}</small></div></article>
+          <article className="student360-profile-course-item"><span className="student360-summary-icon cyan"><GraduationCap size={18} /></span><div><span>Batch</span><strong>{isAwaitingSelectedCourseSchedule ? 'Pending assignment' : displayValue(selectedCourse.batchName || student.batchName || student.batch)}</strong><small>{isAwaitingSelectedCourseSchedule ? 'Schedule &amp; batch pending' : displayValue(selectedCourse.batchTiming || student.batchTiming || student.classSchedule, 'Schedule not set')}</small></div></article>
+          <article className="student360-profile-course-item"><span className="student360-summary-icon indigo"><UserRound size={18} /></span><div><span>Faculty</span><strong>{isAwaitingSelectedCourseSchedule ? 'Awaiting assignment' : displayValue(selectedCourse.facultyName || student.facultyName)}</strong><small>{isAwaitingSelectedCourseSchedule ? 'Assigned with batch schedule' : 'Assigned faculty'}</small></div></article>
+        </div>
       </section>
 
       {isMultiCourseStudent ? (
@@ -1487,6 +1530,14 @@ export function Student360Page({
         </div>
       ) : null}
 
+      <AttendanceSection
+        studentId={resolvedStudentId || student.studentId}
+        student={student}
+        enrollment={selectedCourse}
+        isMultiCourseStudent={isMultiCourseStudent}
+        branchId={branch?.id || branch?.branchId || ''}
+      />
+
       <section id="overview" className={`student360-summary-grid ${isMultiCourseStudent ? 'has-multi-course' : ''}`}>
         {isMultiCourseStudent ? (
           <>
@@ -1509,15 +1560,20 @@ export function Student360Page({
         <article className={`student360-summary-card student360-summary-academic-progress-card${isSelectedCoursePending ? ' is-upcoming-course' : ''}`}><span className="student360-summary-icon violet"><GraduationCap size={19} /></span><div><span>Academic Test Progress</span>{academicTestProgress ? <><strong>{academicTestProgress.completedTests} / {academicTestProgress.totalTests} Completed</strong><div className="student360-summary-progress-track"><span style={{ width: `${Math.min(100, Math.max(0, Number(academicTestProgress.percentage) || 0))}%` }} /></div><small>{academicTestProgress.totalTests ? `${academicTestProgress.pendingTests} Pending · ${academicTestProgress.percentage}%` : 'No Academic Tests · 0%'}</small></> : <><strong className="student360-summary-loading">{academicTestProgressError ? 'Unavailable' : 'Loading...'}</strong><small>{academicTestProgressError || 'Academic test progress'}</small></>}</div>{canManageSelectedCourseSchedule ? <button type="button" className="student360-upcoming-badge student360-schedule-batch-trigger" onClick={openScheduleBatchModal}>{isEditingSelectedCourseAssignment ? 'Edit Schedule & Batch' : 'Schedule & Batch'}</button> : isSelectedCoursePending ? <span className="student360-upcoming-badge">Upcoming</span> : null}</article>
       </section>
 
+      <section className="student360-card student360-personal-information" id="personal">
+        <div className="student360-card-heading"><div><h2>Personal Information</h2><p>Contact and identity details recorded for this student.</p></div></div>
+        <div className="student360-detail-grid">
+          <DetailItem label="Parent Name" value={student.parentName} icon={UserRound} />
+          <DetailItem label="Email Address" value={student.emailAddress} icon={Mail} className="student360-email-item" />
+          <DetailItem label="Mobile Number" value={student.mobileNumber} icon={Phone} />
+          <DetailItem label="Parent / Spouse Number" value={student.parentSpouseNumber} icon={Phone} />
+          <DetailItem label="Address" value={student.location || [student.city, student.state].filter(Boolean).join(', ')} icon={MapPin} />
+          <DetailItem label="Country" value={student.country} icon={MapPin} />
+        </div>
+      </section>
+
       <div className="student360-content-grid">
         <div className="student360-main-column">
-          <AttendanceSection
-            studentId={resolvedStudentId || student.studentId}
-            student={student}
-            enrollment={selectedCourse}
-            isMultiCourseStudent={isMultiCourseStudent}
-            branchId={branch?.id || branch?.branchId || ''}
-          />
           <PerformanceSection
             studentId={resolvedStudentId || student.studentId}
             branchId={performanceBranchId || student?.branchId || ''}
@@ -1539,17 +1595,6 @@ export function Student360Page({
         </div>
 
         <aside className="student360-side-column">
-          <SectionCard title="Personal Information" description="Contact and identity details recorded for this student." className="student360-anchor-card" id="personal">
-            <div className="student360-detail-grid">
-              <DetailItem label="Parent Name" value={student.parentName} icon={UserRound} />
-              <DetailItem label="Email Address" value={student.emailAddress} icon={Mail} className="student360-email-item" />
-              <DetailItem label="Mobile Number" value={student.mobileNumber} icon={Phone} />
-              <DetailItem label="Parent / Spouse Number" value={student.parentSpouseNumber} icon={Phone} />
-              <DetailItem label="Address" value={student.location || [student.city, student.state].filter(Boolean).join(', ')} icon={MapPin} />
-              <DetailItem label="Country" value={student.country} icon={MapPin} />
-            </div>
-          </SectionCard>
-
           <SectionCard title="Education & Enrollment" description="Academic background and current learning assignment." className="student360-anchor-card" id="enrollment">
             <div className="student360-detail-grid">
               <DetailItem label="Qualification" value={student.qualification} icon={GraduationCap} />

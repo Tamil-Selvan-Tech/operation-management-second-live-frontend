@@ -145,6 +145,16 @@
 .student360-performance-result.is-empty strong { color: #94a3b8; }
 .student360-performance-error { display: flex; align-items: center; justify-content: space-between; gap: 12px; color: #b91c1c; font-size: 12px; }
 .student360-performance-error button { padding: 6px 10px; border: 1px solid #fecaca; border-radius: 7px; color: #b91c1c; background: #fff; font: inherit; font-weight: 750; cursor: pointer; }
+.student360-profile-course-grid { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; padding-top: 18px; border-top: 1px solid rgba(15, 118, 110, .12); }
+.student360-profile-course-item { display: flex; align-items: flex-start; gap: 10px; min-width: 0; padding: 13px 14px; border: 1px solid rgba(148, 163, 184, .25); border-radius: 12px; background: rgba(255, 255, 255, .72); }
+.student360-profile-course-item > div { min-width: 0; }
+.student360-profile-course-item span:not(.student360-summary-icon) { display: block; color: #64748b; font-size: 10px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; }
+.student360-profile-course-item strong { display: block; margin-top: 4px; overflow: hidden; color: #1e293b; font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
+.student360-profile-course-item small { display: block; margin-top: 4px; overflow: hidden; color: #475569; font-size: 11px; font-weight: 650; text-overflow: ellipsis; white-space: nowrap; }
+.student360-summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.student360-summary-grid > .student360-summary-card:nth-child(-n+3) { display: none; }
+.student360-personal-information { width: 100%; }
+@media (max-width: 640px) { .student360-profile-course-grid, .student360-summary-grid { grid-template-columns: 1fr; } }
 .student360-schedule-batch-trigger { cursor: pointer; font-family: inherit; }
 .student360-schedule-batch-trigger:hover { border-color: #14b8a6; color: #115e59 !important; background: #ccfbf1; }
 .student360-assignment-open .branch-dashboard-sidebar,
@@ -203,6 +213,33 @@
 .student360-performance-ring.is-empty span { color: #94a3b8; }
 .student360-skill-footer { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 14px; padding-top: 11px; border-top: 1px solid #eef6f4; color: #718096; font-size: 10px; }
 .student360-skill-footer strong, .student360-academic-copy > strong { display: inline-flex; align-items: center; gap: 5px; color: #16856f; font-size: 10px; white-space: nowrap; }
+.student360-skill-breakdown { display: grid; gap: 5px; margin-top: 14px; padding: 10px 0; border-top: 1px solid #eef6f4; border-bottom: 1px solid #eef6f4; color: #718096; font-size: 11px; }
+.student360-skill-breakdown span { display: flex; justify-content: space-between; gap: 12px; }
+.student360-skill-breakdown strong { color: #245b57; font-weight: 800; }
+.student360-performance-sections > .student360-skills-block { display: none; }
+.student360-skill-chart { min-width: 0; }
+.student360-skill-chart-legend { display: flex; flex-wrap: wrap; gap: 14px 22px; margin: 2px 0 18px; color: #61758b; font-size: 11px; font-weight: 700; }
+.student360-skill-chart-legend span { display: inline-flex; align-items: center; gap: 7px; }
+.student360-skill-chart-legend i { width: 9px; height: 9px; border-radius: 3px; background: #4f8edb; }
+.student360-skill-chart-legend i.assessment { background: #1ca99a; }
+.student360-skill-chart-legend i.overall { background: #8b72d8; }
+.student360-skill-chart-body { display: grid; grid-template-columns: 42px minmax(0, 1fr); gap: 12px; min-height: 235px; }
+.student360-skill-chart-y-axis { display: grid; grid-template-rows: repeat(6, 1fr); align-items: end; padding: 0 0 27px; color: #8a9bad; font-size: 10px; text-align: right; }
+.student360-skill-chart-y-axis span { transform: translateY(50%); }
+.student360-skill-chart-plot { position: relative; min-width: 0; padding: 0 10px 0 0; }
+.student360-skill-chart-gridlines { position: absolute; inset: 0 0 27px; display: grid; grid-template-rows: repeat(6, 1fr); pointer-events: none; }
+.student360-skill-chart-gridlines i { display: block; border-top: 1px solid #e7eff1; }
+.student360-skill-chart-groups { position: relative; z-index: 1; display: flex; align-items: stretch; gap: clamp(18px, 5vw, 64px); min-height: 100%; padding: 0 14px; overflow-x: auto; }
+.student360-skill-chart-group { display: grid; flex: 0 0 clamp(96px, 14vw, 140px); grid-template-rows: 1fr auto; min-height: 100%; }
+.student360-skill-chart-bars { display: flex; align-items: flex-end; justify-content: center; gap: 7px; min-height: 0; padding: 0 0 8px; border-bottom: 1px solid #dbe7e9; }
+.student360-skill-chart-bar-wrap { display: flex; flex: 0 0 24px; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; gap: 5px; }
+.student360-skill-chart-value { color: #41566d; font-size: 9px; font-weight: 800; white-space: nowrap; }
+.student360-skill-chart-value.is-empty { color: #a7b4bf; }
+.student360-skill-chart-bar { width: 24px; min-height: 2px; border-radius: 5px 5px 0 0; background: #4f8edb; transition: height .2s ease; }
+.student360-skill-chart-bar.assessment { background: #1ca99a; }
+.student360-skill-chart-bar.overall { background: #8b72d8; }
+.student360-skill-chart-module-name { display: block; min-height: 28px; padding-top: 9px; overflow-wrap: anywhere; color: #52677c; font-size: 10px; font-weight: 750; line-height: 1.25; text-align: center; }
+@media (max-width: 640px) { .student360-skill-chart-body { grid-template-columns: 34px minmax(0, 1fr); gap: 7px; min-height: 210px; }.student360-skill-chart-groups { gap: 22px; padding: 0 8px; }.student360-skill-chart-group { flex-basis: 92px; }.student360-skill-chart-bar-wrap, .student360-skill-chart-bar { flex-basis: 20px; width: 20px; }.student360-skill-chart-bars { gap: 5px; } }
 .student360-skill-footer i, .student360-academic-copy i { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #20b486; }
 .student360-academic-grid { grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
 .student360-academic-card { display: flex; align-items: center; gap: 12px; min-height: 90px; padding: 13px; }
