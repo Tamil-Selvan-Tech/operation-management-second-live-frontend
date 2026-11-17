@@ -1,6 +1,6 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { CalendarDays, LogIn, RefreshCw, X } from 'lucide-react'
+import { CalendarDays, LogIn, LogOut, RefreshCw, X } from 'lucide-react'
 import {
   getFacultyAttendanceStatus,
   loginFacultyAttendance,
@@ -90,7 +90,7 @@ function statusMeta(status, exemption) {
   return { NOT_LOGGED_IN: ['Not Logged In', 'neutral'], LOGGED_IN: ['Logged In', 'success'], ON_PERMISSION: ['On Permission / Half Day', 'warning'], LOGIN_REQUIRED: ['Login Required', 'info'], LOGGED_OUT: ['Logged Out', 'danger'], WORKLOG_COMPLETED: ['Work Log Completed', 'success'], WEBSITE_LOGGED_OUT_WORKLOG_ACTIVE: ['Logged Out — Will Return', 'warning'], AUTO_CLOSED: ['Auto Closed', 'danger'] }[status] || ['Not Logged In', 'neutral']
 }
 
-export const FacultyAttendanceFlow = forwardRef(function FacultyAttendanceFlow({ profileName = 'Faculty', facultyId = '', onStatusChange }, ref) {
+export const FacultyAttendanceFlow = forwardRef(function FacultyAttendanceFlow({ profileName = 'Faculty', facultyId = '', onStatusChange, onWorkLogLogout }, ref) {
   const [isOpen, setIsOpen] = useState(false)
   const [status, setStatus] = useState(null)
   const [now, setNow] = useState(() => Date.now())
@@ -148,6 +148,19 @@ export const FacultyAttendanceFlow = forwardRef(function FacultyAttendanceFlow({
       window.dispatchEvent(new CustomEvent(FACULTY_ATTENDANCE_SYNC_EVENT))
     } catch (errorObject) { setError(requestError(errorObject, 'Unable to save login.')); await refresh() } finally { setLoading(false) }
   }
+  const handleWorkLogLogout = async () => {
+    if (loading || !status?.canLogout || !onWorkLogLogout) return
+    setLoading(true); setError('')
+    try {
+      const nextPayload = await onWorkLogLogout()
+      if (nextPayload) {
+        const next = responseStatus(nextPayload)
+        next._receivedAt = Date.now()
+        setStatus(next)
+        onStatusChange?.(next)
+      }
+    } catch (errorObject) { setError(requestError(errorObject, 'Unable to complete Work Log logout.')) } finally { setLoading(false) }
+  }
   const displayName = status?.faculty?.name || profileName
   const displayId = status?.faculty?.facultyId || status?.faculty?.id || facultyId || '-'
   const modal = isOpen ? createPortal(
@@ -162,7 +175,7 @@ export const FacultyAttendanceFlow = forwardRef(function FacultyAttendanceFlow({
           {status.mandatoryLoginRequired ? <div className="faculty-attendance-info">Work Log login is required before you can use the Faculty Dashboard.</div> : null}
           {status.exemption?.exempt ? <div className="faculty-attendance-info">Work Log login is not required today because this date is exempted.</div> : null}
           <div className="faculty-attendance-metrics"><div><span>Login Time</span><strong>{clock(status.firstLoginAt)}</strong></div><div><span>Logout Time</span><strong>{clock(status.finalLogoutAt)}</strong></div><div><span>Working Time</span><strong>{duration(workingSeconds)}</strong></div></div>
-          <div className="faculty-attendance-actions">{status.canLogin ? <button type="button" className="faculty-attendance-primary" onClick={handleLogin} disabled={loading}><LogIn size={17} /> {loading ? 'Saving…' : 'Login'}</button> : null}</div>
+          <div className="faculty-attendance-actions">{status.canLogin ? <button type="button" className="faculty-attendance-primary" onClick={handleLogin} disabled={loading}><LogIn size={17} /> {loading ? 'Saving…' : 'Login'}</button> : null}{status.canLogout && onWorkLogLogout ? <button type="button" className="faculty-attendance-danger" onClick={handleWorkLogLogout} disabled={loading}><LogOut size={17} /> {loading ? 'Logging out…' : 'Logout'}</button> : null}</div>
         </>}
       </section>
     </div>, document.body,
