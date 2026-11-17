@@ -212,10 +212,23 @@ function mergeAcademicEvaluations(configured = [], reported = []) {
       const projectTotalMarks = Number(next.projectTotalMarks)
       if (!Number.isFinite(Number(next.projectPercentage)) && type === 'PROJECT' && Number.isFinite(Number(next.percentage))) next.projectPercentage = Number(next.percentage)
       if (!Number.isFinite(Number(next.projectPercentage)) && Number.isFinite(projectMarks) && Number.isFinite(projectTotalMarks) && projectTotalMarks > 0) next.projectPercentage = (projectMarks / projectTotalMarks) * 100
+      if (type === 'TEST') next.projectPercentage = undefined
       merged.set(key, next)
     }
   })
   return [...merged.values()].sort((left, right) => Number(left.testNumber || left.sequence || 0) - Number(right.testNumber || right.sequence || 0))
+}
+
+function normalizeAcademicEvaluationForDisplay(evaluation = {}) {
+  const type = String(evaluation.type || evaluation.testType || evaluation.evaluationType || '').trim().toUpperCase()
+  const isCombined = type.includes('TEST') && type.includes('PROJECT')
+  const isProjectOnly = type.includes('PROJECT') && !type.includes('TEST')
+  if (isCombined) return evaluation
+  if (isProjectOnly) {
+    const projectPercentage = Number(evaluation.projectPercentage)
+    return { ...evaluation, percentage: Number.isFinite(projectPercentage) ? projectPercentage : evaluation.percentage, projectPercentage: undefined }
+  }
+  return { ...evaluation, projectPercentage: undefined }
 }
 
 function getEvaluationCourseValues(evaluation = {}) {
@@ -832,6 +845,24 @@ function SkillGroupedBarChart({ skills = [] }) {
   )
 }
 
+function AcademicGroupedBarChart({ evaluations = [] }) {
+  if (!evaluations.length) return <div className="student360-performance-block student360-academic-chart"><div className="student360-subsection-heading"><div><h3>Academic Performance</h3><p>Configured tests, test + project and project results for this course.</p></div><span>0 evaluations</span></div><div className="student360-no-data">No academic evaluations configured yet.</div></div>
+  const getType = (evaluation) => String(evaluation.type || evaluation.testType || evaluation.evaluationType || '').trim().toUpperCase()
+  const bars = evaluations.map((evaluation) => {
+    const type = getType(evaluation)
+    const isCombined = type.includes('TEST') && type.includes('PROJECT')
+    const isProject = type.includes('PROJECT') && !type.includes('TEST')
+    const value = Number(evaluation.percentage ?? evaluation.projectPercentage)
+    const hasValue = Number.isFinite(value)
+    return { evaluation, type, key: isCombined ? 'combined' : isProject ? 'project' : 'test', value: hasValue ? Math.max(0, Math.min(100, value)) : null }
+  })
+  return <div className="student360-performance-block student360-academic-chart">
+    <div className="student360-subsection-heading"><div><h3>Academic Performance</h3><p>Configured tests, test + project and project results for this course.</p></div><span>{evaluations.length} evaluation{evaluations.length === 1 ? '' : 's'}</span></div>
+    <div className="student360-academic-chart-legend"><span><i className="test" />Test</span><span><i className="project" />Project</span><span><i className="combined" />Test + Project</span></div>
+    <div className="student360-academic-chart-body"><div className="student360-skill-chart-y-axis">{[100, 80, 60, 40, 20, 0].map((value) => <span key={value}>{value}%</span>)}</div><div className="student360-skill-chart-plot"><div className="student360-skill-chart-gridlines">{[100, 80, 60, 40, 20, 0].map((value) => <i key={value} />)}</div><div className="student360-academic-chart-groups">{bars.map(({ evaluation, key, value }) => <div className="student360-academic-chart-group" key={evaluation.evaluationId || `${evaluation.name}-${evaluation.testNumber || evaluation.sequence || key}`}><div className="student360-academic-chart-bar-wrap"><span className={`student360-skill-chart-value${value == null ? ' is-empty' : ''}`}>{value == null ? '—' : `${value}%`}</span><div className={`student360-academic-chart-bar ${key}`} style={{ height: `${value ?? 0}%` }} aria-label={`${evaluation.name}: ${value == null ? 'No data' : `${value}%`}`} /></div><span className="student360-academic-chart-name">{evaluation.name}</span><span className="student360-academic-chart-status"><i />{['SUBMITTED', 'EVALUATED', 'COMPLETED', 'GRADED'].includes(String(evaluation.status || '').toUpperCase()) || value != null ? 'Report Submitted' : 'Not Evaluated'}</span></div>)}</div></div></div>
+  </div>
+}
+
 function PerformanceSection({ studentId, branchId = '', courseId = '', courseName = '', batchId = '', batchName = '', academicReport = null, isMultiCourseStudent = false }) {
   const [data, setData] = useState({ skills: [], academic: [] })
   const [loading, setLoading] = useState(Boolean(studentId))
@@ -855,7 +886,8 @@ function PerformanceSection({ studentId, branchId = '', courseId = '', courseNam
       isMultiCourseStudent,
     )
     const configuredEvaluations = getConfiguredAcademicEvaluations(academicReport?.configuredRows, courseId, courseName, batchId, batchName)
-    setData({ skills: syllabus?.skills || [], academic: mergeAcademicEvaluations(configuredEvaluations, getLatestAcademicEvaluations(academicEvaluations)) })
+    const academicEvaluationsForDisplay = mergeAcademicEvaluations(configuredEvaluations, getLatestAcademicEvaluations(academicEvaluations)).map(normalizeAcademicEvaluationForDisplay)
+    setData({ skills: syllabus?.skills || [], academic: academicEvaluationsForDisplay })
     setLoading(false)
   }, [academicReport, batchId, batchName, studentId, branchId, courseId, courseName, isMultiCourseStudent])
 
@@ -866,7 +898,7 @@ function PerformanceSection({ studentId, branchId = '', courseId = '', courseNam
 
   return <section className="student360-card student360-performance-card">
     <div className="student360-performance-header"><div><span className="student360-performance-kicker">PERFORMANCE</span><h2>Student Performance</h2><p>Track module skills and academic evaluation results.</p></div><button type="button" className="student360-performance-refresh" onClick={() => void load()} disabled={loading}>{loading ? 'Loading...' : 'Refresh'}</button></div>
-    {loading ? <div className="student360-no-data">Loading performance...</div> : error ? <div className="student360-performance-error"><span>{error}</span><button type="button" onClick={() => void load()}>Retry</button></div> : <div className="student360-performance-sections"><SkillGroupedBarChart skills={data.skills} />
+    {loading ? <div className="student360-no-data">Loading performance...</div> : error ? <div className="student360-performance-error"><span>{error}</span><button type="button" onClick={() => void load()}>Retry</button></div> : <div className="student360-performance-sections"><SkillGroupedBarChart skills={data.skills} /><AcademicGroupedBarChart evaluations={data.academic} />
       <section className="student360-performance-block student360-skills-block"><div className="student360-subsection-heading"><div><h3>Skills</h3><p>Module-wise skill performance based on submitted reports.</p></div><span>{data.skills.length} module{data.skills.length === 1 ? '' : 's'}</span></div>{data.skills.length ? <div className="student360-skill-grid">{data.skills.map((skill) => { const syllabusPercentage = skill.syllabusPercentage ?? null; const assessmentPercentage = skill.assessmentPercentage ?? null; return <article className="student360-skill-card" key={skill.moduleId || skill.moduleName}><div className="student360-skill-card-top"><div><span className="student360-skill-label">MODULE SKILL</span><h4>{skill.moduleName}</h4></div><PerformanceRing percentage={skill.overallPercentage} /></div><div className="student360-skill-breakdown"><span>Syllabus Tests: <strong>{syllabusPercentage == null ? '—' : `${syllabusPercentage}%`}</strong></span><span>Assessments: <strong>{assessmentPercentage == null ? '—' : `${assessmentPercentage}%`}</strong></span><span>Overall: <strong>{skill.overallPercentage == null ? '—' : `${skill.overallPercentage}%`}</strong></span></div><div className="student360-skill-footer"><span>{skill.testCount || 0} submitted test{skill.testCount === 1 ? '' : 's'}{skill.assessmentCount ? ` · ${skill.assessmentCount} assessment${skill.assessmentCount === 1 ? '' : 's'}` : ''}</span><strong><i />Report Submitted</strong></div></article> })}</div> : <div className="student360-no-data">No module reports available yet.</div>}</section>
       <section className="student360-performance-block student360-academic-block"><div className="student360-subsection-heading"><div><h3>Academic Performance</h3><p>Configured tests, test + project and project results for this course.</p></div><span>{data.academic.length} evaluation{data.academic.length === 1 ? '' : 's'}</span></div>{data.academic.length ? <div className="student360-academic-grid">{data.academic.map((evaluation) => { const evaluated = Number.isFinite(Number(evaluation.percentage)); const projectPercentage = Number(evaluation.projectPercentage); const hasProjectPercentage = Number.isFinite(projectPercentage); const submitted = ['SUBMITTED', 'EVALUATED', 'COMPLETED', 'GRADED'].includes(String(evaluation.status || '').toUpperCase()) || evaluated || hasProjectPercentage; const marks = evaluation.marksObtained != null && evaluation.totalMarks != null ? `${evaluation.marksObtained} / ${evaluation.totalMarks}` : evaluation.marksAwarded != null && evaluation.projectTotalMarks != null ? `${evaluation.marksAwarded} / ${evaluation.projectTotalMarks}` : ''; const value = evaluated ? `${Number(evaluation.percentage).toFixed(2).replace(/\\.00$/, '')}%` : 'Not Evaluated'; return <article className="student360-academic-card" key={evaluation.evaluationId || `${evaluation.name}-${evaluation.testNumber || evaluation.sequence || ''}`}><PerformanceRing percentage={evaluation.percentage ?? evaluation.projectPercentage} size="small" /><div className="student360-academic-copy"><span className="student360-academic-label">{evaluation.type || 'Evaluation'}</span><h4>{evaluation.name}</h4>{marks ? <span className="student360-academic-marks">{marks} marks</span> : null}<strong className={submitted ? 'is-submitted' : ''}><i />{submitted ? 'Report Submitted' : 'Not Evaluated'}</strong></div><span className="student360-academic-value">{value}{hasProjectPercentage ? ` · Project ${projectPercentage.toFixed(2).replace(/\\.00$/, '')}%` : ''}</span></article> })}</div> : <div className="student360-no-data">No academic evaluations configured yet.</div>}</section>
     </div>}

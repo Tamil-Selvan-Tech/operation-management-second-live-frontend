@@ -217,6 +217,7 @@
 .student360-skill-breakdown span { display: flex; justify-content: space-between; gap: 12px; }
 .student360-skill-breakdown strong { color: #245b57; font-weight: 800; }
 .student360-performance-sections > .student360-skills-block { display: none; }
+.student360-performance-sections > .student360-academic-block { display: none; }
 .student360-skill-chart { min-width: 0; }
 .student360-skill-chart-legend { display: flex; flex-wrap: wrap; gap: 14px 22px; margin: 2px 0 18px; color: #61758b; font-size: 11px; font-weight: 700; }
 .student360-skill-chart-legend span { display: inline-flex; align-items: center; gap: 7px; }
@@ -240,6 +241,23 @@
 .student360-skill-chart-bar.overall { background: #8b72d8; }
 .student360-skill-chart-module-name { display: block; min-height: 28px; padding-top: 9px; overflow-wrap: anywhere; color: #52677c; font-size: 10px; font-weight: 750; line-height: 1.25; text-align: center; }
 @media (max-width: 640px) { .student360-skill-chart-body { grid-template-columns: 34px minmax(0, 1fr); gap: 7px; min-height: 210px; }.student360-skill-chart-groups { gap: 22px; padding: 0 8px; }.student360-skill-chart-group { flex-basis: 92px; }.student360-skill-chart-bar-wrap, .student360-skill-chart-bar { flex-basis: 20px; width: 20px; }.student360-skill-chart-bars { gap: 5px; } }
+.student360-academic-chart { min-width: 0; }
+.student360-academic-chart-legend { display: flex; flex-wrap: wrap; gap: 14px 22px; margin: 2px 0 18px; color: #61758b; font-size: 11px; font-weight: 700; }
+.student360-academic-chart-legend span { display: inline-flex; align-items: center; gap: 7px; }
+.student360-academic-chart-legend i { width: 9px; height: 9px; border-radius: 3px; background: #4f8edb; }
+.student360-academic-chart-legend i.project { background: #1ca99a; }
+.student360-academic-chart-legend i.combined { background: #8b72d8; }
+.student360-academic-chart-body { display: grid; grid-template-columns: 42px minmax(0, 1fr); gap: 12px; min-height: 235px; }
+.student360-academic-chart-groups { position: relative; z-index: 1; display: flex; align-items: stretch; justify-content: space-around; gap: clamp(18px, 5vw, 64px); min-height: 100%; padding: 0 14px; overflow-x: auto; }
+.student360-academic-chart-group { display: grid; flex: 0 0 clamp(100px, 16vw, 150px); grid-template-rows: 1fr auto auto; min-height: 100%; text-align: center; }
+.student360-academic-chart-bar-wrap { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 5px; min-height: 0; padding-bottom: 8px; border-bottom: 1px solid #dbe7e9; }
+.student360-academic-chart-bar { width: 36px; min-height: 2px; border-radius: 6px 6px 0 0; background: #4f8edb; transition: height .2s ease; }
+.student360-academic-chart-bar.project { background: #1ca99a; }
+.student360-academic-chart-bar.combined { background: #8b72d8; }
+.student360-academic-chart-name { min-height: 28px; padding-top: 9px; overflow-wrap: anywhere; color: #52677c; font-size: 10px; font-weight: 750; line-height: 1.25; }
+.student360-academic-chart-status { display: inline-flex; align-items: center; justify-content: center; gap: 5px; min-height: 20px; color: #16856f; font-size: 9px; font-weight: 750; white-space: nowrap; }
+.student360-academic-chart-status i { width: 6px; height: 6px; border-radius: 50%; background: #20b486; }
+@media (max-width: 640px) { .student360-academic-chart-body { grid-template-columns: 34px minmax(0, 1fr); gap: 7px; min-height: 210px; }.student360-academic-chart-groups { justify-content: flex-start; gap: 22px; padding: 0 8px; }.student360-academic-chart-group { flex-basis: 92px; }.student360-academic-chart-bar { width: 28px; } }
 .student360-skill-footer i, .student360-academic-copy i { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #20b486; }
 .student360-academic-grid { grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
 .student360-academic-card { display: flex; align-items: center; gap: 12px; min-height: 90px; padding: 13px; }
