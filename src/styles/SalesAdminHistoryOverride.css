@@ -6,6 +6,8 @@
 .user-role-page:not(.is-sales-admin-page) .user-role-view-drawer .user-role-work-log-section h3{margin-bottom:7px!important;padding-bottom:7px!important}
 .user-role-page:not(.is-sales-admin-page) .user-role-view-drawer .user-role-work-log-grid{gap:7px;padding:8px}
 .user-role-page:not(.is-sales-admin-page) .user-role-view-drawer .user-role-work-log-grid>div{gap:3px;padding:7px 8px}
+.user-role-page:not(.is-sales-admin-page) .user-role-view-drawer .user-role-work-log-grid{grid-template-columns:repeat(4,minmax(0,1fr))}
+.is-sales-admin-page .user-role-view-drawer .user-role-work-log-grid{grid-template-columns:repeat(4,minmax(0,1fr))}
 .is-sales-admin-page .user-role-work-log-value.is-logged-in{color:#078456}
 .is-sales-admin-page .user-role-work-log-value.is-website-logged-out-work-clock-active{color:#078456}
 .is-sales-admin-page .user-role-work-log-value.is-work-clock-completed{color:#c73535}
