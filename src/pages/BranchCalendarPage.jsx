@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
 import {
+  ArrowLeft,
   Building2,
   CalendarDays,
   ChevronLeft,
@@ -84,6 +86,15 @@ function getMonthDays(year, month) {
 
 export default function BranchCalendarPage() {
   const now = new Date()
+  const location = useLocation()
+  const navigate = useNavigate()
+  const from = new URLSearchParams(location.search).get('from')
+  const backTarget = from === 'institute-leave'
+    ? '/branch-dashboard?section=institute-leave'
+    : from === 'profile'
+      ? '/branch-dashboard?section=profile'
+      : '/branch-dashboard'
+  const backLabel = from === 'institute-leave' ? 'Institute Leave' : from === 'profile' ? 'Profile' : 'Dashboard'
   const [year, setYear] = useState(now.getFullYear())
   const [month, setMonth] = useState(now.getMonth())
   const [selectedDate, setSelectedDate] = useState('')
@@ -153,7 +164,7 @@ export default function BranchCalendarPage() {
   }
 
   return <section className="branch-calendar-page">
-    <header className="branch-calendar-heading"><div><p>CALENDAR MANAGEMENT</p><h1><CalendarDays size={22} /> Branch Calendar</h1><span>View holidays, institute leaves, and daily login/logout records.</span></div></header>
+    <header className="branch-calendar-heading"><div><p>CALENDAR MANAGEMENT</p><h1><CalendarDays size={22} /> Branch Calendar</h1><span>View holidays, institute leaves, and daily login/logout records.</span></div><button type="button" className="branch-calendar-back-button" onClick={() => navigate(backTarget)}><ArrowLeft size={16} /> Back to {backLabel}</button></header>
     <div className="branch-calendar-summary-grid">
       <article className="calendar-summary-card is-purple"><span className="calendar-summary-icon-wrap"><CalendarDays size={19} strokeWidth={2.2} /></span><div><span>This Month</span><strong>{String(summary.holidays).padStart(2, '0')}</strong><small>General Holidays</small></div></article>
       <article className="calendar-summary-card is-orange"><span className="calendar-summary-icon-wrap"><Building2 size={19} strokeWidth={2.2} /></span><div><span>This Month</span><strong>{String(summary.leaves).padStart(2, '0')}</strong><small>Institute Leaves</small></div></article>

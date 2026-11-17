@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { BarChart3, CalendarCheck2, CalendarClock, CalendarDays, ChevronDown, MoreVertical, Plus, UsersRound, X } from 'lucide-react'
 import { request } from '../services/apiClient'
 import { FacultyWeekOffAdminRequests } from '../components/FacultyWeekOffAdminRequests'
@@ -253,6 +254,7 @@ function nextDateKey(value) {
   return date.toISOString().slice(0, 10)
 }
 export function InstituteLeavePage({ initialViewMode = 'institute' }) {
+  const navigate = useNavigate()
   const [data, setData] = useState(null)
   const [facultyRequests, setFacultyRequests] = useState([])
   const [branchBatchGroups, setBranchBatchGroups] = useState([])
@@ -539,7 +541,7 @@ export function InstituteLeavePage({ initialViewMode = 'institute' }) {
     </section>}
     </> : <>
     <header className="institute-leave-header"><div className="institute-leave-heading"><span className="institute-heading-icon"><CalendarDays size={34} /></span><div><p className="section-kicker">Management</p><h2>Institute Leave</h2><p>Manage institute-wide leaves and schedule changes</p></div></div>
-      <button className="institute-primary" onClick={() => { setError(''); setFieldErrors({}); setForm({ leaveDate: formDate(data?.today), reason: '' }) }} disabled={!data}><Plus size={18} /> Cancel Class</button></header>
+      <div className="institute-leave-header-actions"><button type="button" className="institute-calendar-button" onClick={() => navigate('/branch-dashboard?section=calendar&from=institute-leave')}><CalendarDays size={17} /> Calendar</button><button className="institute-primary" onClick={() => { setError(''); setFieldErrors({}); setForm({ leaveDate: formDate(data?.today), reason: '' }) }} disabled={!data}><Plus size={18} /> Cancel Class</button></div></header>
     {error && !open ? <p role="alert" className="institute-error">{error}</p> : null}
     {message ? <p role="status" className="institute-success">{message}</p> : null}
     <div className="institute-leave-stats">{[
