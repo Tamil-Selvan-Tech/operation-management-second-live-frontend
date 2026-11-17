@@ -38,6 +38,7 @@ import {
 } from '../lib/notificationStore'
 import { PaginationBar } from '../components/PaginationBar'
 import { SuperAdminNotificationBell } from '../components/SuperAdminNotificationBell'
+import { UploadProgressIndicator } from '../components/UploadProgressIndicator'
 import { BranchAttendanceReportModal } from '../components/BranchAttendanceReportModal'
 import { getBranchAdminAttendanceStatusForSuperAdmin } from '../services/attendanceService'
 import { listAllBranchCourses } from '../services/branchCourseService'
@@ -2238,7 +2239,7 @@ const filteredBranches = useMemo(() => {
                 </button>
                 <h1 className="super-admin-header-title">Super Admin Dashboard</h1>
               </div>
-              <div className="super-admin-topbar-right">
+              <div className="super-admin-topbar-right"><UploadProgressIndicator />
                 <SuperAdminNotificationBell
                   onOpenBranches={() => { setSuperAdminStudentCalendarView(null); setActiveSection('branches'); navigate('/dashboard/super-admin?section=branches') }}
                   onViewActivity={() => { setSuperAdminStudentCalendarView(null); navigate('/dashboard/super-admin/notifications') }}
@@ -2313,7 +2314,7 @@ const filteredBranches = useMemo(() => {
                 </button>
                 <h1 className="super-admin-header-title">Super Admin Dashboard</h1>
               </div>
-              <div className="super-admin-topbar-right">
+              <div className="super-admin-topbar-right"><UploadProgressIndicator />
                 <SuperAdminNotificationBell onOpenBranches={() => { setSuperAdminStudentView(null); setActiveSection('branches'); navigate('/dashboard/super-admin?section=branches') }} onViewActivity={() => { setSuperAdminStudentView(null); navigate('/dashboard/super-admin/notifications') }} />
                 <div className="super-admin-profile">
                   <button
@@ -2749,7 +2750,7 @@ const filteredBranches = useMemo(() => {
               <h1 className="super-admin-header-title">Super Admin Dashboard</h1>
             </div>
 
-            <div className="super-admin-topbar-right">
+            <div className="super-admin-topbar-right"><UploadProgressIndicator />
              <SuperAdminNotificationBell
   onOpenBranches={() => { setActiveSection('branches'); navigate('/dashboard/super-admin?section=branches') }}
   onViewActivity={() => navigate('/dashboard/super-admin/notifications')}
@@ -3247,7 +3248,7 @@ const filteredBranches = useMemo(() => {
             ) : activeSection === 'user-role' ? (
               <UserRoleManagementPage pageType="branch" onViewDashboard={openViewDashboardConfirm} />
             ) : activeSection === 'sales-admin' && ['leads', 'admissions'].includes(new URLSearchParams(location.search).get('view')) ? (
-              <SuperAdminSalesCrmPanel view={new URLSearchParams(location.search).get('view')} students={allBranchStudents} studentsLoading={isGlobalStudentsLoading} branches={globalBranchFilterOptions} />
+              <SuperAdminSalesCrmPanel view={new URLSearchParams(location.search).get('view')} students={allBranchStudents} studentsLoading={isGlobalStudentsLoading} branches={globalBranchFilterOptions} currentUser={user} />
             ) : activeSection === 'sales-admin' ? (
               <UserRoleManagementPage pageType="sales" onViewSalesDashboard={openViewDashboardConfirm} />
             ) : activeSection === 'branch-admin' ? (

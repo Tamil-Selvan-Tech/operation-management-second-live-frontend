@@ -11,6 +11,7 @@ import { logoutSalesAdminWebsite, logoutSalesAdminWorkClock } from '../services/
 import { SalesAdminNotificationsPage } from './SalesAdminNotificationsPage'
 import { SalesAdminAdmissionsPage } from './SalesAdminAdmissionsPage'
 import { SalesAdminProfilePage } from './SalesAdminProfilePage'
+import { UploadProgressIndicator } from '../components/UploadProgressIndicator'
 import '../styles/SuperAdminDashboardPage.css'
 import '../styles/SalesAdminDashboardPage.css'
 const DASHBOARD_METRICS = [
@@ -241,7 +242,7 @@ export function SalesAdminDashboardPage({ embeddedBranchAdmin = false, embeddedS
         <div className="super-admin-main">
           <header className="super-admin-topbar">
             <div className="super-admin-topbar-left"><button type="button" className="super-admin-sidebar-toggle" aria-label="Open navigation menu" onClick={() => setIsMobileSidebarOpen(true)}><LayoutGrid size={19} /></button><h1 className="super-admin-header-title">{isLeadManagement ? 'Lead Management' : isReports ? 'Monthly Reports' : isNotifications ? 'Notifications' : isAdmissions ? 'Student Admission' : isProfile ? 'My Profile' : 'Sales Admin Dashboard'}</h1></div>
-            <div className="super-admin-topbar-right">{!embeddedBranchAdmin ? <SalesAdminWorkClock name={embeddedSuperAdmin ? (embeddedSalesAdmin?.fullName || embeddedSalesAdmin?.name || 'Sales Admin') : (user?.name || 'Sales Admin')} salesAdminId={embeddedSuperAdmin ? (embeddedSalesAdmin?.salesAdminCode || embeddedSalesAdmin?.userCode || embeddedSalesAdmin?.salesAdminId || '') : (user?.userCode || user?.salesAdminId || '')} readOnlyStatus={embeddedSuperAdmin ? (embeddedWorkLog || embeddedSalesAdmin?.workClock) : null} /> : null}{!embeddedBranchAdmin ? <NotificationBell targetUserId={embeddedSuperAdmin ? embeddedSalesAdmin?.salesAdminId : ''} readOnlyView={false} /> : null}{!embeddedSuperAdmin ? <div className="super-admin-profile"><span className="super-admin-avatar"><span className="super-admin-avatar-mark"><UserRound size={19} /></span></span><div className="super-admin-profile-copy"><strong>{user?.name || 'Sales Admin'}</strong><span>{user?.email || 'salesadmin@cispro.com'}</span></div></div> : null}</div>
+            <div className="super-admin-topbar-right"><UploadProgressIndicator />{!embeddedBranchAdmin ? <SalesAdminWorkClock name={embeddedSuperAdmin ? (embeddedSalesAdmin?.fullName || embeddedSalesAdmin?.name || 'Sales Admin') : (user?.name || 'Sales Admin')} salesAdminId={embeddedSuperAdmin ? (embeddedSalesAdmin?.salesAdminCode || embeddedSalesAdmin?.userCode || embeddedSalesAdmin?.salesAdminId || '') : (user?.userCode || user?.salesAdminId || '')} readOnlyStatus={embeddedSuperAdmin ? (embeddedWorkLog || embeddedSalesAdmin?.workClock) : null} /> : null}{!embeddedBranchAdmin ? <NotificationBell targetUserId={embeddedSuperAdmin ? embeddedSalesAdmin?.salesAdminId : ''} readOnlyView={false} /> : null}{!embeddedSuperAdmin ? <div className="super-admin-profile"><span className="super-admin-avatar"><span className="super-admin-avatar-mark"><UserRound size={19} /></span></span><div className="super-admin-profile-copy"><strong>{user?.name || 'Sales Admin'}</strong><span>{user?.email || 'salesadmin@cispro.com'}</span></div></div> : null}</div>
           </header>
 
           <main className="super-admin-content">

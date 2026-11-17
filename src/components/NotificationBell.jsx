@@ -52,7 +52,7 @@ export function NotificationBell({ targetUserId = '', readOnlyView = false }) {
     window.addEventListener('lead-notification-updated', load)
     return () => { active = false; window.removeEventListener('focus', load); window.removeEventListener('institute-leave-updated', load)
       window.removeEventListener('lead-notification-updated', load) }
-  }, [isRemoteNotifications])
+  }, [isRemoteNotifications, targetUserId])
   const markRead = async (notificationIds = null) => {
     if (!isRemoteNotifications || readOnlyView) return
     const unreadIds = notificationIds?.length ? notificationIds : availableRemoteItems.filter(item => !item.read).map(item => item.id)
@@ -83,6 +83,10 @@ export function NotificationBell({ targetUserId = '', readOnlyView = false }) {
     }
     if ((isSalesAdmin || isScopedSalesAdmin) && kind === 'PENDING_STUDENT_ADMISSION_REMINDER') {
       navigate('/dashboard/sales-admin/admissions?status=PENDING_HOT')
+      return true
+    }
+    if ((isSalesAdmin || isScopedSalesAdmin) && kind === 'LEAD_IMPORT_COMPLETED') {
+      navigate('/dashboard/sales-admin/leads')
       return true
     }
     if ((isSalesAdmin || isScopedSalesAdmin) && kind === 'SALES_CRM_BATCH_REQUEST_UPDATE') {

@@ -79,7 +79,7 @@ export function SalesAdminNotificationsPage({ embeddedSalesAdmin = null }) {
     void load()
     const timer = window.setInterval(load, 30000)
     return () => { active = false; window.clearInterval(timer) }
-  }, [datePreset, fromDate, toDate, status, sort, page, reloadKey, embeddedView])
+  }, [datePreset, fromDate, toDate, status, sort, page, reloadKey, embeddedView, embeddedSalesAdmin?.salesAdminId])
 
   const visibleItems = useMemo(() => items, [items])
   const customDateError = datePreset === 'custom' && fromDate && toDate && fromDate > toDate
@@ -124,6 +124,7 @@ export function SalesAdminNotificationsPage({ embeddedSalesAdmin = null }) {
     else if (kind === 'SALES_CRM_MONTHLY_REPORT') navigate('/dashboard/sales-admin/reports')
     else if (kind === 'PENDING_STUDENT_ADMISSION_REMINDER') navigate('/dashboard/sales-admin/admissions?status=PENDING_HOT')
     else if (kind === 'SALES_CRM_BATCH_REQUEST_UPDATE') navigate('/dashboard/sales-admin/admissions')
+    else if (kind === 'LEAD_IMPORT_COMPLETED') navigate('/dashboard/sales-admin/leads')
   }
 
   return <section className="sales-admin-notifications-page">

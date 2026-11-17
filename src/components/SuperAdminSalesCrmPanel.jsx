@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Download, RefreshCw, Search } from 'lucide-react'
+import { Download, RefreshCw, Search, Upload } from 'lucide-react'
 import { request, requestBlob } from '../services/apiClient'
+import { LeadExcelUploadModal } from './LeadExcelUploadModal'
 
 const text = (value, fallback = '-') => String(value ?? '').trim() || fallback
 const dateLabel = (value) => {
@@ -21,7 +22,7 @@ function SalesCrmTableSkeleton({ isAdmissions }) {
   )
 }
 
-export function SuperAdminSalesCrmPanel({ view = 'leads', students = [], studentsLoading = false, branches = [] }) {
+export function SuperAdminSalesCrmPanel({ view = 'leads', students = [], studentsLoading = false, branches = [], currentUser = {} }) {
   const isAdmissions = view === 'admissions'
   const [rows, setRows] = useState([])
   const [loading, setLoading] = useState(true)
@@ -36,6 +37,7 @@ export function SuperAdminSalesCrmPanel({ view = 'leads', students = [], student
   const [toDate, setToDate] = useState('')
   const [downloadBranchFilter, setDownloadBranchFilter] = useState('all')
   const [downloadError, setDownloadError] = useState('')
+  const [leadImportOpen, setLeadImportOpen] = useState(false)
   const admissionRows = useMemo(() => students.filter((student) => student?.admissionDate || student?.sourceLeadId || student?.admissionSource), [students])
 
   useEffect(() => {
@@ -70,7 +72,7 @@ export function SuperAdminSalesCrmPanel({ view = 'leads', students = [], student
       const student = isAdmissions ? row.admissionStudent : row
       const branchKey = String(row.branchId || row.branch?.id || row.branch?.branchId || row.branchRecord?.id || row.branchRecord?.branchId || '').trim()
       const matchesBranch = branchFilter === 'all' || branchKey === String(branchFilter)
-      const matchesSearch = !query || [row.leadId, row.studentId, row.studentName, row.emailAddress, row.email, row.branchName, row.branch?.branchName, row.branchRecord?.branchName, row.courseName, row.course?.name, row.courseEnrollments?.[0]?.courseName, row.assignedAdminName, row.assignedTo?.fullName, student?.studentId, student?.studentName]
+      const matchesSearch = !query || [row.leadId, row.studentId, row.studentName, row.emailAddress, row.email, row.branchName, row.branch?.branchName, row.branchRecord?.branchName, row.courseName, row.otherCourse, row.course?.name, row.courseEnrollments?.[0]?.courseName, row.assignedAdminName, row.assignedTo?.fullName, student?.studentId, student?.studentName]
         .some((value) => String(value || '').toLowerCase().includes(query))
       return matchesBranch && matchesSearch
     })
@@ -122,6 +124,7 @@ export function SuperAdminSalesCrmPanel({ view = 'leads', students = [], student
         <div><p className="branch-management-kicker">Sales &amp; CRM</p><h1 id="super-admin-sales-crm-title">{title}</h1><p>{description}</p></div>
         <div className="super-admin-sales-crm-actions">
           <button type="button" className="super-admin-outline-action" onClick={() => { setError(''); setLoading(true); setReloadKey((value) => value + 1) }} disabled={loading}><RefreshCw size={16} className={loading ? 'is-spinning' : ''} /> Refresh</button>
+          {!isAdmissions ? <button type="button" className="super-admin-primary-action" onClick={() => setLeadImportOpen(true)}><Upload size={16} /> Upload Lead Excel</button> : null}
           <button type="button" className="super-admin-primary-action" onClick={() => { setDownloadError(''); setDownloadBranchFilter(branchFilter); setIsDownloadOpen(true) }} disabled={downloading}><Download size={16} /> Download Excel</button>
         </div>
       </header>
@@ -134,7 +137,7 @@ export function SuperAdminSalesCrmPanel({ view = 'leads', students = [], student
             <tbody>
               {paginatedRows.map((row) => {
                 const student = row.admissionStudent || row
-                return isAdmissions ? <tr key={row.id || row.leadId || row.studentId}><td><strong>{text(student.studentName || row.studentName)}</strong><small>{text(row.leadId || row.sourceLeadId)}</small></td><td>{text(student.studentId || row.studentId)}</td><td>{text(row.branchName || row.branch?.branchName || row.branchRecord?.branchName)}</td><td>{text(row.courseName || row.course?.name || row.courseEnrollments?.[0]?.courseName)}</td><td>{dateLabel(student.admissionDate || row.admissionDate || row.createdAt)}</td><td>{text(row.assignedAdminName || row.assignedTo?.fullName)}</td><td>{text(row.paymentStatus || row.paidProgress?.percentage ? `${row.paymentStatus || 'Paid'}${row.paidProgress?.percentage !== undefined ? ` (${row.paidProgress.percentage}%)` : ''}` : '')}</td></tr> : <tr key={row.id || row.leadId}><td><strong>{text(row.studentName)}</strong><small>{text(row.leadId)}</small></td><td>{text(row.phoneNumber)}</td><td>{text(row.branch?.branchName)}</td><td>{text(row.course?.name)}</td><td><span className="super-admin-sales-crm-badge">{text(row.stage)}</span></td><td>{text(row.status)}</td><td>{text(row.assignedTo?.fullName)}</td><td>{dateLabel(row.leadDate || row.createdAt)}</td></tr>
+                return isAdmissions ? <tr key={row.id || row.leadId || row.studentId}><td><strong>{text(student.studentName || row.studentName)}</strong><small>{text(row.leadId || row.sourceLeadId)}</small></td><td>{text(student.studentId || row.studentId)}</td><td>{text(row.branchName || row.branch?.branchName || row.branchRecord?.branchName)}</td><td>{text(row.courseName || row.course?.name || row.courseEnrollments?.[0]?.courseName)}</td><td>{dateLabel(student.admissionDate || row.admissionDate || row.createdAt)}</td><td>{text(row.assignedAdminName || row.assignedTo?.fullName)}</td><td>{text(row.paymentStatus || row.paidProgress?.percentage ? `${row.paymentStatus || 'Paid'}${row.paidProgress?.percentage !== undefined ? ` (${row.paidProgress.percentage}%)` : ''}` : '')}</td></tr> : <tr key={row.id || row.leadId}><td><strong>{text(row.studentName)}</strong><small>{text(row.leadId)}</small></td><td>{text(row.phoneNumber)}</td><td>{text(row.branch?.branchName)}</td><td><strong>{text(row.course?.name || row.otherCourse)}</strong>{!row.course?.id && row.otherCourse ? <small className="lead-course-warning">{row.courseBranchWarning || 'Not available in this branch'}</small> : null}</td><td><span className="super-admin-sales-crm-badge">{text(row.stage)}</span></td><td>{text(row.status)}</td><td>{text(row.assignedTo?.fullName)}</td><td>{dateLabel(row.leadDate || row.createdAt)}</td></tr>
               })}
               {!filteredRows.length ? <tr><td colSpan={isAdmissions ? 7 : 8} className="super-admin-sales-crm-empty">No matching {isAdmissions ? 'admission students' : 'leads'} found.</td></tr> : null}
             </tbody>
@@ -142,6 +145,7 @@ export function SuperAdminSalesCrmPanel({ view = 'leads', students = [], student
         </div>
       )}
       {!(isAdmissions ? studentsLoading : loading) && !error && filteredRows.length > pageSize ? <div className="super-admin-sales-crm-pagination"><span>Page {safePage} of {totalPages}</span><div><button type="button" onClick={() => setCurrentPage((page) => Math.max(1, page - 1))} disabled={safePage === 1}>Previous</button><button type="button" onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))} disabled={safePage === totalPages}>Next</button></div></div> : null}
+      {!isAdmissions ? <LeadExcelUploadModal isOpen={leadImportOpen} onClose={() => setLeadImportOpen(false)} currentUser={{ role: 'SUPER_ADMIN', ...(currentUser || {}) }} onImported={() => { setError(''); setLoading(true); setReloadKey((value) => value + 1) }} /> : null}
       {isDownloadOpen ? <div className="super-admin-sales-crm-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !downloading) setIsDownloadOpen(false) }}><section className="super-admin-sales-crm-download-modal" role="dialog" aria-modal="true" aria-labelledby="sales-crm-download-title"><div className="super-admin-sales-crm-download-heading"><div><p>DOWNLOAD REPORT</p><h2 id="sales-crm-download-title">{isAdmissions ? 'Admission Students Excel' : 'Lead Management Excel'}</h2></div><button type="button" onClick={() => setIsDownloadOpen(false)} disabled={downloading} aria-label="Close">×</button></div><div className="super-admin-sales-crm-date-fields"><label>From Date<input type="date" value={fromDate} onChange={(event) => setFromDate(event.target.value)} /></label><label>To Date<input type="date" value={toDate} onChange={(event) => setToDate(event.target.value)} /></label><label className="super-admin-sales-crm-download-branch">Branch<select value={downloadBranchFilter} onChange={(event) => setDownloadBranchFilter(event.target.value)}><option value="all">All branches</option>{branches.map((branch) => { const value = branch.id || branch.branchId; return <option key={value} value={value}>{branch.branchName || branch.branchId || 'Unnamed branch'}</option> })}</select></label></div>{downloadError ? <p className="super-admin-sales-crm-download-error" role="alert">{downloadError}</p> : null}<div className="super-admin-sales-crm-download-actions"><button type="button" onClick={() => setIsDownloadOpen(false)} disabled={downloading}>Cancel</button><button type="button" className="super-admin-primary-action" onClick={() => void downloadReport()} disabled={downloading}>{downloading ? 'Preparing...' : 'Download Excel'}</button></div></section></div> : null}
     </section>
   )

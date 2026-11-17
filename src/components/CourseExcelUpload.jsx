@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { ArrowLeft, CheckCircle2, ChevronDown, Download, FileSpreadsheet, Loader2, Search, Upload, X } from 'lucide-react'
 import { downloadCourseErrors, downloadCourseTemplate, importCourseWorkbook, previewCourseWorkbook, validateCourseFile } from '../services/courseImportService'
 import { friendlyCourseImportMessage } from '../lib/courseImportMessages'
+import { completeUpload, failUpload, startUpload } from '../lib/uploadProgressStore'
 import CourseImportSheetTable from './CourseImportSheetTable'
 import '../styles/CourseExcelUpload.css'
 
@@ -227,14 +228,23 @@ export function CourseExcelUpload({ onImported, onView, onStart, onClose, pageMo
   }
   async function importFile() {
     await run('import', async () => {
-      const next = await importCourseWorkbook(file, preview.previewHash, editsRef.current)
+      const uploadId = startUpload({ type: 'course', label: file?.name || 'Course workbook', total: preview?.totals?.courses || 0 })
+      let next
+      try {
+        next = await importCourseWorkbook(file, preview.previewHash, editsRef.current)
+      } catch (failure) {
+        failUpload(uploadId, { error: failure.message || 'Course upload failed.' })
+        throw failure
+      }
       if (!next.imported) {
+        failUpload(uploadId, { error: 'Workbook needs corrections.' })
         setShowImportConfirmation(false)
         setShowImportReview(false)
         setPreview(next); setEditsPending(false); setPage(1); setCoursePage(1); setSheetSearch(''); setSheetFilter('all'); setErrorPage(1)
         setError('The workbook needs corrections. No courses were imported.')
         return
       }
+      completeUpload(uploadId, { progress: 100, processed: next.totals?.courses || preview?.totals?.courses || 0, total: next.totals?.courses || preview?.totals?.courses || 0, result: next })
       setResult(next)
       try { await onImported?.() } catch { setError('Courses were imported. Refresh the course table to load them.') }
       setShowImportConfirmation(false)

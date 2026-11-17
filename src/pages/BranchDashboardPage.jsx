@@ -67,6 +67,7 @@ import { useCourseCalculations } from '../lib/useCourseCalculations'
 import { useAuth } from '../auth/useAuth'
 import { Button } from '../components/Button'
 import { BranchAdminAttendanceFlow } from '../components/BranchAdminAttendanceFlow'
+import { UploadProgressIndicator } from '../components/UploadProgressIndicator'
 import { request, setImpersonateBranchId } from '../services/apiClient'
 import { logoutBranchAdminAttendance, logoutBranchAdminWebsite } from '../services/attendanceService'
 import { shareInFlightRequest } from '../lib/inFlightRequests'
@@ -6129,7 +6130,7 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
               ['account-role-updated', 'email-changed', 'branch-admin-replaced'].includes(String(notification.kind || '').trim()) ||
               String(notification.targetUserId || '').trim() === currentBranchUserId ||
               (['lead-follow-up-due', 'lead-follow-up-overdue', 'lead-follow-up-scheduled'].includes(String(notification.kind || '').trim())) ||
-              (hasLeadManagementAccess && ['sales-crm-monthly-report', 'pending-student-admission-reminder', 'sales-crm-batch-request-update'].includes(String(notification.kind || '').trim())) ||
+              (hasLeadManagementAccess && ['sales-crm-monthly-report', 'pending-student-admission-reminder', 'sales-crm-batch-request-update', 'lead-import-completed'].includes(String(notification.kind || '').trim())) ||
               (String(notification.kind || '') === 'sequential-course-scheduling-required' ||
                 String(notification.kind || '').startsWith('student-'))
             ),
@@ -6143,6 +6144,7 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
             'sales-crm-monthly-report',
             'pending-student-admission-reminder',
             'sales-crm-batch-request-update',
+            'lead-import-completed',
           ])
           const kind = String(notification.kind || '').trim()
           return !salesNotificationKinds.has(kind) || String(notification.targetUserId || '').trim() === currentBranchUserId
@@ -11884,6 +11886,7 @@ useEffect(() => {
         </div>
         <div className="super-admin-topbar-right">
         <>
+          <UploadProgressIndicator />
           {isBranchAdminWorkLogEnabled || isBranchAdminReadOnlyWorkLogView ? (
             <BranchAdminAttendanceFlow
               ref={branchAttendanceRef}

@@ -28435,3 +28435,23 @@ canvas {
     justify-self: start;
   }
 }
+.upload-progress-menu { position: relative; display: inline-flex; align-items: center; z-index: 80; }
+.upload-progress-button { display: inline-flex; align-items: center; gap: 7px; min-height: 38px; padding: 0 12px; border: 1px solid #d7e3f1; border-radius: 11px; background: #fff; color: #31567f; font-size: .78rem; font-weight: 800; cursor: pointer; box-shadow: 0 3px 10px rgba(30, 72, 112, .06); }
+.upload-progress-button.is-active { border-color: #8bc4ff; color: #1265b1; background: #f4f9ff; }
+.upload-progress-button b { display: inline-grid; min-width: 19px; height: 19px; place-items: center; border-radius: 999px; background: #2468d8; color: #fff; font-size: .68rem; }
+.upload-progress-popover { position: absolute; top: calc(100% + 10px); right: 0; width: min(340px, calc(100vw - 30px)); padding: 12px; border: 1px solid #dbe6f2; border-radius: 14px; background: #fff; box-shadow: 0 18px 38px rgba(31, 64, 96, .18); }
+.upload-progress-popover-head { display: flex; align-items: center; justify-content: space-between; padding: 2px 2px 9px; border-bottom: 1px solid #edf2f7; color: #163c67; }
+.upload-progress-popover-head button, .upload-progress-item > button { border: 0; background: transparent; color: #778aa1; font-size: 1.1rem; cursor: pointer; }
+.upload-progress-list { display: grid; gap: 8px; max-height: 260px; overflow: auto; padding-top: 9px; }
+.upload-progress-item { display: grid; grid-template-columns: 22px minmax(0, 1fr) auto; align-items: start; gap: 8px; padding: 9px; border-radius: 10px; background: #f8fbff; color: #345979; }
+.upload-progress-item-icon { color: #2674d7; padding-top: 1px; }
+.upload-progress-item.is-completed .upload-progress-item-icon { color: #169b62; }
+.upload-progress-item.is-failed .upload-progress-item-icon { color: #df4f59; }
+.upload-progress-item strong, .upload-progress-item small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.upload-progress-item strong { color: #234e77; font-size: .77rem; }
+.upload-progress-item small { margin-top: 2px; color: #72869b; font-size: .7rem; }
+.upload-progress-track { height: 4px; margin-top: 7px; overflow: hidden; border-radius: 999px; background: #dcecff; }
+.upload-progress-track i { display: block; height: 100%; border-radius: inherit; background: #2d7be0; transition: width .3s ease; }
+.upload-progress-spin { animation: upload-progress-spin .9s linear infinite; }
+@keyframes upload-progress-spin { to { transform: rotate(360deg); } }
+@media (max-width: 760px) { .upload-progress-button span { display: none; } .upload-progress-button { min-width: 38px; justify-content: center; padding: 0 9px; } }

@@ -11,6 +11,7 @@ import {
 import { NotificationBell } from './NotificationBell'
 import { HeaderIdentityChip } from './HeaderIdentityChip'
 import { ProfileDrawer } from './ProfileDrawer'
+import { UploadProgressIndicator } from './UploadProgressIndicator'
 
 function buildProfileDetails({ eyebrow, profileTitle, email, initials }) {
   const isBusinessOwner = eyebrow === 'Business Owner'
@@ -90,6 +91,7 @@ export function OperationManagerHeader({
         </div>
 
         <div className="business-topbar-actions operation-manager-header-actions">
+          <UploadProgressIndicator />
           <NotificationBell />
           <HeaderIdentityChip
             initials={initials}

@@ -183,7 +183,7 @@ export function loadNotifications() {
         String(notification.kind || '').trim() === 'sales-crm-admission' ||
         String(notification.kind || '').trim() === 'sales-crm-batch-request' ||
         ['account-role-updated', 'email-changed', 'branch-admin-replaced'].includes(String(notification.kind || '').trim()) ||
-        ['lead-follow-up-scheduled', 'lead-follow-up-due', 'lead-follow-up-overdue'].includes(String(notification.kind || '').trim()) ||
+        ['lead-follow-up-scheduled', 'lead-follow-up-due', 'lead-follow-up-overdue', 'lead-import-completed'].includes(String(notification.kind || '').trim()) ||
         String(notification.kind || '') === 'sequential-course-scheduling-required'
       ),
     )

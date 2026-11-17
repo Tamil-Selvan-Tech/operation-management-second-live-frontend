@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { AlertCircle, ArrowLeft, CheckCircle2, Download, Edit3, FileSpreadsheet, LoaderCircle, Save, Table2, Trash2, Upload, X } from 'lucide-react'
 import { downloadCompletedStudentFailedRows, downloadCompletedStudentImportJobFailedRows, downloadCompletedStudentTemplate, importCompletedStudents, listCompletedStudentImportJobs, previewCompletedStudentImport, revalidateCompletedStudentImport } from '../services/completedStudentImportService'
+import { completeUpload, failUpload, startUpload, updateUpload } from '../lib/uploadProgressStore'
 import '../styles/CourseExcelUpload.css'
 import '../styles/CompletedStudentUploadModal.css'
 
@@ -244,9 +245,11 @@ export function CompletedStudentUploadModal({ isOpen, onClose, onImported }) {
     const selectedRows = importConfirmation.rows.filter((row) => row.valid || selectedMissing.includes(row.rowNumber))
     if (!selectedRows.length) return
     setError(''); setBusy(true); setImportProgress(5)
+    const uploadId = startUpload({ type: 'completed-student', label: file?.name || 'Completed student workbook', total: selectedRows.length })
     try {
-      const response = await importCompletedStudents(selectedRows, { fileName: file?.name, skippedRows: importConfirmation.skippedRows, allowMissingContact: selectedMissing.length > 0, onChunkComplete: (completed, total) => setImportProgress(Math.min(96, Math.max(12, Math.round((completed / total) * 96)))) })
+      const response = await importCompletedStudents(selectedRows, { fileName: file?.name, skippedRows: importConfirmation.skippedRows, allowMissingContact: selectedMissing.length > 0, onChunkComplete: (completed, total) => { const progress = Math.min(96, Math.max(12, Math.round((completed / total) * 96))); setImportProgress(progress); updateUpload(uploadId, { progress, processed: completed, total }) } })
       const importedResult = response?.data || response
+      completeUpload(uploadId, { progress: 100, processed: importedResult?.processedRows || selectedRows.length, total: selectedRows.length, result: importedResult })
       if (importedResult?.status === 'CANCELLED') {
         setImportProgress(0)
         setResult(importedResult)
@@ -264,6 +267,7 @@ export function CompletedStudentUploadModal({ isOpen, onClose, onImported }) {
         await onImported?.(importedResult)
       }
     } catch (requestError) {
+      failUpload(uploadId, { error: errorMessage(requestError) })
       const validationData = requestError?.body?.data
       if (validationData?.validationRequired && Array.isArray(validationData.rows)) {
         setPreview(normalizeCompletedStudentImportPreview(validationData))
@@ -291,9 +295,11 @@ export function CompletedStudentUploadModal({ isOpen, onClose, onImported }) {
     if (!selectedRows.length) return
     setContactReview(null)
     setError(''); setBusy(true); setImportProgress(5)
+    const uploadId = startUpload({ type: 'completed-student', label: file?.name || 'Completed student workbook', total: selectedRows.length })
     try {
-      const response = await importCompletedStudents(selectedRows, { fileName: file?.name, skippedRows: (preview?.rows || []).filter((row) => !row.valid && !hasOnlyMissingContactErrors(row)).length, allowMissingContact: true, onChunkComplete: (completed, total) => setImportProgress(Math.min(96, Math.max(12, Math.round((completed / total) * 96)))) })
+      const response = await importCompletedStudents(selectedRows, { fileName: file?.name, skippedRows: (preview?.rows || []).filter((row) => !row.valid && !hasOnlyMissingContactErrors(row)).length, allowMissingContact: true, onChunkComplete: (completed, total) => { const progress = Math.min(96, Math.max(12, Math.round((completed / total) * 96))); setImportProgress(progress); updateUpload(uploadId, { progress, processed: completed, total }) } })
       const importedResult = response?.data || response
+      completeUpload(uploadId, { progress: 100, processed: importedResult?.processedRows || selectedRows.length, total: selectedRows.length, result: importedResult })
       if (importedResult?.status === 'CANCELLED') {
         setImportProgress(0)
         setResult(importedResult)
@@ -311,6 +317,7 @@ export function CompletedStudentUploadModal({ isOpen, onClose, onImported }) {
         await onImported?.(importedResult)
       }
     } catch (requestError) {
+      failUpload(uploadId, { error: errorMessage(requestError) })
       const validationData = requestError?.body?.data
       if (validationData?.validationRequired && Array.isArray(validationData.rows)) {
         setPreview(normalizeCompletedStudentImportPreview(validationData))
