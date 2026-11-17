@@ -6,7 +6,7 @@ import '../styles/LeadExcelUploadModal.css'
 
 const PAGE_SIZE = 25
 const PREVIEW_FIELDS = [
-  ['leadId', 'Lead ID'], ['studentName', 'Student Name'], ['phoneNumber', 'Mobile Number'], ['alternativeNumber', 'Alt. Mobile'],
+  ['studentName', 'Student Name'], ['phoneNumber', 'Mobile Number'], ['alternativeNumber', 'Alt. Mobile'],
   ['email', 'Email'], ['qualification', 'Qualification'], ['location', 'Location'], ['locationDistance', 'Location Distance'],
   ['otherLocationDistance', 'Other Location Distance'], ['callType', 'Call Type'], ['otherCallType', 'Other Call Type'],
   ['status', 'Lead Status'], ['otherStatus', 'Other Status'], ['stage', 'Lead Stage'], ['otherStage', 'Other Stage'],
@@ -128,7 +128,7 @@ export function LeadExcelUploadModal({ isOpen, onClose, currentUser = {}, onImpo
     try {
       const result = await importLeadRows(preview.rows, { branchId, assignedToId, fileName: file?.name, onProgress: (status) => { setImportStatus(status); updateUpload(uploadId, { uploadId: status.uploadId, progress: status.progress || 0, processed: status.processedRows || 0, total: status.totalRows || preview.rows.length, status: status.status || 'RUNNING' }) } })
       const status = result?.data || result || {}
-      setImportStatus(status); completeUpload(uploadId, { progress: 100, processed: status.processedRows || preview.rows.length, total: status.totalRows || preview.rows.length, result: status }); setNotice(`Lead import completed. ${status.activeRows || 0} active leads and ${status.pendingRows || 0} pending completion rows are ready.`)
+      setImportStatus(status); completeUpload(uploadId, { status: status.status || 'COMPLETED', progress: 100, processed: status.processedRows || preview.rows.length, total: status.totalRows || preview.rows.length, completedAt: status.completedAt || Date.now(), result: status }); setNotice(`Lead import completed. ${status.activeRows || 0} active leads and ${status.pendingRows || 0} pending completion rows are ready.`)
       await onImported?.(status)
       onPendingChanged?.()
     } catch (requestError) { failUpload(uploadId, { error: errorMessage(requestError) }); setError(errorMessage(requestError)); setStep(2) } finally { setBusy(false) }
@@ -164,7 +164,7 @@ export function LeadExcelUploadModal({ isOpen, onClose, currentUser = {}, onImpo
           {targetName ? <small>Leads will be assigned to <strong>{targetName}</strong> after import.</small> : null}
         </div>
         <div className={'lead-import-dropzone ' + (dragging ? 'is-dragging' : '')} onDragOver={(event) => { event.preventDefault(); setDragging(true) }} onDragLeave={() => setDragging(false)} onDrop={(event) => { event.preventDefault(); setDragging(false); void selectFile(event.dataTransfer.files?.[0]) }}>
-          <FileSpreadsheet size={38} /><h3>Drop your lead workbook here</h3><p>Lead ID, name and mobile are required. Core-only rows go to Pending Completion; complete rows go to Active Leads.</p>
+          <FileSpreadsheet size={38} /><h3>Drop your lead workbook here</h3><p>Name and mobile are required. Core-only rows go to Pending Completion; complete rows go to Active Leads.</p>
           <button type="button" className="lead-import-primary" onClick={() => inputRef.current?.click()} disabled={busy || !branchId || !assignedToId}>{busy ? <><LoaderCircle className="lead-import-spin" size={16} /> Validating...</> : <><Upload size={16} /> Choose Excel file</>}</button>
           <input ref={inputRef} type="file" accept=".xlsx" hidden onChange={(event) => void selectFile(event.target.files?.[0])} />
         </div>

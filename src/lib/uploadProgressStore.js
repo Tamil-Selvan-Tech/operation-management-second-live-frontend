@@ -62,7 +62,7 @@ export function startUpload({ type = 'file', label = 'Upload', total = 0, visibl
 
 export function updateUpload(id, patch = {}) { update(id, { status: 'RUNNING', ...patch }) }
 
-export function completeUpload(id, patch = {}) { update(id, { status: 'COMPLETED', progress: 100, ...patch }) }
+export function completeUpload(id, patch = {}) { update(id, { status: 'COMPLETED', progress: 100, completedAt: patch.completedAt || Date.now(), ...patch }) }
 
 export function failUpload(id, patch = {}) { update(id, { status: 'FAILED', ...patch }) }
 

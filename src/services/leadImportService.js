@@ -81,6 +81,10 @@ export function listPendingLeadImports(options = {}) {
   return request(`/leads/import/pending${params.toString() ? `?${params}` : ''}`)
 }
 
+export function getPendingLeadNextId(rowId) {
+  return request(`/leads/import/pending/${encodeURIComponent(rowId)}/next-id`)
+}
+
 export function promotePendingLead(rowId, payload = {}) {
   return request(`/leads/import/pending/${encodeURIComponent(rowId)}/promote`, { method: 'POST', body: JSON.stringify(payload) })
 }
