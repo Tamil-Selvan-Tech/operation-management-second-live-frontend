@@ -126,16 +126,27 @@ function isProjectOnlyEvaluation(evaluation = {}) {
   return value.includes('PROJECT') && !value.includes('TEST')
 }
 
-function isTestAndProjectEvaluation(evaluation = {}) {
-  const value = String(evaluation?.type || evaluation?.testType || evaluation?.evaluationType || '').trim().toUpperCase()
-  return value.includes('TEST') && value.includes('PROJECT')
-}
-
 function getCountedAcademicEvaluations(evaluations = []) {
-  const hasCombinedEvaluation = evaluations.some(isTestAndProjectEvaluation)
-  return hasCombinedEvaluation
-    ? evaluations.filter((evaluation) => !isProjectOnlyEvaluation(evaluation))
-    : evaluations
+  const groups = new Map()
+  const isCompleted = (evaluation) => {
+    const status = String(evaluation?.status || '').toUpperCase()
+    return ['SUBMITTED', 'EVALUATED', 'COMPLETED', 'GRADED'].includes(status) || (evaluation?.percentage != null && Number.isFinite(Number(evaluation.percentage)))
+  }
+  evaluations.forEach((evaluation, index) => {
+    const number = academicEvaluationNumber(evaluation, index + 1)
+    const key = `academic-${number}`
+    const current = groups.get(key) || []
+    current.push(evaluation)
+    groups.set(key, current)
+  })
+  return [...groups.values()].map((group) => {
+    const hasProjectPart = group.some(isProjectOnlyEvaluation)
+    const hasTestPart = group.some((evaluation) => !isProjectOnlyEvaluation(evaluation))
+    const completed = hasProjectPart && hasTestPart
+      ? group.every(isCompleted)
+      : group.some(isCompleted)
+    return { ...group[0], status: completed ? 'SUBMITTED' : 'NOT_EVALUATED', percentage: completed ? 1 : null }
+  })
 }
 
 function getLatestAcademicEvaluations(evaluations = []) {
