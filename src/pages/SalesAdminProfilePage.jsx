@@ -22,6 +22,17 @@ function initialsFor(name) {
   return String(name || 'Sales Admin').trim().split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0].toUpperCase()).join('') || 'SA'
 }
 
+function SalesAdminProfileSkeleton() {
+  return <section className="sales-admin-profile-page sales-admin-profile-loading" aria-label="Loading profile" role="status">
+    <div className="sales-admin-profile-skeleton-identity">
+      <i className="sales-admin-profile-skeleton-avatar" />
+      <span className="sales-admin-profile-skeleton-copy"><i className="sales-admin-profile-skeleton-line is-title" /><i className="sales-admin-profile-skeleton-line is-short" /><i className="sales-admin-profile-skeleton-line is-wide" /></span>
+    </div>
+    <div className="sales-admin-profile-skeleton-card"><i /><i /><i /><i /></div>
+    <div className="sales-admin-profile-skeleton-card is-details"><i /><i /><i /><i /></div>
+  </section>
+}
+
 export function SalesAdminProfilePage({ embeddedProfile = null, readOnly = false }) {
   const { setSession } = useAuth()
   const navigate = useNavigate()
@@ -95,7 +106,7 @@ export function SalesAdminProfilePage({ embeddedProfile = null, readOnly = false
     }
   }
 
-  if (loading) return <section className="sales-admin-profile-page" aria-label="Loading profile"><div className="sales-admin-profile-skeleton"><i /><i /><i /></div></section>
+  if (loading) return <SalesAdminProfileSkeleton />
   if (loadError) return <section className="sales-admin-profile-page"><div className="sales-admin-profile-error" role="alert"><span>{loadError}</span><button type="button" onClick={() => void loadProfile()}>Try again</button></div></section>
   if (!profile) return <section className="sales-admin-profile-page"><div className="sales-admin-profile-empty">Your profile could not be found.</div></section>
 

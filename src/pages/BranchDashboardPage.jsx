@@ -12603,7 +12603,7 @@ useEffect(() => {
               {activeSection === 'progress-notifications' ? <ProgressNotificationsView branch={branchScope} /> : null}
               {activeSection === 'faculty-edit-requests' ? <FacultyEditRequestsView /> : null}
               {activeSection === 'discontinuations' ? <BranchDiscontinuationManagementPage /> : null}
-              {activeSection === 'lead-management' ? <LeadManagementPage salesAdminId={branchData?.salesAdminId || ''} /> : null}
+              {activeSection === 'lead-management' ? <LeadManagementPage salesAdminId={branchData?.salesAdminId || ''} branchRoleAccess={resolvedBranchRoleAccess || branchData?.roleAccess || ''} superAdminView={isSuperAdminEmbeddedView} /> : null}
               {activeSection === 'sales-crm-admissions' ? <SalesAdminAdmissionsPage key={location.search} salesAdminId={branchData?.salesAdminId || ''} /> : null}
               {activeSection === 'sales-crm-reports' ? <SalesCrmReportPage branchScoped branchId={branchProfile?.id || branchData?.id || ''} branchName={branchProfile?.branchName || branchData?.branchName || ''} /> : null}
               {activeSection === 'branch-reports' ? (
@@ -15679,7 +15679,7 @@ if (paidProgress >= 100) {
                 <BranchSalesCrmPage key={activeSection} view={activeSection === 'sales-crm-admitted-students' ? 'admissions' : 'admins'} />
               ) : null}
               {activeSection === 'sales-admin-directory' ? (
-                <BranchSalesCrmPage key={activeSection} view="admins" title="Sales Admin" showReportAction={false} />
+                <BranchSalesCrmPage key={activeSection} view="admins" title="Sales Admin" showReportAction={false} showLeadImportAction={!hasLeadManagementAccess} />
               ) : null}
             </div>
           </main>

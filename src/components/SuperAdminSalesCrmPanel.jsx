@@ -11,11 +11,11 @@ const dateLabel = (value) => {
 }
 
 function SalesCrmTableSkeleton({ isAdmissions }) {
-  const columnCount = isAdmissions ? 7 : 8
+  const columnCount = isAdmissions ? 7 : 9
   return (
     <div className="super-admin-sales-crm-table-wrap super-admin-sales-crm-skeleton-wrap" role="status" aria-label={`Loading ${isAdmissions ? 'admission students' : 'leads'}`}>
       <table className="super-admin-sales-crm-table super-admin-sales-crm-skeleton-table" aria-hidden="true">
-        <thead><tr>{(isAdmissions ? ['Student', 'Student ID', 'Branch', 'Course', 'Admission Date', 'Assigned To', 'Payment'] : ['Lead', 'Phone', 'Branch', 'Course', 'Stage', 'Status', 'Assigned To', 'Lead Date']).map((heading) => <th key={heading}>{heading}</th>)}</tr></thead>
+        <thead><tr>{(isAdmissions ? ['Student', 'Student ID', 'Branch', 'Course', 'Admission Date', 'Assigned To', 'Payment'] : ['Lead', 'Phone', 'Branch', 'Course', 'Stage', 'Status', 'Uploaded By', 'Assigned', 'Lead Date']).map((heading) => <th key={heading}>{heading}</th>)}</tr></thead>
         <tbody>{Array.from({ length: 5 }, (_, rowIndex) => <tr key={rowIndex}>{Array.from({ length: columnCount }, (_, cellIndex) => <td key={cellIndex}><span /></td>)}</tr>)}</tbody>
       </table>
     </div>
@@ -133,13 +133,13 @@ export function SuperAdminSalesCrmPanel({ view = 'leads', students = [], student
       {((isAdmissions ? studentsLoading : loading)) ? <SalesCrmTableSkeleton isAdmissions={isAdmissions} /> : (
         <div className="super-admin-sales-crm-table-wrap">
           <table className="super-admin-sales-crm-table">
-            <thead>{isAdmissions ? <tr><th>Student</th><th>Student ID</th><th>Branch</th><th>Course</th><th>Admission Date</th><th>Assigned To</th><th>Payment</th></tr> : <tr><th>Lead</th><th>Phone</th><th>Branch</th><th>Course</th><th>Stage</th><th>Status</th><th>Assigned To</th><th>Lead Date</th></tr>}</thead>
+            <thead>{isAdmissions ? <tr><th>Student</th><th>Student ID</th><th>Branch</th><th>Course</th><th>Admission Date</th><th>Assigned To</th><th>Payment</th></tr> : <tr><th>Lead</th><th>Phone</th><th>Branch</th><th>Course</th><th>Stage</th><th>Status</th><th>Uploaded By</th><th>Assigned</th><th>Lead Date</th></tr>}</thead>
             <tbody>
               {paginatedRows.map((row) => {
                 const student = row.admissionStudent || row
-                return isAdmissions ? <tr key={row.id || row.leadId || row.studentId}><td><strong>{text(student.studentName || row.studentName)}</strong><small>{text(row.leadId || row.sourceLeadId)}</small></td><td>{text(student.studentId || row.studentId)}</td><td>{text(row.branchName || row.branch?.branchName || row.branchRecord?.branchName)}</td><td>{text(row.courseName || row.course?.name || row.courseEnrollments?.[0]?.courseName)}</td><td>{dateLabel(student.admissionDate || row.admissionDate || row.createdAt)}</td><td>{text(row.assignedAdminName || row.assignedTo?.fullName)}</td><td>{text(row.paymentStatus || row.paidProgress?.percentage ? `${row.paymentStatus || 'Paid'}${row.paidProgress?.percentage !== undefined ? ` (${row.paidProgress.percentage}%)` : ''}` : '')}</td></tr> : <tr key={row.id || row.leadId}><td><strong>{text(row.studentName)}</strong><small>{text(row.leadId)}</small></td><td>{text(row.phoneNumber)}</td><td>{text(row.branch?.branchName)}</td><td><strong>{text(row.course?.name || row.otherCourse)}</strong>{!row.course?.id && row.otherCourse ? <small className="lead-course-warning">{row.courseBranchWarning || 'Not available in this branch'}</small> : null}</td><td><span className="super-admin-sales-crm-badge">{text(row.stage)}</span></td><td>{text(row.status)}</td><td>{text(row.assignedTo?.fullName)}</td><td>{dateLabel(row.leadDate || row.createdAt)}</td></tr>
+                return isAdmissions ? <tr key={row.id || row.leadId || row.studentId}><td><strong>{text(student.studentName || row.studentName)}</strong><small>{text(row.leadId || row.sourceLeadId)}</small></td><td>{text(student.studentId || row.studentId)}</td><td>{text(row.branchName || row.branch?.branchName || row.branchRecord?.branchName)}</td><td>{text(row.courseName || row.course?.name || row.courseEnrollments?.[0]?.courseName)}</td><td>{dateLabel(student.admissionDate || row.admissionDate || row.createdAt)}</td><td>{text(row.assignedAdminName || row.assignedTo?.fullName)}</td><td>{text(row.paymentStatus || row.paidProgress?.percentage ? `${row.paymentStatus || 'Paid'}${row.paidProgress?.percentage !== undefined ? ` (${row.paidProgress.percentage}%)` : ''}` : '')}</td></tr> : <tr key={row.id || row.leadId}><td><strong>{text(row.studentName)}</strong><small>{text(row.leadId)}</small></td><td>{text(row.phoneNumber)}</td><td>{text(row.branch?.branchName)}</td><td><strong>{text(row.course?.name || row.otherCourse)}</strong>{!row.course?.id && row.otherCourse ? <small className="super-admin-course-warning-chip" title={row.courseBranchWarning || `Course ${row.otherCourse} is not available in ${row.branch?.branchName || 'this branch'}`}>Course not in branch</small> : null}</td><td><span className="super-admin-sales-crm-badge">{text(row.stage)}</span></td><td>{text(row.status)}</td><td>{text(row.createdBy?.fullName || row.createdByName)}</td><td>{text(row.assignedTo?.fullName || row.assignedToName)}</td><td>{dateLabel(row.leadDate || row.createdAt)}</td></tr>
               })}
-              {!filteredRows.length ? <tr><td colSpan={isAdmissions ? 7 : 8} className="super-admin-sales-crm-empty">No matching {isAdmissions ? 'admission students' : 'leads'} found.</td></tr> : null}
+              {!filteredRows.length ? <tr><td colSpan={isAdmissions ? 7 : 9} className="super-admin-sales-crm-empty">No matching {isAdmissions ? 'admission students' : 'leads'} found.</td></tr> : null}
             </tbody>
           </table>
         </div>

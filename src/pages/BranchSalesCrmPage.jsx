@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Activity, BriefcaseBusiness, CalendarDays, FileSpreadsheet, GraduationCap, Mail, Phone, Search, Users, X } from 'lucide-react'
+import { Activity, BriefcaseBusiness, CalendarDays, FileSpreadsheet, GraduationCap, Mail, Phone, Search, Upload, Users, X } from 'lucide-react'
 import { request } from '../services/apiClient'
 import { SalesCrmReportSubmissionModal } from '../components/SalesCrmReportSubmissionModal'
+import { LeadExcelUploadModal } from '../components/LeadExcelUploadModal'
+import { loadSession } from '../lib/session'
 import '../styles/BranchSalesCrmPage.css'
 
 const PAGE_SIZE = 5
@@ -36,7 +38,7 @@ function workLogLabel(status) {
   return { LOGGED_IN: 'Logged In', WEBSITE_LOGGED_OUT_WORK_CLOCK_ACTIVE: 'Logged Out', WORK_CLOCK_COMPLETED: 'Completed', WORK_LOG_COMPLETED: 'Completed', AUTO_CLOSED: 'Auto Closed', NOT_LOGGED_IN: 'Not Logged In' }[status] || 'Not Logged In'
 }
 
-export default function BranchSalesCrmPage({ view = 'admins', title = 'Sales & CRM', showReportAction = true }) {
+export default function BranchSalesCrmPage({ view = 'admins', title = 'Sales & CRM', showReportAction = true, showLeadImportAction = false }) {
   const activeTab = view
   const [salesAdmins, setSalesAdmins] = useState([])
   const [admissions, setAdmissions] = useState([])
@@ -54,6 +56,8 @@ export default function BranchSalesCrmPage({ view = 'admins', title = 'Sales & C
   const [sortBy, setSortBy] = useState('name')
   const [sendReportOpen, setSendReportOpen] = useState(false)
   const [selectedAdmin, setSelectedAdmin] = useState(null)
+  const [leadImportOpen, setLeadImportOpen] = useState(false)
+  const sessionUser = loadSession()?.user || {}
 
   const loadSalesAdmins = useCallback(async () => {
     setLoadingAdmins(true)
@@ -143,11 +147,13 @@ export default function BranchSalesCrmPage({ view = 'admins', title = 'Sales & C
               <strong>{loading ? '—' : activeTab === 'admins' ? salesAdmins.length : admissions.length}</strong>
             </div>
           </div>
+          {showLeadImportAction && activeTab === 'admins' ? <button type="button" className="branch-sales-crm-upload-button" onClick={() => setLeadImportOpen(true)} disabled={loadingAdmins || !branch?.id} aria-label="Upload lead Excel for this branch"><Upload size={16} />Upload Lead Excel</button> : null}
           {showReportAction ? <button type="button" className="branch-sales-crm-report-button" onClick={() => setSendReportOpen(true)}><FileSpreadsheet size={16} />Send Report</button> : null}
         </div>
       </header>
 
       <SalesCrmReportSubmissionModal isOpen={sendReportOpen} onClose={() => setSendReportOpen(false)} branches={branch ? [branch] : []} initialBranchId={branch?.id || ''} onSubmitted={() => setSendReportOpen(false)} />
+      {showLeadImportAction && activeTab === 'admins' ? <LeadExcelUploadModal isOpen={leadImportOpen} onClose={() => setLeadImportOpen(false)} currentUser={{ ...sessionUser, role: 'BRANCH_ADMIN', branchId: branch?.id || sessionUser.branchId || '' }} onImported={() => setLeadImportOpen(false)} /> : null}
 
       {error ? <div className="branch-sales-crm-message is-error" role="alert">{error}</div> : null}
 

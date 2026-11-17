@@ -89,11 +89,24 @@ export function LeadExcelUploadModal({ isOpen, onClose, currentUser = {}, onImpo
 
   const beginEdit = (row) => setEditingRow({ rowNumber: row.rowNumber, data: { ...(row.data || {}) } })
   const updateEditing = (field, value) => setEditingRow((current) => current ? ({ ...current, data: { ...current.data, [field]: value } }) : current)
-  const saveEdit = () => {
-    if (!editingRow) return
-    setPreview((current) => current ? ({ ...current, rows: current.rows.map((row) => row.rowNumber === editingRow.rowNumber ? { ...row, data: editingRow.data, status: 'PENDING_EDIT', errors: [], warnings: ['Row edited. Revalidate before import.'] } : row) }) : current)
-    setEditingRow(null)
-    setNotice('Row changes saved. Revalidate the preview before importing.')
+  const saveEdit = async () => {
+    if (!editingRow || !preview?.rows?.length || busy) return
+    const editedRow = editingRow
+    const nextRows = preview.rows.map((row) => row.rowNumber === editedRow.rowNumber
+      ? { ...row, data: editedRow.data, status: 'PENDING_EDIT', errors: [], warnings: [] }
+      : row)
+    setPreview((current) => current ? ({ ...current, rows: nextRows }) : current)
+    setBusy(true); setError(''); setNotice('')
+    try {
+      const response = await revalidateLeadImport(nextRows, { branchId, assignedToId })
+      setPreview(response?.data || response || {})
+      setEditingRow(null)
+      setNotice('Row saved and validated. Review the updated status before importing.')
+    } catch (requestError) {
+      setError(errorMessage(requestError))
+    } finally {
+      setBusy(false)
+    }
   }
 
   const revalidate = async () => {
@@ -111,9 +124,9 @@ export function LeadExcelUploadModal({ isOpen, onClose, currentUser = {}, onImpo
     if (preview.rows.some((row) => ['INVALID', 'DUPLICATE', 'PENDING_EDIT'].includes(row.status))) { setError('Fix or remove invalid and duplicate rows, then revalidate before importing.'); return }
     if (getUploadSnapshot().some((upload) => upload.type === 'lead' && upload.status === 'RUNNING')) { setError('Another lead workbook is already importing. Please wait until it finishes.'); return }
     setBusy(true); setError(''); setStep(3); setImportStatus({ status: 'PENDING', progress: 0, processedRows: 0, totalRows: preview.rows.length })
-    const uploadId = startUpload({ type: 'lead', label: file?.name || 'Lead workbook', total: preview.rows.length })
+    const uploadId = startUpload({ type: 'lead', label: file?.name || 'Lead workbook', total: preview.rows.length, visibleTo: [currentUser?.id, currentUser?.userId, assignedToId] })
     try {
-      const result = await importLeadRows(preview.rows, { branchId, assignedToId, fileName: file?.name, onProgress: (status) => { setImportStatus(status); updateUpload(uploadId, { progress: status.progress || 0, processed: status.processedRows || 0, total: status.totalRows || preview.rows.length, status: status.status || 'RUNNING' }) } })
+      const result = await importLeadRows(preview.rows, { branchId, assignedToId, fileName: file?.name, onProgress: (status) => { setImportStatus(status); updateUpload(uploadId, { uploadId: status.uploadId, progress: status.progress || 0, processed: status.processedRows || 0, total: status.totalRows || preview.rows.length, status: status.status || 'RUNNING' }) } })
       const status = result?.data || result || {}
       setImportStatus(status); completeUpload(uploadId, { progress: 100, processed: status.processedRows || preview.rows.length, total: status.totalRows || preview.rows.length, result: status }); setNotice(`Lead import completed. ${status.activeRows || 0} active leads and ${status.pendingRows || 0} pending completion rows are ready.`)
       await onImported?.(status)
@@ -155,11 +168,11 @@ export function LeadExcelUploadModal({ isOpen, onClose, currentUser = {}, onImpo
           <button type="button" className="lead-import-primary" onClick={() => inputRef.current?.click()} disabled={busy || !branchId || !assignedToId}>{busy ? <><LoaderCircle className="lead-import-spin" size={16} /> Validating...</> : <><Upload size={16} /> Choose Excel file</>}</button>
           <input ref={inputRef} type="file" accept=".xlsx" hidden onChange={(event) => void selectFile(event.target.files?.[0])} />
         </div>
-        <div className="lead-import-template"><div><strong>Need the correct format?</strong><span>Download the template with sample rows and validation rules.</span></div><button type="button" className="lead-import-secondary" onClick={() => void downloadLeadImportTemplate()} disabled={busy}><Download size={15} /> Download template</button></div>
+        <div className="lead-import-template"><div><strong>Need the correct format?</strong><span>Download the template with sample rows in the Lead Data sheet.</span></div><button type="button" className="lead-import-secondary" onClick={() => void downloadLeadImportTemplate()} disabled={busy}><Download size={15} /> Download template</button></div>
       </div> : null}
       {step === 2 ? <div className="lead-import-body">
         <div className="lead-import-summary-grid"><div><span>Total rows</span><strong>{preview?.totalRows || 0}</strong></div><div className="is-ready"><span>Ready for active</span><strong>{preview?.readyRows || 0}</strong></div><div className="is-pending"><span>Valid - pending completion</span><strong>{preview?.pendingRows || 0}</strong></div><div className="is-invalid"><span>Duplicates / invalid</span><strong>{(preview?.duplicateRows || 0) + (preview?.invalidRows || 0)}</strong></div></div>
-        <div className="lead-import-preview-head"><div><h3>Preview & validate</h3><p>Click Edit to change every field in a row. Save the row, then revalidate before importing.</p></div><button type="button" className="lead-import-secondary" onClick={() => void revalidate()} disabled={busy || Boolean(editingRow)}><RefreshCw size={15} /> Revalidate</button></div>
+        <div className="lead-import-preview-head"><div><h3>Preview & validate</h3><p>Click Edit to change every field in a row. Saving a row validates it automatically.</p></div><button type="button" className="lead-import-secondary" onClick={() => void revalidate()} disabled={busy || Boolean(editingRow)}><RefreshCw size={15} /> Revalidate</button></div>
         <div className="lead-import-table-wrap"><table className="lead-import-table"><thead><tr><th>S.No</th>{PREVIEW_FIELDS.map(([, label]) => <th key={label}>{label}</th>)}<th>Status</th><th>Actions</th></tr></thead><tbody>{visibleRows.map((row, visibleIndex) => {
           const rowEditing = editingRow?.rowNumber === row.rowNumber
           return <tr key={row.rowNumber} className={'is-' + String(row.status || '').toLowerCase() + (rowEditing ? ' is-editing' : '')}><td>{(tablePage - 1) * PAGE_SIZE + visibleIndex + 1}</td>
@@ -168,7 +181,7 @@ export function LeadExcelUploadModal({ isOpen, onClose, currentUser = {}, onImpo
               : <button type="button" className="lead-import-cell" onClick={() => beginEdit(row)} title="Click Edit to change this row">{row.data?.[field] || '-'}</button>}</td>)}
             <td><span className={'lead-import-status status-' + String(row.status || '').toLowerCase()}>{statusLabel(row.status)}</span>{row.errors?.length ? <small>{row.errors.join(' ')}</small> : null}</td>
             <td className="lead-import-actions-cell">{rowEditing
-              ? <><button type="button" className="lead-import-save" onClick={saveEdit}><Save size={14} /> Save</button><button type="button" className="lead-import-cancel" onClick={() => setEditingRow(null)}>Cancel</button></>
+              ? <><button type="button" className="lead-import-save" onClick={() => void saveEdit()} disabled={busy}>{busy ? <LoaderCircle className="lead-import-spin" size={14} /> : <Save size={14} />} {busy ? 'Checking…' : 'Save'}</button><button type="button" className="lead-import-cancel" onClick={() => setEditingRow(null)} disabled={busy}>Cancel</button></>
               : <><button type="button" className="lead-import-icon-button" onClick={() => beginEdit(row)} aria-label="Edit row"><Edit3 size={14} /> Edit</button><button type="button" className="lead-import-remove" onClick={() => removeRow(row.rowNumber)}><Trash2 size={13} /> Remove</button></>}
             </td>
           </tr>

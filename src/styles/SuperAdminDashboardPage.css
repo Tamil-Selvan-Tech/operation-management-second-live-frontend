@@ -1061,6 +1061,7 @@
 .super-admin-sales-crm-table td strong { display: block; color: #173d6c; }
 .super-admin-sales-crm-table td small { display: block; margin-top: 3px; color: #91a4bb; }
 .super-admin-sales-crm-badge { display: inline-flex; padding: 4px 8px; border-radius: 999px; background: #eef5ff; color: #2d6bd8; font-size: .7rem; font-weight: 900; text-transform: uppercase; }
+.super-admin-course-warning-chip { display: inline-flex !important; width: fit-content; max-width: 100%; margin-top: 5px !important; padding: 3px 8px; border: 1px solid #f1d59b; border-radius: 999px; background: #fff8e7; color: #946514 !important; font-size: .64rem !important; font-weight: 700; line-height: 1.25; white-space: nowrap; }
 .super-admin-sales-crm-empty, .super-admin-sales-crm-loading { padding: 36px 18px !important; text-align: center !important; color: #7890aa !important; }
 .super-admin-sales-crm-skeleton-table tbody td { height: 58px; }
 .super-admin-sales-crm-skeleton-table tbody td span { display: block; width: 74%; height: 12px; border-radius: 999px; background: linear-gradient(90deg, #eef3f8 25%, #e3eaf4 37%, #eef3f8 63%); background-size: 400% 100%; animation: sa-shimmer 1.2s infinite; }

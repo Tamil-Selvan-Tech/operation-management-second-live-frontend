@@ -44,6 +44,10 @@ export function getLeadImportJob(jobId) {
   return request(`/leads/import/jobs/${encodeURIComponent(jobId)}`)
 }
 
+export function listActiveLeadImports() {
+  return request('/leads/import/jobs/active')
+}
+
 export async function importLeadRows(rows, options = {}) {
   const createdResponse = await createLeadImportJob(rows, options)
   const created = createdResponse?.data || createdResponse || {}

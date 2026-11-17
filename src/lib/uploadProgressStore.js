@@ -53,9 +53,9 @@ function update(id, patch) {
   emit()
 }
 
-export function startUpload({ type = 'file', label = 'Upload', total = 0 } = {}) {
+export function startUpload({ type = 'file', label = 'Upload', total = 0, visibleTo = [] } = {}) {
   const id = `${type}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
-  uploads = [{ id, type, label, status: 'RUNNING', progress: 0, processed: 0, total, startedAt: Date.now(), updatedAt: Date.now() }, ...uploads.filter((item) => item.status === 'RUNNING')]
+  uploads = [{ id, type, label, ...(visibleTo.length ? { visibleTo: [...new Set(visibleTo.map((value) => String(value || '').trim()).filter(Boolean))] } : {}), status: 'RUNNING', progress: 0, processed: 0, total, startedAt: Date.now(), updatedAt: Date.now() }, ...uploads.filter((item) => item.status === 'RUNNING')]
   emit()
   return id
 }

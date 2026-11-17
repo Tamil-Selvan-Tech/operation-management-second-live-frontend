@@ -3,6 +3,8 @@
 .lead-management-heading > .lead-primary-button { margin-right: 72px; }
 .lead-management-heading h1 { margin: 6px 0 4px; color: #17345f; font-size: 28px; }
 .lead-management-heading p:last-child { margin: 0; color: #64748b; }
+.lead-total-pill { display: inline-flex; align-items: center; gap: 6px; width: fit-content; margin-top: 12px; padding: 7px 11px; border: 1px solid #d7e5f8; border-radius: 999px; background: #f4f8ff; color: #527093; font-size: 12px; font-weight: 650; }
+.lead-total-pill strong { color: #1f5fb9; font-size: 14px; font-weight: 800; }
 .lead-primary-button, .lead-secondary-button, .lead-clear-button { border-radius: 9px; padding: 11px 18px; font-weight: 700; cursor: pointer; }
 .lead-primary-button { border: 1px solid #2563eb; background: #2563eb; color: #fff; box-shadow: 0 8px 18px rgba(37,99,235,.16); }
 .lead-primary-button:disabled { opacity: .65; cursor: not-allowed; }
@@ -1231,6 +1233,7 @@ body:has(.lead-followup-backdrop) .branch-dashboard-app-shell .super-admin-sideb
 
 /* Header actions */
 .lead-management-heading-actions { display: flex; align-items: center; justify-content: flex-end; gap: 10px; flex-wrap: wrap; }
+.lead-management-heading-actions > button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; white-space: nowrap; }
 @media (max-width: 720px) { .lead-management-heading-actions { width: 100%; justify-content: stretch; }.lead-management-heading-actions > button { flex: 1 1 180px; } }
 
 .lead-recordings-send-status.is-error { color: #b42318; }
@@ -1308,3 +1311,14 @@ body:has(.lead-profile-modal) .lead-list-tabs{display:none}
 .lead-modal-close { display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; padding: 0; border: 1px solid #dbe4f0; border-radius: 9px; background: #fff; color: #536b87; font-size: 0; line-height: 1; }
 .lead-modal-close:hover { border-color: #9dbce2; background: #f5f9ff; color: #1f5fb9; }
 .lead-modal-close svg { display: block; }
+
+/* Keep every lead list readable while the API request is in flight. */
+.lead-skeleton-row td { height: 62px; padding: 0 14px !important; }
+.lead-skeleton-grid { display: grid; grid-template-columns: repeat(var(--lead-skeleton-columns, 11), minmax(58px, 1fr)); gap: 14px; align-items: center; min-width: 760px; }
+.lead-skeleton-grid i { display: block; height: 13px; border-radius: 6px; background: linear-gradient(100deg, #edf2f8 20%, #f9fbff 45%, #edf2f8 70%); background-size: 220% 100%; animation: lead-table-skeleton-shimmer 1.25s ease-in-out infinite; }
+.lead-skeleton-grid i:nth-child(2) { max-width: 82%; }
+.lead-skeleton-grid i:nth-child(3) { max-width: 68%; }
+.lead-skeleton-grid i:nth-child(4) { max-width: 88%; }
+.lead-skeleton-grid i:nth-child(5) { max-width: 60%; }
+.lead-skeleton-grid i:nth-child(6) { max-width: 76%; }
+@keyframes lead-table-skeleton-shimmer { 0% { background-position: 100% 0; } 100% { background-position: -100% 0; } }
