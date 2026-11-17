@@ -382,3 +382,5 @@
 .optional-field{margin-left:6px;color:#64748b;font-size:11px;font-style:normal;font-weight:600}
 @media(max-width:600px){.student-assessment-timer{width:100%;box-sizing:border-box}}
 .assessment-response-error{display:block;margin-top:6px;color:#dc2626;font-size:12px;font-weight:700}
+.student-reports-card:has(.student-assessment-report-table) .exam-card-heading h2{font-size:0}
+.student-reports-card:has(.student-assessment-report-table) .exam-card-heading h2::after{content:'Reports';font-size:20px}
