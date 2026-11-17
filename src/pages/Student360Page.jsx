@@ -242,6 +242,22 @@ function normalizeAcademicEvaluationForDisplay(evaluation = {}) {
   return { ...evaluation, projectPercentage: undefined }
 }
 
+function filterSyllabusSkillsForCourse(report = {}, courseId = '', courseName = '', isMultiCourseStudent = false) {
+  const skills = Array.isArray(report?.skills) ? report.skills : []
+  if (!isMultiCourseStudent) return skills
+  const normalizedCourseId = String(courseId || '').trim().toLowerCase()
+  const normalizedCourseName = String(courseName || '').trim().toLowerCase()
+  const courseMatches = (item = {}) => {
+    const itemCourseId = String(item.courseId || item.courseID || item.course?.id || item.course?.courseId || '').trim().toLowerCase()
+    const itemCourseName = String(item.courseName || item.course?.name || item.course?.courseName || '').trim().toLowerCase()
+    return (normalizedCourseId && itemCourseId === normalizedCourseId) || (normalizedCourseName && itemCourseName === normalizedCourseName)
+  }
+  const scopedItems = Array.isArray(report?.items) ? report.items.filter(courseMatches) : []
+  if (!scopedItems.length) return []
+  const moduleNames = new Set(scopedItems.map((item) => String(item.module || item.moduleName || '').trim().toLowerCase()).filter(Boolean))
+  return skills.filter((skill) => moduleNames.has(String(skill.moduleName || skill.module || '').trim().toLowerCase()))
+}
+
 function getEvaluationCourseValues(evaluation = {}) {
   const course = evaluation.course || evaluation.courseDetails || {}
   return {
@@ -326,7 +342,8 @@ function getAcademicTestProgress(profile = {}, report = {}, selectedCourseId = '
     // The API is already student-scoped. Legacy evaluation rows may not carry
     // the same course identifier as the enrollment, so do not turn a valid
     // report into 0/0 when no exact course row is available.
-    const courseEvaluations = courseMatches.length ? courseMatches : evaluations
+    const hasCourseScope = Boolean(normalizedCourseId || normalizedCourseName)
+    const courseEvaluations = hasCourseScope ? courseMatches : evaluations
     const batchEvaluations = normalizedBatchId || normalizedBatchName
       ? courseEvaluations.filter((evaluation) => {
         const values = getEvaluationBatchValues(evaluation)
@@ -904,7 +921,7 @@ function PerformanceSection({ studentId, branchId = '', courseId = '', courseNam
     )
     const configuredEvaluations = getConfiguredAcademicEvaluations(academicReport?.configuredRows, courseId, courseName, batchId, batchName)
     const academicEvaluationsForDisplay = mergeAcademicEvaluations(configuredEvaluations, getLatestAcademicEvaluations(academicEvaluations)).map(normalizeAcademicEvaluationForDisplay)
-    setData({ skills: syllabus?.skills || [], academic: academicEvaluationsForDisplay })
+    setData({ skills: filterSyllabusSkillsForCourse(syllabus || {}, courseId, courseName, isMultiCourseStudent), academic: academicEvaluationsForDisplay })
     setLoading(false)
   }, [academicReport, batchId, batchName, studentId, branchId, courseId, courseName, isMultiCourseStudent])
 
@@ -1550,9 +1567,10 @@ export function Student360Page({
         </div>
         <div className="student360-profile-course-grid" aria-label="Course, batch and faculty">
           <article className="student360-profile-course-item"><span className="student360-summary-icon blue"><BookOpen size={18} /></span><div><span>Course</span><strong>{displayValue(selectedCourse.courseName || student.courseInterested || student.courseName)}</strong><small>{displayValue(selectedCourseCatalog?.courseType || selectedCourse.courseType || student.courseType || student.course?.courseType, 'Course type not set')}</small></div></article>
-          <article className="student360-profile-course-item"><span className="student360-summary-icon cyan"><GraduationCap size={18} /></span><div><span>Batch</span><strong>{isAwaitingSelectedCourseSchedule ? 'Pending assignment' : displayValue(selectedCourse.batchName || student.batchName || student.batch)}</strong><small>{isAwaitingSelectedCourseSchedule ? 'Schedule &amp; batch pending' : displayValue(selectedCourse.batchTiming || student.batchTiming || student.classSchedule, 'Schedule not set')}</small></div></article>
-          <article className="student360-profile-course-item"><span className="student360-summary-icon indigo"><UserRound size={18} /></span><div><span>Faculty</span><strong>{isAwaitingSelectedCourseSchedule ? 'Awaiting assignment' : displayValue(selectedCourse.facultyName || student.facultyName)}</strong><small>{isAwaitingSelectedCourseSchedule ? 'Assigned with batch schedule' : 'Assigned faculty'}</small></div></article>
+          <article className="student360-profile-course-item"><span className="student360-summary-icon cyan"><GraduationCap size={18} /></span><div><span>Batch</span><strong>{isSelectedCoursePending || isAwaitingSelectedCourseSchedule ? '-' : displayValue(selectedCourse.batchName || student.batchName || student.batch)}</strong><small>{isSelectedCoursePending || isAwaitingSelectedCourseSchedule ? '-' : displayValue(selectedCourse.batchTiming || student.batchTiming || student.classSchedule, 'Schedule not set')}</small></div></article>
+          <article className="student360-profile-course-item"><span className="student360-summary-icon indigo"><UserRound size={18} /></span><div><span>Faculty</span><strong>{isSelectedCoursePending || isAwaitingSelectedCourseSchedule ? '-' : displayValue(selectedCourse.facultyName || student.facultyName)}</strong><small>{isSelectedCoursePending || isAwaitingSelectedCourseSchedule ? '-' : 'Assigned faculty'}</small></div></article>
         </div>
+        {isSelectedCoursePending ? <span className="student360-profile-upcoming-badge">Upcoming</span> : null}
       </section>
 
       {isMultiCourseStudent ? (
