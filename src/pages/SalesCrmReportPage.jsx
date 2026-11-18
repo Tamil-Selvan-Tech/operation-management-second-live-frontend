@@ -104,7 +104,7 @@ function MetricCard({ icon: Icon, label, value, helper, accent, percent = false,
     <span className="sales-crm-report-metric-link">View details <ArrowUpRight size={13} strokeWidth={2.2} aria-hidden="true" /></span>
   </button>
 }
-export function SalesCrmReportPage({ readOnlySalesAdmin = false, branchScoped = false, branchId = "", branchName = "" }) {
+export function SalesCrmReportPage({ readOnlySalesAdmin = false, branchScoped = false, branchId = "", branchName = "", salesAdminId = "" }) {
   const [report, setReport] = useState(null)
   const [draftFilters, setDraftFilters] = useState(defaultFilters)
   const [appliedFilters, setAppliedFilters] = useState(defaultFilters)
@@ -126,10 +126,10 @@ export function SalesCrmReportPage({ readOnlySalesAdmin = false, branchScoped = 
   const [reportBranches, setReportBranches] = useState([])
   const [readOnly, setReadOnly] = useState(() => readOnlySalesAdmin || String(loadSession()?.user?.status || '').toUpperCase() === 'INACTIVE' || loadSession()?.user?.active === false)
 
-  const effectiveAppliedFilters = branchScoped ? { ...appliedFilters, branchId } : appliedFilters
-  const effectiveDraftFilters = branchScoped ? { ...draftFilters, branchId } : draftFilters
+  const effectiveAppliedFilters = { ...(branchScoped ? { ...appliedFilters, branchId } : appliedFilters), ...(salesAdminId ? { assignedToId: salesAdminId } : {}) }
+  const effectiveDraftFilters = { ...(branchScoped ? { ...draftFilters, branchId } : draftFilters), ...(salesAdminId ? { assignedToId: salesAdminId } : {}) }
   const reportQuery = branchScoped && !branchId ? "" : buildQuery(effectiveAppliedFilters).toString()
-  const effectiveDownloadFilters = branchScoped ? { ...reportDownloadFilters, branchId } : reportDownloadFilters
+  const effectiveDownloadFilters = { ...(branchScoped ? { ...reportDownloadFilters, branchId } : reportDownloadFilters), ...(salesAdminId ? { assignedToId: salesAdminId } : {}) }
   const blockInactiveAction = () => {
     if (!readOnly) return false
     window.dispatchEvent(new CustomEvent('cispro:inactive-account-action-blocked', { detail: { message: 'Your account is currently inactive. You have view-only access. Please contact the Super Admin to reactivate your account.' } }))
@@ -325,7 +325,7 @@ export function SalesCrmReportPage({ readOnlySalesAdmin = false, branchScoped = 
     if (!normalizedSearch) return true
     return [lead.leadId, lead.studentName, lead.assignedTo, lead.branch, lead.stage, lead.status].some((value) => String(value || '').toLowerCase().includes(normalizedSearch))
   })
-  const pageSize = 10
+  const pageSize = 5
   const totalPages = Math.max(1, Math.ceil(filteredRows.length / pageSize))
   const currentPage = Math.min(tablePage, totalPages)
   const visibleRows = filteredRows.slice((currentPage - 1) * pageSize, currentPage * pageSize)

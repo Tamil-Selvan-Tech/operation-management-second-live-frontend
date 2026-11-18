@@ -76,6 +76,7 @@ export async function importLeadRows(rows, options = {}) {
 export function listPendingLeadImports(options = {}) {
   const params = new URLSearchParams()
   if (options.branchId) params.set('branchId', options.branchId)
+  if (options.salesAdminId) params.set('salesAdminId', options.salesAdminId)
   if (options.page) params.set('page', String(options.page))
   if (options.limit) params.set('limit', String(options.limit))
   return request(`/leads/import/pending${params.toString() ? `?${params}` : ''}`)
