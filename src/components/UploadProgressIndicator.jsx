@@ -4,6 +4,20 @@ import { dismissUpload, getUploadSnapshot, subscribeUploadProgress } from '../li
 import { loadSession } from '../lib/session'
 import { listActiveLeadImports } from '../services/leadImportService'
 
+function dismissedStorageKey(userId) {
+  return `cispro.dismissedUploadProgressIds:${userId || 'anonymous'}`
+}
+
+function readDismissedRemoteIds(userId) {
+  if (typeof window === 'undefined') return []
+  try {
+    const value = JSON.parse(window.localStorage.getItem(dismissedStorageKey(userId)) || '[]')
+    return Array.isArray(value) ? value : []
+  } catch {
+    return []
+  }
+}
+
 function statusText(item) {
   if (item.status === 'FAILED') return item.error || 'Upload failed'
   if (['COMPLETED', 'COMPLETED_WITH_ERRORS'].includes(String(item.status || '').toUpperCase())) {
@@ -11,7 +25,8 @@ function statusText(item) {
     const timestamp = completedAt ? new Date(completedAt).getTime() : NaN
     const elapsed = Number.isFinite(timestamp) ? Math.max(0, Date.now() - timestamp) : null
     const minutes = elapsed === null ? null : Math.floor(elapsed / 60000)
-    const ago = minutes === null ? '' : minutes < 1 ? 'just now' : minutes === 1 ? '1 min ago' : `${minutes} mins ago`
+    const hours = minutes === null ? null : Math.floor(minutes / 60)
+    const ago = minutes === null ? '' : minutes < 1 ? 'just now' : hours >= 1 ? `${hours} hr${hours === 1 ? '' : 's'} ago` : minutes === 1 ? '1 min ago' : `${minutes} mins ago`
     const label = item.status === 'COMPLETED_WITH_ERRORS' ? 'Upload completed with warnings' : 'Upload completed'
     return ago ? `${label} · ${ago}` : label
   }
@@ -25,7 +40,10 @@ function isRunning(item) {
 export function UploadProgressIndicator() {
   const [uploads, setUploads] = useState(getUploadSnapshot())
   const [sharedLeadUploads, setSharedLeadUploads] = useState([])
-  const [dismissedRemoteIds, setDismissedRemoteIds] = useState([])
+  const [dismissedRemoteIds, setDismissedRemoteIds] = useState(() => {
+    const user = loadSession()?.user || {}
+    return readDismissedRemoteIds(String(user.id || user.userId || ''))
+  })
   const [open, setOpen] = useState(false)
   const [, setClock] = useState(Date.now())
 
@@ -55,6 +73,12 @@ export function UploadProgressIndicator() {
 
   const sessionUser = loadSession()?.user || {}
   const currentUserId = String(sessionUser.id || sessionUser.userId || '')
+  const remoteDismissKey = dismissedStorageKey(currentUserId)
+
+  useEffect(() => {
+    try { window.localStorage.setItem(remoteDismissKey, JSON.stringify(dismissedRemoteIds)) } catch { /* best effort */ }
+  }, [dismissedRemoteIds, remoteDismissKey])
+
   const localVisibleUploads = uploads.filter((item) => item.type !== 'lead' || (currentUserId && item.visibleTo?.includes(currentUserId)))
   const remoteVisibleUploads = sharedLeadUploads.map((job) => ({ id: `server-${job.id}`, type: 'lead', uploadId: job.uploadId, label: job.fileName || 'Lead workbook', status: job.status, progress: job.progress, processed: job.processedRows, total: job.totalRows, completedAt: job.completedAt, updatedAt: job.updatedAt })).filter((item) => !dismissedRemoteIds.includes(item.id))
   const visibleUploads = [...localVisibleUploads, ...remoteVisibleUploads.filter((remote) => !localVisibleUploads.some((local) => local.uploadId && local.uploadId === remote.uploadId))]
