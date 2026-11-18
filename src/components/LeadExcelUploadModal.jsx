@@ -39,8 +39,9 @@ export function LeadExcelUploadModal({ isOpen, onClose, currentUser = {}, onImpo
   const [dragging, setDragging] = useState(false)
 
   const role = roleName(currentUser)
+  const isCombinedBranchAdmin = role === 'BRANCH_ADMIN' && String(currentUser?.roleAccess || currentUser?.managedBranch?.roleAccess || '').toUpperCase() === 'BRANCH_ADMIN_SALES_ADMIN'
   const branchLocked = role === 'BRANCH_ADMIN' || (role === 'SALES_ADMIN' && Boolean(targetData.lockedBranchId))
-  const targetLocked = role === 'SALES_ADMIN'
+  const targetLocked = role === 'SALES_ADMIN' || isCombinedBranchAdmin
   const rows = useMemo(() => preview?.rows || [], [preview?.rows])
   const visibleRows = useMemo(() => rows.slice((tablePage - 1) * PAGE_SIZE, tablePage * PAGE_SIZE), [rows, tablePage])
   const totalPages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE))
@@ -162,10 +163,10 @@ export function LeadExcelUploadModal({ isOpen, onClose, currentUser = {}, onImpo
       {error ? <div className="lead-import-notice is-error">{error}</div> : null}{notice ? <div className="lead-import-notice is-success">{notice}</div> : null}
       {step === 1 ? <div className="lead-import-body">
         <div className="lead-import-assignment">
-          <div><span>Upload destination</span><strong>{role === 'SUPER_ADMIN' ? 'Choose branch and Sales Admin' : role === 'BRANCH_ADMIN' ? 'Your branch - choose Sales Admin' : 'Your assigned branch and account'}</strong></div>
+          <div><span>Upload destination</span><strong>{role === 'SUPER_ADMIN' ? 'Choose branch and Sales Admin' : isCombinedBranchAdmin ? 'Your branch and account' : role === 'BRANCH_ADMIN' ? 'Your branch - choose Sales Admin' : 'Your assigned branch and account'}</strong></div>
           <div className="lead-import-assignment-fields">
             <label>Branch<select value={branchId} disabled={branchLocked || busy} onChange={(event) => setBranchId(event.target.value)}><option value="">Select branch</option>{(targetData.branches || []).map((branch) => <option key={branch.id} value={branch.id}>{branch.branchName}</option>)}</select></label>
-            <label>Sales Admin<select value={assignedToId} disabled={targetLocked || busy || !branchId} onChange={(event) => setAssignedToId(event.target.value)}><option value="">Select account</option>{(targetData.targets || []).map((target) => <option key={target.id} value={target.id}>{target.fullName} - {target.role === 'BRANCH_ADMIN' ? 'Branch + Sales' : 'Sales Admin'}</option>)}</select></label>
+            <label>Sales Admin<select value={assignedToId} disabled={targetLocked || busy || !branchId} onChange={(event) => setAssignedToId(event.target.value)}><option value="">Select account</option>{(targetData.targets || []).map((target) => <option key={target.id} value={target.id}>{target.fullName}{isCombinedBranchAdmin && target.id === (currentUser?.id || currentUser?.userId) ? ' (You)' : ` - ${target.role === 'BRANCH_ADMIN' ? 'Branch + Sales' : 'Sales Admin'}`}</option>)}</select></label>
           </div>
           {targetName ? <small>Leads will be assigned to <strong>{targetName}</strong> after import.</small> : null}
         </div>
