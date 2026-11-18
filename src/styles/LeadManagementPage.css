@@ -720,9 +720,9 @@ body:has(.lead-followup-backdrop) .branch-dashboard-app-shell .super-admin-sideb
 }
 
 .lead-filter-toolbar input[type='search'] {
-  flex: 0 1 220px;
-  min-width: 180px;
-  max-width: 220px;
+  flex: 0 1 320px;
+  min-width: 260px;
+  max-width: 320px;
 }
 
 /* Keep pagination visually outside the table container. */
@@ -1260,18 +1260,18 @@ body:has(.lead-followup-backdrop) .branch-dashboard-app-shell .super-admin-sideb
 body:has(.lead-profile-modal) .lead-list-tabs{display:none}
 
 /* Lead Excel pending-completion list */
-.lead-pending-table-card { display: none; overflow: hidden; border: 1px solid #dbe4f0; border-radius: 14px; background: #fff; box-shadow: 0 8px 20px rgba(15,23,42,.04); }
+.lead-pending-table-card { display: none; overflow: visible; border: 0; border-radius: 0; background: transparent; box-shadow: none; }
 .lead-pending-table-card.is-visible { display: block; }
 .lead-table-card.is-hidden { display: none; }
-.lead-pending-table-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; padding: 18px 20px; border-bottom: 1px solid #e4ebf4; }
+.lead-pending-table-head { display: none; }
 .lead-pending-table-head h3 { margin: 0 0 5px; color: #163c70; font-size: 17px; }
 .lead-pending-table-head p { margin: 0; color: #64748b; font-size: 12px; line-height: 1.5; }
 .lead-pending-table-head > span { flex: 0 0 auto; border-radius: 999px; padding: 7px 11px; color: #7c4a03; background: #fff4d8; font-size: 12px; font-weight: 700; }
 .lead-pending-complete-button { padding: 8px 12px; font-size: 12px; white-space: nowrap; }
-.lead-pending-table-card .lead-table { min-width: 920px; }
+.lead-pending-table-card .lead-table { min-width: 1250px; }
 @media (max-width: 720px) { .lead-pending-table-head { flex-direction: column; padding: 15px; } .lead-pending-table-head > span { align-self: flex-start; } }
 
-.lead-course-warning { display: inline-flex; align-items: center; width: fit-content; margin-top: 5px; padding: 3px 8px; border: 1px solid #f3d39a; border-radius: 999px; background: #fff7e6; color: #9a5b00; font-size: 10px; font-weight: 700; line-height: 1.25; white-space: nowrap; }
+.lead-course-warning { display: block; width: fit-content; margin-top: 5px; padding: 3px 8px; border: 1px solid #f3d39a; border-radius: 999px; background: #fff7e6; color: #9a5b00; font-size: 10px; font-weight: 700; line-height: 1.25; white-space: nowrap; }
 
 /* Consistent, compact pagination for active, pending and deleted lead lists. */
 .lead-pagination { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; padding: 14px 4px 4px; color: #64748b; font-size: 12px; }
@@ -1286,7 +1286,7 @@ body:has(.lead-profile-modal) .lead-list-tabs{display:none}
 @media (max-width: 720px) {
   .lead-pagination { align-items: flex-start; flex-direction: column; padding-inline: 0; }
   .lead-pagination-controls { width: 100%; justify-content: flex-start; }
-  .lead-pagination-edge { min-width: 34px !important; padding-inline: 7px !important; font-size: 0 !important; }
+  .lead-pagination-edge { min-width: 34px !important; padding-inline: 7px !important; font-size: 12px !important; }
   .lead-pagination-edge:first-child::before { content: '«'; font-size: 14px; }
   .lead-pagination-edge:nth-child(2)::before { content: '‹'; font-size: 18px; }
   .lead-pagination-edge:nth-last-child(2)::before { content: '›'; font-size: 18px; }
@@ -1294,7 +1294,11 @@ body:has(.lead-profile-modal) .lead-list-tabs{display:none}
 }
 
 .lead-tab-count { display: inline-flex; align-items: center; justify-content: center; min-width: 20px; height: 20px; margin-left: 6px; padding: 0 6px; border-radius: 999px; background: #eef4ff; color: #2563eb; font-size: 11px; font-weight: 800; line-height: 1; vertical-align: middle; }
+.lead-pagination-edge::before { content: none !important; }
 .lead-list-tabs button.is-active .lead-tab-count { background: #2563eb; color: #fff; }
+
+/* Pending Completion does not use stage filtering. */
+.lead-management-page:has(.lead-pending-table-card.is-visible) .lead-filter-toolbar select:nth-of-type(3) { display: none; }
 
 /* Pending completion actions stay visible even when the shared lead-table column rules are applied. */
 .lead-pending-table-card .lead-table th:last-child,
@@ -1304,6 +1308,7 @@ body:has(.lead-profile-modal) .lead-list-tabs{display:none}
   width: 120px;
   white-space: nowrap;
 }
+.lead-pending-table-card .lead-table-scroll { border: 1px solid #dbe4f0; border-radius: 14px; background: #fff; box-shadow: 0 8px 20px rgba(15, 23, 42, .04); }
 .lead-pending-table-card .lead-table-scroll { overflow-x: auto !important; overflow-y: visible !important; }
 .lead-pending-table-card .lead-pending-complete-button { display: inline-flex !important; align-items: center; justify-content: center; min-width: 90px; }
 

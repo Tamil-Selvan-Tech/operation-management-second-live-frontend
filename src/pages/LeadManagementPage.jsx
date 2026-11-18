@@ -32,7 +32,6 @@ function LeadPagination({ meta = {}, page = 1, onPageChange, label = 'leads' }) 
   return <nav className="lead-pagination" aria-label={label + ' pagination'}>
     <span className="lead-pagination-summary">Showing {start}-{end} of {total} {label}</span>
     <div className="lead-pagination-controls">
-      <button type="button" className="lead-pagination-edge" disabled={current <= 1} onClick={() => onPageChange(1)}>First</button>
       <button type="button" className="lead-pagination-edge" disabled={current <= 1} onClick={() => onPageChange(current - 1)}>Previous</button>
       {items.map((item, index) => {
         const previous = items[index - 1]
@@ -40,7 +39,6 @@ function LeadPagination({ meta = {}, page = 1, onPageChange, label = 'leads' }) 
         return <span key={item}>{gap ? <span className="lead-pagination-ellipsis">…</span> : null}<button type="button" className={item === current ? 'is-current' : ''} aria-current={item === current ? 'page' : undefined} onClick={() => onPageChange(item)}>{item}</button></span>
       })}
       <button type="button" className="lead-pagination-edge" disabled={current >= totalPages} onClick={() => onPageChange(current + 1)}>Next</button>
-      <button type="button" className="lead-pagination-edge" disabled={current >= totalPages} onClick={() => onPageChange(totalPages)}>Last</button>
     </div>
   </nav>
 }

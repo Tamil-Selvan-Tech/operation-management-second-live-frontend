@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { CheckCircle2, Download, Edit3, FileSpreadsheet, LoaderCircle, RefreshCw, Save, Trash2, Upload, X } from 'lucide-react'
+import { CheckCircle2, Download, FileSpreadsheet, LoaderCircle, Pencil, RefreshCw, Save, Trash2, Upload, X } from 'lucide-react'
 import { downloadLeadImportTemplate, getLeadImportTargets, importLeadRows, previewLeadImport, revalidateLeadImport } from '../services/leadImportService'
 import { completeUpload, failUpload, getUploadSnapshot, startUpload, updateUpload } from '../lib/uploadProgressStore'
 import '../styles/LeadExcelUploadModal.css'
@@ -149,10 +149,16 @@ export function LeadExcelUploadModal({ isOpen, onClose, currentUser = {}, onImpo
   })
   const targetName = targetData.targets?.find((item) => item.id === assignedToId)?.fullName || ''
 
-  return <div className="lead-import-backdrop" role="presentation" onClick={(event) => { if (event.target === event.currentTarget) onClose?.() }}>
+  return <div className="lead-import-backdrop" role="presentation">
     <section className="lead-import-modal" role="dialog" aria-modal="true" aria-labelledby="lead-import-title">
       <header className="lead-import-header"><div><p className="lead-import-eyebrow">SALES CRM</p><h2 id="lead-import-title">Upload Lead Excel</h2><p>Upload, validate and assign leads without a row-count restriction.</p></div><button type="button" className="lead-import-close" onClick={onClose} aria-label="Close"><X size={19} /></button></header>
-      <div className="lead-import-stepper">{['Upload lead excel', 'Review & validate', 'Import results'].map((label, index) => <div key={label} className={step === index + 1 ? 'is-active' : step > index + 1 ? 'is-complete' : ''}><span>{step > index + 1 ? <CheckCircle2 size={15} /> : index + 1}</span><strong>{label}</strong></div>)}</div>
+      <div className="lead-import-stepper">{['Upload lead excel', 'Review & validate', 'Import results'].map((label, index) => {
+        const stepNumber = index + 1
+        const canNavigate = stepNumber === 1 || (stepNumber === 2 && Boolean(preview)) || (stepNumber === 3 && Boolean(importStatus))
+        return <button key={label} type="button" className={step === stepNumber ? 'is-active' : step > stepNumber ? 'is-complete' : ''} onClick={() => { if (canNavigate) setStep(stepNumber) }} disabled={!canNavigate} aria-current={step === stepNumber ? 'step' : undefined}>
+          <span>{step > stepNumber ? <CheckCircle2 size={15} /> : stepNumber}</span><strong>{label}</strong>
+        </button>
+      })}</div>
       {error ? <div className="lead-import-notice is-error">{error}</div> : null}{notice ? <div className="lead-import-notice is-success">{notice}</div> : null}
       {step === 1 ? <div className="lead-import-body">
         <div className="lead-import-assignment">
@@ -164,8 +170,8 @@ export function LeadExcelUploadModal({ isOpen, onClose, currentUser = {}, onImpo
           {targetName ? <small>Leads will be assigned to <strong>{targetName}</strong> after import.</small> : null}
         </div>
         <div className={'lead-import-dropzone ' + (dragging ? 'is-dragging' : '')} onDragOver={(event) => { event.preventDefault(); setDragging(true) }} onDragLeave={() => setDragging(false)} onDrop={(event) => { event.preventDefault(); setDragging(false); void selectFile(event.dataTransfer.files?.[0]) }}>
-          <FileSpreadsheet size={38} /><h3>Drop your lead workbook here</h3><p>Name and mobile are required. Core-only rows go to Pending Completion; complete rows go to Active Leads.</p>
-          <button type="button" className="lead-import-primary" onClick={() => inputRef.current?.click()} disabled={busy || !branchId || !assignedToId}>{busy ? <><LoaderCircle className="lead-import-spin" size={16} /> Validating...</> : <><Upload size={16} /> Choose Excel file</>}</button>
+          <FileSpreadsheet size={38} /><h3>{file ? file.name : 'Drop your lead workbook here'}</h3><p>{file ? 'Excel file selected. Your uploaded file is preserved while you review or edit the rows.' : 'Name and mobile are required. Core-only rows go to Pending Completion; complete rows go to Active Leads.'}</p>
+          <button type="button" className="lead-import-primary" onClick={() => inputRef.current?.click()} disabled={busy || !branchId || !assignedToId}>{busy ? <><LoaderCircle className="lead-import-spin" size={16} /> Validating...</> : <><Upload size={16} /> {file ? 'Choose another Excel file' : 'Choose Excel file'}</>}</button>
           <input ref={inputRef} type="file" accept=".xlsx" hidden onChange={(event) => void selectFile(event.target.files?.[0])} />
         </div>
         <div className="lead-import-template"><div><strong>Need the correct format?</strong><span>Download the template with sample rows in the Lead Data sheet.</span></div><button type="button" className="lead-import-secondary" onClick={() => void downloadLeadImportTemplate()} disabled={busy}><Download size={15} /> Download template</button></div>
@@ -182,7 +188,7 @@ export function LeadExcelUploadModal({ isOpen, onClose, currentUser = {}, onImpo
             <td><span className={'lead-import-status status-' + String(row.status || '').toLowerCase()}>{statusLabel(row.status)}</span>{row.errors?.length ? <small>{row.errors.join(' ')}</small> : null}</td>
             <td className="lead-import-actions-cell">{rowEditing
               ? <><button type="button" className="lead-import-save" onClick={() => void saveEdit()} disabled={busy}>{busy ? <LoaderCircle className="lead-import-spin" size={14} /> : <Save size={14} />} {busy ? 'Checking…' : 'Save'}</button><button type="button" className="lead-import-cancel" onClick={() => setEditingRow(null)} disabled={busy}>Cancel</button></>
-              : <><button type="button" className="lead-import-icon-button" onClick={() => beginEdit(row)} aria-label="Edit row"><Edit3 size={14} /> Edit</button><button type="button" className="lead-import-remove" onClick={() => removeRow(row.rowNumber)}><Trash2 size={13} /> Remove</button></>}
+              : <><button type="button" className="lead-import-icon-button" onClick={() => beginEdit(row)} aria-label="Edit row"><Pencil size={14} /> Edit</button><button type="button" className="lead-import-remove" onClick={() => removeRow(row.rowNumber)}><Trash2 size={13} /> Remove</button></>}
             </td>
           </tr>
         })}</tbody></table>{!visibleRows.length ? <p className="lead-import-empty">No rows in this preview.</p> : null}</div>
