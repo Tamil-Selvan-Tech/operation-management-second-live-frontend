@@ -145,6 +145,19 @@
 .student360-performance-result.is-empty strong { color: #94a3b8; }
 .student360-performance-error { display: flex; align-items: center; justify-content: space-between; gap: 12px; color: #b91c1c; font-size: 12px; }
 .student360-performance-error button { padding: 6px 10px; border: 1px solid #fecaca; border-radius: 7px; color: #b91c1c; background: #fff; font: inherit; font-weight: 750; cursor: pointer; }
+.student360-profile-course-grid { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; padding-top: 18px; border-top: 1px solid rgba(15, 118, 110, .12); }
+.student360-profile-course-item { display: flex; align-items: flex-start; gap: 10px; min-width: 0; padding: 13px 14px; border: 1px solid rgba(148, 163, 184, .25); border-radius: 12px; background: rgba(255, 255, 255, .72); }
+.student360-profile-course-item > div { min-width: 0; }
+.student360-profile-course-item span:not(.student360-summary-icon) { display: block; color: #64748b; font-size: 10px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; }
+.student360-profile-course-item strong { display: block; margin-top: 4px; overflow: hidden; color: #1e293b; font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
+.student360-profile-course-item small { display: block; margin-top: 4px; overflow: hidden; color: #475569; font-size: 11px; font-weight: 650; text-overflow: ellipsis; white-space: nowrap; }
+.student360-profile-card:has(.student360-profile-upcoming-badge) { position: relative; margin-bottom: 22px; }
+.student360-profile-upcoming-badge { position: absolute; z-index: 2; right: 24px; bottom: -36px; left: auto; display: inline-flex; align-items: center; width: fit-content; margin: 0; padding: 4px 10px; border: 1px solid #f4cf70; border-radius: 999px; color: #a16207; background: #fff8dc; font-size: 10px; font-weight: 800; text-transform: uppercase; }
+.student360-summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.student360-summary-grid > .student360-summary-card:nth-child(-n+3) { display: none; }
+.student360-personal-information { width: 100%; }
+.student360-summary-academic-progress-card > .student360-upcoming-badge:not(.student360-schedule-batch-trigger) { display: none !important; }
+@media (max-width: 640px) { .student360-profile-course-grid, .student360-summary-grid { grid-template-columns: 1fr; } }
 .student360-schedule-batch-trigger { cursor: pointer; font-family: inherit; }
 .student360-schedule-batch-trigger:hover { border-color: #14b8a6; color: #115e59 !important; background: #ccfbf1; }
 .student360-assignment-open .branch-dashboard-sidebar,
@@ -203,6 +216,101 @@
 .student360-performance-ring.is-empty span { color: #94a3b8; }
 .student360-skill-footer { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 14px; padding-top: 11px; border-top: 1px solid #eef6f4; color: #718096; font-size: 10px; }
 .student360-skill-footer strong, .student360-academic-copy > strong { display: inline-flex; align-items: center; gap: 5px; color: #16856f; font-size: 10px; white-space: nowrap; }
+.student360-skill-breakdown { display: grid; gap: 5px; margin-top: 14px; padding: 10px 0; border-top: 1px solid #eef6f4; border-bottom: 1px solid #eef6f4; color: #718096; font-size: 11px; }
+.student360-skill-breakdown span { display: flex; justify-content: space-between; gap: 12px; }
+.student360-skill-breakdown strong { color: #245b57; font-weight: 800; }
+.student360-performance-sections > .student360-skills-block { display: none; }
+.student360-performance-sections > .student360-academic-block { display: none; }
+.student360-skill-chart { min-width: 0; }
+.student360-skill-chart-legend { display: flex; flex-wrap: wrap; gap: 14px 22px; margin: 2px 0 18px; color: #61758b; font-size: 11px; font-weight: 700; }
+.student360-skill-chart-legend span { display: inline-flex; align-items: center; gap: 7px; }
+.student360-skill-chart-legend i { width: 9px; height: 9px; border-radius: 3px; background: #4f8edb; }
+.student360-skill-chart-legend i.assessment { background: #1ca99a; }
+.student360-skill-chart-legend i.overall { background: #8b72d8; }
+.student360-skill-chart-body { display: grid; grid-template-columns: 42px minmax(0, 1fr); gap: 12px; min-height: 235px; }
+.student360-skill-chart-y-axis { display: grid; grid-template-rows: repeat(6, 1fr); align-items: end; padding: 0 0 27px; color: #8a9bad; font-size: 10px; text-align: right; }
+.student360-skill-chart-y-axis span { transform: translateY(50%); }
+.student360-skill-chart-plot { position: relative; min-width: 0; padding: 0 10px 0 0; }
+.student360-skill-chart-gridlines { position: absolute; inset: 0 0 27px; display: grid; grid-template-rows: repeat(6, 1fr); pointer-events: none; }
+.student360-skill-chart-gridlines i { display: block; border-top: 1px solid #e7eff1; }
+.student360-skill-chart-groups { position: relative; z-index: 1; display: flex; align-items: stretch; gap: clamp(18px, 5vw, 64px); min-height: 100%; padding: 0 14px; overflow-x: auto; }
+.student360-skill-chart-group { display: grid; flex: 0 0 clamp(96px, 14vw, 140px); grid-template-rows: 1fr auto; min-height: 100%; }
+.student360-skill-chart-bars { display: flex; align-items: flex-end; justify-content: center; gap: 7px; min-height: 0; padding: 0 0 8px; border-bottom: 1px solid #dbe7e9; }
+.student360-skill-chart-bar-wrap { display: flex; flex: 0 0 24px; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; gap: 5px; }
+.student360-skill-chart-value { color: #41566d; font-size: 9px; font-weight: 800; white-space: nowrap; }
+.student360-skill-chart-value.is-empty { color: #a7b4bf; }
+.student360-skill-chart-bar { width: 24px; min-height: 2px; border-radius: 5px 5px 0 0; background: #4f8edb; transition: height .2s ease; }
+.student360-skill-chart-bar.assessment { background: #1ca99a; }
+.student360-skill-chart-bar.overall { background: #8b72d8; }
+.student360-skill-chart-module-name { display: block; min-height: 28px; padding-top: 9px; overflow-wrap: anywhere; color: #52677c; font-size: 10px; font-weight: 750; line-height: 1.25; text-align: center; }
+@media (max-width: 640px) { .student360-skill-chart-body { grid-template-columns: 34px minmax(0, 1fr); gap: 7px; min-height: 210px; }.student360-skill-chart-groups { gap: 22px; padding: 0 8px; }.student360-skill-chart-group { flex-basis: 92px; }.student360-skill-chart-bar-wrap, .student360-skill-chart-bar { flex-basis: 20px; width: 20px; }.student360-skill-chart-bars { gap: 5px; } }
+.student360-academic-chart { min-width: 0; }
+.student360-academic-chart-legend { display: flex; flex-wrap: wrap; gap: 14px 22px; margin: 2px 0 18px; color: #61758b; font-size: 11px; font-weight: 700; }
+.student360-academic-chart-legend span { display: inline-flex; align-items: center; gap: 7px; }
+.student360-academic-chart-legend i { width: 9px; height: 9px; border-radius: 3px; background: #4f8edb; }
+.student360-academic-chart-legend i.project { background: #1ca99a; }
+.student360-academic-chart-legend i.combined { background: #8b72d8; }
+.student360-academic-chart-body { display: grid; grid-template-columns: 42px minmax(0, 1fr); gap: 12px; min-height: 235px; }
+.student360-academic-chart-groups { position: relative; z-index: 1; display: flex; align-items: stretch; justify-content: space-evenly; flex-wrap: wrap; gap: 18px 14px; min-height: 100%; padding: 0 14px; overflow-x: hidden; }
+.student360-academic-chart-group { display: grid; flex: 1 1 100px; grid-template-rows: 1fr auto auto; min-width: 88px; max-width: 150px; min-height: 100%; text-align: center; }
+.student360-academic-chart-bar-wrap { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 5px; min-height: 0; padding-bottom: 8px; border-bottom: 1px solid #dbe7e9; }
+.student360-academic-chart-bar { width: 36px; min-height: 2px; border-radius: 6px 6px 0 0; background: #4f8edb; transition: height .2s ease; }
+.student360-academic-chart-bar.project { background: #1ca99a; }
+.student360-academic-chart-bar.combined { background: #8b72d8; }
+.student360-academic-chart-name { min-height: 28px; padding-top: 9px; overflow-wrap: anywhere; color: #52677c; font-size: 10px; font-weight: 750; line-height: 1.25; }
+.student360-academic-chart-status { display: inline-flex; align-items: center; justify-content: center; gap: 5px; min-height: 20px; color: #16856f; font-size: 9px; font-weight: 750; white-space: nowrap; }
+.student360-academic-chart-status i { width: 6px; height: 6px; border-radius: 50%; background: #20b486; }
+.student360-academic-chart-group:has(.student360-skill-chart-value.is-empty) .student360-academic-chart-status { font-size: 0; }
+.student360-academic-chart-group:has(.student360-skill-chart-value.is-empty) .student360-academic-chart-status::after { content: 'Not Submitted'; font-size: 9px; }
+@media (max-width: 640px) { .student360-academic-chart-body { grid-template-columns: 34px minmax(0, 1fr); gap: 7px; min-height: 210px; }.student360-academic-chart-groups { justify-content: space-evenly; gap: 18px 8px; padding: 0 8px; }.student360-academic-chart-group { flex-basis: 82px; }.student360-academic-chart-bar { width: 28px; } }
+
+/* Compact Student 360 layout aligned with the reference dashboard. */
+.student360-profile-card { grid-template-columns: auto minmax(0, 1fr) auto; gap: 14px 20px; padding: 14px 22px 10px; border-color: #b9eee8; border-radius: 16px; background: linear-gradient(135deg, #fff 0%, #f5fbff 52%, #effcf8 100%); box-shadow: 0 8px 22px rgba(15, 118, 110, .06); }
+.student360-avatar { width: 58px; height: 58px; border-radius: 16px; font-size: 20px; }
+.student360-eyebrow { font-size: 10px; }
+.student360-title-row { align-items: center; margin-top: 4px; }
+.student360-title-row h1 { font-size: clamp(24px, 3vw, 31px); }
+.student360-title-row p { font-size: 12px; }
+.student360-status { display: inline-flex !important; padding: 6px 10px; color: #0f9f7c; background: #e8fbf4; }
+.student360-profile-actions { min-width: 250px; flex-direction: row; justify-content: flex-end; }
+.student360-profile-actions .student360-primary-button, .student360-profile-actions .student360-secondary-button { min-height: 38px; }
+.student360-profile-course-grid { gap: 0; padding-top: 10px; }
+.student360-profile-course-item { min-height: 40px; padding: 4px 22px; border: 0; border-radius: 0; background: transparent; }
+.student360-profile-course-item + .student360-profile-course-item { border-left: 1px solid #cbdde9; }
+.student360-profile-course-item .student360-summary-icon { width: 32px; height: 32px; border-radius: 10px; }
+.student360-profile-course-item strong { font-size: 14px; }
+
+.student360-page > .student360-card:has(.student360-attendance-summary-cards) { padding: 13px 16px 15px; border-radius: 16px; box-shadow: 0 6px 18px rgba(15, 23, 42, .035); }
+.student360-page > .student360-card:has(.student360-attendance-summary-cards) .student360-card-heading h2 { font-size: 18px; }
+.student360-page > .student360-card:has(.student360-attendance-summary-cards) .student360-card-heading h2 { font-size: 0; }
+.student360-page > .student360-card:has(.student360-attendance-summary-cards) .student360-card-heading h2::after { content: 'Attendance Overview'; font-size: 18px; }
+.student360-attendance-course-meta { margin: 0 4px 12px; font-size: 11px; }
+.student360-attendance-summary-cards { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0; border: 1px solid #dbe7f1; border-radius: 14px; background: linear-gradient(135deg, #f8fbff, #fff); }
+.student360-attendance-summary-card { display: grid; gap: 3px; min-height: 82px; padding: 12px 20px; border: 0; border-radius: 0; background: transparent; }
+.student360-attendance-summary-card + .student360-attendance-summary-card { border-left: 1px solid #cbdde9; }
+.student360-attendance-summary-card strong { margin: 1px 0 0; font-size: 24px; }
+
+.student360-summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; padding: 18px 20px 20px; border: 1px solid #dbe7f1; border-radius: 16px; background: #fff; box-shadow: 0 6px 18px rgba(15, 23, 42, .035); }
+.student360-summary-grid { width: 100%; grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+.student360-summary-grid::before { grid-column: 1 / -1; content: 'Academic Progress'; color: #102a43; font-size: 18px; font-weight: 800; letter-spacing: -.02em; }
+.student360-summary-grid > .student360-summary-card:nth-child(-n+3) { display: none; }
+.student360-summary-card { min-height: 90px; padding: 12px 15px; border-radius: 13px; box-shadow: none; }
+.student360-summary-card { width: 100%; min-width: 0; }
+.student360-summary-card strong { overflow: visible; text-overflow: clip; white-space: normal; word-break: normal; }
+.student360-summary-card strong { font-size: 18px; }
+.student360-summary-progress-track { height: 7px; margin-top: 12px; }
+.student360-summary-grid { grid-template-columns: repeat(2, minmax(190px, 240px)) !important; justify-content: start; }
+.student360-summary-card { max-width: 240px; }
+
+.student360-personal-information { padding: 18px 20px 20px; border-radius: 16px; box-shadow: 0 6px 18px rgba(15, 23, 42, .035); }
+.student360-personal-information .student360-card-heading { margin-bottom: 13px; padding-bottom: 10px; border-bottom: 1px solid #e2edf3; }
+.student360-personal-information .student360-card-heading p { display: none; }
+.student360-personal-information .student360-detail-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0; border: 0; border-radius: 0; background: transparent; }
+.student360-personal-information .student360-detail-item { align-items: center; min-height: 56px; padding: 10px 16px 10px 8px; background: transparent; }
+.student360-personal-information .student360-detail-item + .student360-detail-item { border-left: 1px solid #dbe7f1; }
+
+@media (max-width: 900px) { .student360-profile-actions { min-width: 0; }.student360-personal-information .student360-detail-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }.student360-personal-information .student360-detail-item:nth-child(odd) { border-left: 0; } }
+@media (max-width: 640px) { .student360-profile-card { grid-template-columns: auto minmax(0, 1fr); padding: 18px; }.student360-profile-actions { grid-column: 1 / -1; display: flex; }.student360-profile-course-grid { grid-template-columns: 1fr; gap: 8px; }.student360-profile-course-item { padding: 6px 0; }.student360-profile-course-item + .student360-profile-course-item { border-top: 1px solid #dbe7f1; border-left: 0; }.student360-attendance-summary-cards, .student360-summary-grid { grid-template-columns: 1fr; }.student360-attendance-summary-card + .student360-attendance-summary-card { border-top: 1px solid #dbe7f1; border-left: 0; }.student360-summary-grid::before { margin-bottom: 2px; }.student360-personal-information .student360-detail-grid { grid-template-columns: 1fr; }.student360-personal-information .student360-detail-item + .student360-detail-item { border-top: 1px solid #dbe7f1; border-left: 0; } }
 .student360-skill-footer i, .student360-academic-copy i { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #20b486; }
 .student360-academic-grid { grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
 .student360-academic-card { display: flex; align-items: center; gap: 12px; min-height: 90px; padding: 13px; }
@@ -307,3 +415,6 @@
 .student360-performance-result.is-empty strong { color: #94a3b8; }
 .student360-performance-error { display: flex; align-items: center; justify-content: space-between; gap: 12px; color: #b91c1c; font-size: 12px; }
 .student360-performance-error button { padding: 6px 10px; border: 1px solid #fecaca; border-radius: 7px; color: #b91c1c; background: #fff; font: inherit; font-weight: 750; cursor: pointer; }
+.student360-summary-grid { grid-template-columns: repeat(2, minmax(190px, 240px)) !important; justify-content: start; }
+.student360-summary-card { max-width: 240px; }
+@media (max-width: 640px) { .student360-summary-grid { grid-template-columns: 1fr !important; }.student360-summary-card { max-width: none; } }

@@ -40,7 +40,7 @@ import { PaginationBar } from '../components/PaginationBar'
 import { SuperAdminNotificationBell } from '../components/SuperAdminNotificationBell'
 import { UploadProgressIndicator } from '../components/UploadProgressIndicator'
 import { BranchAttendanceReportModal } from '../components/BranchAttendanceReportModal'
-import { getBranchAdminAttendanceStatusForSuperAdmin } from '../services/attendanceService'
+import { getBranchAdminAttendanceStatusForSuperAdmin, getBranchFacultyAttendanceStatus } from '../services/attendanceService'
 import { listAllBranchCourses } from '../services/branchCourseService'
 import { listBranchBatches } from '../services/branchBatchService'
 import { listFacultyTodayWorkEntries } from '../lib/facultyTodayWorkStore'
@@ -92,9 +92,54 @@ function getSuperAdminFacultyBatches(faculty = {}, batchGroups = []) {
     })
 }
 
+function facultyWorkLogStatusLabel(status) {
+  return {
+    LOGGED_IN: 'Logged In',
+    WEBSITE_LOGGED_OUT_WORKLOG_ACTIVE: 'Logged In',
+    WORKLOG_COMPLETED: 'Logged Out',
+    AUTO_CLOSED: 'Logged Out',
+    NOT_LOGGED_IN: 'Not Logged In',
+  }[String(status || '').toUpperCase()] || 'Not Logged In'
+}
+
+function facultyWorkLogTime(value) {
+  if (!value) return '—'
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? '—' : new Intl.DateTimeFormat('en-IN', { timeZone: 'Asia/Kolkata', hour: 'numeric', minute: '2-digit', hour12: true }).format(date)
+}
+
+function facultyWorkLogDuration(seconds) {
+  const total = Math.max(0, Math.floor(Number(seconds) || 0))
+  return [Math.floor(total / 3600), Math.floor((total % 3600) / 60), total % 60].map((part) => String(part).padStart(2, '0')).join(':')
+}
+
+function liveFacultyWorkSeconds(status, now) {
+  const base = Math.max(0, Math.floor(Number(status?.workingSeconds) || 0))
+  if (!['LOGGED_IN', 'WEBSITE_LOGGED_OUT_WORKLOG_ACTIVE'].includes(String(status?.status || '').toUpperCase())) return base
+  const serverTime = new Date(status?.currentServerTime || '').getTime()
+  return Number.isFinite(serverTime) ? base + Math.max(0, Math.floor((now - serverTime) / 1000)) : base
+}
+
 function SuperAdminFacultyDetailsDrawer({ faculty, batchGroups, onClose }) {
   const [activeTab, setActiveTab] = useState('details')
+  const [attendanceStatus, setAttendanceStatus] = useState(null)
+  const [attendanceNow, setAttendanceNow] = useState(() => Date.now())
   const assignedBatches = useMemo(() => getSuperAdminFacultyBatches(faculty, batchGroups), [batchGroups, faculty])
+
+  useEffect(() => {
+    let active = true
+    queueMicrotask(() => { if (active) setAttendanceStatus(null) })
+    getBranchFacultyAttendanceStatus(faculty?.id || faculty?.facultyId)
+      .then((next) => { if (active) setAttendanceStatus(next || null) })
+      .catch(() => { if (active) setAttendanceStatus(null) })
+    return () => { active = false }
+  }, [faculty?.id, faculty?.facultyId])
+
+  useEffect(() => {
+    if (!attendanceStatus) return undefined
+    const timerId = window.setInterval(() => setAttendanceNow(Date.now()), 1000)
+    return () => window.clearInterval(timerId)
+  }, [attendanceStatus])
 
   return (
     <div className="super-admin-faculty-drawer-backdrop" role="presentation" onClick={onClose}>
@@ -103,12 +148,22 @@ function SuperAdminFacultyDetailsDrawer({ faculty, batchGroups, onClose }) {
           <div><p className="branch-management-kicker">FACULTY DETAILS</p><h2 id="super-admin-faculty-title">{faculty.name || faculty.facultyName || '-'}</h2><span>{faculty.facultyId || '-'}</span></div>
           <button type="button" onClick={onClose} aria-label="Close faculty details"><X size={22} /></button>
         </header>
+        <section className="super-admin-faculty-work-log">
+          <div className="super-admin-faculty-work-log-heading"><h3>Today's Work Log</h3></div>
+          <div className="super-admin-faculty-work-log-grid">
+            <div><span>Status</span><strong className={`is-${String(attendanceStatus?.status || 'NOT_LOGGED_IN').toLowerCase().replaceAll('_', '-')}`}>{facultyWorkLogStatusLabel(attendanceStatus?.status)}</strong></div>
+            <div><span>Login Time</span><strong>{facultyWorkLogTime(attendanceStatus?.firstLoginAt)}</strong></div>
+            <div><span>Logout Time</span><strong>{facultyWorkLogTime(attendanceStatus?.finalLogoutAt)}</strong></div>
+            <div><span>Total Duration</span><strong>{facultyWorkLogDuration(liveFacultyWorkSeconds(attendanceStatus, attendanceNow))}</strong></div>
+          </div>
+        </section>
         <div className="super-admin-faculty-drawer-tabs" role="tablist" aria-label="Faculty detail tabs">
           <button type="button" className={activeTab === 'details' ? 'is-active' : ''} onClick={() => setActiveTab('details')}>DETAILS</button>
           <button type="button" className={activeTab === 'batches' ? 'is-active' : ''} onClick={() => setActiveTab('batches')}>BATCHES &amp; STUDENTS <span>{assignedBatches.length}</span></button>
         </div>
         <div className="super-admin-faculty-drawer-body">
           {activeTab === 'details' ? (
+            <>
             <div className="super-admin-faculty-info-table">
               {[
                 ['Faculty ID', faculty.facultyId],
@@ -122,6 +177,7 @@ function SuperAdminFacultyDetailsDrawer({ faculty, batchGroups, onClose }) {
                 ['Address', faculty.address],
               ].map(([label, value]) => <div className="super-admin-faculty-info-row" key={label}><span>{label}</span><strong>{value || '-'}</strong></div>)}
             </div>
+            </>
           ) : (
             <section className="super-admin-faculty-batches-panel">
               <div className="super-admin-faculty-batches-heading"><div><h3>Assigned batches</h3></div><strong>{assignedBatches.length} batch{assignedBatches.length === 1 ? '' : 'es'}</strong></div>

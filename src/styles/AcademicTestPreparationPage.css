@@ -57,3 +57,5 @@
 .academic-preparation-loading-row span.is-wide { width:82%; }
 @keyframes academic-preparation-skeleton-shimmer { 0% { background-position:120% 0; } 100% { background-position:-120% 0; } }
 @media(max-width:700px) { .academic-preparation-loading-table { overflow-x:auto; } .academic-preparation-loading-row { min-width:720px; } }
+.academic-preparation-page.is-test-and-project .academic-preparation-card .academic-test-primary:not(.academic-preparation-combined-action) { display:none; }
+.academic-preparation-combined-footer { justify-content:flex-end; margin-top:4px; }

@@ -7457,6 +7457,66 @@ body.super-admin-sidebar-open {
   width: 0;
 }
 
+.super-admin-faculty-work-log {
+  margin: 18px 24px 0;
+  padding: 14px;
+  border: 1px solid #dbe4f0;
+  border-radius: 12px;
+  background: #fbfdff;
+}
+
+.super-admin-faculty-work-log-heading h3 {
+  margin: 0 0 10px;
+  color: #2868d2;
+  font-size: 15px;
+}
+
+.super-admin-faculty-work-log-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.super-admin-faculty-work-log-grid > div {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+  padding: 9px 10px;
+  border: 1px solid #e2eaf4;
+  border-radius: 9px;
+  background: #fff;
+}
+
+.super-admin-faculty-work-log-grid span {
+  color: #71829a;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
+.super-admin-faculty-work-log-grid strong {
+  color: #29415f;
+  font-size: 12px;
+}
+
+.super-admin-faculty-work-log-grid strong.is-logged-in {
+  color: #078456;
+}
+
+.super-admin-faculty-work-log-grid strong.is-website-logged-out-worklog-active {
+  color: #078456;
+}
+
+.super-admin-faculty-work-log-grid strong.is-worklog-completed,
+.super-admin-faculty-work-log-grid strong.is-auto-closed {
+  color: #c73535;
+}
+
+.super-admin-faculty-work-log-grid strong.is-not-logged-in {
+  color: #718096;
+}
+
 .super-admin-faculty-info-table {
   overflow: hidden;
   border: 1px solid #dbe4f0;

@@ -230,6 +230,16 @@
   opacity: .65;
 }
 
+.branch-admin-attendance-logout {
+  margin-left: auto;
+  background: #c62828;
+  box-shadow: 0 10px 22px rgba(198, 40, 40, .2);
+}
+
+.branch-admin-attendance-logout:hover:not(:disabled) {
+  background: #a91f1f;
+}
+
 .branch-admin-attendance-complete {
   color: #4c6684;
   font-size: 13px;

@@ -6434,6 +6434,13 @@ const nextName = trimmedValue
     }
   }
 
+  const handleWorkLogLogout = async () => {
+    const completedStatus = await logoutFacultyAttendance([])
+    if (completedStatus) setFacultyWorkLogStatus(completedStatus)
+    window.dispatchEvent(new CustomEvent(FACULTY_ATTENDANCE_SYNC_EVENT))
+    return completedStatus
+  }
+
   const openResetPassword = () => {
     navigate('/reset-password')
     setIsProfileMenuOpen(false)
@@ -6699,6 +6706,7 @@ const nextName = trimmedValue
             profileName={currentFacultyIdentity.facultyName || facultyName}
             facultyId={currentFacultyIdentity.facultyId}
             onStatusChange={setFacultyWorkLogStatus}
+            onWorkLogLogout={handleWorkLogLogout}
           />
         </div>
         <div

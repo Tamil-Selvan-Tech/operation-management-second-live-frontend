@@ -743,6 +743,7 @@ body.faculty-notification-menu-open .super-admin-content {
 .faculty-dashboard-schedule-details .faculty-dashboard-class-item small { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .faculty-dashboard-schedule-details .faculty-dashboard-class-item strong { font-size: 13px; }
 .faculty-dashboard-schedule-details .faculty-dashboard-class-item span { font-size: 14px; }
+.faculty-dashboard-schedule-details .faculty-dashboard-class-item span { overflow: visible; white-space: normal; text-overflow: clip; overflow-wrap: anywhere; line-height: 1.35; }
 .faculty-dashboard-schedule-details .faculty-dashboard-class-item small { color: #64748b; }
 @media (max-width: 680px) { .faculty-dashboard-assigned-batch, .faculty-dashboard-schedule-layout { grid-template-columns: 1fr; display: grid; }.faculty-dashboard-assigned-batch dl { justify-content: flex-start; } }
 @media (max-width: 1100px) and (min-width: 761px) { .faculty-dashboard-dashboard-grid { grid-template-columns: 1fr; }.faculty-dashboard-dashboard-grid > .branch-dashboard-section:nth-child(1), .faculty-dashboard-dashboard-grid > .branch-dashboard-section:nth-child(2), .faculty-dashboard-schedule-sections > .branch-dashboard-section:nth-child(1), .faculty-dashboard-schedule-sections > .branch-dashboard-section:nth-child(2), .faculty-dashboard-schedule-sections > .branch-dashboard-section:nth-child(3) { grid-column: auto; grid-row: auto; } }

@@ -144,6 +144,7 @@ import { StudentCalendarPage } from './StudentCalendarPage'
 import CompletedStudentsPage from './CompletedStudentsPage'
 import { BranchMonthlyReportModal } from '../components/BranchMonthlyReportModal'
 import { BranchReportsAnalyticsPage } from './BranchReportsAnalyticsPage'
+import BranchCalendarPage from './BranchCalendarPage'
 import { HelpdeskSupportPanel } from '../components/HelpdeskSupportPanel'
 import { AccountSettingsPanel } from '../components/AccountSettingsPanel'
 import RecordPayment from '../components/payments/RecordPayment'
@@ -2953,6 +2954,7 @@ function getBranchDashboardSectionFromPath(pathname = '', search = '') {
   if (section === 'sales-admin-directory') return 'sales-admin-directory'
   if (section === 'sales-crm-reports') return 'sales-crm-reports'
   if (section === 'branch-reports') return 'branch-reports'
+  if (section === 'calendar') return 'calendar'
   if (section === 'reports') return 'branch-reports'
   if (section === 'institute-leave') return 'institute-leave'
   if (section === 'faculty-leave') return 'faculty-leave'
@@ -4299,6 +4301,10 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
     : studentCalendarId
       ? 'student-calendar'
       : requestedSidebarSection || routeSection
+  const calendarOrigin = activeSection === 'calendar' ? branchViewParams.get('from') : ''
+  const sidebarActiveSection = ['profile', 'institute-leave'].includes(calendarOrigin)
+    ? calendarOrigin
+    : activeSection
   const [resolvedBranchRoleAccess, setResolvedBranchRoleAccess] = useState('')
   const [isSalesAdminDashboardMode, setIsSalesAdminDashboardMode] = useState(false)
   const isSuperAdminEmbeddedView = embeddedMode && !admissionOnlyMode && String(role || '').toUpperCase().replace(/[^A-Z0-9]/g, '') === 'SUPERADMIN'
@@ -4319,10 +4325,10 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
   }, [location.pathname, location.search])
   const [expandedSidebarGroups, setExpandedSidebarGroups] = useState(() => ({
     courses: false,
-    academic: ['courses', 'course-import'].includes(activeSection),
-    faculty: ['faculty', 'sales-admin-directory', 'sales-crm', 'sales-crm-admissions', 'batches'].includes(activeSection),
-    students: ['students', 'student-management', 'completed-students', 'courses', 'batches', 'installments', 'progress-notifications', 'institute-leave', 'faculty-leave', 'discontinuations'].includes(activeSection),
-    management: ['institute-leave', 'faculty-leave', 'progress-notifications', 'faculty-edit-requests', 'discontinuations'].includes(activeSection),
+    academic: ['courses', 'course-import'].includes(sidebarActiveSection),
+    faculty: ['faculty', 'sales-admin-directory', 'sales-crm', 'sales-crm-admissions', 'batches'].includes(sidebarActiveSection),
+    students: ['students', 'student-management', 'completed-students', 'courses', 'batches', 'installments', 'progress-notifications', 'institute-leave', 'faculty-leave', 'discontinuations'].includes(sidebarActiveSection),
+    management: ['institute-leave', 'faculty-leave', 'progress-notifications', 'faculty-edit-requests', 'discontinuations'].includes(sidebarActiveSection),
   }))
   const [expandedSidebarNestedGroups, setExpandedSidebarNestedGroups] = useState({})
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
@@ -4392,11 +4398,11 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
   }, [isSidebarFlyoutMode, openSidebarFlyout])
 
   useEffect(() => {
-  const parentByChild = { faculty: 'faculty', 'sales-admin-directory': 'faculty', 'sales-crm-admitted-students': 'sales-crm', 'sales-crm-admissions': 'lead-management', 'sales-crm-reports': 'reports', 'branch-reports': 'reports', 'lead-management': 'lead-management', students: 'academic', 'student-management': 'academic', 'completed-students': 'academic', courses: 'academic', batches: 'academic', installments: 'academic', payments: 'payments', 'exams-results': 'academic', 'academic-tests': 'academic', 'institute-leave': 'academic', 'faculty-leave': 'academic', 'progress-notifications': 'academic', 'faculty-edit-requests': 'academic', discontinuations: 'academic', 'helpdesk-tickets': 'helpdesk', 'helpdesk-knowledge-base': 'helpdesk', 'helpdesk-contact-support': 'helpdesk' }
-    const parent = parentByChild[activeSection]
+  const parentByChild = { calendar: 'reports', faculty: 'faculty', 'sales-admin-directory': 'faculty', 'sales-crm-admitted-students': 'sales-crm', 'sales-crm-admissions': 'lead-management', 'sales-crm-reports': 'reports', 'branch-reports': 'reports', 'lead-management': 'lead-management', students: 'academic', 'student-management': 'academic', 'completed-students': 'academic', courses: 'academic', batches: 'academic', installments: 'academic', payments: 'payments', 'exams-results': 'academic', 'academic-tests': 'academic', 'institute-leave': 'academic', 'faculty-leave': 'academic', 'progress-notifications': 'academic', 'faculty-edit-requests': 'academic', discontinuations: 'academic', 'helpdesk-tickets': 'helpdesk', 'helpdesk-knowledge-base': 'helpdesk', 'helpdesk-contact-support': 'helpdesk' }
+    const parent = parentByChild[sidebarActiveSection]
     if (!parent) return
     setExpandedSidebarGroups((current) => current[parent] ? current : { ...current, [parent]: true })
-  }, [activeSection])
+  }, [sidebarActiveSection])
 
   useEffect(() => {
     if (activeSection === 'sales-crm' || activeSection === 'sales-crm-admitted-students') {
@@ -11715,9 +11721,9 @@ useEffect(() => {
           const Icon = item.icon
           const child = item.child
           const children = item.children || (child ? [child] : [])
-          const hasActiveEntry = (entry) => activeSection === entry.id || (entry.id === 'courses' && activeSection === 'course-import') || (entry.children || []).some(hasActiveEntry)
+          const hasActiveEntry = (entry) => sidebarActiveSection === entry.id || (entry.id === 'courses' && sidebarActiveSection === 'course-import') || (entry.children || []).some(hasActiveEntry)
           const isChildActive = children.some(hasActiveEntry)
-          const isActive = activeSection === item.id || isChildActive
+          const isActive = sidebarActiveSection === item.id || isChildActive
           const isExpanded = Boolean(expandedSidebarGroups[item.id])
           const isFlyoutOpen = isSidebarFlyoutMode && children.length > 0 && openSidebarFlyout === item.id
           const renderNestedEntries = (entries, mode = 'inline') => entries.map((entry) => {
@@ -11761,7 +11767,7 @@ useEffect(() => {
                 key={entry.id}
                 type="button"
                 role={mode === 'flyout' ? 'menuitem' : undefined}
-                className={`super-admin-sidebar-subitem ${(activeSection === entry.id || (entry.id === 'courses' && activeSection === 'course-import') || (entry.id === 'academic-test-reports' && activeSection === 'academic-tests' && new URLSearchParams(location.search).get('view') === 'reports')) ? 'is-active' : ''}`.trim()}
+                className={`super-admin-sidebar-subitem ${(sidebarActiveSection === entry.id || (entry.id === 'courses' && sidebarActiveSection === 'course-import') || (entry.id === 'academic-test-reports' && sidebarActiveSection === 'academic-tests' && new URLSearchParams(location.search).get('view') === 'reports')) ? 'is-active' : ''}`.trim()}
                 onClick={() => {
                   if (mode === 'flyout') {
                     cancelSidebarFlyoutClose()
@@ -12613,6 +12619,7 @@ useEffect(() => {
                   branchId={branchProfile?.id || branchProfile?.branchId || branchData?.id || branchData?.branchId || ''}
                 />
               ) : null}
+              {activeSection === 'calendar' ? <BranchCalendarPage /> : null}
               {activeSection === 'exams-results' ? <BranchExamResultsPage branchId={branchProfile?.id || branchProfile?.branchId || branchData?.id || branchData?.branchId || ''} /> : null}
               {activeSection === 'academic-tests' ? <AcademicTestPage /> : null}
               {activeSection === 'notifications' ? (
@@ -15616,6 +15623,10 @@ if (paidProgress >= 100) {
                         <small>{branchTitle} • {branchLocation}</small>
                       </div>
                     </div>
+                    <button type="button" className="branch-profile-calendar-button" onClick={() => navigate('/branch-dashboard?section=calendar&from=profile')}>
+                      <CalendarDays size={17} strokeWidth={2.2} />
+                      <span>Calendar</span>
+                    </button>
                   </article>
 
                   <section className="branch-profile-details-section" aria-labelledby="branch-information-heading">

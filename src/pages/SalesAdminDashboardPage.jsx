@@ -108,14 +108,20 @@ export function SalesAdminDashboardPage({ embeddedBranchAdmin = false, embeddedS
   useEffect(() => {
     if (!embeddedSuperAdmin || !embeddedSalesAdmin?.salesAdminId) return undefined
     let active = true
-    request('/branches/me/sales-admins', { impersonateSalesAdminId: null })
-      .then((response) => {
-        const admins = response?.data?.salesAdmins || response?.salesAdmins || []
-        const target = admins.find((item) => String(item.userId || '') === String(embeddedSalesAdmin.salesAdminId) || String(item.id || '') === String(embeddedSalesAdmin.salesAdminCode || embeddedSalesAdmin.userCode))
-        if (active) setEmbeddedWorkLog(target?.workClock || embeddedSalesAdmin.workClock || null)
-      })
-      .catch(() => { if (active) setEmbeddedWorkLog(embeddedSalesAdmin.workClock || null) })
-    return () => { active = false }
+
+    const refreshEmbeddedWorkLog = () => {
+      request('/branches/me/sales-admins', { impersonateSalesAdminId: null })
+        .then((response) => {
+          const admins = response?.data?.salesAdmins || response?.salesAdmins || []
+          const target = admins.find((item) => String(item.userId || '') === String(embeddedSalesAdmin.salesAdminId) || String(item.id || '') === String(embeddedSalesAdmin.salesAdminCode || embeddedSalesAdmin.userCode))
+          if (active) setEmbeddedWorkLog(target?.workClock || embeddedSalesAdmin.workClock || null)
+        })
+        .catch(() => { if (active) setEmbeddedWorkLog(embeddedSalesAdmin.workClock || null) })
+    }
+
+    refreshEmbeddedWorkLog()
+    const refreshId = window.setInterval(refreshEmbeddedWorkLog, 15000)
+    return () => { active = false; window.clearInterval(refreshId) }
   }, [embeddedSuperAdmin, embeddedSalesAdmin])
 
   useEffect(() => {

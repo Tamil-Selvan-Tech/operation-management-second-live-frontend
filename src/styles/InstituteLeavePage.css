@@ -263,3 +263,4 @@
 .faculty-combine-current-details em { color: #b42318; font-style: normal; font-weight: 700; }
 .faculty-resolution-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
 @media(max-width: 700px) { .faculty-review-dialog { width: calc(100vw - 20px); padding: 16px; } .faculty-resolution-grid { grid-template-columns: 1fr; } .faculty-review-dialog .institute-confirm-actions { flex-wrap: wrap; } }
+.institute-leave-header-actions{display:flex;align-items:center;gap:10px}.institute-calendar-button{display:inline-flex!important;align-items:center;justify-content:center;gap:7px;color:#245bb4!important;border-color:#c9dcf5!important;background:#f7fbff!important;font-weight:800}.institute-calendar-button:hover{border-color:#8db6ea!important;background:#edf5ff!important}@media(max-width:620px){.institute-leave-header{align-items:flex-start;flex-direction:column}.institute-leave-header-actions{width:100%;flex-wrap:wrap}}
