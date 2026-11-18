@@ -2,10 +2,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { getCitiesOfState, getCountries, getStatesOfCountry } from '@countrystatecity/countries-browser'
 import { AlertCircle, BriefcaseBusiness, Building2, CalendarDays, CheckCircle2, ChevronDown, LayoutDashboard, Mail, MapPin, Phone, Shield, UserPlus, Users, X } from 'lucide-react'
 import { request } from '../services/apiClient'
+import { useLocation, useNavigate } from 'react-router-dom'
 import '../styles/SalesAdminHistoryOverride.css'
 import { deleteBranch, listBranches, updateBranch } from '../services/branchService'
 import { listBranchAccessUsers } from '../services/userRoleManagementService'
 import { getBranchAdminAttendanceStatusForSuperAdmin } from '../services/attendanceService'
+import SalesAdminFullPageView from '../components/SalesAdminFullPageView'
 import '../styles/UserRoleManagementPage.css'
 
 const moduleAccessGroups = [
@@ -258,7 +260,10 @@ function BranchMultiSelect({ value = [], branches = [], onToggle, loading = fals
 }
 
 export function UserRoleManagementPage({ pageType = 'branch', onViewDashboard: branchDashboardHandler, onViewSalesDashboard }) {
+  const navigate = useNavigate()
+  const location = useLocation()
   const isSalesPage = pageType === 'sales'
+  const selectedAdminId = new URLSearchParams(location.search).get('adminId')
   const onViewDashboard = isSalesPage ? onViewSalesDashboard : branchDashboardHandler
   const pageTitle = isSalesPage ? 'Sales Admin' : 'Branch Admin'
   const [users, setUsers] = useState([])
@@ -443,6 +448,10 @@ export function UserRoleManagementPage({ pageType = 'branch', onViewDashboard: b
   }
 
   function openView(user) {
+    if (isSalesPage) {
+      navigate(`/dashboard/super-admin?section=sales-admin&adminId=${encodeURIComponent(user.id)}`)
+      return
+    }
     setViewTab('details')
     setAdminHistory([])
     setAttendanceLoading(Boolean(user?.managedBranch?.id))
@@ -851,6 +860,13 @@ export function UserRoleManagementPage({ pageType = 'branch', onViewDashboard: b
     } finally {
       setSaving(false)
     }
+  }
+
+  const selectedSalesAdmin = users.find((user) => String(user.id) === String(selectedAdminId))
+  if (isSalesPage && selectedAdminId && !usersLoading) {
+    return selectedSalesAdmin
+      ? <SalesAdminFullPageView admin={selectedSalesAdmin} initialTab={new URLSearchParams(location.search).get('tab') || 'overview'} onBack={() => navigate('/dashboard/super-admin?section=sales-admin')} onEdit={(user) => { navigate('/dashboard/super-admin?section=sales-admin'); openEdit(user) }} />
+      : <main className="user-role-page"><p className="user-role-table-state is-error">Sales Admin not found.</p><button type="button" onClick={() => navigate('/dashboard/super-admin?section=sales-admin')}>Back to Sales Admins</button></main>
   }
 
   return (
