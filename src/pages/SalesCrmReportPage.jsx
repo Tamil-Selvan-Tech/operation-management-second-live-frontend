@@ -3,6 +3,7 @@ import { AlertCircle, ArrowUpRight, BarChart3, CheckCheck, ChevronDown, CircleDo
 import { request, requestBlob } from '../services/apiClient'
 import { loadSession } from '../lib/session'
 import { listReportBranches } from '../services/reportService'
+import { SalesCrmReportSubmissionModal } from '../components/SalesCrmReportSubmissionModal'
 
 const REPORT_TIMEZONE = 'Asia/Kolkata'
 const currentReportParts = Object.fromEntries(new Intl.DateTimeFormat('en-CA', { timeZone: REPORT_TIMEZONE, year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(new Date()).filter((part) => part.type !== 'literal').map((part) => [part.type, part.value]))
@@ -114,6 +115,7 @@ export function SalesCrmReportPage({ readOnlySalesAdmin = false, branchScoped = 
   const [downloadNotice, setDownloadNotice] = useState('')
   const [downloading, setDownloading] = useState(false)
   const [downloadOpen, setDownloadOpen] = useState(false)
+  const [sendReportOpen, setSendReportOpen] = useState(false)
   const [reportDownloadFilters, setReportDownloadFilters] = useState({ ...defaultExportFilters })
   const [loading, setLoading] = useState(true)
   const [reloadKey, setReloadKey] = useState(0)
@@ -252,6 +254,11 @@ export function SalesCrmReportPage({ readOnlySalesAdmin = false, branchScoped = 
     setDownloadOpen(true)
   }
 
+  const openSendReport = () => {
+    if (blockInactiveAction()) return
+    setSendReportOpen(true)
+  }
+
   const closeDownloadReport = () => {
     if (!downloading) {
       setDownloadOpen(false)
@@ -370,10 +377,13 @@ export function SalesCrmReportPage({ readOnlySalesAdmin = false, branchScoped = 
     <div className="sales-crm-report-period-actions"><button type="button" className="sales-crm-report-period-cancel" onClick={() => setPeriodPickerOpen(false)}>Cancel</button><button type="button" className="sales-crm-report-period-apply" onClick={applyReportPeriod}>Apply period</button></div>
   </div> : null}
 </div>
+        {!branchScoped ? <button type="button" className="sales-crm-report-send-button" onClick={openSendReport} disabled={downloading} aria-label="Open send report"><FileSpreadsheet size={16} />Send Report</button> : null}
         <button type="button" className="sales-crm-report-download-button" onClick={openDownloadReport} disabled={downloading} aria-label="Open download report"><FileSpreadsheet size={16} />Download Report</button>
         <button type="button" className="sales-crm-report-icon-button" onClick={refreshReport} disabled={loading || downloading} aria-label="Refresh report" title="Refresh report"><RefreshCw size={17} className={loading ? 'is-spinning' : ''} /></button>
       </div>
     </header>
+
+    <SalesCrmReportSubmissionModal isOpen={sendReportOpen} onClose={() => setSendReportOpen(false)} branches={reportBranches} initialFromDate={appliedFilters.fromDate} initialToDate={appliedFilters.toDate} hideBranchField onSubmitted={() => { setSendReportOpen(false); setDownloadNotice('Report sent to Super Admin successfully.'); setReloadKey((value) => value + 1) }} />
 
     {downloadOpen ? <div className="sales-crm-report-download-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) closeDownloadReport() }}><form className="sales-crm-report-download-modal" onSubmit={downloadReport} role="dialog" aria-modal="true" aria-labelledby="sales-crm-download-title">
       <header className="sales-crm-report-download-modal-header"><div><p className="eyebrow">REPORT DOWNLOAD</p><h2 id="sales-crm-download-title">Download Report</h2><p>Choose the branch and period for the Excel export.</p></div><button type="button" className="sales-crm-report-download-close" onClick={closeDownloadReport} disabled={downloading} aria-label="Close"><X size={17} /></button></header>
