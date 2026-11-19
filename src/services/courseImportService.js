@@ -1,10 +1,10 @@
 import { request, requestBlob } from './apiClient'
 
-export const COURSE_UPLOAD_MAX_BYTES = 8 * 1024 * 1024
+export const COURSE_UPLOAD_MAX_BYTES = 10 * 1024 * 1024
 export function validateCourseFile(file) {
   if (!file || !/\.xlsx$/i.test(file.name)) return 'Choose an .xlsx workbook.'
   if (!file.size) return 'The selected workbook is empty.'
-  if (file.size > COURSE_UPLOAD_MAX_BYTES) return 'The workbook must be 8 MB or smaller.'
+  if (file.size > COURSE_UPLOAD_MAX_BYTES) return 'The workbook is too large to upload.'
   if (file.type && !['application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'application/octet-stream', 'application/zip', 'application/x-zip-compressed'].includes(file.type)) return 'Choose a valid Excel .xlsx workbook.'
   return ''
 }
