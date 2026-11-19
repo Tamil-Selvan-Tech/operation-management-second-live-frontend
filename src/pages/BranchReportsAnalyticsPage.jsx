@@ -122,7 +122,7 @@ function SearchableReportPicker({ label, value, options, onChange, placeholder, 
   )
 }
 
-export function BranchReportsAnalyticsPage({ students = [], batchGroups = [], branchId = '' }) {
+export function BranchReportsAnalyticsPage({ students = [], batchGroups = [], branchId = '', compactHeader = false }) {
   const [branches, setBranches] = useState([])
   const [selectedBranchId, setSelectedBranchId] = useState('all')
   const [remoteOptions, setRemoteOptions] = useState(null)
@@ -175,9 +175,9 @@ export function BranchReportsAnalyticsPage({ students = [], batchGroups = [], br
     <section className="branch-reports-page" aria-labelledby="branch-reports-title">
       <header className="branch-reports-page-header">
         <div>
-          <p className="branch-reports-page-kicker">REPORTS &amp; ANALYTICS</p>
-          <h1 id="branch-reports-title">Report Downloads</h1>
-          <p>Download student and attendance reports with a branch filter in Excel format.</p>
+          {!compactHeader ? <p className="branch-reports-page-kicker">REPORTS &amp; ANALYTICS</p> : null}
+          <h1 id="branch-reports-title">{compactHeader ? 'Reports & Analytics' : 'Report Downloads'}</h1>
+          {!compactHeader ? <p>Download student and attendance reports with a branch filter in Excel format.</p> : null}
         </div>
         <div className="branch-reports-page-badge"><BarChart3 size={18} /> {selectedBranchId === 'all' ? 'All branches' : 'Selected branch'}</div>
       </header>

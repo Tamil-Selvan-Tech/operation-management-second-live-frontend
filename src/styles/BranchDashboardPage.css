@@ -15248,6 +15248,14 @@ body.branch-notification-menu-open .main-area {
   width: 100%;
 }
 
+/* Match the Sales Admin report layout without letting this grid child widen the Branch page. */
+.branch-dashboard-app-shell .branch-dashboard-content > .sales-crm-report-page {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
 .branch-sidebar-nested-group {
   display: grid;
   gap: 2px;
