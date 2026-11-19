@@ -129,7 +129,7 @@ export function SalesCrmReportPage({ readOnlySalesAdmin = false, branchScoped = 
 
   const effectiveAppliedFilters = { ...(branchScoped ? { ...appliedFilters, branchId } : appliedFilters), ...(salesAdminId ? { assignedToId: salesAdminId } : {}) }
   const effectiveDraftFilters = { ...(branchScoped ? { ...draftFilters, branchId } : draftFilters), ...(salesAdminId ? { assignedToId: salesAdminId } : {}) }
-  const reportQuery = branchScoped && !branchId ? "" : buildQuery(effectiveAppliedFilters).toString()
+  const reportQuery = branchScoped && !branchId ? "" : buildQuery({ ...effectiveAppliedFilters, stage: '', status: '' }).toString()
   const effectiveDownloadFilters = { ...(branchScoped ? { ...reportDownloadFilters, branchId } : reportDownloadFilters), ...(salesAdminId ? { assignedToId: salesAdminId } : {}) }
   const blockInactiveAction = () => {
     if (!readOnly) return false
@@ -182,6 +182,17 @@ export function SalesCrmReportPage({ readOnlySalesAdmin = false, branchScoped = 
   const updateDraft = (key, value) => {
     setDraftFilters((current) => ({ ...current, [key]: value }))
     setFilterError('')
+  }
+
+  const applyStageStatusFilter = (key, value) => {
+    setDraftFilters((current) => ({ ...current, [key]: value }))
+    setAppliedFilters((current) => ({ ...current, [key]: value }))
+    setFilterError('')
+    setError('')
+    setSearch('')
+    setSelectedMetric('')
+    setTablePage(1)
+    window.requestAnimationFrame(() => document.getElementById('sales-crm-report-lead-breakdown')?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
   }
 
   const updateBranchSalesAdmin = (value) => {
@@ -256,8 +267,10 @@ export function SalesCrmReportPage({ readOnlySalesAdmin = false, branchScoped = 
     setSearch('')
     setSelectedMetric('')
     setTablePage(1)
-    setLoading(true)
-    setAppliedFilters({ ...effectiveDraftFilters })
+    const nextFilters = { ...effectiveDraftFilters }
+    const nextQuery = branchScoped && !branchId ? '' : buildQuery({ ...nextFilters, stage: '', status: '' }).toString()
+    setLoading(nextQuery !== reportQuery)
+    setAppliedFilters(nextFilters)
   }
 
   const resetFilters = () => {
@@ -270,7 +283,10 @@ export function SalesCrmReportPage({ readOnlySalesAdmin = false, branchScoped = 
     setSelectedMetric('')
     setTablePage(1)
     setPeriodPickerOpen(false)
-    setLoading(true)
+    const nextResetFilters = branchScoped ? { ...defaultFilters, branchId } : { ...defaultFilters }
+    const resetQuery = branchScoped && !branchId ? '' : buildQuery(nextResetFilters).toString()
+    setLoading(resetQuery !== reportQuery)
+    setReloadKey((value) => value + (resetQuery === reportQuery ? 1 : 0))
   }
 
   const refreshReport = () => {
@@ -346,15 +362,22 @@ export function SalesCrmReportPage({ readOnlySalesAdmin = false, branchScoped = 
   const summary = report?.summary || {}
   const stageBreakdown = summary.stageBreakdown || {}
   const leadRows = Array.isArray(report?.leads) ? report.leads : []
+  const reportTableRows = leadRows.filter((lead) => {
+    if (appliedFilters.stage && String(lead.stage || '').toUpperCase() !== String(appliedFilters.stage).toUpperCase()) return false
+    if (appliedFilters.status && String(lead.status || '').toUpperCase() !== String(appliedFilters.status).toUpperCase()) return false
+    return true
+  })
+  const isOpenLead = (lead) => !lead.isPendingCompletion && !['CLOSED', 'CONVERTED', 'LOST_LEAD'].includes(String(lead.status || '').toUpperCase()) && String(lead.stage || '').toUpperCase() !== 'CLOSED'
+  const missingLeads = leadRows.filter((lead) => isOpenLead(lead) && !lead.nextFollowUpDate).length
   const metricRows = (() => {
-    if (selectedMetric === 'convertedLeads') return leadRows.filter((lead) => lead.converted)
-    if (selectedMetric === 'activeLeads') return leadRows.filter((lead) => !lead.isPendingCompletion && !['CLOSED', 'CONVERTED', 'LOST_LEAD'].includes(String(lead.status || '').toUpperCase()) && String(lead.stage || '').toUpperCase() !== 'CLOSED')
-    if (selectedMetric === 'hotLeads') return leadRows.filter((lead) => String(lead.stage || '').toUpperCase() === 'HOT')
-    if (selectedMetric === 'pendingCompletionLeads') return leadRows.filter((lead) => lead.isPendingCompletion)
-    if (selectedMetric === 'followUpsLogged') return leadRows.filter((lead) => Number(lead.periodFollowUpCount || 0) > 0)
-    if (selectedMetric === 'pendingFollowUps') return leadRows.filter((lead) => lead.pendingFollowUp)
-    if (selectedMetric === 'overdueFollowUps') return leadRows.filter((lead) => lead.overdueFollowUp)
-    return leadRows
+    if (selectedMetric === 'convertedLeads') return reportTableRows.filter((lead) => lead.converted)
+    if (selectedMetric === 'activeLeads') return reportTableRows.filter(isOpenLead)
+    if (selectedMetric === 'hotLeads') return reportTableRows.filter((lead) => String(lead.stage || '').toUpperCase() === 'HOT')
+    if (selectedMetric === 'pendingCompletionLeads') return reportTableRows.filter((lead) => lead.isPendingCompletion)
+    if (selectedMetric === 'missingLeads') return reportTableRows.filter((lead) => isOpenLead(lead) && !lead.nextFollowUpDate)
+    if (selectedMetric === 'pendingFollowUps') return reportTableRows.filter((lead) => lead.pendingFollowUp)
+    if (selectedMetric === 'overdueFollowUps') return reportTableRows.filter((lead) => lead.overdueFollowUp)
+    return reportTableRows
   })()
   const normalizedSearch = search.trim().toLowerCase()
   const filteredRows = metricRows.filter((lead) => {
@@ -366,15 +389,17 @@ export function SalesCrmReportPage({ readOnlySalesAdmin = false, branchScoped = 
   const currentPage = Math.min(tablePage, totalPages)
   const visibleRows = filteredRows.slice((currentPage - 1) * pageSize, currentPage * pageSize)
   const totalStageLeads = STAGES.reduce((total, [key]) => total + Number(stageBreakdown[key] || 0), 0)
+  const pendingCompletionCount = Number(summary.pendingCompletionLeads || 0)
+  const stageSnapshotTotal = totalStageLeads + pendingCompletionCount
   const metrics = [
     { key: 'totalRecords', label: appliedFilters.scope === 'admissions' ? 'Admission Students' : 'Report Leads', icon: Users, accent: 'blue', helper: 'Matching selected period' },
     { key: 'convertedLeads', label: 'Admissions', icon: CheckCheck, accent: 'emerald', helper: 'Converted in this report' },
     { key: 'pendingCompletionLeads', label: 'Pending Completion', icon: Users, accent: 'green', helper: 'Incomplete leads added this period' },
     { key: 'activeLeads', label: 'Open Leads', icon: CircleDot, accent: 'purple', helper: 'Still in sales pipeline' },
     { key: 'hotLeads', label: 'HOT Leads', icon: Flame, accent: 'orange', helper: 'Currently in HOT stage' },
-    { key: 'followUpsLogged', label: 'Follow-ups Logged', icon: BarChart3, accent: 'purple', helper: 'Activity recorded in period' },
+    { key: 'missingLeads', label: 'Missing Leads', icon: AlertCircle, accent: 'red', helper: 'Open leads without a next follow-up date' },
     { key: 'pendingFollowUps', label: 'Next Follow-ups', icon: Clock3, accent: 'amber', helper: 'Open after period end' },
-    { key: 'overdueFollowUps', label: 'Overdue Follow-ups', icon: AlertCircle, accent: 'red', helper: 'Past due by report cutoff' },
+    { key: 'overdueFollowUps', label: 'Pending Follow-ups', icon: AlertCircle, accent: 'red', helper: 'Past due by report cutoff' },
   ]
 
   const selectedMetricLabel = metrics.find((metric) => metric.key === selectedMetric)?.label || ''
@@ -428,8 +453,8 @@ export function SalesCrmReportPage({ readOnlySalesAdmin = false, branchScoped = 
             <div className="sales-crm-report-filter-grid sales-crm-report-compact-filters">
         <label>Report Type<ReportDownloadSelect value={draftFilters.scope} ariaLabel="Report Type" options={[{ value: 'all', label: 'ALL LEADS' }, { value: 'admissions', label: 'ADMISSION STUDENTS' }]} onChange={(value) => updateDraft('scope', value)} /></label>
         {branchScoped ? <label>Sales Admin<ReportDownloadSelect value={draftFilters.assignedToId} ariaLabel="Sales Admin" options={[{ value: '', label: 'All Sales Admins' }, ...reportSalesAdmins.map((admin) => ({ value: admin.userId, label: admin.name || admin.id }))]} onChange={updateBranchSalesAdmin} /></label> : <label>Branch<ReportDownloadSelect value={draftFilters.branchId} ariaLabel="Branch" options={[{ value: '', label: 'All assigned branches' }, ...reportBranches.map((branch) => ({ value: branch.id, label: branch.branchName || branch.branchId }))]} onChange={updateSalesAdminBranch} /></label>}
-        <label>Stage<ReportDownloadSelect value={draftFilters.stage} ariaLabel="Stage" options={[{ value: '', label: 'All stages' }, ...STAGES.map(([key, label]) => ({ value: key, label }))]} onChange={(value) => updateDraft('stage', value)} /></label>
-        <label>Status<ReportDownloadSelect value={draftFilters.status} ariaLabel="Status" options={STATUSES.map(([value, label]) => ({ value, label }))} onChange={(value) => updateDraft('status', value)} /></label>
+        <label>Stage<ReportDownloadSelect value={draftFilters.stage} ariaLabel="Stage" options={[{ value: '', label: 'All stages' }, ...STAGES.map(([key, label]) => ({ value: key, label }))]} onChange={(value) => applyStageStatusFilter('stage', value)} /></label>
+        <label>Status<ReportDownloadSelect value={draftFilters.status} ariaLabel="Status" options={STATUSES.map(([value, label]) => ({ value, label }))} onChange={(value) => applyStageStatusFilter('status', value)} /></label>
         <div className="sales-crm-report-filter-actions"><button type="button" className="sales-crm-report-reset-button" onClick={resetFilters}>Reset</button><button type="button" className="sales-crm-report-apply-button" onClick={applyFilters}>Apply filters</button></div>
       </div>
 
@@ -441,9 +466,9 @@ export function SalesCrmReportPage({ readOnlySalesAdmin = false, branchScoped = 
     {loading ? <ReportSkeleton /> : error ? <div className="sales-crm-report-error" role="alert"><AlertCircle size={20} /><span>{error}</span><button type="button" onClick={refreshReport}><RefreshCw size={15} /> Retry</button></div> : report ? <>
 
       <div className="sales-crm-report-context-line"><span><strong>{scopeLabel(appliedFilters.scope)}</strong></span><span>Generated {formatDateTime(report.meta?.generatedAt)} · {Number(report.meta?.recordCount || 0).toLocaleString('en-IN')} records</span></div>
-      <section className="sales-crm-report-cards" aria-label="Sales report metrics">{metrics.map((metric) => <MetricCard key={metric.key} {...metric} value={metric.key === 'hotLeads' ? Number(stageBreakdown.HOT || 0) : summary[metric.key]} onClick={() => selectMetric(metric.key)} active={metric.key === (selectedMetric || 'totalRecords')} />)}</section>
-      <section className="sales-crm-report-section sales-crm-report-stage-card"><div className="sales-crm-report-section-heading"><div><h2>Lead stage snapshot</h2><p>Current stages of active leads in the selected report. Pending completion leads are listed separately.</p></div><span className="sales-crm-report-section-count">{totalStageLeads.toLocaleString('en-IN')} active</span></div><div className="sales-crm-report-stage-grid">{STAGES.map(([key, label, accent]) => { const count = Number(stageBreakdown[key] || 0); const width = totalStageLeads ? Math.max((count / totalStageLeads) * 100, count ? 4 : 0) : 0; return <article className={`sales-crm-report-stage is-${accent}`} key={key}><div className="sales-crm-report-stage-top"><span className="sales-crm-report-stage-name">{label}</span><strong>{count.toLocaleString('en-IN')}</strong></div><div className="sales-crm-report-stage-track"><span style={{ width: `${width}%` }} /></div><small>{totalStageLeads ? `${Math.round((count / totalStageLeads) * 100)}% of active leads` : 'No records'}</small></article> })}</div></section>
-      <section id="sales-crm-report-lead-breakdown" className="sales-crm-report-section sales-crm-report-table-card"><div className="sales-crm-report-section-heading"><div><h2>Lead breakdown</h2><p>{filteredRows.length.toLocaleString('en-IN')} {selectedMetric ? selectedMetricLabel + ' ' : ''}matching record{filteredRows.length === 1 ? '' : 's'} in this report.</p></div><label className="sales-crm-report-table-search"><Search size={16} /><input type="search" value={search} onChange={(event) => { setSearch(event.target.value); setTablePage(1) }} placeholder="Search lead, student, branch, or owner" aria-label="Search report records" />{search ? <button type="button" onClick={() => { setSearch(''); setTablePage(1) }} aria-label="Clear search"><X size={14} /></button> : null}</label></div>{!filteredRows.length ? <div className="sales-crm-report-empty"><span><Users size={20} /></span><strong>{search ? 'No matching records' : 'No report data'}</strong><p>{search ? 'Try a different search term.' : `There are no records for ${period.label || 'the selected period'}.`}</p></div> : <><div className="sales-crm-report-table-scroll"><table className="sales-crm-report-table"><thead><tr><th>Lead ID</th><th>Student</th><th>Lead Date</th><th>Branch</th><th>Assigned To</th><th>Stage</th><th>Status</th><th>Next Follow-up</th><th>Follow-ups</th></tr></thead><tbody>{visibleRows.map((lead) => <tr key={lead.leadId}><td>{lead.isPendingCompletion ? <a className="sales-crm-report-pending-link" href={pendingLeadsHref} onClick={(event) => { if (onOpenPending) { event.preventDefault(); onOpenPending(lead) } }}>Pending completion</a> : <strong className="sales-crm-report-lead-id">{lead.leadId}</strong>}{lead.studentId ? <small className="sales-crm-report-sub-cell">{lead.studentId}</small> : null}</td><td className="sales-crm-report-student">{lead.isPendingCompletion ? <a className="sales-crm-report-pending-link" href={pendingLeadsHref} onClick={(event) => { if (onOpenPending) { event.preventDefault(); onOpenPending(lead) } }}>{lead.studentName || 'Pending completion'}</a> : lead.studentName || '—'}</td><td>{formatDateOnly(lead.leadDate)}</td><td>{lead.branch || '—'}</td><td>{lead.assignedTo || '—'}</td><td>{lead.isPendingCompletion ? '—' : <span className={`sales-crm-report-badge is-stage-${String(lead.stage || '').toLowerCase()}`}>{readable(lead.stage)}</span>}</td><td>{lead.isPendingCompletion ? <span className="sales-crm-report-badge is-status-pending">Pending Completion</span> : <span className={`sales-crm-report-badge is-status-${String(lead.status || '').toLowerCase().replaceAll('_', '-')}`}>{readable(lead.status)}</span>}</td><td>{lead.nextFollowUpDate ? `${formatDateOnly(lead.nextFollowUpDate)}${lead.nextFollowUpTime ? ` · ${lead.nextFollowUpTime}` : ''}` : '—'}</td><td>{Number(lead.periodFollowUpCount || 0).toLocaleString('en-IN')}</td></tr>)}</tbody></table></div><div className="sales-crm-report-pagination"><span>Showing {((currentPage - 1) * pageSize) + 1}-{Math.min(currentPage * pageSize, filteredRows.length)} of {filteredRows.length}</span><div><button type="button" disabled={currentPage <= 1} onClick={() => setTablePage((page) => Math.max(1, page - 1))}>Previous</button><strong>Page {currentPage} of {totalPages}</strong><button type="button" disabled={currentPage >= totalPages} onClick={() => setTablePage((page) => Math.min(totalPages, page + 1))}>Next</button></div></div></>}</section>
+      <section className="sales-crm-report-cards" aria-label="Sales report metrics">{metrics.map((metric) => <MetricCard key={metric.key} {...metric} value={metric.key === 'hotLeads' ? Number(stageBreakdown.HOT || 0) : metric.key === 'missingLeads' ? missingLeads : summary[metric.key]} onClick={() => selectMetric(metric.key)} active={metric.key === (selectedMetric || 'totalRecords')} />)}</section>
+      <section className="sales-crm-report-section sales-crm-report-stage-card"><div className="sales-crm-report-section-heading"><div><h2>Lead stage snapshot</h2><p>Current stages of active leads; pending completion records are shown in the final card.</p></div><span className="sales-crm-report-section-count">{totalStageLeads.toLocaleString('en-IN')} active · {pendingCompletionCount.toLocaleString('en-IN')} pending</span></div><div className="sales-crm-report-stage-grid">{STAGES.map(([key, stageLabel, accent]) => { const isPendingCompletion = key === 'OTHER'; const label = isPendingCompletion ? 'Pending Completion' : stageLabel; const count = isPendingCompletion ? pendingCompletionCount : Number(stageBreakdown[key] || 0); const width = stageSnapshotTotal ? Math.max((count / stageSnapshotTotal) * 100, count ? 4 : 0) : 0; return <article className={`sales-crm-report-stage is-${accent}`} key={key}><div className="sales-crm-report-stage-top"><span className="sales-crm-report-stage-name">{label}</span><strong>{count.toLocaleString('en-IN')}</strong></div><div className="sales-crm-report-stage-track"><span style={{ width: `${width}%` }} /></div><small>{stageSnapshotTotal ? `${Math.round((count / stageSnapshotTotal) * 100)}% of report records` : 'No records'}</small></article> })}</div></section>
+      <section id="sales-crm-report-lead-breakdown" className="sales-crm-report-section sales-crm-report-table-card"><div className="sales-crm-report-section-heading"><div><h2>Lead breakdown</h2><p className="sales-crm-report-results-summary" aria-live="polite"><strong className="sales-crm-report-results-count">{filteredRows.length.toLocaleString('en-IN')}</strong>{selectedMetric ? <span className="sales-crm-report-results-category">{selectedMetricLabel}</span> : null}<span className="sales-crm-report-results-copy">{filteredRows.length === 1 ? 'result' : 'results'} found</span></p></div><label className="sales-crm-report-table-search"><Search size={16} /><input type="search" value={search} onChange={(event) => { setSearch(event.target.value); setTablePage(1) }} placeholder="Search lead, student, branch, or owner" aria-label="Search report records" />{search ? <button type="button" onClick={() => { setSearch(''); setTablePage(1) }} aria-label="Clear search"><X size={14} /></button> : null}</label></div>{!filteredRows.length ? <div className="sales-crm-report-empty"><span><Users size={20} /></span><strong>{search ? 'No matching records' : 'No report data'}</strong><p>{search ? 'Try a different search term.' : `There are no records for ${period.label || 'the selected period'}.`}</p></div> : <><div className="sales-crm-report-table-scroll"><table className="sales-crm-report-table"><thead><tr><th>Lead ID</th><th>Student</th><th>Lead Date</th><th>Branch</th><th>Assigned To</th><th>Stage</th><th>Status</th><th>Next Follow-up</th><th>Follow-ups</th></tr></thead><tbody>{visibleRows.map((lead) => <tr key={lead.leadId}><td>{lead.isPendingCompletion ? <a className="sales-crm-report-pending-link" href={pendingLeadsHref} onClick={(event) => { if (onOpenPending) { event.preventDefault(); onOpenPending(lead) } }}>Pending completion</a> : <strong className="sales-crm-report-lead-id">{lead.leadId}</strong>}{lead.studentId ? <small className="sales-crm-report-sub-cell">{lead.studentId}</small> : null}</td><td className="sales-crm-report-student">{lead.isPendingCompletion ? <a className="sales-crm-report-pending-link" href={pendingLeadsHref} onClick={(event) => { if (onOpenPending) { event.preventDefault(); onOpenPending(lead) } }}>{lead.studentName || 'Pending completion'}</a> : lead.studentName || '—'}</td><td>{formatDateOnly(lead.leadDate)}</td><td>{lead.branch || '—'}</td><td>{lead.assignedTo || '—'}</td><td>{lead.isPendingCompletion ? '—' : <span className={`sales-crm-report-badge is-stage-${String(lead.stage || '').toLowerCase()}`}>{readable(lead.stage)}</span>}</td><td>{lead.isPendingCompletion ? <span className="sales-crm-report-badge is-status-pending">Pending Completion</span> : <span className={`sales-crm-report-badge is-status-${String(lead.status || '').toLowerCase().replaceAll('_', '-')}`}>{readable(lead.status)}</span>}</td><td>{lead.nextFollowUpDate ? `${formatDateOnly(lead.nextFollowUpDate)}${lead.nextFollowUpTime ? ` · ${lead.nextFollowUpTime}` : ''}` : selectedMetric === 'missingLeads' ? 'Not scheduled' : '—'}</td><td>{Number(lead.periodFollowUpCount || 0).toLocaleString('en-IN')}</td></tr>)}</tbody></table></div><div className="sales-crm-report-pagination"><span>Showing {((currentPage - 1) * pageSize) + 1}-{Math.min(currentPage * pageSize, filteredRows.length)} of {filteredRows.length}</span><div><button type="button" disabled={currentPage <= 1} onClick={() => setTablePage((page) => Math.max(1, page - 1))}>Previous</button><strong>Page {currentPage} of {totalPages}</strong><button type="button" disabled={currentPage >= totalPages} onClick={() => setTablePage((page) => Math.min(totalPages, page + 1))}>Next</button></div></div></>}</section>
     </> : null}
   </section>
 }
