@@ -4566,7 +4566,7 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
   ).trim()
 
   const loadApprovedDiscontinuationRequests = useCallback((options = {}) => {
-    if (admissionOnlyMode) return Promise.resolve([])
+    if (activeSection !== 'dashboard' || admissionOnlyMode) return Promise.resolve([])
     if ((!embeddedMode && role !== "branch-admin") || !embeddedBranchProfileReady) return Promise.resolve([])
 
     const force = options?.force === true
@@ -4599,7 +4599,7 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
       setApprovedDiscontinuationRequests([])
       return []
     })
-  }, [admissionOnlyMode, approvedDiscontinuationScope, embeddedBranchProfileReady, embeddedMode, role])
+  }, [activeSection, admissionOnlyMode, approvedDiscontinuationScope, embeddedBranchProfileReady, embeddedMode, role])
   useEffect(() => {
     void loadApprovedDiscontinuationRequests()
   }, [loadApprovedDiscontinuationRequests])
@@ -5070,6 +5070,26 @@ const BRANCH_PAYMENT_HISTORY_PER_PAGE = 5
     }
   }, [branchData?.branchId, branchData?.id])
 
+  const previousCourseSectionRef = useRef(activeSection)
+  useEffect(() => {
+    const wasOnCourses = previousCourseSectionRef.current === 'courses'
+    previousCourseSectionRef.current = activeSection
+    if (activeSection !== 'courses' || wasOnCourses) return
+    clearBranchCourseListCache()
+    setBranchCoursePage(1)
+    void loadBranchCourses()
+  }, [activeSection, loadBranchCourses])
+
+  useEffect(() => {
+    const handleCourseImportCompleted = () => {
+      clearBranchCourseListCache()
+      setBranchCoursePage(1)
+      // Refresh even if import finishes on the upload page or another section.
+      void loadBranchCourses()
+    }
+    window.addEventListener('cispro:course-import-completed', handleCourseImportCompleted)
+    return () => window.removeEventListener('cispro:course-import-completed', handleCourseImportCompleted)
+  }, [loadBranchCourses])
   const loadBranchBatches = useCallback(async (branchScopeId = '') => {
     const scopeId = String(branchScopeId || branchProfile?.id || branchProfile?.branchId || branchData?.id || branchData?.branchId || '').trim()
     setIsBranchBatchesLoading(true)
@@ -6720,7 +6740,10 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
   const latestBranchCourseCode = useMemo(() => {
     const latestCourse = [...branchCourseCards]
       .filter((course) => String(course?.courseCode || '').trim())
-      .sort((left, right) => (Date.parse(right?.createdAt || '') || 0) - (Date.parse(left?.createdAt || '') || 0))[0]
+      .sort((left, right) => {
+        const createdAtDifference = (Date.parse(right?.createdAt || '') || 0) - (Date.parse(left?.createdAt || '') || 0)
+        return createdAtDifference || String(right?.courseCode || '').localeCompare(String(left?.courseCode || ''), undefined, { numeric: true })
+      })[0]
     return String(latestCourse?.courseCode || '').trim()
   }, [branchCourseCards])
 

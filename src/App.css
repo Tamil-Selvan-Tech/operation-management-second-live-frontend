@@ -28459,3 +28459,8 @@ canvas {
 @keyframes upload-progress-spin { to { transform: rotate(360deg); } }
 @keyframes upload-progress-meter-pulse { 0% { transform: translateX(-120%); background-position: 0 0; } 100% { transform: translateX(360%); background-position: 100% 0; } }
 @media (max-width: 760px) { .upload-progress-button > span:not(.upload-progress-button-meter) { display: none; } .upload-progress-button { min-width: 38px; justify-content: center; padding: 0 9px; } .upload-progress-button-meter { width: 34px; } }
+
+.upload-progress-item-actions { display:flex;align-items:center;gap:8px;margin-top:5px }
+.upload-progress-item-actions button { padding:0;border:0;background:none;color:#2564c8;font-size:.7rem;font-weight:700;cursor:pointer }
+.upload-progress-item-actions button:hover { text-decoration:underline }
+.upload-progress-empty{margin:0;padding:14px 12px;color:#667085;font-size:.85rem;text-align:center}

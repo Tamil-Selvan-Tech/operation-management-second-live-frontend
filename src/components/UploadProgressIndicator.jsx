@@ -1,8 +1,9 @@
 import { CheckCircle2, CloudUpload, LoaderCircle, XCircle } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { dismissUpload, getUploadSnapshot, subscribeUploadProgress } from '../lib/uploadProgressStore'
 import { loadSession } from '../lib/session'
 import { listActiveLeadImports } from '../services/leadImportService'
+import { downloadCourseImportErrors, listCourseImportJobs, retryCourseImportJob } from '../services/courseImportService'
 
 function dismissedStorageKey(userId) {
   return `cispro.dismissedUploadProgressIds:${userId || 'anonymous'}`
@@ -28,9 +29,12 @@ function statusText(item) {
     const hours = minutes === null ? null : Math.floor(minutes / 60)
     const ago = minutes === null ? '' : minutes < 1 ? 'just now' : hours >= 1 ? `${hours} hr${hours === 1 ? '' : 's'} ago` : minutes === 1 ? '1 min ago' : `${minutes} mins ago`
     const label = item.status === 'COMPLETED_WITH_ERRORS' ? 'Upload completed with warnings' : 'Upload completed'
-    return ago ? `${label} · ${ago}` : label
+    return ago ? `${label} - ${ago}` : label
   }
-  return `${Math.max(0, Math.min(100, Number(item.progress || 0)))}% uploading`
+  const processed = Number(item.processed || 0)
+  const total = Number(item.total || 0)
+  const progress = Math.max(0, Math.min(100, Number(item.progress || 0)))
+  return total ? `${processed.toLocaleString()} of ${total.toLocaleString()} processed - ${progress}%` : `${progress}% uploading`
 }
 
 function isRunning(item) {
@@ -40,6 +44,8 @@ function isRunning(item) {
 export function UploadProgressIndicator() {
   const [uploads, setUploads] = useState(getUploadSnapshot())
   const [sharedLeadUploads, setSharedLeadUploads] = useState([])
+  const [sharedCourseUploads, setSharedCourseUploads] = useState([])
+  const previousCourseStatuses = useRef(new Map())
   const [dismissedRemoteIds, setDismissedRemoteIds] = useState(() => {
     const user = loadSession()?.user || {}
     return readDismissedRemoteIds(String(user.id || user.userId || ''))
@@ -55,21 +61,49 @@ export function UploadProgressIndicator() {
   }, [])
 
   useEffect(() => {
-    if (!loadSession()?.user?.id && !loadSession()?.user?.userId) return undefined
+    if (!open || (!loadSession()?.user?.id && !loadSession()?.user?.userId)) return undefined
     let active = true
+    let timer
+    const schedule = (delay) => { if (active) timer = window.setTimeout(refresh, delay) }
     const refresh = async () => {
+      const sessionRole = String(loadSession()?.user?.role || loadSession()?.user?.userRole || '').toLowerCase().replaceAll('_', '-')
+      const mayReadCourseImports = ['branch-admin', 'super-admin'].includes(sessionRole)
+      const mayReadLeadImports = ['branch-admin', 'super-admin', 'sales-admin', 'branch-admin-sales-admin'].includes(sessionRole)
+      let hasActiveJobs = false
       try {
-        const response = await listActiveLeadImports()
-        const jobs = response?.data || response || []
-        if (active) setSharedLeadUploads(Array.isArray(jobs) ? jobs : [])
-      } catch {
-        if (active) setSharedLeadUploads([])
+        const [leadResult, courseResult] = await Promise.allSettled([mayReadLeadImports ? listActiveLeadImports() : Promise.resolve({ data: [] }), mayReadCourseImports ? listCourseImportJobs() : Promise.resolve({ jobs: [] })])
+        if (!active) return
+        const leadData = leadResult.status === 'fulfilled' ? (leadResult.value?.data || leadResult.value || []) : []
+        const courseData = courseResult.status === 'fulfilled' ? (courseResult.value?.data || courseResult.value || {}) : {}
+        const leadJobs = Array.isArray(leadData) ? leadData : []
+        const courseJobs = Array.isArray(courseData?.jobs) ? courseData.jobs : []
+        setSharedLeadUploads(leadJobs)
+        setSharedCourseUploads(courseJobs)
+        hasActiveJobs = [...leadJobs, ...courseJobs].some((job) => ['PENDING', 'RUNNING'].includes(String(job.status || '').toUpperCase()))
+        for (const job of courseJobs) {
+          const status = String(job.status || '').toUpperCase()
+          const previous = previousCourseStatuses.current.get(job.id)
+          if (previous && ['PENDING', 'RUNNING'].includes(previous) && ['COMPLETED', 'COMPLETED_WITH_ERRORS', 'FAILED'].includes(status)) {
+            window.dispatchEvent(new CustomEvent('cispro:course-import-completed', { detail: job }))
+          }
+          previousCourseStatuses.current.set(job.id, status)
+        }
+      } finally {
+        // Continue only while an upload is active; terminal jobs stop polling.
+        if (hasActiveJobs) schedule(15000)
       }
     }
     void refresh()
-    const timer = window.setInterval(refresh, 3000)
-    return () => { active = false; window.clearInterval(timer) }
-  }, [])
+    return () => { active = false; window.clearTimeout(timer) }
+  }, [open])
+
+  async function handleCourseRetry(item) {
+    try { await retryCourseImportJob(item.jobId) } catch { /* the next server poll remains authoritative */ }
+  }
+
+  async function handleCourseErrors(item) {
+    try { await downloadCourseImportErrors(item.jobId) } catch { /* keep the header usable if a report is unavailable */ }
+  }
 
   const sessionUser = loadSession()?.user || {}
   const currentUserId = String(sessionUser.id || sessionUser.userId || '')
@@ -80,12 +114,14 @@ export function UploadProgressIndicator() {
   }, [dismissedRemoteIds, remoteDismissKey])
 
   const localVisibleUploads = uploads.filter((item) => item.type !== 'lead' || (currentUserId && item.visibleTo?.includes(currentUserId)))
-  const remoteVisibleUploads = sharedLeadUploads.map((job) => ({ id: `server-${job.id}`, type: 'lead', uploadId: job.uploadId, label: job.fileName || 'Lead workbook', status: job.status, progress: job.progress, processed: job.processedRows, total: job.totalRows, completedAt: job.completedAt, updatedAt: job.updatedAt })).filter((item) => !dismissedRemoteIds.includes(item.id))
+  const remoteVisibleUploads = [...sharedLeadUploads.map((job) => ({ id: 'server-' + job.id, type: 'lead', uploadId: job.uploadId, label: job.fileName || 'Lead workbook', status: job.status, progress: job.progress, processed: job.processedRows, total: job.totalRows, completedAt: job.completedAt, updatedAt: job.updatedAt })), ...sharedCourseUploads.map((job) => ({ id: 'server-course-' + job.id, jobId: job.id, type: 'course', uploadId: job.uploadId, label: 'Course upload - ' + (job.fileName || 'Course workbook'), status: job.status, error: job.errorMessage, progress: job.progress, processed: job.processedRows, total: job.totalRows, failed: job.failedRows, completedAt: job.completedAt, updatedAt: job.updatedAt }))].filter((item) => !dismissedRemoteIds.includes(item.id))
   const visibleUploads = [...localVisibleUploads, ...remoteVisibleUploads.filter((remote) => !localVisibleUploads.some((local) => local.uploadId && local.uploadId === remote.uploadId))]
   const activeCount = visibleUploads.filter(isRunning).length
   const activeUpload = visibleUploads.find(isRunning)
   const activeProgress = Math.max(0, Math.min(100, Number(activeUpload?.progress || 0)))
-  if (!visibleUploads.length) return null
+  const sessionRole = String(sessionUser.role || sessionUser.userRole || '').toLowerCase().replaceAll('_', '-')
+  const canOpenUploadActivity = ['branch-admin', 'super-admin', 'sales-admin', 'branch-admin-sales-admin'].includes(sessionRole)
+  if (!visibleUploads.length && !canOpenUploadActivity) return null
 
   return <div className="upload-progress-menu">
     <button type="button" className={`upload-progress-button${activeCount ? ' is-active' : ''}`} onClick={() => setOpen((value) => !value)} aria-expanded={open} aria-label="Upload progress">
@@ -96,11 +132,11 @@ export function UploadProgressIndicator() {
     </button>
     {open ? <div className="upload-progress-popover" role="status">
       <div className="upload-progress-popover-head"><strong>Upload activity</strong><button type="button" onClick={() => setOpen(false)} aria-label="Close upload activity">×</button></div>
-      <div className="upload-progress-list">{visibleUploads.slice(0, 5).map((item) => <article key={item.id} className={`upload-progress-item is-${String(item.status || '').toLowerCase()}`}>
+      <div className="upload-progress-list">{visibleUploads.length ? visibleUploads.slice(0, 5).map((item) => <article key={item.id} className={`upload-progress-item is-${String(item.status || '').toLowerCase()}`}>
         <span className="upload-progress-item-icon">{isRunning(item) ? <LoaderCircle className="upload-progress-spin" size={16} /> : item.status === 'FAILED' ? <XCircle size={16} /> : <CheckCircle2 size={16} />}</span>
-        <div><strong title={item.label}>{item.label}</strong><small>{statusText(item)}</small>{isRunning(item) ? <div className={`upload-progress-track${Number(item.progress || 0) <= 0 ? ' is-indeterminate' : ''}`}><i style={{ width: `${Math.max(0, Math.min(100, Number(item.progress || 0))) || 28}%` }} /></div> : null}</div>
+        <div><strong title={item.label}>{item.label}</strong><small>{statusText(item)}</small>{item.type === 'course' && !isRunning(item) && item.failed > 0 ? <span className="upload-progress-item-actions"><button type="button" onClick={() => void handleCourseErrors(item)}>Download errors</button>{['COMPLETED_WITH_ERRORS', 'FAILED'].includes(String(item.status).toUpperCase()) ? <button type="button" onClick={() => void handleCourseRetry(item)}>Retry failed</button> : null}</span> : null}{isRunning(item) ? <div className={`upload-progress-track${Number(item.progress || 0) <= 0 ? ' is-indeterminate' : ''}`}><i style={{ width: `${Math.max(0, Math.min(100, Number(item.progress || 0))) || 28}%` }} /></div> : null}</div>
         {!isRunning(item) ? <button type="button" onClick={() => item.id.startsWith('server-') ? setDismissedRemoteIds((current) => [...current, item.id]) : dismissUpload(item.id)} aria-label={`Dismiss ${item.label}`}>×</button> : null}
-      </article>)}</div>
+      </article>) : <p className="upload-progress-empty">No recent upload activity.</p>}</div>
     </div> : null}
   </div>
 }

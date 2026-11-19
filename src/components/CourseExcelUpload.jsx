@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { ArrowLeft, CheckCircle2, ChevronDown, Download, FileSpreadsheet, Loader2, Search, Upload, X } from 'lucide-react'
-import { downloadCourseErrors, downloadCourseTemplate, importCourseWorkbook, previewCourseWorkbook, validateCourseFile } from '../services/courseImportService'
+import { downloadCourseErrors, downloadCourseTemplate, queueCourseImportWorkbook, previewCourseWorkbook, validateCourseFile, watchCourseImportJob } from '../services/courseImportService'
+import { completeUpload, failUpload, startUpload, updateUpload } from '../lib/uploadProgressStore'
 import { friendlyCourseImportMessage } from '../lib/courseImportMessages'
-import { completeUpload, failUpload, startUpload } from '../lib/uploadProgressStore'
 import CourseImportSheetTable from './CourseImportSheetTable'
 import '../styles/CourseExcelUpload.css'
 
@@ -228,25 +228,32 @@ export function CourseExcelUpload({ onImported, onView, onStart, onClose, pageMo
   }
   async function importFile() {
     await run('import', async () => {
-      const uploadId = startUpload({ type: 'course', label: file?.name || 'Course workbook', total: preview?.totals?.courses || 0 })
-      let next
-      try {
-        next = await importCourseWorkbook(file, preview.previewHash, editsRef.current)
-      } catch (failure) {
-        failUpload(uploadId, { error: failure.message || 'Course upload failed.' })
-        throw failure
-      }
+      const next = await queueCourseImportWorkbook(file, preview.previewHash, editsRef.current)
       if (!next.imported) {
-        failUpload(uploadId, { error: 'Workbook needs corrections.' })
         setShowImportConfirmation(false)
         setShowImportReview(false)
         setPreview(next); setEditsPending(false); setPage(1); setCoursePage(1); setSheetSearch(''); setSheetFilter('all'); setErrorPage(1)
-        setError('The workbook needs corrections. No courses were imported.')
+        setError('The workbook needs corrections. No courses were queued.')
         return
       }
-      completeUpload(uploadId, { progress: 100, processed: next.totals?.courses || preview?.totals?.courses || 0, total: next.totals?.courses || preview?.totals?.courses || 0, result: next })
-      setResult(next)
-      try { await onImported?.() } catch { setError('Courses were imported. Refresh the course table to load them.') }
+      if (next.queued && next.job?.id) {
+        const activityId = startUpload({ type: 'course', label: file?.name || 'Course workbook', total: next.job.totalRows || next.totals?.courses || 0 })
+        const initialJob = next.job
+        updateUpload(activityId, { jobId: initialJob.id, uploadId: initialJob.uploadId, progress: initialJob.progress || 0, processed: initialJob.processedRows || 0, total: initialJob.totalRows || next.totals?.courses || 0, status: initialJob.status || 'PENDING', failed: initialJob.failedRows || 0, completedAt: initialJob.completedAt || null })
+        void watchCourseImportJob(initialJob.id, (job) => {
+          const patch = { jobId: job.id, uploadId: job.uploadId, progress: Number(job.progress || 0), processed: Number(job.processedRows || 0), total: Number(job.totalRows || 0), failed: Number(job.failedRows || 0), error: job.errorMessage || '', completedAt: job.completedAt || null }
+          if (String(job.status || '').toUpperCase() === 'FAILED') {
+            failUpload(activityId, { ...patch, status: job.status })
+            // A failed worker may still have committed earlier batches.
+            window.dispatchEvent(new CustomEvent('cispro:course-import-completed', { detail: job }))
+          } else if (['COMPLETED', 'COMPLETED_WITH_ERRORS'].includes(String(job.status || '').toUpperCase())) {
+            completeUpload(activityId, { ...patch, status: job.status })
+            window.dispatchEvent(new CustomEvent('cispro:course-import-completed', { detail: job }))
+          } else updateUpload(activityId, { ...patch, status: job.status || 'RUNNING' })
+        }).catch((watchError) => failUpload(activityId, { error: watchError?.message || 'Could not track course import progress.' }))
+      }
+      setResult({ queued: Boolean(next.queued), alreadyImported: Boolean(next.alreadyImported), job: next.job, totals: next.totals })
+      try { await onImported?.() } catch { setError('Import was queued. Course list will refresh when background processing finishes.') }
       setShowImportConfirmation(false)
       setShowImportSuccess(true)
     })
@@ -388,14 +395,13 @@ export function CourseExcelUpload({ onImported, onView, onStart, onClose, pageMo
               {busy && busy !== 'import' && busy !== 'preview' ? <div className="course-import-loading" role="status"><Loader2 size={17} className="course-import-spinner" />{busy === 'preview' ? 'Validating the workbook...' : 'Preparing your download...'}</div> : null}
               {result ? (
                 <div className="course-import-results">
-                  <div className="course-import-alert is-success"><CheckCircle2 size={22} /><div><strong>{result.alreadyImported ? 'This workbook was already imported' : 'Courses imported successfully'}</strong><p>{result.courses.length} courses are available in Course Management.</p></div></div>
-                  <div className="course-import-table-wrap"><table><thead><tr><th>Course code</th><th>Course name</th><th>Action</th></tr></thead><tbody>{result.courses.map((course) => <tr key={course.id}><td>{course.courseCode}</td><td>{course.name}</td><td><button className="button button-ghost" type="button" disabled={Boolean(busy)} onClick={() => { closeUpload(); void onView?.(course) }}>View course</button></td></tr>)}</tbody></table></div>
+                  <div className="course-import-alert is-success"><CheckCircle2 size={22} /><div><strong>{result.alreadyImported ? 'Workbook already imported' : result.queued ? 'Course import started' : 'Course import complete'}</strong><p>{result.alreadyImported ? 'This workbook was already imported and its courses are still present. No duplicate courses were created.' : result.queued ? `${result.totals?.courses || 0} courses are queued. You can leave this page; progress and any failed rows will appear in Upload activity.` : `${result.totals?.courses || 0} courses were already imported.`}</p></div></div>
                 </div>
               ) : (
                 <>
                   {(!preview || (!pageMode && busy !== 'preview')) ? <div className={'course-import-upload-options' + (preview && busy !== 'preview' ? ' has-preview' : '')}>
                     {(!preview || (pageMode && busy === 'preview')) ? <div className="course-import-instructions"><strong>Before you upload</strong><p>Complete all four template sheets, then upload the .xlsx file.</p><button type="button" className="button button-ghost" disabled={Boolean(busy)} onClick={() => void run('template', downloadCourseTemplate)}><Download size={15} /> Download template</button></div> : null}
-                    <label className={"course-import-file" + (file ? " has-file" : "") + (busy === 'preview' ? " is-loading" : "")} aria-busy={busy === 'preview'}><>{busy === 'preview' ? <div className="course-import-file-progress" role="status" aria-live="polite"><Loader2 size={23} className="course-import-spinner" aria-hidden="true" /><strong>Uploading course workbook...</strong><span>{file?.name || 'Please wait while we validate the workbook.'}</span></div> : <><Upload size={23} /><strong>{file?.name || 'Choose an Excel workbook'}</strong><span>{file ? (file.size / 1024).toFixed(1) + ' KB | .xlsx' : '.xlsx only | up to 8 MB | 100 courses per upload'}</span></>}</><input aria-label="Choose course Excel workbook" type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" disabled={Boolean(busy)} onChange={(event) => { if (event.target.files?.[0]) choose(event.target.files[0]); event.target.value = '' }} /></label>
+                    <label className={"course-import-file" + (file ? " has-file" : "") + (busy === 'preview' ? " is-loading" : "")} aria-busy={busy === 'preview'}><>{busy === 'preview' ? <div className="course-import-file-progress" role="status" aria-live="polite"><Loader2 size={23} className="course-import-spinner" aria-hidden="true" /><strong>Uploading course workbook...</strong><span>{file?.name || 'Please wait while we validate the workbook.'}</span></div> : <><Upload size={23} /><strong>{file?.name || 'Choose an Excel workbook'}</strong><span>{file ? (file.size / 1024).toFixed(1) + ' KB | .xlsx' : '.xlsx Excel workbook | no course-count cap'}</span></>}</><input aria-label="Choose course Excel workbook" type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" disabled={Boolean(busy)} onChange={(event) => { if (event.target.files?.[0]) choose(event.target.files[0]); event.target.value = '' }} /></label>
                   </div> : null}
                   {preview ? (
                     <>
@@ -490,11 +496,11 @@ export function CourseExcelUpload({ onImported, onView, onStart, onClose, pageMo
               <div className="course-import-workflow-content"><p id="course-import-workflow-message">Importing {preview?.totals?.courses || courseTotalCount} {Number(preview?.totals?.courses || courseTotalCount) === 1 ? 'course' : 'courses'}...</p><span>Please keep this page open while all course data is saved.</span><div className="course-import-progress-track is-dialog-progress" role="progressbar" aria-label="Importing courses"><span /></div></div>
             </> : <>
               <header className="course-import-workflow-header"><span className="course-import-workflow-icon is-confirm"><FileSpreadsheet size={22} /></span><div><p>COURSE MANAGEMENT</p><h2 id="course-import-workflow-title">Confirm course import</h2></div><button type="button" aria-label="Cancel import" onClick={() => setShowImportConfirmation(false)}><X size={19} /></button></header>
-              <div className="course-import-workflow-content"><p id="course-import-workflow-message">Import {preview?.totals?.courses || courseTotalCount} {Number(preview?.totals?.courses || courseTotalCount) === 1 ? 'course' : 'courses'} from this workbook?</p><span>All courses will be imported together. If any course cannot be saved, none will be imported.</span></div>
+              <div className="course-import-workflow-content"><p id="course-import-workflow-message">Import {preview?.totals?.courses || courseTotalCount} {Number(preview?.totals?.courses || courseTotalCount) === 1 ? 'course' : 'courses'} from this workbook?</p><span>The workbook is validated before import. Courses save in small batches; any failed courses are reported separately.</span></div>
               <footer className="course-import-workflow-actions"><button type="button" className="button button-ghost" onClick={() => setShowImportConfirmation(false)}>Cancel</button><button type="button" className="button button-solid" onClick={confirmImport}>OK</button></footer>
             </> : <>
-              <header className="course-import-workflow-header is-success"><span className="course-import-workflow-icon"><CheckCircle2 size={24} /></span><div><p>COURSE MANAGEMENT</p><h2 id="course-import-workflow-title">{result?.alreadyImported ? 'Workbook already imported' : 'Courses imported successfully'}</h2></div></header>
-              <div className="course-import-workflow-content"><p id="course-import-workflow-message">{result?.courses?.length || 0} {result?.courses?.length === 1 ? 'course is' : 'courses are'} available in Course Management.</p></div>
+              <header className="course-import-workflow-header is-success"><span className="course-import-workflow-icon"><CheckCircle2 size={24} /></span><div><p>COURSE MANAGEMENT</p><h2 id="course-import-workflow-title">{result?.alreadyImported ? 'Workbook already imported' : result?.queued ? 'Course import started' : 'Course import complete'}</h2></div></header>
+              <div className="course-import-workflow-content"><p id="course-import-workflow-message">{result?.alreadyImported ? 'This workbook was imported earlier; duplicate courses were not added.' : result?.queued ? `${result?.totals?.courses || 0} courses are queued and will continue in the background. Track progress in the header Upload activity.` : `${result?.totals?.courses || 0} courses were already imported.`}</p></div>
               <footer className="course-import-workflow-actions is-success"><button type="button" className="button button-solid" onClick={finishImportSuccess}>OK</button></footer>
             </>}
           </section>
