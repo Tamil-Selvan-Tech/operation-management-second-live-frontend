@@ -288,6 +288,9 @@
 .sales-crm-report-table tbody tr { transition: background .14s ease; }
 .sales-crm-report-table tbody tr:hover { background: #f8fbff; }
 .sales-crm-report-lead-id { color: #245db5; font-weight: 800; }
+.sales-crm-report-pending-link { color: #245db5; font-weight: 750; text-decoration: underline; text-decoration-color: #b8d0f4; text-underline-offset: 2px; }
+.sales-crm-report-pending-link:hover { color: #174b9b; text-decoration-color: currentColor; }
+.sales-crm-report-badge.is-status-pending { color: #8a5b09; border-color: #f2e3ba; background: #fff8e5; }
 .sales-crm-report-student { color: #203754 !important; font-weight: 700; }
 .sales-crm-report-badge { display: inline-flex; align-items: center; min-height: 23px; padding: 3px 8px; border: 1px solid #e2e8f0; border-radius: 999px; color: #64748b; background: #f7f9fc; font-size: 10px; font-weight: 800; }
 .sales-crm-report-badge.is-stage-cold { color: #2863b8; border-color: #d9e8ff; background: #edf4ff; }

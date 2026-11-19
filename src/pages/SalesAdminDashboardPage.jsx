@@ -84,6 +84,7 @@ export function SalesAdminDashboardPage({ embeddedBranchAdmin = false, embeddedS
   const navigate = useNavigate()
   const location = useLocation()
   const [embeddedSection, setEmbeddedSection] = useState('dashboard')
+  const [embeddedPendingTab, setEmbeddedPendingTab] = useState(false)
   const isLeadManagement = embeddedSuperAdmin ? embeddedSection === 'leads' : location.pathname.endsWith('/leads')
   const isReports = embeddedSuperAdmin ? embeddedSection === 'reports' : location.pathname.endsWith('/reports')
   const isNotifications = embeddedSuperAdmin ? embeddedSection === 'notifications' : location.pathname.endsWith('/notifications')
@@ -181,7 +182,7 @@ export function SalesAdminDashboardPage({ embeddedBranchAdmin = false, embeddedS
   const customRangeInvalid = !dateRange.from || !dateRange.to || dateRange.from > dateRange.to
   const closeMobileSidebar = () => setIsMobileSidebarOpen(false)
   const openSalesSection = (section, path) => {
-    if (embeddedSuperAdmin) setEmbeddedSection(section)
+    if (embeddedSuperAdmin) { setEmbeddedSection(section); if (section === 'leads') setEmbeddedPendingTab(false) }
     else navigate(path)
     closeMobileSidebar()
   }
@@ -252,7 +253,7 @@ export function SalesAdminDashboardPage({ embeddedBranchAdmin = false, embeddedS
           </header>
 
           <main className="super-admin-content">
-            {isLeadManagement ? <LeadManagementPage salesAdminReadOnly={readOnlySalesAdmin} salesAdminId={embeddedSuperAdmin ? embeddedSalesAdmin?.salesAdminId : ''} superAdminView={embeddedSuperAdmin} salesAdminView /> : isReports ? <SalesCrmReportPage readOnlySalesAdmin={readOnlySalesAdmin} salesAdminId={embeddedSuperAdmin ? embeddedSalesAdmin?.salesAdminId : ''} /> : isNotifications ? <SalesAdminNotificationsPage embeddedSalesAdmin={embeddedSalesAdmin} /> : isAdmissions ? <SalesAdminAdmissionsPage key={location.search} readOnlySalesAdmin={readOnlySalesAdmin} salesAdminId={embeddedSuperAdmin ? embeddedSalesAdmin?.salesAdminId : ''} /> : isProfile ? <SalesAdminProfilePage embeddedProfile={embeddedSalesAdmin} readOnly={Boolean(embeddedSuperAdmin)} /> : (
+            {isLeadManagement ? <LeadManagementPage salesAdminReadOnly={readOnlySalesAdmin} salesAdminId={embeddedSuperAdmin ? embeddedSalesAdmin?.salesAdminId : ''} superAdminView={embeddedSuperAdmin} salesAdminView initialPendingTab={embeddedSuperAdmin && embeddedPendingTab} /> : isReports ? <SalesCrmReportPage readOnlySalesAdmin={readOnlySalesAdmin} salesAdminId={embeddedSuperAdmin ? embeddedSalesAdmin?.salesAdminId : ''} onOpenPending={embeddedSuperAdmin ? () => { setEmbeddedPendingTab(true); setEmbeddedSection('leads') } : undefined} /> : isNotifications ? <SalesAdminNotificationsPage embeddedSalesAdmin={embeddedSalesAdmin} /> : isAdmissions ? <SalesAdminAdmissionsPage key={location.search} readOnlySalesAdmin={readOnlySalesAdmin} salesAdminId={embeddedSuperAdmin ? embeddedSalesAdmin?.salesAdminId : ''} /> : isProfile ? <SalesAdminProfilePage embeddedProfile={embeddedSalesAdmin} readOnly={Boolean(embeddedSuperAdmin)} /> : (
               <section className="sales-admin-dashboard-home">
                 <header className="sales-admin-dashboard-header">
                   <div className="sales-admin-dashboard-intro">

@@ -12633,7 +12633,7 @@ useEffect(() => {
               {activeSection === 'discontinuations' ? <BranchDiscontinuationManagementPage /> : null}
               {activeSection === 'lead-management' ? <LeadManagementPage salesAdminId={branchData?.salesAdminId || ''} branchRoleAccess={resolvedBranchRoleAccess || branchData?.roleAccess || ''} superAdminView={isSuperAdminEmbeddedView} /> : null}
               {activeSection === 'sales-crm-admissions' ? <SalesAdminAdmissionsPage key={location.search} salesAdminId={branchData?.salesAdminId || ''} /> : null}
-              {activeSection === 'sales-crm-reports' ? <SalesCrmReportPage branchScoped branchId={branchProfile?.id || branchData?.id || ''} branchName={branchProfile?.branchName || branchData?.branchName || ''} /> : null}
+              {activeSection === 'sales-crm-reports' ? <SalesCrmReportPage branchScoped branchId={branchProfile?.id || branchData?.id || ''} branchName={branchProfile?.branchName || branchData?.branchName || ''} pendingLeadsHref="/branch-dashboard?section=lead-management&tab=pending" /> : null}
               {activeSection === 'branch-reports' ? (
                 <BranchReportsAnalyticsPage
                   students={branchStudentsForDisplay}
