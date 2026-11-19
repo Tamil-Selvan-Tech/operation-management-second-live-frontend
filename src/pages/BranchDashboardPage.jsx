@@ -63,6 +63,7 @@ import {
 } from 'lucide-react'
 
 import { CourseExcelUpload } from '../components/CourseExcelUpload'
+import { CourseExcelExport } from '../components/CourseExcelExport'
 import { useCourseCalculations } from '../lib/useCourseCalculations'
 import { useAuth } from '../auth/useAuth'
 import { Button } from '../components/Button'
@@ -13800,6 +13801,7 @@ if (paidProgress >= 100) {
                   description="Add a course and the saved data will appear in the table below with every field from the form."
                   actions={(
                     <>
+                      <CourseExcelExport courses={branchCourseCards} />
                       <button
                         type="button"
                         className="button button-solid"

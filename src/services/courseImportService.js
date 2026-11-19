@@ -68,3 +68,8 @@ export async function retryCourseImportJob(jobId) {
   return result.data
 }
 export const downloadCourseImportErrors = (jobId) => download('/branch-courses/import/jobs/' + encodeURIComponent(jobId) + '/errors', {}, 'course-import-errors.xlsx')
+export const downloadBranchCourses = (courseIds = null) => download(
+  '/branch-courses/import/export',
+  { method: 'POST', body: JSON.stringify({ courseIds }) },
+  'course-export.xlsx',
+)
