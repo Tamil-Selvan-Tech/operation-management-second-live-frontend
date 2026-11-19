@@ -1,5 +1,6 @@
 import { CheckCircle2, CloudUpload, LoaderCircle, XCircle } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { dismissUpload, getUploadSnapshot, subscribeUploadProgress } from '../lib/uploadProgressStore'
 import { loadSession } from '../lib/session'
 import { listActiveLeadImports } from '../services/leadImportService'
@@ -51,6 +52,9 @@ export function UploadProgressIndicator() {
     return readDismissedRemoteIds(String(user.id || user.userId || ''))
   })
   const [open, setOpen] = useState(false)
+  const [popoverPosition, setPopoverPosition] = useState(null)
+  const triggerRef = useRef(null)
+  const popoverRef = useRef(null)
   const [, setClock] = useState(Date.now())
 
   useEffect(() => subscribeUploadProgress(() => setUploads([...getUploadSnapshot()])), [])
@@ -121,22 +125,57 @@ export function UploadProgressIndicator() {
   const activeProgress = Math.max(0, Math.min(100, Number(activeUpload?.progress || 0)))
   const sessionRole = String(sessionUser.role || sessionUser.userRole || '').toLowerCase().replaceAll('_', '-')
   const canOpenUploadActivity = ['branch-admin', 'super-admin', 'sales-admin', 'branch-admin-sales-admin'].includes(sessionRole)
+  const visibleUploadsLength = visibleUploads.length
+
+  useLayoutEffect(() => {
+    if (!open) {
+      setPopoverPosition(null)
+      return undefined
+    }
+    const placePopover = () => {
+      const trigger = triggerRef.current?.getBoundingClientRect()
+      const panel = popoverRef.current?.getBoundingClientRect()
+      if (!trigger || !panel) return
+      const left = Math.max(12, Math.min(window.innerWidth - panel.width - 12, trigger.right - panel.width))
+      const below = trigger.bottom + 7
+      const top = below + panel.height <= window.innerHeight - 12 ? below : Math.max(12, trigger.top - panel.height - 7)
+      setPopoverPosition({ left, top })
+    }
+    placePopover()
+    window.addEventListener('resize', placePopover)
+    window.addEventListener('scroll', placePopover, true)
+    return () => {
+      window.removeEventListener('resize', placePopover)
+      window.removeEventListener('scroll', placePopover, true)
+    }
+  }, [open, visibleUploadsLength])
+
+  useEffect(() => {
+    if (!open) return undefined
+    const closeWhenClickingOutside = (event) => {
+      const target = event.target
+      if (triggerRef.current?.contains(target) || popoverRef.current?.contains(target)) return
+      setOpen(false)
+    }
+    document.addEventListener('pointerdown', closeWhenClickingOutside)
+    return () => document.removeEventListener('pointerdown', closeWhenClickingOutside)
+  }, [open])
   if (!visibleUploads.length && !canOpenUploadActivity) return null
 
   return <div className="upload-progress-menu">
-    <button type="button" className={`upload-progress-button${activeCount ? ' is-active' : ''}`} onClick={() => setOpen((value) => !value)} aria-expanded={open} aria-label="Upload progress">
+    <button type="button" ref={triggerRef} className={`upload-progress-button${activeCount ? ' is-active' : ''}`} onClick={() => setOpen((value) => !value)} aria-expanded={open} aria-label="Upload progress">
       <CloudUpload size={17} />
       <span>{activeCount ? `${activeCount} upload${activeCount === 1 ? '' : 's'}` : 'Uploads'}</span>
       {activeCount ? <b>{activeCount}</b> : null}
       {activeCount ? <span className="upload-progress-button-meter" aria-hidden="true"><i style={{ width: `${activeProgress || 28}%` }} /></span> : null}
     </button>
-    {open ? <div className="upload-progress-popover" role="status">
+    {open ? createPortal(<div ref={popoverRef} className="upload-progress-popover" role="status" style={{ position: 'fixed', left: popoverPosition?.left ?? 0, top: popoverPosition?.top ?? 0, right: 'auto', transform: 'none', visibility: popoverPosition ? 'visible' : 'hidden', zIndex: 2147483647 }}>
       <div className="upload-progress-popover-head"><strong>Upload activity</strong><button type="button" onClick={() => setOpen(false)} aria-label="Close upload activity">×</button></div>
-      <div className="upload-progress-list">{visibleUploads.length ? visibleUploads.slice(0, 5).map((item) => <article key={item.id} className={`upload-progress-item is-${String(item.status || '').toLowerCase()}`}>
+      <div className="upload-progress-list">{visibleUploads.length ? visibleUploads.map((item) => <article key={item.id} className={`upload-progress-item is-${String(item.status || '').toLowerCase()}`}>
         <span className="upload-progress-item-icon">{isRunning(item) ? <LoaderCircle className="upload-progress-spin" size={16} /> : item.status === 'FAILED' ? <XCircle size={16} /> : <CheckCircle2 size={16} />}</span>
         <div><strong title={item.label}>{item.label}</strong><small>{statusText(item)}</small>{item.type === 'course' && !isRunning(item) && item.failed > 0 ? <span className="upload-progress-item-actions"><button type="button" onClick={() => void handleCourseErrors(item)}>Download errors</button>{['COMPLETED_WITH_ERRORS', 'FAILED'].includes(String(item.status).toUpperCase()) ? <button type="button" onClick={() => void handleCourseRetry(item)}>Retry failed</button> : null}</span> : null}{isRunning(item) ? <div className={`upload-progress-track${Number(item.progress || 0) <= 0 ? ' is-indeterminate' : ''}`}><i style={{ width: `${Math.max(0, Math.min(100, Number(item.progress || 0))) || 28}%` }} /></div> : null}</div>
         {!isRunning(item) ? <button type="button" onClick={() => item.id.startsWith('server-') ? setDismissedRemoteIds((current) => [...current, item.id]) : dismissUpload(item.id)} aria-label={`Dismiss ${item.label}`}>×</button> : null}
       </article>) : <p className="upload-progress-empty">No recent upload activity.</p>}</div>
-    </div> : null}
+    </div>, document.body) : null}
   </div>
 }

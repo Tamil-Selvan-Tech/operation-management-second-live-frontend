@@ -15,6 +15,7 @@ export function CourseExcelExport({ courses = [] }) {
   const [page, setPage] = useState(1)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const [previewExpanded, setPreviewExpanded] = useState(false)
 
   useEffect(() => {
     if (!open) return undefined
@@ -48,13 +49,16 @@ export function CourseExcelExport({ courses = [] }) {
     })
   }
 
-  function toggleVisible() {
-    const everyVisibleSelected = visible.length > 0 && visible.every((course) => selected.has(String(course.id)))
+  function selectAllFiltered() {
     setSelected((current) => {
       const next = new Set(current)
-      visible.forEach((course) => everyVisibleSelected ? next.delete(String(course.id)) : next.add(String(course.id)))
+      filtered.forEach((course) => next.add(String(course.id)))
       return next
     })
+  }
+
+  function clearAllSelected() {
+    setSelected(new Set())
   }
 
   function openDialog() {
@@ -63,6 +67,7 @@ export function CourseExcelExport({ courses = [] }) {
     setSearch('')
     setPage(1)
     setError('')
+    setPreviewExpanded(false)
     setOpen(true)
   }
 
@@ -108,7 +113,7 @@ export function CourseExcelExport({ courses = [] }) {
             </div>
             {mode === 'selected' ? <div className="course-export-picker">
               <label className="course-export-search"><Search size={16} /><input value={search} onChange={(event) => { setSearch(event.target.value); setPage(1) }} placeholder="Search course name or ID" aria-label="Search courses" /></label>
-              <div className="course-export-picker-head"><button type="button" onClick={toggleVisible} disabled={!visible.length}>{visible.length > 0 && selectedVisibleCount === visible.length ? 'Clear visible' : 'Select visible'}</button><span>{selected.size} selected · {filtered.length} matches</span></div>
+              <div className="course-export-picker-head"><div className="course-export-picker-actions"><button type="button" onClick={selectAllFiltered} disabled={!filtered.length}>Select all</button><button type="button" onClick={clearAllSelected} disabled={!selected.size}>Clear all</button></div><span>{selected.size} selected · {filtered.length} matches</span></div>
               <div className="course-export-course-list">{visible.length ? visible.map((course) => {
                 const id = String(course.id)
                 const checked = selected.has(id)
@@ -116,7 +121,7 @@ export function CourseExcelExport({ courses = [] }) {
               }) : <p className="course-export-empty">{courses.length ? 'No courses match that search.' : 'There are no courses in this branch yet.'}</p>}</div>
               {pageCount > 1 ? <div className="course-export-pagination"><button type="button" aria-label="Previous course page" disabled={page <= 1} onClick={() => setPage((value) => Math.max(1, value - 1))}><ChevronLeft size={17} /></button><span>Page {page} of {pageCount}</span><button type="button" aria-label="Next course page" disabled={page >= pageCount} onClick={() => setPage((value) => Math.min(pageCount, value + 1))}><ChevronRight size={17} /></button></div> : null}
             </div> : null}
-            <div className="course-export-preview"><div><strong>Workbook preview</strong><span>{exportCourses.length} course{exportCourses.length === 1 ? '' : 's'} · Courses, Course Modules, Course Submodules, Payment Plans</span></div>{exportCourses.length ? <ul>{exportCourses.slice(0, 5).map((course) => <li key={course.id}><strong>{course.name}</strong><code>{courseCode(course)}</code></li>)}</ul> : <p>{courses.length ? 'Select a course to preview the export.' : 'There are no courses in this branch yet.'}</p>}{exportCourses.length > 5 ? <small>and {exportCourses.length - 5} more</small> : null}</div>
+            <div className="course-export-preview"><div><strong>Workbook preview</strong><span>{exportCourses.length} course{exportCourses.length === 1 ? '' : 's'} · Courses, Course Modules, Course Submodules, Payment Plans</span></div>{previewExpanded && exportCourses.length > 5 ? <button type="button" className="course-export-preview-more is-expanded" aria-expanded="true" onClick={() => setPreviewExpanded(false)}>Show less</button> : null}{exportCourses.length ? <div className="course-export-preview-list"><ul>{(previewExpanded ? exportCourses : exportCourses.slice(0, 5)).map((course) => <li key={course.id}><strong>{course.name}</strong><code>{courseCode(course)}</code></li>)}</ul></div> : <p>{courses.length ? 'Select a course to preview the export.' : 'There are no courses in this branch yet.'}</p>}{!previewExpanded && exportCourses.length > 5 ? <button type="button" className="course-export-preview-more" aria-expanded="false" onClick={() => setPreviewExpanded(true)}>{`and ${exportCourses.length - 5} more`}</button> : null}</div>
           </div>
           <footer className="course-export-footer"><span>Course data will be exported for this branch only.</span><div><button type="button" className="course-export-cancel" disabled={busy} onClick={() => setOpen(false)}>Cancel</button><button type="button" className="course-export-download" disabled={busy || !exportCourses.length} onClick={() => void startDownload()}>{busy ? <span className="course-export-spinner" /> : <Download size={16} />} {busy ? 'Preparing workbook…' : 'Download Excel'}</button></div></footer>
         </section>
