@@ -96,3 +96,15 @@ export async function downloadLeadImportTemplate() {
   downloadBlob(response.blob, response.fileName || 'lead-upload-template.xlsx')
   return response
 }
+
+export async function downloadLeadManagementWorkbook(filters = {}) {
+  const params = new URLSearchParams()
+  for (const key of ['branchId', 'courseId', 'stage', 'status', 'leadSource', 'search']) {
+    const value = String(filters[key] || '').trim()
+    if (value) params.set(key, value)
+  }
+  const response = await requestBlob(`/leads/export${params.size ? `?${params.toString()}` : ''}`, { method: 'GET', timeoutMs: IMPORT_TIMEOUT_MS })
+  if (!response?.blob) throw new Error('Unable to download the lead workbook right now.')
+  downloadBlob(response.blob, response.fileName || 'lead-management-export.xlsx')
+  return response
+}
