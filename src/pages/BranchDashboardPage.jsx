@@ -63,6 +63,7 @@ import {
 } from 'lucide-react'
 
 import { CourseExcelUpload } from '../components/CourseExcelUpload'
+import { CourseExcelExport } from '../components/CourseExcelExport'
 import { useCourseCalculations } from '../lib/useCourseCalculations'
 import { useAuth } from '../auth/useAuth'
 import { Button } from '../components/Button'
@@ -4398,7 +4399,7 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
   }, [isSidebarFlyoutMode, openSidebarFlyout])
 
   useEffect(() => {
-  const parentByChild = { calendar: 'reports', faculty: 'faculty', 'sales-admin-directory': 'faculty', 'sales-crm-admitted-students': 'sales-crm', 'sales-crm-admissions': 'lead-management', 'sales-crm-reports': 'reports', 'branch-reports': 'reports', 'lead-management': 'lead-management', students: 'academic', 'student-management': 'academic', 'completed-students': 'academic', courses: 'academic', batches: 'academic', installments: 'academic', payments: 'payments', 'exams-results': 'academic', 'academic-tests': 'academic', 'institute-leave': 'academic', 'faculty-leave': 'academic', 'progress-notifications': 'academic', 'faculty-edit-requests': 'academic', discontinuations: 'academic', 'helpdesk-tickets': 'helpdesk', 'helpdesk-knowledge-base': 'helpdesk', 'helpdesk-contact-support': 'helpdesk' }
+  const parentByChild = { faculty: 'faculty', 'sales-admin-directory': 'faculty', 'sales-crm-admitted-students': 'sales-crm', 'sales-crm-admissions': 'sales-crm', 'sales-crm-reports': 'sales-crm', 'lead-management': 'sales-crm', students: 'student-management', 'student-management': 'student-management', 'completed-students': 'student-management', courses: 'academic', batches: 'academic', installments: 'academic', payments: 'payments', 'exams-results': 'academic', 'academic-tests': 'academic', 'institute-leave': 'leave-management', 'faculty-leave': 'leave-management', 'progress-notifications': 'leave-management', 'faculty-edit-requests': 'leave-management', discontinuations: 'leave-management', 'helpdesk-tickets': 'helpdesk', 'helpdesk-knowledge-base': 'helpdesk', 'helpdesk-contact-support': 'helpdesk' }
     const parent = parentByChild[sidebarActiveSection]
     if (!parent) return
     setExpandedSidebarGroups((current) => current[parent] ? current : { ...current, [parent]: true })
@@ -4566,7 +4567,7 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
   ).trim()
 
   const loadApprovedDiscontinuationRequests = useCallback((options = {}) => {
-    if (admissionOnlyMode) return Promise.resolve([])
+    if (activeSection !== 'dashboard' || admissionOnlyMode) return Promise.resolve([])
     if ((!embeddedMode && role !== "branch-admin") || !embeddedBranchProfileReady) return Promise.resolve([])
 
     const force = options?.force === true
@@ -4599,7 +4600,7 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
       setApprovedDiscontinuationRequests([])
       return []
     })
-  }, [admissionOnlyMode, approvedDiscontinuationScope, embeddedBranchProfileReady, embeddedMode, role])
+  }, [activeSection, admissionOnlyMode, approvedDiscontinuationScope, embeddedBranchProfileReady, embeddedMode, role])
   useEffect(() => {
     void loadApprovedDiscontinuationRequests()
   }, [loadApprovedDiscontinuationRequests])
@@ -5070,6 +5071,26 @@ const BRANCH_PAYMENT_HISTORY_PER_PAGE = 5
     }
   }, [branchData?.branchId, branchData?.id])
 
+  const previousCourseSectionRef = useRef(activeSection)
+  useEffect(() => {
+    const wasOnCourses = previousCourseSectionRef.current === 'courses'
+    previousCourseSectionRef.current = activeSection
+    if (activeSection !== 'courses' || wasOnCourses) return
+    clearBranchCourseListCache()
+    setBranchCoursePage(1)
+    void loadBranchCourses()
+  }, [activeSection, loadBranchCourses])
+
+  useEffect(() => {
+    const handleCourseImportCompleted = () => {
+      clearBranchCourseListCache()
+      setBranchCoursePage(1)
+      // Refresh even if import finishes on the upload page or another section.
+      void loadBranchCourses()
+    }
+    window.addEventListener('cispro:course-import-completed', handleCourseImportCompleted)
+    return () => window.removeEventListener('cispro:course-import-completed', handleCourseImportCompleted)
+  }, [loadBranchCourses])
   const loadBranchBatches = useCallback(async (branchScopeId = '') => {
     const scopeId = String(branchScopeId || branchProfile?.id || branchProfile?.branchId || branchData?.id || branchData?.branchId || '').trim()
     setIsBranchBatchesLoading(true)
@@ -6720,7 +6741,10 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
   const latestBranchCourseCode = useMemo(() => {
     const latestCourse = [...branchCourseCards]
       .filter((course) => String(course?.courseCode || '').trim())
-      .sort((left, right) => (Date.parse(right?.createdAt || '') || 0) - (Date.parse(left?.createdAt || '') || 0))[0]
+      .sort((left, right) => {
+        const createdAtDifference = (Date.parse(right?.createdAt || '') || 0) - (Date.parse(left?.createdAt || '') || 0)
+        return createdAtDifference || String(right?.courseCode || '').localeCompare(String(left?.courseCode || ''), undefined, { numeric: true })
+      })[0]
     return String(latestCourse?.courseCode || '').trim()
   }, [branchCourseCards])
 
@@ -11676,45 +11700,43 @@ useEffect(() => {
           { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
           { id: 'sales-crm', label: 'Sales & CRM', icon: BriefcaseBusiness, children: [
             { id: 'sales-crm-admitted-students', label: 'Admissions', icon: GraduationCap },
+            { id: 'sales-crm-reports', label: 'Lead Monthly Report', icon: FileText },
+            ...(hasLeadManagementAccess ? [
+              { id: 'lead-management', label: 'Lead Management', icon: BriefcaseBusiness },
+              { id: 'sales-crm-admissions', label: 'Student Admission', icon: GraduationCap },
+            ] : []),
           ] },
           { id: 'faculty', label: 'User & Role Management', icon: Shield, children: [
             { id: 'faculty', label: 'Faculty Management', icon: UserRound },
             { id: 'sales-admin-directory', label: 'Sales Admin', icon: BriefcaseBusiness },
           ] },
+          { id: 'payments', label: 'Fee & Accounts Management', icon: Wallet },
           { id: 'academic', label: 'Academic Operation', icon: LayoutGrid, children: [
             { id: 'installments', label: 'Installment Templates', icon: Wallet },
             { id: 'courses', label: 'Course Management', icon: BookOpen },
             { id: 'batches', label: 'Batch Management', icon: Layers3 },
             { id: 'faculty-skills', label: 'Faculty Skills Upgrade', icon: GraduationCap },
-            { id: 'student-management', label: 'Student Management', icon: Users, children: [
-              { id: 'students', label: 'Student Management', icon: Users },
-              { id: 'completed-students', label: 'Completed Students', icon: CheckCircle2 },
-            ] },
             { id: 'exams-results', label: 'Exams and Result', icon: FileText, children: [
               { id: 'exams-results', label: 'Syllabus Test', icon: FileText },
               { id: 'academic-tests', label: 'Academic Test', icon: FileText, children: [
                 { id: 'academic-test-reports', label: 'Report', icon: FileText },
               ] },
             ] },
-            { id: 'leave-management', label: 'Leave Management', icon: CalendarDays, children: [
-              { id: 'institute-leave', label: 'Institute Leave', icon: CalendarDays },
-              { id: 'faculty-leave', label: 'Faculty Leave', icon: CalendarDays },
-              { id: 'progress-notifications', label: 'Progress Alerts', icon: Bell },
-              { id: 'faculty-edit-requests', label: 'Faculty Edit Requests', icon: FileText },
-              { id: 'discontinuations', label: 'Discontinuation', icon: PhoneCall },
-            ] },
           ] },
-          { id: 'payments', label: 'Fee & Accounts Management', icon: Wallet },
-          ...(hasLeadManagementAccess ? [{ id: 'lead-management', label: 'Lead Management', icon: BriefcaseBusiness, children: [
-            { id: 'lead-management', label: 'Lead Management', icon: BriefcaseBusiness },
-            { id: 'sales-crm-admissions', label: 'Student Admission', icon: GraduationCap },
-          ] }] : []),
-          { id: 'reports', label: 'Reports & Analytics', icon: BarChart3, children: [
-            { id: 'sales-crm-reports', label: 'Lead Monthly Report', icon: FileText },
-            { id: 'branch-reports', label: 'Report Downloads', icon: FileSpreadsheet },
+          { id: 'student-management', label: 'Student Management', icon: Users, children: [
+            { id: 'students', label: 'Student Management', icon: Users },
+            { id: 'completed-students', label: 'Completed Students', icon: CheckCircle2 },
           ] },
-          { id: 'helpdesk', label: 'Helpdesk & Support', icon: Headset, children: [] },
+          { id: 'leave-management', label: 'Leave Management', icon: CalendarDays, children: [
+            { id: 'institute-leave', label: 'Institute Leave', icon: CalendarDays },
+            { id: 'faculty-leave', label: 'Faculty Leave', icon: CalendarDays },
+            { id: 'progress-notifications', label: 'Progress Alerts', icon: Bell },
+            { id: 'faculty-edit-requests', label: 'Faculty Edit Requests', icon: FileText },
+            { id: 'discontinuations', label: 'Discontinuation', icon: PhoneCall },
+          ] },
+          { id: 'branch-reports', label: 'Reports & Analytics', icon: BarChart3 },
           { id: 'notifications', label: 'Notifications', icon: Bell },
+          { id: 'helpdesk', label: 'Helpdesk & Support', icon: Headset, children: [] },
           { id: 'settings', label: 'Settings', icon: Settings },
           { id: 'profile', label: 'Profile', icon: CircleUserRound },
         ].map((item) => {
@@ -12611,12 +12633,13 @@ useEffect(() => {
               {activeSection === 'discontinuations' ? <BranchDiscontinuationManagementPage /> : null}
               {activeSection === 'lead-management' ? <LeadManagementPage salesAdminId={branchData?.salesAdminId || ''} branchRoleAccess={resolvedBranchRoleAccess || branchData?.roleAccess || ''} superAdminView={isSuperAdminEmbeddedView} /> : null}
               {activeSection === 'sales-crm-admissions' ? <SalesAdminAdmissionsPage key={location.search} salesAdminId={branchData?.salesAdminId || ''} /> : null}
-              {activeSection === 'sales-crm-reports' ? <SalesCrmReportPage branchScoped branchId={branchProfile?.id || branchData?.id || ''} branchName={branchProfile?.branchName || branchData?.branchName || ''} /> : null}
+              {activeSection === 'sales-crm-reports' ? <SalesCrmReportPage branchScoped branchId={branchProfile?.id || branchData?.id || ''} branchName={branchProfile?.branchName || branchData?.branchName || ''} pendingLeadsHref="/branch-dashboard?section=lead-management&tab=pending" /> : null}
               {activeSection === 'branch-reports' ? (
                 <BranchReportsAnalyticsPage
                   students={branchStudentsForDisplay}
                   batchGroups={branchBatchGroups}
                   branchId={branchProfile?.id || branchProfile?.branchId || branchData?.id || branchData?.branchId || ''}
+                  compactHeader
                 />
               ) : null}
               {activeSection === 'calendar' ? <BranchCalendarPage /> : null}
@@ -13777,6 +13800,7 @@ if (paidProgress >= 100) {
                   description="Add a course and the saved data will appear in the table below with every field from the form."
                   actions={(
                     <>
+                      <CourseExcelExport courses={branchCourseCards} />
                       <button
                         type="button"
                         className="button button-solid"

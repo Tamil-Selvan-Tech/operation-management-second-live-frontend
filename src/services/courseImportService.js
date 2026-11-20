@@ -1,10 +1,10 @@
 import { request, requestBlob } from './apiClient'
 
-export const COURSE_UPLOAD_MAX_BYTES = 8 * 1024 * 1024
+export const COURSE_UPLOAD_MAX_BYTES = 10 * 1024 * 1024
 export function validateCourseFile(file) {
   if (!file || !/\.xlsx$/i.test(file.name)) return 'Choose an .xlsx workbook.'
   if (!file.size) return 'The selected workbook is empty.'
-  if (file.size > COURSE_UPLOAD_MAX_BYTES) return 'The workbook must be 8 MB or smaller.'
+  if (file.size > COURSE_UPLOAD_MAX_BYTES) return 'The workbook is too large to upload.'
   if (file.type && !['application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'application/octet-stream', 'application/zip', 'application/x-zip-compressed'].includes(file.type)) return 'Choose a valid Excel .xlsx workbook.'
   return ''
 }
@@ -35,7 +35,41 @@ export async function previewCourseWorkbook(file, edits) {
   const result = await request('/branch-courses/import/preview', { method: 'POST', body: form(file, undefined, edits) })
   return result.data
 }
-export async function importCourseWorkbook(file, previewHash, edits) {
-  const result = await request('/branch-courses/import/import', { method: 'POST', body: form(file, previewHash, edits), timeoutMs: 120000 })
+export async function queueCourseImportWorkbook(file, previewHash, edits) {
+  const result = await request('/branch-courses/import/jobs', { method: 'POST', body: form(file, previewHash, edits), timeoutMs: 300000 })
   return result.data
 }
+export async function getCourseImportJob(jobId) {
+  const result = await request('/branch-courses/import/jobs/' + encodeURIComponent(jobId))
+  return result.data
+}
+export async function watchCourseImportJob(jobId, onProgress) {
+  let transientErrors = 0
+  while (true) {
+    try {
+      const job = await getCourseImportJob(jobId)
+      transientErrors = 0
+      onProgress?.(job)
+      if (["COMPLETED", "COMPLETED_WITH_ERRORS", "FAILED"].includes(String(job.status || "").toUpperCase())) return job
+    } catch (error) {
+      if (error?.status && error.status < 500) throw error
+      transientErrors += 1
+      if (transientErrors > 8) throw error
+    }
+    await new Promise((resolve) => window.setTimeout(resolve, 10000))
+  }
+}
+export async function listCourseImportJobs() {
+  const result = await request('/branch-courses/import/jobs')
+  return result.data
+}
+export async function retryCourseImportJob(jobId) {
+  const result = await request('/branch-courses/import/jobs/' + encodeURIComponent(jobId) + '/retry', { method: 'POST' })
+  return result.data
+}
+export const downloadCourseImportErrors = (jobId) => download('/branch-courses/import/jobs/' + encodeURIComponent(jobId) + '/errors', {}, 'course-import-errors.xlsx')
+export const downloadBranchCourses = (courseIds = null) => download(
+  '/branch-courses/import/export',
+  { method: 'POST', body: JSON.stringify({ courseIds }) },
+  'course-export.xlsx',
+)

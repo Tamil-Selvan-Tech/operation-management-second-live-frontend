@@ -270,6 +270,10 @@
 .sales-crm-report-section-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
 .sales-crm-report-section-heading h2 { margin: 0; color: #17345f; font-size: 15px; font-weight: 800; letter-spacing: -.01em; }
 .sales-crm-report-section-heading p { margin: 4px 0 0; color: #8795a9; font-size: 11px; }
+.sales-crm-report-section-heading .sales-crm-report-results-summary { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 7px; margin: 7px 0 0; color: #536985; }
+.sales-crm-report-results-count { display: inline-grid; place-items: center; min-width: 30px; min-height: 26px; box-sizing: border-box; padding: 3px 9px; border: 1px solid #cfe0fb; border-radius: 999px; background: #eef5ff; color: #1e5eb5; font-size: 13px; font-weight: 850; font-variant-numeric: tabular-nums; }
+.sales-crm-report-results-category { color: #315985; font-size: 11px; font-weight: 800; }
+.sales-crm-report-results-copy { color: #6b7e96; font-size: 11px; font-weight: 650; }
 .sales-crm-report-stage-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
 .sales-crm-report-stage { display: grid; grid-template-columns: 10px minmax(0, 1fr) auto; align-items: center; gap: 9px; min-width: 0; padding: 12px 13px; border: 1px solid var(--stage-border); border-radius: 11px; background: var(--stage-soft); }
 .sales-crm-report-stage-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--stage-accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--stage-accent) 13%, transparent); }
@@ -288,6 +292,9 @@
 .sales-crm-report-table tbody tr { transition: background .14s ease; }
 .sales-crm-report-table tbody tr:hover { background: #f8fbff; }
 .sales-crm-report-lead-id { color: #245db5; font-weight: 800; }
+.sales-crm-report-pending-link { color: #245db5; font-weight: 750; text-decoration: underline; text-decoration-color: #b8d0f4; text-underline-offset: 2px; }
+.sales-crm-report-pending-link:hover { color: #174b9b; text-decoration-color: currentColor; }
+.sales-crm-report-badge.is-status-pending { color: #8a5b09; border-color: #f2e3ba; background: #fff8e5; }
 .sales-crm-report-student { color: #203754 !important; font-weight: 700; }
 .sales-crm-report-badge { display: inline-flex; align-items: center; min-height: 23px; padding: 3px 8px; border: 1px solid #e2e8f0; border-radius: 999px; color: #64748b; background: #f7f9fc; font-size: 10px; font-weight: 800; }
 .sales-crm-report-badge.is-stage-cold { color: #2863b8; border-color: #d9e8ff; background: #edf4ff; }

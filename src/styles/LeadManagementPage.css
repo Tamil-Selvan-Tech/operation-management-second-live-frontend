@@ -1232,9 +1232,18 @@ body:has(.lead-followup-backdrop) .branch-dashboard-app-shell .super-admin-sideb
 }
 
 /* Header actions */
-.lead-management-heading-actions { display: flex; align-items: center; justify-content: flex-end; gap: 10px; flex-wrap: wrap; }
-.lead-management-heading-actions > button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; white-space: nowrap; }
-@media (max-width: 720px) { .lead-management-heading-actions { width: 100%; justify-content: stretch; }.lead-management-heading-actions > button { flex: 1 1 180px; } }
+.lead-management-heading-actions { display: flex; flex: 0 0 auto; align-items: center; justify-content: flex-end; gap: 8px; flex-wrap: nowrap; white-space: nowrap; }
+.lead-management-heading-actions > button { display: inline-flex; flex: 0 0 auto; align-items: center; justify-content: center; gap: 7px; min-height: 42px; padding: 10px 13px; white-space: nowrap; }
+.lead-export-confirm-backdrop { position: fixed; inset: 0; z-index: 1400; display: grid; place-items: center; padding: 20px; background: rgba(15, 23, 42, .48); }
+.lead-export-confirm-dialog { position: relative; width: min(420px, 100%); box-sizing: border-box; padding: 28px; border: 1px solid #e2e8f0; border-radius: 16px; background: #fff; box-shadow: 0 24px 70px rgba(15, 23, 42, .24); text-align: center; }
+.lead-export-confirm-close { position: absolute; top: 12px; right: 12px; display: grid; place-items: center; width: 34px; height: 34px; border: 0; border-radius: 8px; background: #f1f5f9; color: #64748b; cursor: pointer; }
+.lead-export-confirm-close:disabled { cursor: not-allowed; opacity: .6; }
+.lead-export-confirm-icon { display: grid; place-items: center; width: 46px; height: 46px; margin: 0 auto 14px; border-radius: 13px; background: #eff6ff; color: #2563eb; }
+.lead-export-confirm-dialog h2 { margin: 0 0 8px; color: #17345f; font-size: 20px; }
+.lead-export-confirm-dialog p { margin: 0; color: #64748b; font-size: 14px; line-height: 1.55; }
+.lead-export-confirm-actions { display: flex; justify-content: center; gap: 10px; margin-top: 22px; }
+.lead-export-confirm-actions button { min-height: 42px; }
+@media (max-width: 720px) { .lead-management-heading { flex-direction: column; }.lead-management-heading-actions { width: 100%; justify-content: flex-start; gap: 7px; overflow-x: auto; padding-bottom: 2px; }.lead-management-heading-actions > button { flex: 0 0 auto; min-height: 40px; padding: 9px 10px; font-size: 12px; }.lead-management-heading-actions > button svg { flex: 0 0 15px; width: 15px; height: 15px; } }
 
 .lead-recordings-send-status.is-error { color: #b42318; }
 
