@@ -79,10 +79,10 @@ export function LeadExcelUploadModal({ isOpen, onClose, currentUser = {}, onImpo
     setError(''); setNotice(''); setPreview(null); setImportStatus(null); setEditingRow(null); setTablePage(1)
     if (!nextFile) return
     if (!/\.xlsx$/i.test(nextFile.name)) { setError('Only .xlsx files are supported.'); return }
-    if (!branchId || !assignedToId) { setError('Select a branch and Sales Admin before uploading.'); return }
+    if (!branchId || !assignedToId) { setError('Select a branch and upload destination before uploading.'); return }
     setFile(nextFile); setBusy(true)
     try {
-      const response = await previewLeadImport(nextFile, { branchId, assignedToId })
+      const response = await previewLeadImport(nextFile, { branchId, assignedToId, distributionMode })
       setPreview(response?.data || response || {})
       setStep(2)
     } catch (requestError) { setFile(null); setError(errorMessage(requestError)) } finally { setBusy(false) }
@@ -99,7 +99,7 @@ export function LeadExcelUploadModal({ isOpen, onClose, currentUser = {}, onImpo
     setPreview((current) => current ? ({ ...current, rows: nextRows }) : current)
     setBusy(true); setError(''); setNotice('')
     try {
-      const response = await revalidateLeadImport(nextRows, { branchId, assignedToId })
+      const response = await revalidateLeadImport(nextRows, { branchId, assignedToId, distributionMode })
       setPreview(response?.data || response || {})
       setEditingRow(null)
       setNotice('Row saved and validated. Review the updated status before importing.')
@@ -114,7 +114,7 @@ export function LeadExcelUploadModal({ isOpen, onClose, currentUser = {}, onImpo
     if (!preview?.rows?.length) return
     setBusy(true); setError(''); setEditingRow(null)
     try {
-      const response = await revalidateLeadImport(preview.rows, { branchId, assignedToId })
+      const response = await revalidateLeadImport(preview.rows, { branchId, assignedToId, distributionMode })
       setPreview(response?.data || response || {}); setEditingRow(null); setNotice('Validation refreshed. Review the row status before importing.')
     } catch (requestError) { setError(errorMessage(requestError)) } finally { setBusy(false) }
   }
@@ -127,9 +127,17 @@ export function LeadExcelUploadModal({ isOpen, onClose, currentUser = {}, onImpo
     setBusy(true); setError(''); setStep(3); setImportStatus({ status: 'PENDING', progress: 0, processedRows: 0, totalRows: preview.rows.length })
     const uploadId = startUpload({ type: 'lead', label: file?.name || 'Lead workbook', total: preview.rows.length, visibleTo: [currentUser?.id, currentUser?.userId, assignedToId] })
     try {
-      const result = await importLeadRows(preview.rows, { branchId, assignedToId, fileName: file?.name, onProgress: (status) => { setImportStatus(status); updateUpload(uploadId, { uploadId: status.uploadId, progress: status.progress || 0, processed: status.processedRows || 0, total: status.totalRows || preview.rows.length, status: status.status || 'RUNNING' }) } })
+      const result = await importLeadRows(preview.rows, { branchId, assignedToId, distributionMode, fileName: file?.name, onProgress: (status) => { setImportStatus(status); updateUpload(uploadId, { uploadId: status.uploadId, progress: status.progress || 0, processed: status.processedRows || 0, total: status.totalRows || preview.rows.length, status: status.status || 'RUNNING' }) } })
       const status = result?.data || result || {}
-      setImportStatus(status); completeUpload(uploadId, { status: status.status || 'COMPLETED', progress: 100, processed: status.processedRows || preview.rows.length, total: status.totalRows || preview.rows.length, completedAt: status.completedAt || Date.now(), result: status }); setNotice(`Lead import completed. ${status.activeRows || 0} active leads and ${status.pendingRows || 0} pending completion rows are ready.`)
+      setImportStatus(status)
+      const progressPatch = { progress: Number(status.progress ?? 100), processed: status.processedRows || preview.rows.length, total: status.totalRows || preview.rows.length, result: status }
+      if (String(status.status || '').toUpperCase() === 'AWAITING_DISTRIBUTION') {
+        updateUpload(uploadId, { ...progressPatch, status: 'AWAITING_DISTRIBUTION' })
+        setNotice(`${Number(status.totalRows || preview.rows.length).toLocaleString()} leads are staged and waiting for Branch Admin distribution.`)
+      } else {
+        completeUpload(uploadId, { ...progressPatch, status: status.status || 'COMPLETED' })
+        setNotice(`Lead import completed. ${status.activeRows || 0} active leads and ${status.pendingRows || 0} pending completion rows are ready.`)
+      }
       await onImported?.(status)
       onPendingChanged?.()
     } catch (requestError) { failUpload(uploadId, { error: errorMessage(requestError) }); setError(errorMessage(requestError)); setStep(2) } finally { setBusy(false) }
@@ -148,7 +156,9 @@ export function LeadExcelUploadModal({ isOpen, onClose, currentUser = {}, onImpo
       invalidRows: nextRows.filter((row) => row.status === 'INVALID').length,
     }
   })
-  const targetName = targetData.targets?.find((item) => item.id === assignedToId)?.fullName || ''
+  const selectedTarget = targetData.targets?.find((item) => item.id === assignedToId)
+  const distributionMode = role === 'SUPER_ADMIN' && String(selectedTarget?.role || '').toUpperCase() === 'BRANCH_ADMIN'
+  const targetName = selectedTarget?.fullName || ''
 
   return <div className="lead-import-backdrop" role="presentation">
     <section className="lead-import-modal" role="dialog" aria-modal="true" aria-labelledby="lead-import-title">
@@ -163,12 +173,12 @@ export function LeadExcelUploadModal({ isOpen, onClose, currentUser = {}, onImpo
       {error ? <div className="lead-import-notice is-error">{error}</div> : null}{notice ? <div className="lead-import-notice is-success">{notice}</div> : null}
       {step === 1 ? <div className="lead-import-body">
         <div className="lead-import-assignment">
-          <div><span>Upload destination</span><strong>{role === 'SUPER_ADMIN' ? 'Choose branch and Sales Admin' : isCombinedBranchAdmin ? 'Your branch and account' : role === 'BRANCH_ADMIN' ? 'Your branch - choose Sales Admin' : 'Your assigned branch and account'}</strong></div>
+          <div><span>Upload destination</span><strong>{role === 'SUPER_ADMIN' ? 'Choose a branch and upload destination' : isCombinedBranchAdmin ? 'Your branch and account' : role === 'BRANCH_ADMIN' ? 'Your branch - choose Sales Admin' : 'Your assigned branch and account'}</strong></div>
           <div className="lead-import-assignment-fields">
             <label>Branch<select value={branchId} disabled={branchLocked || busy} onChange={(event) => setBranchId(event.target.value)}><option value="">Select branch</option>{(targetData.branches || []).map((branch) => <option key={branch.id} value={branch.id}>{branch.branchName}</option>)}</select></label>
-            <label>Sales Admin<select value={assignedToId} disabled={targetLocked || busy || !branchId} onChange={(event) => setAssignedToId(event.target.value)}><option value="">Select account</option>{(targetData.targets || []).map((target) => <option key={target.id} value={target.id}>{target.fullName}{isCombinedBranchAdmin && target.id === (currentUser?.id || currentUser?.userId) ? ' (You)' : ` - ${target.role === 'BRANCH_ADMIN' ? 'Branch + Sales' : 'Sales Admin'}`}</option>)}</select></label>
+            <label>{role === 'SUPER_ADMIN' ? 'Upload for' : 'Sales Admin'}<select value={assignedToId} disabled={targetLocked || busy || !branchId} onChange={(event) => setAssignedToId(event.target.value)}><option value="">Select account</option>{(targetData.targets || []).map((target) => <option key={target.id} value={target.id}>{target.fullName}{target.id === (currentUser?.id || currentUser?.userId) ? ' (You)' : ` - ${String(target.role || '').toUpperCase() === 'BRANCH_ADMIN' ? 'Branch Admin' : 'Sales Admin'}`}</option>)}</select></label>
           </div>
-          {targetName ? <small>Leads will be assigned to <strong>{targetName}</strong> after import.</small> : null}
+          {distributionMode ? <small>Upload to <strong>{targetName}</strong>. The Branch Admin will distribute valid leads among this branch?s Sales Admins and retain a share.</small> : targetName ? <small>Leads will be assigned to <strong>{targetName}</strong> after import.</small> : null}
         </div>
         <div className={'lead-import-dropzone ' + (dragging ? 'is-dragging' : '')} onDragOver={(event) => { event.preventDefault(); setDragging(true) }} onDragLeave={() => setDragging(false)} onDrop={(event) => { event.preventDefault(); setDragging(false); void selectFile(event.dataTransfer.files?.[0]) }}>
           <FileSpreadsheet size={38} /><h3>{file ? file.name : 'Drop your lead workbook here'}</h3><p>{file ? 'Excel file selected. Your uploaded file is preserved while you review or edit the rows.' : 'Name and mobile are required. Core-only rows go to Pending Completion; complete rows go to Active Leads.'}</p>
@@ -196,7 +206,7 @@ export function LeadExcelUploadModal({ isOpen, onClose, currentUser = {}, onImpo
         <div className="lead-import-pagination"><span>Showing {(tablePage - 1) * PAGE_SIZE + (visibleRows.length ? 1 : 0)}-{Math.min(tablePage * PAGE_SIZE, rows.length)} of {rows.length}</span><div><button type="button" onClick={() => setTablePage((page) => Math.max(1, page - 1))} disabled={tablePage <= 1}>Previous</button><button type="button" onClick={() => setTablePage((page) => Math.min(totalPages, page + 1))} disabled={tablePage >= totalPages}>Next</button></div></div>
         <div className="lead-import-actions"><button type="button" className="lead-import-secondary" onClick={() => { setStep(1); setPreview(null); setFile(null); setEditingRow(null) }} disabled={busy || Boolean(editingRow)}>Choose another file</button><button type="button" className="lead-import-primary" onClick={() => void importWorkbook()} disabled={busy || Boolean(editingRow) || !rows.length || rows.some((row) => ['INVALID', 'DUPLICATE', 'PENDING_EDIT'].includes(row.status))}>{busy ? <><LoaderCircle className="lead-import-spin" size={16} /> Importing...</> : 'Import leads'}</button></div>
       </div> : null}
-      {step === 3 ? <div className="lead-import-body lead-import-results"><div className="lead-import-result-icon"><CheckCircle2 size={32} /></div><h3>{importStatus?.status === 'FAILED' ? 'Import failed' : importStatus?.status === 'COMPLETED' ? 'Import completed' : 'Import processing'}</h3><p>{importStatus?.status === 'FAILED' ? importStatus.errorMessage : 'You can close this window. Upload progress will continue in the header.'}</p><div className="lead-import-progress"><div><span>Import progress</span><strong>{Math.max(0, Math.min(100, Number(importStatus?.progress || 0)))}%</strong></div><div className={`lead-import-progress-track${Number(importStatus?.progress || 0) <= 0 && importStatus?.status !== 'FAILED' ? ' is-indeterminate' : ''}`}><i style={{ width: `${Math.max(0, Math.min(100, Number(importStatus?.progress || 0))) || 28}%` }} /></div></div><div className="lead-import-result-grid"><div><span>Active leads</span><strong>{importStatus?.activeRows || 0}</strong></div><div><span>Valid pending</span><strong>{importStatus?.pendingRows || 0}</strong></div><div><span>Duplicates</span><strong>{importStatus?.duplicateRows || 0}</strong></div><div><span>Invalid</span><strong>{importStatus?.invalidRows || 0}</strong></div></div><div className="lead-import-actions"><button type="button" className="lead-import-primary" onClick={onClose}>Done</button></div></div> : null}
+      {step === 3 ? <div className="lead-import-body lead-import-results"><div className="lead-import-result-icon"><CheckCircle2 size={32} /></div><h3>{importStatus?.status === 'AWAITING_DISTRIBUTION' ? 'Ready for branch distribution' : importStatus?.status === 'FAILED' ? 'Import failed' : importStatus?.status === 'COMPLETED' ? 'Import completed' : 'Import processing'}</h3><p>{importStatus?.status === 'AWAITING_DISTRIBUTION' ? 'The upload is ready. The Branch Admin can now assign each valid lead to themselves or a Sales Admin.' : importStatus?.status === 'FAILED' ? importStatus.errorMessage : 'You can close this window. Upload progress will continue in the header.'}</p><div className="lead-import-progress"><div><span>{importStatus?.status === 'AWAITING_DISTRIBUTION' ? 'Rows staged' : 'Rows processed'}</span><strong>{Number(importStatus?.processedRows || 0).toLocaleString()} of {Number(importStatus?.totalRows || preview?.rows?.length || 0).toLocaleString()} · {Math.max(0, Math.min(100, Number(importStatus?.progress || 0)))}%</strong></div><div className={`lead-import-progress-track${Number(importStatus?.progress || 0) <= 0 && importStatus?.status !== 'FAILED' ? ' is-indeterminate' : ''}`}><i style={{ width: `${Math.max(0, Math.min(100, Number(importStatus?.progress || 0))) || 28}%` }} /></div></div><div className="lead-import-result-grid"><div><span>Active leads</span><strong>{importStatus?.activeRows || 0}</strong></div><div><span>Valid pending</span><strong>{importStatus?.pendingRows || 0}</strong></div><div><span>Duplicates</span><strong>{importStatus?.duplicateRows || 0}</strong></div><div><span>Invalid</span><strong>{importStatus?.invalidRows || 0}</strong></div></div><div className="lead-import-actions"><button type="button" className="lead-import-primary" onClick={onClose}>Done</button></div></div> : null}
     </section>
   </div>
 }

@@ -1,5 +1,7 @@
 import { CheckCircle2, CloudUpload, LoaderCircle, XCircle } from 'lucide-react'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { X } from 'lucide-react'
+import { Clock3 } from 'lucide-react'
 import { createPortal } from 'react-dom'
 import { dismissUpload, getUploadSnapshot, subscribeUploadProgress } from '../lib/uploadProgressStore'
 import { loadSession } from '../lib/session'
@@ -21,6 +23,13 @@ function readDismissedRemoteIds(userId) {
 }
 
 function statusText(item) {
+  if (String(item.status || '').toUpperCase() === 'AWAITING_DISTRIBUTION') {
+    const processed = Number(item.processed || 0)
+    const total = Number(item.total || 0)
+    return total
+      ? `${processed.toLocaleString()} of ${total.toLocaleString()} rows staged · Waiting for Branch Admin distribution`
+      : 'Waiting for Branch Admin distribution'
+  }
   if (item.status === 'FAILED') return item.error || 'Upload failed'
   if (['COMPLETED', 'COMPLETED_WITH_ERRORS'].includes(String(item.status || '').toUpperCase())) {
     const completedAt = item.completedAt || item.updatedAt
@@ -42,22 +51,34 @@ function isRunning(item) {
   return ['PENDING', 'RUNNING'].includes(String(item?.status || '').toUpperCase())
 }
 
+function isAwaitingDistribution(item) {
+  return String(item?.status || '').toUpperCase() === 'AWAITING_DISTRIBUTION'
+}
+
 export function UploadProgressIndicator() {
   const [uploads, setUploads] = useState(getUploadSnapshot())
   const [sharedLeadUploads, setSharedLeadUploads] = useState([])
   const [sharedCourseUploads, setSharedCourseUploads] = useState([])
+  const previousLeadStatuses = useRef(new Map())
   const previousCourseStatuses = useRef(new Map())
   const [dismissedRemoteIds, setDismissedRemoteIds] = useState(() => {
     const user = loadSession()?.user || {}
     return readDismissedRemoteIds(String(user.id || user.userId || ''))
   })
   const [open, setOpen] = useState(false)
+  const [refreshVersion, setRefreshVersion] = useState(0)
   const [popoverPosition, setPopoverPosition] = useState(null)
   const triggerRef = useRef(null)
   const popoverRef = useRef(null)
-  const [, setClock] = useState(Date.now())
+  const [, setClock] = useState(0)
 
   useEffect(() => subscribeUploadProgress(() => setUploads([...getUploadSnapshot()])), [])
+
+  useEffect(() => {
+    const handleLeadImportUpdate = () => setRefreshVersion((value) => value + 1)
+    window.addEventListener('cispro:lead-import-updated', handleLeadImportUpdate)
+    return () => window.removeEventListener('cispro:lead-import-updated', handleLeadImportUpdate)
+  }, [])
 
   useEffect(() => {
     const timer = window.setInterval(() => setClock(Date.now()), 30000)
@@ -71,9 +92,12 @@ export function UploadProgressIndicator() {
     const schedule = (delay) => { if (active) timer = window.setTimeout(refresh, delay) }
     const refresh = async () => {
       const sessionRole = String(loadSession()?.user?.role || loadSession()?.user?.userRole || '').toLowerCase().replaceAll('_', '-')
-      const mayReadCourseImports = ['branch-admin', 'super-admin'].includes(sessionRole)
+      // Course-import jobs are scoped through the signed-in branch profile.
+      // Super Admin has no branch profile, so polling this endpoint returns 404.
+      const mayReadCourseImports = sessionRole === 'branch-admin'
       const mayReadLeadImports = ['branch-admin', 'super-admin', 'sales-admin', 'branch-admin-sales-admin'].includes(sessionRole)
       let hasActiveJobs = false
+      let hasWaitingLeadJobs = false
       try {
         const [leadResult, courseResult] = await Promise.allSettled([mayReadLeadImports ? listActiveLeadImports() : Promise.resolve({ data: [] }), mayReadCourseImports ? listCourseImportJobs() : Promise.resolve({ jobs: [] })])
         if (!active) return
@@ -84,6 +108,15 @@ export function UploadProgressIndicator() {
         setSharedLeadUploads(leadJobs)
         setSharedCourseUploads(courseJobs)
         hasActiveJobs = [...leadJobs, ...courseJobs].some((job) => ['PENDING', 'RUNNING'].includes(String(job.status || '').toUpperCase()))
+        hasWaitingLeadJobs = leadJobs.some(isAwaitingDistribution)
+        let leadImportCompleted = false
+        for (const job of leadJobs) {
+          const status = String(job.status || '').toUpperCase()
+          const previous = previousLeadStatuses.current.get(job.id)
+          if ((!previous || ['PENDING', 'RUNNING'].includes(previous)) && ['COMPLETED', 'COMPLETED_WITH_ERRORS', 'FAILED'].includes(status)) leadImportCompleted = true
+          previousLeadStatuses.current.set(job.id, status)
+        }
+        if (leadImportCompleted) window.dispatchEvent(new CustomEvent('cispro:lead-import-completed'))
         for (const job of courseJobs) {
           const status = String(job.status || '').toUpperCase()
           const previous = previousCourseStatuses.current.get(job.id)
@@ -93,13 +126,15 @@ export function UploadProgressIndicator() {
           previousCourseStatuses.current.set(job.id, status)
         }
       } finally {
-        // Continue only while an upload is active; terminal jobs stop polling.
+        // Poll active imports while the activity panel is open. Staged lead jobs
+        // poll less often so the view can notice when the Branch Admin assigns them.
         if (hasActiveJobs) schedule(15000)
+        else if (hasWaitingLeadJobs) schedule(30000)
       }
     }
     void refresh()
     return () => { active = false; window.clearTimeout(timer) }
-  }, [open])
+  }, [open, refreshVersion])
 
   async function handleCourseRetry(item) {
     try { await retryCourseImportJob(item.jobId) } catch { /* the next server poll remains authoritative */ }
@@ -117,10 +152,17 @@ export function UploadProgressIndicator() {
     try { window.localStorage.setItem(remoteDismissKey, JSON.stringify(dismissedRemoteIds)) } catch { /* best effort */ }
   }, [dismissedRemoteIds, remoteDismissKey])
 
-  const localVisibleUploads = uploads.filter((item) => item.type !== 'lead' || (currentUserId && item.visibleTo?.includes(currentUserId)))
-  const remoteVisibleUploads = [...sharedLeadUploads.map((job) => ({ id: 'server-' + job.id, type: 'lead', uploadId: job.uploadId, label: job.fileName || 'Lead workbook', status: job.status, progress: job.progress, processed: job.processedRows, total: job.totalRows, completedAt: job.completedAt, updatedAt: job.updatedAt })), ...sharedCourseUploads.map((job) => ({ id: 'server-course-' + job.id, jobId: job.id, type: 'course', uploadId: job.uploadId, label: 'Course upload - ' + (job.fileName || 'Course workbook'), status: job.status, error: job.errorMessage, progress: job.progress, processed: job.processedRows, total: job.totalRows, failed: job.failedRows, completedAt: job.completedAt, updatedAt: job.updatedAt }))].filter((item) => !dismissedRemoteIds.includes(item.id))
-  const visibleUploads = [...localVisibleUploads, ...remoteVisibleUploads.filter((remote) => !localVisibleUploads.some((local) => local.uploadId && local.uploadId === remote.uploadId))]
+  const recipientGroupedUploadIds = new Set(sharedLeadUploads.filter((job) => job.sourceJobId).map((job) => job.uploadId).filter(Boolean))
+  const remoteLeadByUploadId = new Map(sharedLeadUploads.filter((job) => !job.sourceJobId).map((job) => [job.uploadId, job]))
+  const localVisibleUploads = uploads.filter((item) => item.type !== 'lead' || ((currentUserId && item.visibleTo?.includes(currentUserId)) && !recipientGroupedUploadIds.has(item.uploadId))).map((item) => {
+    const remote = item.type === 'lead' ? remoteLeadByUploadId.get(item.uploadId) : null
+    return remote ? { ...item, status: remote.status, progress: remote.progress, processed: remote.processedRows, total: remote.totalRows, completedAt: remote.completedAt, updatedAt: remote.updatedAt, error: remote.errorMessage || item.error } : item
+  })
+  const remoteVisibleUploads = [...sharedLeadUploads.map((job) => ({ id: 'server-' + job.id, type: 'lead', uploadId: job.uploadId, perRecipient: Boolean(job.sourceJobId), label: job.activityLabel || job.fileName || 'Lead workbook', status: job.status, progress: job.progress, processed: job.processedRows, total: job.totalRows, completedAt: job.completedAt, updatedAt: job.updatedAt })), ...sharedCourseUploads.map((job) => ({ id: 'server-course-' + job.id, jobId: job.id, type: 'course', uploadId: job.uploadId, label: 'Course upload - ' + (job.fileName || 'Course workbook'), status: job.status, error: job.errorMessage, progress: job.progress, processed: job.processedRows, total: job.totalRows, failed: job.failedRows, completedAt: job.completedAt, updatedAt: job.updatedAt }))].filter((item) => !dismissedRemoteIds.includes(item.id))
+  const visibleUploads = [...localVisibleUploads, ...remoteVisibleUploads.filter((remote) => remote.perRecipient || !localVisibleUploads.some((local) => local.uploadId && local.uploadId === remote.uploadId))]
   const activeCount = visibleUploads.filter(isRunning).length
+  const waitingCount = visibleUploads.filter(isAwaitingDistribution).length
+  const activityCount = activeCount + waitingCount
   const activeUpload = visibleUploads.find(isRunning)
   const activeProgress = Math.max(0, Math.min(100, Number(activeUpload?.progress || 0)))
   const sessionRole = String(sessionUser.role || sessionUser.userRole || '').toLowerCase().replaceAll('_', '-')
@@ -128,10 +170,7 @@ export function UploadProgressIndicator() {
   const visibleUploadsLength = visibleUploads.length
 
   useLayoutEffect(() => {
-    if (!open) {
-      setPopoverPosition(null)
-      return undefined
-    }
+    if (!open) return undefined
     const placePopover = () => {
       const trigger = triggerRef.current?.getBoundingClientRect()
       const panel = popoverRef.current?.getBoundingClientRect()
@@ -163,18 +202,18 @@ export function UploadProgressIndicator() {
   if (!visibleUploads.length && !canOpenUploadActivity) return null
 
   return <div className="upload-progress-menu">
-    <button type="button" ref={triggerRef} className={`upload-progress-button${activeCount ? ' is-active' : ''}`} onClick={() => setOpen((value) => !value)} aria-expanded={open} aria-label="Upload progress">
+    <button type="button" ref={triggerRef} className={`upload-progress-button${activeCount ? ' is-active' : waitingCount ? ' is-waiting' : ''}`} onClick={() => setOpen((value) => !value)} aria-expanded={open} aria-label="Upload progress">
       <CloudUpload size={17} />
-      <span>{activeCount ? `${activeCount} upload${activeCount === 1 ? '' : 's'}` : 'Uploads'}</span>
-      {activeCount ? <b>{activeCount}</b> : null}
+      <span>{activeCount ? `${activityCount} upload${activityCount === 1 ? '' : 's'}` : waitingCount ? `${waitingCount} waiting` : 'Uploads'}</span>
+      {activityCount ? <b>{activityCount}</b> : null}
       {activeCount ? <span className="upload-progress-button-meter" aria-hidden="true"><i style={{ width: `${activeProgress || 28}%` }} /></span> : null}
     </button>
     {open ? createPortal(<div ref={popoverRef} className="upload-progress-popover" role="status" style={{ position: 'fixed', left: popoverPosition?.left ?? 0, top: popoverPosition?.top ?? 0, right: 'auto', transform: 'none', visibility: popoverPosition ? 'visible' : 'hidden', zIndex: 2147483647 }}>
-      <div className="upload-progress-popover-head"><strong>Upload activity</strong><button type="button" onClick={() => setOpen(false)} aria-label="Close upload activity">×</button></div>
+      <div className="upload-progress-popover-head"><strong>Upload activity</strong><button type="button" onClick={() => setOpen(false)} aria-label="Close upload activity"><X size={16} strokeWidth={2} /></button></div>
       <div className="upload-progress-list">{visibleUploads.length ? visibleUploads.map((item) => <article key={item.id} className={`upload-progress-item is-${String(item.status || '').toLowerCase()}`}>
-        <span className="upload-progress-item-icon">{isRunning(item) ? <LoaderCircle className="upload-progress-spin" size={16} /> : item.status === 'FAILED' ? <XCircle size={16} /> : <CheckCircle2 size={16} />}</span>
+        <span className="upload-progress-item-icon">{isRunning(item) ? <LoaderCircle className="upload-progress-spin" size={16} /> : isAwaitingDistribution(item) ? <Clock3 size={16} /> : item.status === 'FAILED' ? <XCircle size={16} /> : <CheckCircle2 size={16} />}</span>
         <div><strong title={item.label}>{item.label}</strong><small>{statusText(item)}</small>{item.type === 'course' && !isRunning(item) && item.failed > 0 ? <span className="upload-progress-item-actions"><button type="button" onClick={() => void handleCourseErrors(item)}>Download errors</button>{['COMPLETED_WITH_ERRORS', 'FAILED'].includes(String(item.status).toUpperCase()) ? <button type="button" onClick={() => void handleCourseRetry(item)}>Retry failed</button> : null}</span> : null}{isRunning(item) ? <div className={`upload-progress-track${Number(item.progress || 0) <= 0 ? ' is-indeterminate' : ''}`}><i style={{ width: `${Math.max(0, Math.min(100, Number(item.progress || 0))) || 28}%` }} /></div> : null}</div>
-        {!isRunning(item) ? <button type="button" onClick={() => item.id.startsWith('server-') ? setDismissedRemoteIds((current) => [...current, item.id]) : dismissUpload(item.id)} aria-label={`Dismiss ${item.label}`}>×</button> : null}
+        {!isRunning(item) ? <button type="button" onClick={() => item.id.startsWith('server-') ? setDismissedRemoteIds((current) => [...current, item.id]) : dismissUpload(item.id)} aria-label={`Dismiss ${item.label}`}><X size={14} strokeWidth={2} /></button> : null}
       </article>) : <p className="upload-progress-empty">No recent upload activity.</p>}</div>
     </div>, document.body) : null}
   </div>

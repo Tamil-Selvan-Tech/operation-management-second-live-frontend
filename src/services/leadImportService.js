@@ -29,15 +29,16 @@ export function previewLeadImport(file, options = {}) {
   body.append('file', file)
   body.append('branchId', options.branchId || '')
   body.append('assignedToId', options.assignedToId || '')
+  body.append('distributionMode', options.distributionMode ? 'true' : 'false')
   return request('/leads/import/preview', { method: 'POST', body, timeoutMs: IMPORT_TIMEOUT_MS })
 }
 
 export function revalidateLeadImport(rows, options = {}) {
-  return request('/leads/import/revalidate', { method: 'POST', body: JSON.stringify({ ...bodyFor(options), rows }), timeoutMs: IMPORT_TIMEOUT_MS })
+  return request('/leads/import/revalidate', { method: 'POST', body: JSON.stringify({ ...bodyFor(options), distributionMode: Boolean(options.distributionMode), rows }), timeoutMs: IMPORT_TIMEOUT_MS })
 }
 
 export function createLeadImportJob(rows, options = {}) {
-  return request('/leads/import/jobs', { method: 'POST', body: JSON.stringify({ ...bodyFor(options), rows, fileName: options.fileName || null }), timeoutMs: IMPORT_TIMEOUT_MS })
+  return request('/leads/import/jobs', { method: 'POST', body: JSON.stringify({ ...bodyFor(options), distributionMode: Boolean(options.distributionMode), rows, fileName: options.fileName || null }), timeoutMs: IMPORT_TIMEOUT_MS })
 }
 
 export function getLeadImportJob(jobId) {
@@ -60,7 +61,7 @@ export async function importLeadRows(rows, options = {}) {
       const status = response?.data || response || {}
       errors = 0
       options.onProgress?.(status)
-      if (['COMPLETED', 'COMPLETED_WITH_ERRORS', 'FAILED'].includes(String(status.status || '').toUpperCase())) {
+      if (['AWAITING_DISTRIBUTION', 'COMPLETED', 'COMPLETED_WITH_ERRORS', 'FAILED'].includes(String(status.status || '').toUpperCase())) {
         if (status.status === 'FAILED') throw new Error(status.errorMessage || 'Lead import failed.')
         return { data: status }
       }
@@ -108,3 +109,6 @@ export async function downloadLeadManagementWorkbook(filters = {}) {
   downloadBlob(response.blob, response.fileName || 'lead-management-export.xlsx')
   return response
 }
+
+export function listLeadImportDistributionJobs() { return request('/leads/import/jobs/distribution') }
+export function distributeLeadImport(jobId, allocations) { return request('/leads/import/jobs/' + encodeURIComponent(jobId) + '/distribute', { method: 'POST', body: JSON.stringify({ allocations }), timeoutMs: IMPORT_TIMEOUT_MS }) }

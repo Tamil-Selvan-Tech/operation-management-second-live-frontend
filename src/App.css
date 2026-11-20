@@ -28438,6 +28438,7 @@ canvas {
 .upload-progress-menu { position: relative; display: inline-flex; align-items: center; z-index: 1100; flex: 0 0 auto; }
 .upload-progress-button { position: relative; top: -3px; display: inline-flex; align-items: center; gap: 7px; min-height: 38px; padding: 0 12px; border: 1px solid #d7e3f1; border-radius: 11px; background: #fff; color: #31567f; font-size: .78rem; font-weight: 800; cursor: pointer; box-shadow: 0 3px 10px rgba(30, 72, 112, .06); }
 .upload-progress-button.is-active { border-color: #8bc4ff; color: #1265b1; background: #f4f9ff; }
+.upload-progress-button.is-waiting { border-color: #f1d28c; color: #916516; background: #fffaf0; }
 .upload-progress-button b { display: inline-grid; min-width: 19px; height: 19px; place-items: center; border-radius: 999px; background: #2468d8; color: #fff; font-size: .68rem; }
 .upload-progress-button-meter { display: inline-block; width: 44px; height: 4px; overflow: hidden; border-radius: 999px; background: #dcecff; }
 .upload-progress-button-meter i { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #2d7be0, #17a673); transition: width .3s ease; animation: upload-progress-meter-pulse 1.15s ease-in-out infinite; }
@@ -28448,6 +28449,7 @@ canvas {
 .upload-progress-item { display: grid; grid-template-columns: 22px minmax(0, 1fr) auto; align-items: start; gap: 8px; padding: 9px; border-radius: 10px; background: #f8fbff; color: #345979; }
 .upload-progress-item-icon { color: #2674d7; padding-top: 1px; }
 .upload-progress-item.is-completed .upload-progress-item-icon { color: #169b62; }
+.upload-progress-item.is-awaiting_distribution .upload-progress-item-icon { color: #c28a1b; }
 .upload-progress-item.is-failed .upload-progress-item-icon { color: #df4f59; }
 .upload-progress-item strong, .upload-progress-item small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .upload-progress-item strong { color: #234e77; font-size: .77rem; }
