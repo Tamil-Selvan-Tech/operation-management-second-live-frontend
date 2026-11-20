@@ -104,7 +104,7 @@ export function AppSidebar({
     'branch-admin-sales': ['DASHBOARD', 'NOTIFICATIONS', 'PROFILE', 'SETTINGS', 'STUDENT_MANAGEMENT', 'ACADEMIC_OPERATIONS', 'FEE_ACCOUNTS', 'REPORTS_ANALYTICS', 'HELPDESK_SUPPORT', 'LEAD_MANAGEMENT', 'ADMISSION_MANAGEMENT', 'SALES_CRM_REPORTS'],
     'sales-admin': ['DASHBOARD', 'NOTIFICATIONS', 'PROFILE', 'SETTINGS', 'LEAD_MANAGEMENT', 'ADMISSION_MANAGEMENT', 'SALES_CRM_REPORTS'],
   }
-  const fallbackAccessRole = user?.role === 'branch-admin' && user?.roleAccess === 'BRANCH_ADMIN_SALES_ADMIN' ? 'branch-admin-sales' : user?.role
+  const fallbackAccessRole = user?.role === 'branch-admin' ? 'branch-admin-sales' : user?.role
   const moduleAccess = useMemo(() => new Set(Array.isArray(user?.moduleAccess) && user.moduleAccess.length ? user.moduleAccess : (defaultAccessByRole[fallbackAccessRole] || [])), [fallbackAccessRole, user?.moduleAccess])
   const hasModuleAccess = (moduleKey) => ['super-admin', 'business-owner', 'operation-manager'].includes(user?.role) || moduleAccess.has(moduleKey)
   const userName = user?.name && !/^\s*user\s*$/i.test(user.name) ? user.name : userRoleLabel

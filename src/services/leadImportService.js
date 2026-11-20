@@ -79,15 +79,15 @@ export function listPendingLeadImports(options = {}) {
   if (options.salesAdminId) params.set('salesAdminId', options.salesAdminId)
   if (options.page) params.set('page', String(options.page))
   if (options.limit) params.set('limit', String(options.limit))
-  return request(`/leads/import/pending${params.toString() ? `?${params}` : ''}`)
+  return request(`/leads/import/pending${params.toString() ? `?${params}` : ''}`, options.impersonateBranchId ? { impersonateBranchId: options.impersonateBranchId } : {})
 }
 
-export function getPendingLeadNextId(rowId) {
-  return request(`/leads/import/pending/${encodeURIComponent(rowId)}/next-id`)
+export function getPendingLeadNextId(rowId, options = {}) {
+  return request(`/leads/import/pending/${encodeURIComponent(rowId)}/next-id`, options.impersonateBranchId ? { impersonateBranchId: options.impersonateBranchId } : {})
 }
 
-export function promotePendingLead(rowId, payload = {}) {
-  return request(`/leads/import/pending/${encodeURIComponent(rowId)}/promote`, { method: 'POST', body: JSON.stringify(payload) })
+export function promotePendingLead(rowId, payload = {}, options = {}) {
+  return request(`/leads/import/pending/${encodeURIComponent(rowId)}/promote`, { method: 'POST', body: JSON.stringify(payload), ...(options.impersonateBranchId ? { impersonateBranchId: options.impersonateBranchId } : {}) })
 }
 
 export async function downloadLeadImportTemplate() {
@@ -103,7 +103,7 @@ export async function downloadLeadManagementWorkbook(filters = {}) {
     const value = String(filters[key] || '').trim()
     if (value) params.set(key, value)
   }
-  const response = await requestBlob(`/leads/export${params.size ? `?${params.toString()}` : ''}`, { method: 'GET', timeoutMs: IMPORT_TIMEOUT_MS })
+  const response = await requestBlob(`/leads/export${params.size ? `?${params.toString()}` : ''}`, { method: 'GET', timeoutMs: IMPORT_TIMEOUT_MS, ...(filters.impersonateBranchId ? { impersonateBranchId: filters.impersonateBranchId } : {}) })
   if (!response?.blob) throw new Error('Unable to download the lead workbook right now.')
   downloadBlob(response.blob, response.fileName || 'lead-management-export.xlsx')
   return response

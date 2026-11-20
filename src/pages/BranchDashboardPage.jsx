@@ -4313,7 +4313,7 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
   const isSuperAdminEmbeddedView = embeddedMode && !admissionOnlyMode && String(role || '').toUpperCase().replace(/[^A-Z0-9]/g, '') === 'SUPERADMIN'
   const isBranchAdminWorkLogEnabled = !embeddedMode && String(role || '').toUpperCase().replace(/[^A-Z0-9]/g, '') === 'BRANCHADMIN'
   const isBranchAdminReadOnlyWorkLogView = Boolean(embeddedMode && branchData?.adminUserId)
-  const hasLeadManagementAccess = isSuperAdminEmbeddedView || String(resolvedBranchRoleAccess || user?.roleAccess || session?.user?.roleAccess || '').toUpperCase() === 'BRANCH_ADMIN_SALES_ADMIN'
+  const hasLeadManagementAccess = isSuperAdminEmbeddedView || String(user?.role || session?.user?.role || '').toLowerCase() === 'branch-admin'
 
 
 
@@ -12143,12 +12143,12 @@ useEffect(() => {
                   <AvatarBadge />
                   <div>
                     <strong>{branchAdminDisplay}</strong>
-                    <span>{hasLeadManagementAccess ? 'Branch Admin & Sales Admin' : 'Branch Administrator'}</span>
+                    <span>Branch Administrator</span>
                   </div>
                 </div>
                 <div className="branch-dashboard-profile-menu-details">
                   <div><Mail size={15} /><span><small>Email</small><strong>{branchProfile?.branchEmail || user?.email || '—'}</strong></span></div>
-                  <div><Shield size={15} /><span><small>Role</small><strong>{hasLeadManagementAccess ? 'Branch Admin + Sales Admin' : 'Branch Admin'}</strong></span></div>
+                  <div><Shield size={15} /><span><small>Role</small><strong>Branch Admin</strong></span></div>
                 </div>
                 <button type="button" role="menuitem" className="branch-dashboard-profile-menu-item" onClick={openProfile}>
                   <CircleUserRound size={16} strokeWidth={2.1} />
@@ -12685,7 +12685,7 @@ useEffect(() => {
               {activeSection === 'progress-notifications' ? <ProgressNotificationsView branch={branchScope} /> : null}
               {activeSection === 'faculty-edit-requests' ? <FacultyEditRequestsView /> : null}
               {activeSection === 'discontinuations' ? <BranchDiscontinuationManagementPage /> : null}
-              {activeSection === 'lead-management' ? <LeadManagementPage salesAdminId={branchData?.salesAdminId || ''} branchRoleAccess={resolvedBranchRoleAccess || branchData?.roleAccess || ''} superAdminView={isSuperAdminEmbeddedView} /> : null}
+              {activeSection === 'lead-management' ? <LeadManagementPage branchId={branchData?.id || branchData?.branchId || branchProfile?.id || branchProfile?.branchId || ''} salesAdminId={branchData?.salesAdminId || ''} branchRoleAccess={resolvedBranchRoleAccess || branchData?.roleAccess || ''} superAdminView={isSuperAdminEmbeddedView} /> : null}
               {activeSection === 'sales-crm-admissions' ? <SalesAdminAdmissionsPage key={location.search} salesAdminId={branchData?.salesAdminId || ''} /> : null}
               {activeSection === 'sales-crm-reports' ? <SalesCrmReportPage branchScoped branchId={branchProfile?.id || branchData?.id || ''} branchName={branchProfile?.branchName || branchData?.branchName || ''} pendingLeadsHref="/branch-dashboard?section=lead-management&tab=pending" /> : null}
               {activeSection === 'branch-reports' ? (
@@ -15683,7 +15683,7 @@ if (paidProgress >= 100) {
                 <AccountSettingsPanel
                   displayName={branchAdminDisplay}
                   email={branchEmail}
-                  roleLabel={hasLeadManagementAccess ? 'Branch Admin and Sales Admin' : 'Branch Admin'}
+                  roleLabel="Branch Admin"
                   onForgotPassword={openForgotPassword}
                 />
               ) : null}
@@ -15696,7 +15696,7 @@ if (paidProgress >= 100) {
                       <div className="branch-profile-avatar" aria-hidden="true">{String(branchAdminDisplay || 'A').trim().charAt(0).toUpperCase()}</div>
                       <div>
                         <strong>{branchAdminDisplay}</strong>
-                        {hasLeadManagementAccess ? <div className="branch-profile-role-badges" aria-label="Account roles"><span className="is-branch-admin">Branch Admin</span><span className="is-sales-admin">Sales Admin</span></div> : <span>Branch Administrator</span>}
+                        <span>Branch Administrator</span>
                         <small className="branch-profile-meta-clean">{branchTitle} - {branchLocation}</small>
                         <small>{branchTitle} • {branchLocation}</small>
                       </div>

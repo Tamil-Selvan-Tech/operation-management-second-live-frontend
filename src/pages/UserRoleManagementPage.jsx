@@ -34,14 +34,13 @@ const commonModuleKeys = moduleAccessGroups[0].modules.map((module) => module.ke
 const academicModuleKeys = moduleAccessGroups.find((group) => group.key === 'ACADEMIC').modules.map((module) => module.key)
 const salesCrmModuleKeys = moduleAccessGroups.find((group) => group.key === 'SALES_CRM').modules.map((module) => module.key)
 const roleModuleDefaults = {
-  BRANCH_ADMIN: [...commonModuleKeys, 'STUDENT_MANAGEMENT', 'ACADEMIC_OPERATIONS', 'FEE_ACCOUNTS', 'REPORTS_ANALYTICS', 'HELPDESK_SUPPORT'],
+  BRANCH_ADMIN: [...commonModuleKeys, 'STUDENT_MANAGEMENT', 'ACADEMIC_OPERATIONS', 'FEE_ACCOUNTS', 'REPORTS_ANALYTICS', 'HELPDESK_SUPPORT', ...salesCrmModuleKeys],
   BRANCH_ADMIN_SALES_ADMIN: [...commonModuleKeys, 'STUDENT_MANAGEMENT', 'ACADEMIC_OPERATIONS', 'FEE_ACCOUNTS', 'REPORTS_ANALYTICS', 'HELPDESK_SUPPORT', 'LEAD_MANAGEMENT', 'ADMISSION_MANAGEMENT', 'SALES_CRM_REPORTS'],
   SALES_ADMIN: [...commonModuleKeys, 'LEAD_MANAGEMENT', 'ADMISSION_MANAGEMENT', 'SALES_CRM_REPORTS'],
 }
 const permittedModuleKeys = (accountType) => new Set([
   ...commonModuleKeys,
-  ...(accountType === 'SALES_ADMIN' ? salesCrmModuleKeys : academicModuleKeys),
-  ...(accountType === 'BRANCH_ADMIN_SALES_ADMIN' ? salesCrmModuleKeys : []),
+  ...(accountType === 'SALES_ADMIN' ? salesCrmModuleKeys : [...academicModuleKeys, ...salesCrmModuleKeys]),
 ])
 function defaultModuleAccess(accountType = 'BRANCH_ADMIN') { return [...(roleModuleDefaults[accountType] || roleModuleDefaults.BRANCH_ADMIN)] }
 function normalizedModuleAccess(value, accountType) {
@@ -65,7 +64,6 @@ function orderedModuleAccessGroups(accountType, selectedKeys) {
 
 const accountTypes = [
   { value: 'BRANCH_ADMIN', label: 'Branch Admin', description: 'Manage one branch and its operations.', icon: Shield, tone: 'blue' },
-  { value: 'BRANCH_ADMIN_SALES_ADMIN', label: 'Branch Admin + Sales Admin', description: 'Manage one branch with Sales CRM access.', icon: Users, tone: 'teal' },
   { value: 'SALES_ADMIN', label: 'Sales Admin', description: 'Manage Sales CRM across assigned branches.', icon: BriefcaseBusiness, tone: 'purple' },
 ]
 
@@ -76,7 +74,6 @@ const statusOptions = [
 
 const roleFieldConfig = {
   BRANCH_ADMIN: { nameLabel: 'Branch Admin Name', requiresBranch: true, showStatus: true },
-  BRANCH_ADMIN_SALES_ADMIN: { nameLabel: 'Branch Admin + Sales Admin Name', requiresBranch: true, showStatus: true },
   SALES_ADMIN: { nameLabel: 'Sales Admin Name', requiresBranch: false, showStatus: true, showSalesId: true },
 }
 
@@ -87,7 +84,7 @@ function normalizeError(error) {
 }
 
 function accountTypeLabel(value) {
-  return value === 'BRANCH_ADMIN_SALES_ADMIN' ? 'Branch Admin + Sales Admin' : value === 'SALES_ADMIN' ? 'Sales Admin' : 'Branch Admin'
+  return value === 'SALES_ADMIN' ? 'Sales Admin' : 'Branch Admin'
 }
 
 // Keep the canonical Sales Admin ID format consistent with the API. Older
@@ -491,7 +488,7 @@ export function UserRoleManagementPage({ pageType = 'branch', onViewDashboard: b
     setSuccess('')
     setForm({
       ...initialForm,
-      accountType: user.accountType === 'BRANCH_ADMIN_SALES_ADMIN' ? user.accountType : 'BRANCH_ADMIN',
+      accountType: 'BRANCH_ADMIN',
       branchId: branch.branchId || '',
       branchName: branch.branchName || '',
       fullName: '', email: '', phone: '',
@@ -500,7 +497,7 @@ export function UserRoleManagementPage({ pageType = 'branch', onViewDashboard: b
       city: '',
       address: '',
       status: 'ACTIVE',
-      moduleAccess: defaultModuleAccess(user.accountType === 'BRANCH_ADMIN_SALES_ADMIN' ? user.accountType : 'BRANCH_ADMIN'),
+      moduleAccess: defaultModuleAccess('BRANCH_ADMIN'),
     })
     setCreateStep(1)
     setIsCreateOpen(true)
@@ -510,12 +507,12 @@ export function UserRoleManagementPage({ pageType = 'branch', onViewDashboard: b
     if (!user?.managedBranch?.id) return
     setActionUser(null)
     setRoleChangeUser(user)
-    setRoleChangeType(user.accountType === 'BRANCH_ADMIN_SALES_ADMIN' ? 'BRANCH_ADMIN' : 'BRANCH_ADMIN_SALES_ADMIN')
+    setRoleChangeType('BRANCH_ADMIN')
   }
 
   async function saveRoleChange() {
     if (!roleChangeUser?.managedBranch?.id || !roleChangeType) return
-    const currentType = roleChangeUser.accountType === 'BRANCH_ADMIN_SALES_ADMIN' ? 'BRANCH_ADMIN_SALES_ADMIN' : 'BRANCH_ADMIN'
+    const currentType = 'BRANCH_ADMIN'
     if (currentType === roleChangeType) {
       setRoleChangeUser(null)
       return
@@ -523,11 +520,11 @@ export function UserRoleManagementPage({ pageType = 'branch', onViewDashboard: b
     setRoleChangeSaving(true)
     try {
       await updateBranch(roleChangeUser.managedBranch.id, {
-        roleAccess: roleChangeType === 'BRANCH_ADMIN_SALES_ADMIN' ? 'BRANCH_ADMIN_SALES_ADMIN' : 'BRANCH_ADMIN_ONLY',
+          roleAccess: 'BRANCH_ADMIN_SALES_ADMIN',
       })
       await loadUsers()
       setRoleChangeUser(null)
-      setUpdatePopup(`${roleChangeType === 'BRANCH_ADMIN_SALES_ADMIN' ? 'Branch Admin + Sales Admin' : 'Branch Admin'} successfully updated`)
+      setUpdatePopup('Branch Admin successfully updated')
     } catch (reason) {
       setUsersError(reason?.message || 'Unable to update the account role.')
     } finally {
@@ -810,7 +807,7 @@ export function UserRoleManagementPage({ pageType = 'branch', onViewDashboard: b
         if (editingUser.role === 'SALES_ADMIN') {
           await request(`/sales-admins/${editingUser.id}`, { method: 'PATCH', body: JSON.stringify({ fullName: form.fullName.trim(), email: persistedEmail, phone: form.phone.trim(), country: form.country, state: form.state, city: form.city, address: form.address, status: form.status, branchIds: form.branchIds, moduleAccess: normalizedModuleAccess(form.moduleAccess, form.accountType) }) })
         } else {
-          await updateBranch(editingUser.managedBranch.id, { branchId: form.branchId.trim().toUpperCase(), branchName: form.branchName.trim(), branchAdminName: form.fullName.trim(), branchEmail: persistedEmail, branchPhone: form.phone.trim(), branchCountryCode: selectedCountryCode, branchCountry: form.country, branchStateCode: selectedStateCode, branchState: form.state, branchCity: form.city.trim(), branchAddress: form.address.trim(), status: form.status, roleAccess: form.accountType === 'BRANCH_ADMIN_SALES_ADMIN' ? 'BRANCH_ADMIN_SALES_ADMIN' : 'BRANCH_ADMIN_ONLY', moduleAccess: normalizedModuleAccess(form.moduleAccess, form.accountType) })
+          await updateBranch(editingUser.managedBranch.id, { branchId: form.branchId.trim().toUpperCase(), branchName: form.branchName.trim(), branchAdminName: form.fullName.trim(), branchEmail: persistedEmail, branchPhone: form.phone.trim(), branchCountryCode: selectedCountryCode, branchCountry: form.country, branchStateCode: selectedStateCode, branchState: form.state, branchCity: form.city.trim(), branchAddress: form.address.trim(), status: form.status, roleAccess: 'BRANCH_ADMIN_SALES_ADMIN', moduleAccess: normalizedModuleAccess(form.moduleAccess, 'BRANCH_ADMIN') })
         }
         await loadUsers()
         setEditingUser(null)
@@ -860,8 +857,8 @@ export function UserRoleManagementPage({ pageType = 'branch', onViewDashboard: b
           branchCity: form.city.trim(),
           branchAddress: form.address.trim(),
           status: form.status,
-          roleAccess: form.accountType === 'BRANCH_ADMIN_SALES_ADMIN' ? 'BRANCH_ADMIN_SALES_ADMIN' : 'BRANCH_ADMIN_ONLY',
-          moduleAccess: normalizedModuleAccess(form.moduleAccess, form.accountType),
+          roleAccess: 'BRANCH_ADMIN_SALES_ADMIN',
+          moduleAccess: normalizedModuleAccess(form.moduleAccess, 'BRANCH_ADMIN'),
         }
       }
       const response = await request('/user-role-accounts', { method: 'POST', body: JSON.stringify(payload) })
