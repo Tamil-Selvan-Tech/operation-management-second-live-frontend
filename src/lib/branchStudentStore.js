@@ -241,7 +241,8 @@ async function syncBranchStudentToBackend(student) {
       method: 'POST',
       body: JSON.stringify(payload),
     })
-    return response?.data ?? response
+    const result = response?.data ?? response
+    return result?.pendingApproval ? { ...result, _pendingApproval: true } : result
   }
 
   if (student._isExistingRecord) {
@@ -547,6 +548,7 @@ export async function saveBranchStudent(student) {
     : { ...student, _isExistingRecord: isExistingRecord }
 
   const backendRecord = await syncBranchStudentToBackend(nextStudent)
+  if (backendRecord?.pendingApproval) return backendRecord
   const resolvedRecordId = String(
     recordId
     || backendRecord?.id

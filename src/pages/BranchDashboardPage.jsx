@@ -3017,10 +3017,12 @@ function BranchNotificationGroup({
           const Icon = item.icon
           const isCourseEditRequest =
             item.kind === 'branch-course-edit-request' || item.kind === 'course-edit-request'
+          const isAdmissionApprovalRequest = item.kind === 'sales-crm-admission-approval-request'
+          const isRespondableRequest = isCourseEditRequest || isAdmissionApprovalRequest
           const requestStatus = String(item.requestStatus || '').trim().toLowerCase()
-          const isAcceptedRequest = isCourseEditRequest && requestStatus === 'accepted'
-          const isRejectedRequest = isCourseEditRequest && requestStatus === 'rejected'
-          const isPendingRequest = isCourseEditRequest && requestStatus === 'pending'
+          const isAcceptedRequest = isRespondableRequest && requestStatus === 'accepted'
+          const isRejectedRequest = isRespondableRequest && requestStatus === 'rejected'
+          const isPendingRequest = isRespondableRequest && requestStatus === 'pending'
           const notificationId = String(item.id || item.requestId || '').trim()
           const isProcessing = processingNotification.id === notificationId
           const isProgressNotification = String(item.kind || '').includes('progress-status')
@@ -3138,7 +3140,7 @@ function BranchNotificationGroup({
                         </div>
                       ) : null}
 
-                      {isCourseEditRequest ? (
+                      {isRespondableRequest && (item.requestTitle || item.requestReason || (item.requestDescription && !isAdmissionApprovalRequest)) ? (
                         <div
                           style={{
                             display: 'grid',
@@ -3154,7 +3156,7 @@ function BranchNotificationGroup({
                         >
                           {item.requestTitle ? <p style={{ margin: 0 }}><strong>Title:</strong> {item.requestTitle}</p> : null}
                           {item.requestReason ? <p style={{ margin: 0 }}><strong>Reason:</strong> {item.requestReason}</p> : null}
-                          {item.requestDescription ? <p style={{ margin: 0 }}><strong>Description:</strong> {item.requestDescription}</p> : null}
+                          {item.requestDescription && !isAdmissionApprovalRequest ? <p style={{ margin: 0 }}><strong>Description:</strong> {item.requestDescription}</p> : null}
                         </div>
                       ) : null}
                     </div>
@@ -6596,6 +6598,57 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
 
     return String(sortedMatches[0]?.id || '').trim()
   }
+
+  const resolveAdmissionApprovalLeadId = (notification) => {
+    const directId = String(notification?.moduleId || '').trim()
+    if (directId) return directId
+    const description = String(notification?.requestDescription || '').trim()
+    return description.startsWith('ADMISSION_APPROVAL:')
+      ? description.slice('ADMISSION_APPROVAL:'.length).trim()
+      : ''
+  }
+
+  const approveBranchAdmissionNotification = async (notification) => {
+    const notificationId = String(notification?.id || notification?.requestId || '').trim()
+    const leadId = resolveAdmissionApprovalLeadId(notification)
+    if (!leadId || processingBranchNotification.id === notificationId) return
+    setProcessingBranchNotification({ id: notificationId, action: 'accept' })
+    try {
+      await request(`/sales-admins/admissions/approval-requests/${encodeURIComponent(leadId)}/approve`, { method: 'POST' })
+      await loadBranchNotifications({ force: true })
+    } catch (error) {
+      console.error('Failed to approve admission request:', error)
+    } finally {
+      setProcessingBranchNotification({ id: '', action: '' })
+    }
+  }
+
+  const rejectBranchAdmissionNotification = async (notification) => {
+    const notificationId = String(notification?.id || notification?.requestId || '').trim()
+    const leadId = resolveAdmissionApprovalLeadId(notification)
+    if (!leadId || processingBranchNotification.id === notificationId) return
+    const reason = window.prompt('Reason for rejecting this admission (optional):', '')
+    if (reason === null) return
+    setProcessingBranchNotification({ id: notificationId, action: 'reject' })
+    try {
+      await request(`/sales-admins/admissions/approval-requests/${encodeURIComponent(leadId)}/reject`, {
+        method: 'POST',
+        body: JSON.stringify({ reason: reason.trim() }),
+      })
+      await loadBranchNotifications({ force: true })
+    } catch (error) {
+      console.error('Failed to reject admission request:', error)
+    } finally {
+      setProcessingBranchNotification({ id: '', action: '' })
+    }
+  }
+
+  const acceptBranchRequest = (notification) => notification?.kind === 'sales-crm-admission-approval-request'
+    ? approveBranchAdmissionNotification(notification)
+    : acceptBranchCourseEditNotification(notification)
+  const rejectBranchRequest = (notification) => notification?.kind === 'sales-crm-admission-approval-request'
+    ? rejectBranchAdmissionNotification(notification)
+    : rejectBranchCourseEditNotification(notification)
 
   const acceptBranchCourseEditNotification = async (notification) => {
     const notificationId = String(notification?.id || notification?.requestId || '').trim()
@@ -11968,9 +12021,10 @@ useEffect(() => {
                       const Icon = item.icon
                       const isCourseEditRequest =
                         item.kind === 'branch-course-edit-request' || item.kind === 'course-edit-request'
+                      const isAdmissionApprovalRequest = item.kind === 'sales-crm-admission-approval-request'
                       const requestStatus = String(item.requestStatus || '').trim().toLowerCase()
-                      const isRespondableCourseEditRequest =
-                        isCourseEditRequest && requestStatus !== 'accepted' && requestStatus !== 'rejected'
+                      const isRespondableRequest =
+                        (isCourseEditRequest || isAdmissionApprovalRequest) && requestStatus !== 'accepted' && requestStatus !== 'rejected'
                       const notificationId = String(item.id || item.requestId || '').trim()
                       const isProcessing = processingBranchNotification.id === notificationId
 
@@ -11992,7 +12046,7 @@ useEffect(() => {
                           <div
                             className="notification-dropdown-item-actions"
                           >
-                            {isRespondableCourseEditRequest ? (
+                            {isRespondableRequest ? (
                               <>
                                 <button
                                   type="button"
@@ -12003,7 +12057,7 @@ useEffect(() => {
                                     event.preventDefault()
                                     event.stopPropagation()
                                     if (isProcessing) return
-                                    void rejectBranchCourseEditNotification(item)
+                                    void rejectBranchRequest(item)
                                   }}
                                 >
                                   {isProcessing && processingBranchNotification.action === 'reject' ? 'Rejecting...' : 'Reject'}
@@ -12017,7 +12071,7 @@ useEffect(() => {
                                     event.preventDefault()
                                     event.stopPropagation()
                                     if (isProcessing) return
-                                    void acceptBranchCourseEditNotification(item)
+                                    void acceptBranchRequest(item)
                                   }}
                                 >
                                   {isProcessing && processingBranchNotification.action === 'accept' ? 'Accepting...' : 'Accept'}
@@ -12716,8 +12770,8 @@ useEffect(() => {
                           label={section.label}
                           items={section.items}
                           onView={openBranchNotificationTarget}
-                          onAcceptRequest={acceptBranchCourseEditNotification}
-                          onRejectRequest={rejectBranchCourseEditNotification}
+                          onAcceptRequest={acceptBranchRequest}
+                          onRejectRequest={rejectBranchRequest}
                           onReviewDiscontinuation={reviewStudentDiscontinuationNotification}
                           processingNotification={processingBranchNotification}
                           showDetails
