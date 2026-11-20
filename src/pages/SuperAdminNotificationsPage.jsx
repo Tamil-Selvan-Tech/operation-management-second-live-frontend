@@ -1029,6 +1029,7 @@ export function SuperAdminNotificationsPage() {
                   label="Notification pagination"
                   previousLabel="Prev"
                   nextLabel="Next"
+                  visiblePageCount={3}
                 />
               ) : null}
             </section>
