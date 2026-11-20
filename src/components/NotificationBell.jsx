@@ -13,7 +13,6 @@ export function NotificationBell({ targetUserId = '', readOnlyView = false }) {
   const [isOpen, setIsOpen] = useState(false)
   const menuRef = useRef(null)
   const [remoteItems, setRemoteItems] = useState([])
-  const [remoteCount, setRemoteCount] = useState(0)
   const [error, setError] = useState('')
   const remoteLoadRef = useRef(null)
   const roleKey = String(role).toUpperCase().replace(/[^A-Z0-9]+/g, '_')
@@ -24,8 +23,9 @@ export function NotificationBell({ targetUserId = '', readOnlyView = false }) {
   const availableRemoteItems = isRemoteNotifications ? filterNotificationsForDisplay(remoteItems) : []
   const notificationItems = isRemoteNotifications ? availableRemoteItems : getNotificationItems(role)
   const visibleItems = ((isSalesAdmin || isScopedSalesAdmin) ? notificationItems.filter(item => !item.read) : notificationItems).slice(0, isRemoteNotifications ? 3 : 2)
-  const deferredUnreadCount = isRemoteNotifications ? remoteItems.filter(item => !item.read && !isNotificationAvailable(item)).length : 0
-  const unreadCount = isRemoteNotifications ? Math.max(0, remoteCount - deferredUnreadCount) : getUnreadNotificationCount(role)
+  const unreadCount = isRemoteNotifications
+    ? remoteItems.filter(item => !item.read && isNotificationAvailable(item)).length
+    : getUnreadNotificationCount(role)
 
   useEffect(() => {
     if (!isRemoteNotifications) return undefined
@@ -38,7 +38,7 @@ export function NotificationBell({ targetUserId = '', readOnlyView = false }) {
         const body = await pending
         if (active) {
           setRemoteItems((body.data || []).map(item => ({ ...item, icon: Bell, time: new Date(item.createdAt).toLocaleString(), featured: !item.read })))
-          setRemoteCount(body.meta?.unreadCount ?? 0); setError('')
+          setError('')
         }
       } catch (err) { if (active) setError(err.message) }
       finally { if (remoteLoadRef.current === pending) remoteLoadRef.current = null }
@@ -60,7 +60,6 @@ export function NotificationBell({ targetUserId = '', readOnlyView = false }) {
     try {
       await request('/notifications/mark-read', { method: 'PATCH', body: JSON.stringify({ notificationIds: unreadIds }) })
       setRemoteItems(current => current.map(item => unreadIds.includes(item.id) ? { ...item, read: true, featured: false } : item))
-      setRemoteCount(current => Math.max(0, current - unreadIds.length))
       setError('')
     } catch (err) { setError(err.message) }
   }
