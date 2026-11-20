@@ -14,9 +14,10 @@ function downloadBlob(blob, fileName) {
   URL.revokeObjectURL(url)
 }
 
-const bodyFor = ({ branchId, assignedToId } = {}) => ({
+const bodyFor = ({ branchId, assignedToId, deadlineAt } = {}) => ({
   ...(branchId ? { branchId } : {}),
   ...(assignedToId ? { assignedToId } : {}),
+  ...(deadlineAt ? { deadlineAt } : {}),
 })
 
 export function getLeadImportTargets(branchId = '') {
@@ -29,6 +30,7 @@ export function previewLeadImport(file, options = {}) {
   body.append('file', file)
   body.append('branchId', options.branchId || '')
   body.append('assignedToId', options.assignedToId || '')
+  body.append('deadlineAt', options.deadlineAt || '')
   return request('/leads/import/preview', { method: 'POST', body, timeoutMs: IMPORT_TIMEOUT_MS })
 }
 
@@ -80,6 +82,10 @@ export function listPendingLeadImports(options = {}) {
   if (options.page) params.set('page', String(options.page))
   if (options.limit) params.set('limit', String(options.limit))
   return request(`/leads/import/pending${params.toString() ? `?${params}` : ''}`, options.impersonateBranchId ? { impersonateBranchId: options.impersonateBranchId } : {})
+}
+
+export function reassignLeadImport(batchId, payload = {}) {
+  return request(`/leads/import/batches/${encodeURIComponent(batchId)}/reassign`, { method: 'POST', body: JSON.stringify(payload) })
 }
 
 export function getPendingLeadNextId(rowId, options = {}) {

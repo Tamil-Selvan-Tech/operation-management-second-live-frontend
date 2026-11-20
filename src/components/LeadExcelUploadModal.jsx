@@ -29,6 +29,7 @@ export function LeadExcelUploadModal({ isOpen, onClose, currentUser = {}, onImpo
   const [targetData, setTargetData] = useState({ branches: [], targets: [], lockedBranchId: null, lockedTargetId: null })
   const [branchId, setBranchId] = useState('')
   const [assignedToId, setAssignedToId] = useState('')
+  const [deadlineAt, setDeadlineAt] = useState('')
   const [preview, setPreview] = useState(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
@@ -52,7 +53,7 @@ export function LeadExcelUploadModal({ isOpen, onClose, currentUser = {}, onImpo
       setStep(1); setFile(null); setPreview(null); setBusy(false); setError(''); setNotice(''); setEditingRow(null); setTablePage(1); setImportStatus(null); setDragging(false)
       const initialBranch = currentUser?.branchId || ''
       const initialTarget = targetLocked ? currentUser?.id || currentUser?.userId || '' : ''
-      setBranchId(initialBranch); setAssignedToId(initialTarget)
+      setBranchId(initialBranch); setAssignedToId(initialTarget); setDeadlineAt('')
     }, 0)
     const initialBranch = currentUser?.branchId || ''
     const initialTarget = targetLocked ? currentUser?.id || currentUser?.userId || '' : ''
@@ -80,9 +81,10 @@ export function LeadExcelUploadModal({ isOpen, onClose, currentUser = {}, onImpo
     if (!nextFile) return
     if (!/\.xlsx$/i.test(nextFile.name)) { setError('Only .xlsx files are supported.'); return }
     if (!branchId || !assignedToId) { setError('Select a branch and Sales Admin before uploading.'); return }
+    if (!deadlineAt) { setError('Select a completion deadline before uploading.'); return }
     setFile(nextFile); setBusy(true)
     try {
-      const response = await previewLeadImport(nextFile, { branchId, assignedToId })
+      const response = await previewLeadImport(nextFile, { branchId, assignedToId, deadlineAt })
       setPreview(response?.data || response || {})
       setStep(2)
     } catch (requestError) { setFile(null); setError(errorMessage(requestError)) } finally { setBusy(false) }
@@ -99,7 +101,7 @@ export function LeadExcelUploadModal({ isOpen, onClose, currentUser = {}, onImpo
     setPreview((current) => current ? ({ ...current, rows: nextRows }) : current)
     setBusy(true); setError(''); setNotice('')
     try {
-      const response = await revalidateLeadImport(nextRows, { branchId, assignedToId })
+      const response = await revalidateLeadImport(nextRows, { branchId, assignedToId, deadlineAt })
       setPreview(response?.data || response || {})
       setEditingRow(null)
       setNotice('Row saved and validated. Review the updated status before importing.')
@@ -114,7 +116,7 @@ export function LeadExcelUploadModal({ isOpen, onClose, currentUser = {}, onImpo
     if (!preview?.rows?.length) return
     setBusy(true); setError(''); setEditingRow(null)
     try {
-      const response = await revalidateLeadImport(preview.rows, { branchId, assignedToId })
+      const response = await revalidateLeadImport(preview.rows, { branchId, assignedToId, deadlineAt })
       setPreview(response?.data || response || {}); setEditingRow(null); setNotice('Validation refreshed. Review the row status before importing.')
     } catch (requestError) { setError(errorMessage(requestError)) } finally { setBusy(false) }
   }
@@ -127,7 +129,7 @@ export function LeadExcelUploadModal({ isOpen, onClose, currentUser = {}, onImpo
     setBusy(true); setError(''); setStep(3); setImportStatus({ status: 'PENDING', progress: 0, processedRows: 0, totalRows: preview.rows.length })
     const uploadId = startUpload({ type: 'lead', label: file?.name || 'Lead workbook', total: preview.rows.length, visibleTo: [currentUser?.id, currentUser?.userId, assignedToId] })
     try {
-      const result = await importLeadRows(preview.rows, { branchId, assignedToId, fileName: file?.name, onProgress: (status) => { setImportStatus(status); updateUpload(uploadId, { uploadId: status.uploadId, progress: status.progress || 0, processed: status.processedRows || 0, total: status.totalRows || preview.rows.length, status: status.status || 'RUNNING' }) } })
+      const result = await importLeadRows(preview.rows, { branchId, assignedToId, deadlineAt, fileName: file?.name, onProgress: (status) => { setImportStatus(status); updateUpload(uploadId, { uploadId: status.uploadId, progress: status.progress || 0, processed: status.processedRows || 0, total: status.totalRows || preview.rows.length, status: status.status || 'RUNNING' }) } })
       const status = result?.data || result || {}
       setImportStatus(status); completeUpload(uploadId, { status: status.status || 'COMPLETED', progress: 100, processed: status.processedRows || preview.rows.length, total: status.totalRows || preview.rows.length, completedAt: status.completedAt || Date.now(), result: status }); setNotice(`Lead import completed. ${status.activeRows || 0} active leads and ${status.pendingRows || 0} pending completion rows are ready.`)
       await onImported?.(status)
@@ -167,6 +169,7 @@ export function LeadExcelUploadModal({ isOpen, onClose, currentUser = {}, onImpo
           <div className="lead-import-assignment-fields">
             <label>Branch<select value={branchId} disabled={branchLocked || busy} onChange={(event) => setBranchId(event.target.value)}><option value="">Select branch</option>{(targetData.branches || []).map((branch) => <option key={branch.id} value={branch.id}>{branch.branchName}</option>)}</select></label>
             <label>Sales Admin<select value={assignedToId} disabled={targetLocked || busy || !branchId} onChange={(event) => setAssignedToId(event.target.value)}><option value="">Select account</option>{(targetData.targets || []).map((target) => <option key={target.id} value={target.id}>{target.fullName}{isCombinedBranchAdmin && target.id === (currentUser?.id || currentUser?.userId) ? ' (You)' : ` - ${target.role === 'BRANCH_ADMIN' ? 'Branch + Sales' : 'Sales Admin'}`}</option>)}</select></label>
+            <label>Completion deadline<input type="date" value={deadlineAt} min={new Date().toISOString().slice(0, 10)} disabled={busy} onChange={(event) => setDeadlineAt(event.target.value)} /></label>
           </div>
           {targetName ? <small>Leads will be assigned to <strong>{targetName}</strong> after import.</small> : null}
         </div>
