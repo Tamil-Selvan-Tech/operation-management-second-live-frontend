@@ -879,7 +879,7 @@ export function UserRoleManagementPage({ pageType = 'branch', onViewDashboard: b
   const selectedBranchAdmin = users.find((user) => String(user.id) === String(selectedAdminId))
   if (isSalesPage && selectedAdminId && !usersLoading) {
     return selectedSalesAdmin
-      ? <SalesAdminFullPageView admin={selectedSalesAdmin} initialTab={new URLSearchParams(location.search).get('tab') || 'overview'} onBack={() => navigate('/dashboard/super-admin?section=sales-admin')} onEdit={(user) => { navigate('/dashboard/super-admin?section=sales-admin'); openEdit(user) }} />
+      ? <SalesAdminFullPageView admin={selectedSalesAdmin} initialTab={new URLSearchParams(location.search).get('tab') || 'overview'} onBack={() => navigate('/dashboard/super-admin?section=sales-admin')} onEdit={() => { navigate('/dashboard/super-admin?section=sales-admin'); openEdit(selectedSalesAdmin) }} />
       : <main className="user-role-page"><p className="user-role-table-state is-error">Sales Admin not found.</p><button type="button" onClick={() => navigate('/dashboard/super-admin?section=sales-admin')}>Back to Sales Admins</button></main>
   }
   if (!isSalesPage && selectedAdminId && !usersLoading) {
