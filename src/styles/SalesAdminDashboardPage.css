@@ -1755,4 +1755,5 @@
 .deadline-workflow-message{grid-column:1/-1;margin-top:12px;color:#b42318;font-size:12px;font-weight:700}
 .deadline-workflow-message.is-success{color:#177245}
 .deadline-workflow-banner>.sales-admin-lead-view-action{margin-left:auto;margin-top:5px}
+.deadline-workflow-banner.is-scoped-sales-admin{margin-left:0;width:100%;box-sizing:border-box}
 @media (max-width:700px){.deadline-workflow-details{grid-template-columns:1fr}.deadline-workflow-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.deadline-workflow-header{align-items:flex-start;flex-direction:column}}
