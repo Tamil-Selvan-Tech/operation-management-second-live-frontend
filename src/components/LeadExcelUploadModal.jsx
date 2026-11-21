@@ -42,7 +42,9 @@ export function LeadExcelUploadModal({ isOpen, onClose, currentUser = {}, onImpo
   const role = roleName(currentUser)
   const isCombinedBranchAdmin = role === 'BRANCH_ADMIN' && String(currentUser?.roleAccess || currentUser?.managedBranch?.roleAccess || '').toUpperCase() === 'BRANCH_ADMIN_SALES_ADMIN'
   const branchLocked = role === 'BRANCH_ADMIN' || (role === 'SALES_ADMIN' && Boolean(targetData.lockedBranchId))
-  const targetLocked = role === 'SALES_ADMIN' || isCombinedBranchAdmin
+  // A combined Branch Admin account can still choose any Sales Admin assigned
+  // to its branch when uploading. Only Sales Admin logins are locked to self.
+  const targetLocked = role === 'SALES_ADMIN'
   const rows = useMemo(() => preview?.rows || [], [preview?.rows])
   const visibleRows = useMemo(() => rows.slice((tablePage - 1) * PAGE_SIZE, tablePage * PAGE_SIZE), [rows, tablePage])
   const totalPages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE))
@@ -178,7 +180,7 @@ export function LeadExcelUploadModal({ isOpen, onClose, currentUser = {}, onImpo
           <div><span>Upload destination</span><strong>{role === 'SUPER_ADMIN' ? 'Choose a branch and upload destination' : isCombinedBranchAdmin ? 'Your branch and account' : role === 'BRANCH_ADMIN' ? 'Your branch - choose Sales Admin' : 'Your assigned branch and account'}</strong></div>
           <div className="lead-import-assignment-fields">
             <label>Branch<select value={branchId} disabled={branchLocked || busy} onChange={(event) => setBranchId(event.target.value)}><option value="">Select branch</option>{(targetData.branches || []).map((branch) => <option key={branch.id} value={branch.id}>{branch.branchName}</option>)}</select></label>
-            <label>Sales Admin<select value={assignedToId} disabled={targetLocked || busy || !branchId} onChange={(event) => setAssignedToId(event.target.value)}><option value="">Select account</option>{(targetData.targets || []).map((target) => <option key={target.id} value={target.id}>{target.fullName}{isCombinedBranchAdmin && target.id === (currentUser?.id || currentUser?.userId) ? ' (You)' : ` - ${target.role === 'BRANCH_ADMIN' ? 'Branch + Sales' : 'Sales Admin'}`}</option>)}</select></label>
+            <label>Sales Admin<select value={assignedToId} disabled={targetLocked || busy || !branchId} onChange={(event) => setAssignedToId(event.target.value)}><option value="">Select Sales Admin</option>{(targetData.targets || []).map((target) => <option key={target.id} value={target.id}>{target.fullName}{isCombinedBranchAdmin && target.id === (currentUser?.id || currentUser?.userId) ? ' (You · Branch Admin)' : ` - ${target.role === 'BRANCH_ADMIN' ? 'Branch Admin' : 'Sales Admin'}`}</option>)}</select></label>
             <label>Completion deadline<input type="date" value={deadlineAt} min={new Date().toISOString().slice(0, 10)} disabled={busy} onChange={(event) => setDeadlineAt(event.target.value)} /></label>
           </div>
           {distributionMode ? <small>Upload to <strong>{targetName}</strong>. The Branch Admin will distribute valid leads among this branch?s Sales Admins and retain a share.</small> : targetName ? <small>Leads will be assigned to <strong>{targetName}</strong> after import.</small> : null}

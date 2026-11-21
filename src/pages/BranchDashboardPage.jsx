@@ -15771,7 +15771,7 @@ if (paidProgress >= 100) {
                 <BranchSalesCrmPage key={activeSection} view={activeSection === 'sales-crm-admitted-students' ? 'admissions' : 'admins'} />
               ) : null}
               {activeSection === 'sales-admin-directory' ? (
-                <BranchSalesCrmPage key={activeSection} view="admins" title="Sales Admin" showReportAction={false} showLeadImportAction={!hasLeadManagementAccess} />
+                <BranchSalesCrmPage key={activeSection} view="admins" title="Sales Admin" showReportAction={false} showLeadImportAction={!hasLeadManagementAccess} showLeadDistributionAction />
               ) : null}
               {activeSection === 'sales-admin' ? (
                 <BranchSalesCrmPage key={activeSection} view="admins" title="Sales Admin" showReportAction={false} showLeadImportAction={false} showActionColumn={false} />
