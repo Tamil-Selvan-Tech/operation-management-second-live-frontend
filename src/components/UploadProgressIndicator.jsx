@@ -86,7 +86,7 @@ export function UploadProgressIndicator() {
   }, [])
 
   useEffect(() => {
-    if (!open || (!loadSession()?.user?.id && !loadSession()?.user?.userId)) return undefined
+    if (!loadSession()?.user?.id && !loadSession()?.user?.userId) return undefined
     let active = true
     let timer
     const schedule = (delay) => { if (active) timer = window.setTimeout(refresh, delay) }
@@ -126,8 +126,8 @@ export function UploadProgressIndicator() {
           previousCourseStatuses.current.set(job.id, status)
         }
       } finally {
-        // Poll active imports while the activity panel is open. Staged lead jobs
-        // poll less often so the view can notice when the Branch Admin assigns them.
+      // Keep the header badge synchronized even when the activity panel is closed.
+      // Staged lead jobs poll less often so the view can notice when the Branch Admin assigns them.
         if (hasActiveJobs) schedule(15000)
         else if (hasWaitingLeadJobs) schedule(30000)
       }
@@ -161,8 +161,10 @@ export function UploadProgressIndicator() {
   const remoteVisibleUploads = [...sharedLeadUploads.map((job) => ({ id: 'server-' + job.id, type: 'lead', uploadId: job.uploadId, perRecipient: Boolean(job.sourceJobId), label: job.activityLabel || job.fileName || 'Lead workbook', status: job.status, progress: job.progress, processed: job.processedRows, total: job.totalRows, completedAt: job.completedAt, updatedAt: job.updatedAt })), ...sharedCourseUploads.map((job) => ({ id: 'server-course-' + job.id, jobId: job.id, type: 'course', uploadId: job.uploadId, label: 'Course upload - ' + (job.fileName || 'Course workbook'), status: job.status, error: job.errorMessage, progress: job.progress, processed: job.processedRows, total: job.totalRows, failed: job.failedRows, completedAt: job.completedAt, updatedAt: job.updatedAt }))].filter((item) => !dismissedRemoteIds.includes(item.id))
   const visibleUploads = [...localVisibleUploads, ...remoteVisibleUploads.filter((remote) => remote.perRecipient || !localVisibleUploads.some((local) => local.uploadId && local.uploadId === remote.uploadId))]
   const activeCount = visibleUploads.filter(isRunning).length
-  const waitingCount = visibleUploads.filter(isAwaitingDistribution).length
-  const activityCount = activeCount + waitingCount
+  // A completed upload is not a waiting upload. Distribution is a separate
+  // branch workflow and must not keep the global header badge at "waiting".
+  const waitingCount = 0
+  const activityCount = activeCount
   const activeUpload = visibleUploads.find(isRunning)
   const activeProgress = Math.max(0, Math.min(100, Number(activeUpload?.progress || 0)))
   const sessionRole = String(sessionUser.role || sessionUser.userRole || '').toLowerCase().replaceAll('_', '-')
