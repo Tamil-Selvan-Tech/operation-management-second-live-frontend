@@ -72,7 +72,7 @@ import { UploadProgressIndicator } from '../components/UploadProgressIndicator'
 import { request, setImpersonateBranchId } from '../services/apiClient'
 import { logoutBranchAdminAttendance, logoutBranchAdminWebsite } from '../services/attendanceService'
 import { shareInFlightRequest } from '../lib/inFlightRequests'
-import { unwrapNotifications } from '../services/notificationService'
+import { getNotifications, unwrapNotifications } from '../services/notificationService'
 import { getCurrentBranchProfile } from '../services/branchService'
 import BranchExamResultsPage from './BranchExamResultsPage'
 import BranchSalesCrmPage from './BranchSalesCrmPage'
@@ -5236,18 +5236,13 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
 
       const requestPromise = (async () => {
         setIsBranchNotificationsLoading(true)
-        const controller = new AbortController()
-        const timeoutId = window.setTimeout(() => controller.abort(), BRANCH_NOTIFICATIONS_TIMEOUT_MS)
         try {
           // The dashboard only needs the latest notifications for its bell
           // and summary. Load the full page only when the user opens the
           // notifications section, so login is not blocked by a large
           // historical response.
           const notificationLimit = activeSection === 'notifications' ? 100 : 20
-          const response = await request(`/notifications?limit=${notificationLimit}&page=1`, {
-            method: 'GET',
-            signal: controller.signal,
-          })
+          const response = await getNotifications({ limit: notificationLimit, page: 1, timeoutMs: BRANCH_NOTIFICATIONS_TIMEOUT_MS })
 
           const { data: responseData, meta: responseMeta } = unwrapNotifications(response)
           if (responseMeta?.roleAccess) setResolvedBranchRoleAccess(responseMeta.roleAccess)
@@ -5345,7 +5340,6 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
           })
           setBranchNotificationRecords(fallbackNotifications)
         } finally {
-          window.clearTimeout(timeoutId)
           branchNotificationsRequestRef.current = null
           setIsBranchNotificationsLoading(false)
         }
@@ -15771,7 +15765,7 @@ if (paidProgress >= 100) {
                 <BranchSalesCrmPage key={activeSection} view={activeSection === 'sales-crm-admitted-students' ? 'admissions' : 'admins'} />
               ) : null}
               {activeSection === 'sales-admin-directory' ? (
-                <BranchSalesCrmPage key={activeSection} view="admins" title="Sales Admin" showReportAction={false} showLeadImportAction={!hasLeadManagementAccess} showLeadDistributionAction />
+                <BranchSalesCrmPage key={activeSection} view="admins" title="Sales Admin" showReportAction={false} showLeadImportAction={!isSuperAdminEmbeddedView} showLeadDistributionAction />
               ) : null}
               {activeSection === 'sales-admin' ? (
                 <BranchSalesCrmPage key={activeSection} view="admins" title="Sales Admin" showReportAction={false} showLeadImportAction={false} showActionColumn={false} />

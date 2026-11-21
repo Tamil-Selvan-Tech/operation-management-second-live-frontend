@@ -5,6 +5,11 @@ import '../styles/LeadDistributionManager.css'
 import '../styles/LeadDistributionManagerEnhancements.css'
 
 const unwrap = (response) => response?.data || response || {}
+const dateInputValue = (value) => value ? String(value).slice(0, 10) : ''
+const localToday = () => {
+  const date = new Date()
+  return [date.getFullYear(), String(date.getMonth() + 1).padStart(2, '0'), String(date.getDate()).padStart(2, '0')].join('-')
+}
 export function LeadDistributionManager({ currentUser = {}, onClose, onDistributed }) {
   const [jobs, setJobs] = useState([])
   const [targets, setTargets] = useState([])
@@ -17,10 +22,12 @@ export function LeadDistributionManager({ currentUser = {}, onClose, onDistribut
   const [distributionComplete, setDistributionComplete] = useState(null)
   const [activeTab, setActiveTab] = useState("")
   const [expandedHistoryId, setExpandedHistoryId] = useState("")
+  const [deadlines, setDeadlines] = useState({})
   const pendingJobs = jobs.filter((job) => String(job.status || "").toUpperCase() === "AWAITING_DISTRIBUTION")
   const historyJobs = jobs.filter((job) => String(job.status || "").toUpperCase() !== "AWAITING_DISTRIBUTION")
   const hasProcessingHistory = historyJobs.some((job) => ["PENDING", "RUNNING"].includes(String(job.status || "").toUpperCase()))
   const selected = pendingJobs.find((job) => job.id === selectedId)
+  const inheritedDeadline = dateInputValue(selected?.deadlineAt)
   const eligible = Number(selected?.distributableRows || 0)
   const branchAdminId = String(currentUser.id || currentUser.userId || '')
   const defaults = Object.fromEntries(targets.map((target) => [target.id, target.id === branchAdminId ? eligible : 0]))
@@ -30,7 +37,7 @@ export function LeadDistributionManager({ currentUser = {}, onClose, onDistribut
   const salesAssigned = salesTargets.reduce((total, target) => total + (Number(counts[target.id]) || 0), 0)
   const branchBalance = Math.max(0, eligible - salesAssigned)
   const overAllocated = salesAssigned > eligible
-  const validAllocation = Boolean(targets.some((target) => target.id === branchAdminId)) && !overAllocated
+  const validAllocation = Boolean(targets.some((target) => target.id === branchAdminId)) && !overAllocated && targets.filter((target) => Number(counts[target.id]) > 0).every((target) => Boolean(deadlines[target.id] ?? inheritedDeadline))
   const salesPercent = eligible ? Math.min(100, (salesAssigned / eligible) * 100) : 0
 
   const setSalesAllocation = (targetId, value) => {
@@ -60,6 +67,10 @@ export function LeadDistributionManager({ currentUser = {}, onClose, onDistribut
   }, [currentUser.branchId])
   useEffect(() => { const timer = window.setTimeout(() => { void refresh() }, 0); return () => window.clearTimeout(timer) }, [refresh])
   useEffect(() => {
+    if (!selectedId) return
+    setDeadlines(Object.fromEntries(targets.map((target) => [target.id, inheritedDeadline])))
+  }, [selectedId, selected?.deadlineAt, targets])
+  useEffect(() => {
     if (!hasProcessingHistory) return undefined
     const timer = window.setInterval(async () => {
       try {
@@ -75,7 +86,7 @@ export function LeadDistributionManager({ currentUser = {}, onClose, onDistribut
     if (!selected || !validAllocation || saving) return
     setSaving(true); setError('')
     try {
-      const allocations = targets.map((target) => ({ userId: target.id, count: Number(counts[target.id] || 0) })).filter((item) => item.count > 0)
+      const allocations = targets.map((target) => ({ userId: target.id, count: Number(counts[target.id] || 0), deadlineAt: deadlines[target.id] || inheritedDeadline })).filter((item) => item.count > 0)
       const result = await distributeLeadImport(selected.id, allocations)
       setDistributionComplete({
         fileName: selected.fileName || selected.uploadId,
@@ -108,7 +119,7 @@ export function LeadDistributionManager({ currentUser = {}, onClose, onDistribut
               </button>
               {expanded ? <div className="lead-distribution-history-details">
                 {job.recipients?.length ? job.recipients.map((recipient) => <div className="lead-distribution-history-detail-row" key={recipient.userId}>
-                  <span><strong>{recipient.fullName}</strong><small>{recipientRole(recipient.role)} · Uploaded by {recipient.distributedByName || 'Branch Admin'}</small></span>
+                  <span><strong>{recipient.fullName}</strong><small>{recipientRole(recipient.role)} · Uploaded by {recipient.distributedByName || 'Branch Admin'}{recipient.deadlineAt ? ` · Deadline ${new Date(recipient.deadlineAt).toLocaleDateString('en-IN')}` : ''}</small></span>
                   <span className="lead-distribution-history-detail-count">{Number(recipient.totalRows || 0).toLocaleString()} leads</span>
                   <span className="lead-distribution-history-detail-progress">{Number(recipient.processedRows || 0).toLocaleString()}/{Number(recipient.totalRows || 0).toLocaleString()} · {Number(recipient.progress || 0)}%</span>
                 </div>) : <p>{String(job.status || '').toUpperCase() === 'AWAITING_DISTRIBUTION' ? 'Waiting for branch distribution.' : 'No distribution details recorded.'}</p>}
@@ -119,12 +130,12 @@ export function LeadDistributionManager({ currentUser = {}, onClose, onDistribut
           <label className="lead-distribution-job-select">Upload to distribute<select value={selectedId} onChange={(event) => { setSelectedId(event.target.value); setAllocation({ jobId: '', counts: {} }) }}>{pendingJobs.map((job) => <option key={job.id} value={job.id}>{job.fileName || job.uploadId} · {job.distributableRows} available</option>)}</select></label>
           <div className="lead-distribution-summary"><div><span>Uploaded rows</span><strong>{selected?.totalRows || 0}</strong></div><div><span>Ready to assign</span><strong>{eligible}</strong></div><div><span>Sales Admin allocation</span><strong>{salesAssigned}</strong></div><div className="is-balance"><span>Branch Admin balance</span><strong>{branchBalance}</strong></div></div>
           <div className="lead-distribution-meter" role="img" aria-label={`${salesAssigned} assigned to Sales Admins, ${branchBalance} retained by Branch Admin out of ${eligible} valid leads`}><span><i style={{ width: `${salesPercent}%` }} /></span><div><small>Sales Admins <strong>{salesAssigned}</strong></small><small>Branch Admin balance <strong>{branchBalance}</strong></small></div></div>
-          <div className="lead-distribution-table"><div className="lead-distribution-table-head"><span>Account</span><span>Leads</span></div>{orderedTargets.map((target) => {
+          <div className="lead-distribution-table"><div className="lead-distribution-table-head"><span>Account</span><span>Leads</span><span>Completion deadline</span></div>{orderedTargets.map((target) => {
             const isBranchAdmin = target.id === branchAdminId
             const value = Number(counts[target.id] || 0)
             const availableForTarget = Math.max(0, eligible - (salesAssigned - value))
             const fieldError = !isBranchAdmin && value > availableForTarget && (value > eligible || target.id === lastEditedTargetId) ? `Maximum available: ${availableForTarget} leads` : ''
-            return <div className={`lead-distribution-row${isBranchAdmin ? ' is-branch-admin' : ''}`} key={target.id}><span><strong>{target.fullName}{isBranchAdmin ? ' (You · Branch Admin)' : ''}</strong><small>{isBranchAdmin ? 'Remaining leads stay with your branch account' : String(target.role || '').replaceAll('_', ' ')}</small></span>{isBranchAdmin ? <span className="lead-distribution-balance-value" aria-label={`Branch Admin balance: ${branchBalance}`}>{branchBalance}</span> : <div className="lead-distribution-input-wrap"><input type="text" inputMode="numeric" pattern="[0-9]*" value={counts[target.id] ?? 0} onFocus={(event) => event.currentTarget.select()} onChange={(event) => setSalesAllocation(target.id, event.target.value)} aria-label={'Lead count for ' + target.fullName} aria-invalid={Boolean(fieldError)} aria-describedby={fieldError ? `lead-distribution-error-${target.id}` : undefined} />{fieldError ? <small className="lead-distribution-field-error" id={`lead-distribution-error-${target.id}`} role="alert">{fieldError}</small> : null}</div>}</div>
+            return <div className={`lead-distribution-row${isBranchAdmin ? ' is-branch-admin' : ''}`} key={target.id}><span><strong>{target.fullName}{isBranchAdmin ? ' (You · Branch Admin)' : ''}</strong><small>{isBranchAdmin ? 'Remaining leads stay with your branch account' : String(target.role || '').replaceAll('_', ' ')}</small></span>{isBranchAdmin ? <span className="lead-distribution-balance-value" aria-label={`Branch Admin balance: ${branchBalance}`}>{branchBalance}</span> : <div className="lead-distribution-input-wrap"><input type="text" inputMode="numeric" pattern="[0-9]*" value={counts[target.id] ?? 0} onFocus={(event) => event.currentTarget.select()} onChange={(event) => setSalesAllocation(target.id, event.target.value)} aria-label={'Lead count for ' + target.fullName} aria-invalid={Boolean(fieldError)} aria-describedby={fieldError ? `lead-distribution-error-${target.id}` : undefined} />{fieldError ? <small className="lead-distribution-field-error" id={`lead-distribution-error-${target.id}`} role="alert">{fieldError}</small> : null}</div>}<label className="lead-distribution-deadline"><span className="sr-only">Completion deadline for {target.fullName}</span><input type="date" value={deadlines[target.id] ?? inheritedDeadline} min={localToday()} onChange={(event) => setDeadlines((current) => ({ ...current, [target.id]: event.target.value }))} aria-label={`Completion deadline for ${target.fullName}`} /></label></div>
           })}</div>
           <div className={'lead-distribution-total' + (validAllocation ? ' is-valid' : ' is-invalid')}><span>{overAllocated ? <>Reduce Sales Admin allocations by <strong>{salesAssigned - eligible}</strong></> : <>Branch Admin keeps <strong>{branchBalance}</strong> of <strong>{eligible}</strong> remaining leads</>}</span><small>Assign counts to Sales Admins; the unassigned balance stays with you. Pending Completion rows are included. Lead IDs are created only for Active Leads.</small></div>
           <footer><span>Original upload by Super Admin · Distribution by {currentUser.fullName || 'you'}</span><button type="button" onClick={() => void submit()} disabled={saving || !validAllocation || !eligible}>{saving ? <><LoaderCircle className="lead-distribution-spin" size={15} /> Distributing…</> : 'Confirm distribution'}</button></footer>

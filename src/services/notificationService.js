@@ -1,5 +1,11 @@
 import { request } from './apiClient'
 
+// Notification bells and dashboard sections can mount together (and React
+// StrictMode replays mount effects in development). Share only in-flight GETs
+// so identical readers do not hit the API multiple times, while later refreshes
+// still fetch fresh data.
+const inFlightNotificationRequests = new Map()
+
 function normalizeNotificationMessage(message) {
   return String(message || '').replace(/\bINR\b/gi, '₹')
 }
@@ -50,8 +56,21 @@ export function unwrapNotifications(response) {
   }
 }
 
-export async function getNotifications({ limit = 100, page = 1 } = {}) {
-  return request(`/notifications?limit=${limit}&page=${page}`, { method: 'GET' })
+export function getNotifications({ limit = 100, page = 1, targetUserId = '', timeoutMs } = {}) {
+  const query = new URLSearchParams({ limit: String(limit), page: String(page) })
+  if (targetUserId) query.set('targetUserId', String(targetUserId))
+  const path = `/notifications?${query.toString()}`
+  const existing = inFlightNotificationRequests.get(path)
+  if (existing) return existing
+
+  const pending = request(path, { method: 'GET', ...(timeoutMs ? { timeoutMs } : {}) })
+    .finally(() => {
+      if (inFlightNotificationRequests.get(path) === pending) {
+        inFlightNotificationRequests.delete(path)
+      }
+    })
+  inFlightNotificationRequests.set(path, pending)
+  return pending
 }
 
 export async function createNotification(payload = {}) {

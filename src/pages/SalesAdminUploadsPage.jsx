@@ -11,7 +11,7 @@ function Count({ icon: Icon, title, value, tone = 'blue' }) {
   return <div className={`sales-admin-upload-count is-${tone}`}><span><Icon size={16} /></span><div><small>{title}</small><strong>{Number(value || 0).toLocaleString('en-IN')}</strong></div></div>
 }
 
-export function SalesAdminUploadsPage() {
+export function SalesAdminUploadsPage({ salesAdminId = '' } = {}) {
   const [uploads, setUploads] = useState([])
   const [selected, setSelected] = useState(null)
   const [search, setSearch] = useState('')
@@ -23,10 +23,10 @@ export function SalesAdminUploadsPage() {
 
   const load = useCallback(async () => {
     setLoading(true); setError('')
-    try { const response = await request(`/sales-admins/uploads${search.trim() ? `?search=${encodeURIComponent(search.trim())}` : ''}`); setUploads(response?.data?.uploads || []) }
+    try { const params = new URLSearchParams(); if (search.trim()) params.set('search', search.trim()); if (salesAdminId) params.set('salesAdminId', salesAdminId); const response = await request(`/sales-admins/uploads${params.toString() ? `?${params.toString()}` : ''}`); setUploads(response?.data?.uploads || []) }
     catch (reason) { setError(reason?.message || 'Unable to load upload history') }
     finally { setLoading(false) }
-  }, [search])
+  }, [search, salesAdminId])
   useEffect(() => { const timer = window.setTimeout(() => { void load() }, 0); return () => window.clearTimeout(timer) }, [load])
   const filtered = useMemo(() => uploads.filter((upload) => (!search.trim() || String(upload.fileName || '').toLowerCase().includes(search.trim().toLowerCase())) && (statusFilter === 'ALL' || normalizedStatus(upload.status) === statusFilter) && (uploaderFilter === 'ALL' || normalizedStatus(upload.uploadedByRole) === uploaderFilter)), [uploads, search, statusFilter, uploaderFilter])
   const pageCount = Math.max(1, Math.ceil(filtered.length / 5))
@@ -34,7 +34,7 @@ export function SalesAdminUploadsPage() {
   useEffect(() => { const timer = window.setTimeout(() => setPage(1), 0); return () => window.clearTimeout(timer) }, [search, statusFilter, uploaderFilter])
   const pagination = pageCount <= 3 ? Array.from({ length: pageCount }, (_, index) => index + 1) : page === 1 ? [1, 2, 3] : page === pageCount ? [pageCount - 2, pageCount - 1, pageCount] : [page - 1, page, page + 1]
 
-  if (selected) return <UploadDetail upload={selected} onBack={() => setSelected(null)} />
+  if (selected) return <UploadDetail upload={selected} salesAdminId={salesAdminId} onBack={() => setSelected(null)} />
   return <section className="sales-admin-uploads-page">
     <header className="sales-admin-uploads-header"><div><p className="eyebrow">SALES CRM</p><h2>Upload History</h2><p>Review every Excel upload assigned to you, including direct uploads and reassigned lead groups.</p></div><button type="button" className="sales-admin-upload-refresh" onClick={() => void load()} disabled={loading}><RefreshCw size={16} className={loading ? 'is-spinning' : ''} /> Refresh</button></header>
     <div className="sales-admin-uploads-toolbar"><label className="sales-admin-upload-search"><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search Excel file" aria-label="Search Excel file" /></label><label className="sales-admin-upload-filter"><select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} aria-label="Filter by lead status"><option value="ALL">All Status</option><option value="IN_PROGRESS">In Progress</option><option value="OVERDUE">Overdue</option><option value="COMPLETED">Completed</option></select></label><label className="sales-admin-upload-filter sales-admin-upload-uploader-filter"><select value={uploaderFilter} onChange={(event) => setUploaderFilter(event.target.value)} aria-label="Filter by uploader"><option value="ALL">All Uploaders</option><option value="SUPER_ADMIN">Super Admin</option><option value="BRANCH_ADMIN">Branch Admin</option><option value="SALES_ADMIN">Sales Admin</option></select></label><span className="sales-admin-upload-total">{filtered.length} upload{filtered.length === 1 ? '' : 's'}</span></div>
@@ -46,11 +46,11 @@ export function SalesAdminUploadsPage() {
 function SkeletonRows() { return Array.from({ length: 5 }, (_, row) => <tr key={`upload-skeleton-${row}`} className="sales-admin-upload-skeleton-row">{Array.from({ length: 10 }, (_, column) => <td key={column}><span /></td>)}</tr>) }
 function Pagination({ page, pageCount, pagination, onPage }) { if (pageCount <= 1) return null; return <nav className="sales-admin-upload-pagination" aria-label="Upload history pagination"><button type="button" onClick={() => onPage(Math.max(1, page - 1))} disabled={page === 1}>Previous</button>{pagination.map((item, index) => <span key={item}>{index > 0 && item - pagination[index - 1] > 1 ? <i>...</i> : null}<button type="button" className={item === page ? 'is-current' : ''} onClick={() => onPage(item)}>{item}</button></span>)}<button type="button" onClick={() => onPage(Math.min(pageCount, page + 1))} disabled={page === pageCount}>Next</button></nav> }
 
-function UploadDetail({ upload: initialUpload, onBack }) {
+function UploadDetail({ upload: initialUpload, salesAdminId = '', onBack }) {
   const [upload, setUpload] = useState(initialUpload)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  useEffect(() => { let active = true; request(`/sales-admins/uploads/${encodeURIComponent(initialUpload.id)}/performance`).then((response) => { if (active) setUpload({ ...initialUpload, ...(response?.data?.upload || {}), summary: response?.data?.summary || {}, rows: response?.data?.rows || [], assignmentHistory: response?.data?.assignmentHistory || [] }) }).catch((reason) => { if (active) setError(reason?.message || 'Unable to load upload details') }).finally(() => { if (active) setLoading(false) }); return () => { active = false } }, [initialUpload])
+  useEffect(() => { let active = true; request(`/sales-admins/uploads/${encodeURIComponent(initialUpload.id)}/performance${salesAdminId ? `?salesAdminId=${encodeURIComponent(salesAdminId)}` : ''}`).then((response) => { if (active) setUpload({ ...initialUpload, ...(response?.data?.upload || {}), summary: response?.data?.summary || {}, rows: response?.data?.rows || [], assignmentHistory: response?.data?.assignmentHistory || [] }) }).catch((reason) => { if (active) setError(reason?.message || 'Unable to load upload details') }).finally(() => { if (active) setLoading(false) }); return () => { active = false } }, [initialUpload, salesAdminId])
   const summary = upload.summary || {}
   const progressPercentage = summary.totalLeads ? Math.round((Number(summary.completedLeads || 0) / Number(summary.totalLeads)) * 100) : 0
   useEffect(() => { document.documentElement.style.setProperty('--sales-upload-progress', `${progressPercentage}%`); return () => document.documentElement.style.removeProperty('--sales-upload-progress') }, [progressPercentage])

@@ -10,7 +10,7 @@ import {
 } from 'lucide-react'
 
 import { request } from '../services/apiClient'
-import { unwrapNotifications } from '../services/notificationService'
+import { getNotifications, unwrapNotifications } from '../services/notificationService'
 
 function formatNotificationTime(createdAt) {
   const date = new Date(createdAt)
@@ -106,9 +106,7 @@ export function SuperAdminNotificationBell({
 
   const refreshNotifications = async () => {
     try {
-      const response = await request('/notifications?limit=20&page=1', {
-        method: 'GET',
-      })
+      const response = await getNotifications({ limit: 20, page: 1 })
       const { data } = unwrapNotifications(response)
       setNotifications(data.map((notification) => {
         const normalized = normalizeBellNotification(notification)
