@@ -40,6 +40,7 @@
 .sales-admin-unified-lead-table th:last-child,.sales-admin-unified-lead-table td:last-child{display:none}
 .sales-admin-lead-filters input{min-width:280px}
 .sales-admin-lead-view-action{display:inline-flex;align-items:center;gap:6px}.sales-admin-lead-view-action:not(:has(svg))::before{content:'⇩';font-size:15px;line-height:1}
+.sales-admin-lead-view-action:disabled{background:#edf2f7;color:#8a9aaf;border-color:#dbe4ee;opacity:.7;cursor:not-allowed;pointer-events:none}
 .sales-admin-view-card:has(audio) .sales-admin-view-table-wrap table{width:100%;min-width:760px}
 .sales-admin-upload-report-page .sales-admin-upload-summary-card.closed strong{color:#5c6778}.sales-admin-upload-report-page .sales-admin-upload-summary-card.closed:before{content:'✓';background:#f1f3f6;color:#5c6778}
 .sales-admin-lead-details-section{min-width:0;overflow:hidden}.sales-admin-lead-details-section>.sales-admin-view-card{min-width:0;overflow:hidden}.sales-admin-lead-details-section .sales-admin-lead-table-toolbar{min-width:0}.sales-admin-lead-details-section .sales-admin-lead-filters{min-width:0;max-width:100%}.sales-admin-lead-details-section .sales-admin-view-table-wrap{width:100%;max-width:100%;overflow-x:auto;overflow-y:hidden}
@@ -49,3 +50,12 @@
 .sales-admin-upload-report-page .sales-admin-view-title h1{font-size:24px}
 body:has(.sales-admin-upload-report-back.is-super-admin) .sales-admin-upload-report-page .sales-admin-view-header,body:has(.sales-admin-upload-report-back.is-super-admin) .sales-admin-upload-report-page .sales-admin-view-tabs,body:has(.sales-admin-upload-report-back.is-super-admin) .sales-admin-upload-report-page .sales-admin-view-section{left:-18px;width:calc(100% + 18px)}
 .sales-admin-upload-report-page{overflow-x:hidden;min-width:0}.sales-admin-upload-report-page .sales-admin-view-header,.sales-admin-upload-report-page .sales-admin-view-section{min-width:0;max-width:100%}.sales-admin-upload-report-page .sales-admin-view-card{min-width:0}.sales-admin-upload-report-page .sales-admin-view-table-wrap{max-width:100%;overflow-x:auto;overflow-y:hidden}
+.sales-admin-view-page section[aria-labelledby="reassign-pending-title"] > label:first-of-type{order:2}
+.sales-admin-view-page section[aria-labelledby="reassign-pending-title"] > label:nth-of-type(2){order:1}
+.sales-admin-view-page section[aria-labelledby="reassign-pending-title"]{display:flex!important;flex-direction:column;position:relative}
+.sales-admin-view-page section[aria-labelledby="reassign-pending-title"] > div:last-child{order:3}
+.sales-admin-view-page section[aria-labelledby="reassign-pending-title"] > label:first-of-type{font-size:0}
+.sales-admin-view-page section[aria-labelledby="reassign-pending-title"] > label:first-of-type::before{content:"Assign To";display:block;margin-bottom:6px;color:#17345d;font-size:14px;font-weight:600}
+.sales-admin-view-page section[aria-labelledby="reassign-pending-title"] > label:first-of-type select{font-size:14px}
+.sales-admin-view-page section[aria-labelledby="reassign-pending-title"] > label[data-error]::after{content:attr(data-error);display:block;margin-top:5px;color:#dc2626;font-size:12px;font-weight:600}
+.reassign-modal-close{position:absolute;top:12px;right:14px;width:30px;height:30px;border:0;border-radius:8px;background:transparent;color:#60748f;font-size:25px;line-height:28px;cursor:pointer}.reassign-modal-close:hover{background:#eef4fb;color:#17345d}
