@@ -173,9 +173,48 @@ function ExcelUploadFlowOverlay({ batchId, salesAdminId = '' }) {
   const deadlineEnd = upload.deadlineAt ? new Date(`${String(upload.deadlineAt).slice(0, 10)}T23:59:59`) : null
   const daysRemaining = deadlineEnd ? Math.ceil((deadlineEnd.getTime() - new Date().getTime()) / 86400000) : null
   const remainingLabel = daysRemaining === null ? 'No deadline' : daysRemaining < 0 ? 'Overdue' : daysRemaining === 0 ? 'Due today' : `${daysRemaining} ${daysRemaining === 1 ? 'DAY' : 'DAYS'} LEFT`
-  const openDialog = async () => { setMessage(''); setAssignedToId(''); setBranchId(''); setDeadlineAt(''); try { const result = await getLeadImportTargets(upload.branchId || ''); setTargets(result?.data || result || {}) } catch (reason) { setMessage(reason?.message || 'Unable to load reassignment targets.') } setOpen(true) }
+  const loadTargetsForBranch = async (selectedBranchId) => {
+    setAssignedToId('')
+    try {
+      const result = await getLeadImportTargets(selectedBranchId || upload.branchId || '')
+      const next = result?.data || result || {}
+      const targetOptions = (next.targets || []).filter((target) => ['SALES_ADMIN', 'BRANCH_ADMIN'].includes(String(target.role || '').toUpperCase())).map((target) => ({ ...target, role: String(target.role || 'Sales Admin').replaceAll('_', ' ') }))
+      setTargets({ ...next, targets: targetOptions })
+    } catch (reason) {
+      setTargets((current) => ({ ...current, targets: [] }))
+      setMessage(reason?.message || 'Unable to load Sales Admins for the selected branch.')
+    }
+  }
+  const openDialog = async () => { setMessage(''); setAssignedToId(''); setBranchId(''); setDeadlineAt(''); setOpen(true); await loadTargetsForBranch(upload.branchId || '') }
+  useEffect(() => {
+    if (!open) return
+    // Branch changes must refresh the available Sales Admin list.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void loadTargetsForBranch(branchId || upload.branchId || '')
+    // The target loader is intentionally scoped to the selected branch.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [branchId, open, upload.branchId])
+  useEffect(() => {
+    if (!open) return undefined
+    const modal = document.querySelector('section[aria-labelledby="reassign-pending-title"]')
+    if (!modal) return undefined
+    const closeButton = document.createElement('button')
+    closeButton.type = 'button'
+    closeButton.className = 'reassign-modal-close'
+    closeButton.setAttribute('aria-label', 'Close reassignment dialog')
+    closeButton.textContent = '×'
+    closeButton.addEventListener('click', () => setOpen(false))
+    modal.appendChild(closeButton)
+    return () => closeButton.remove()
+  }, [open])
   const submit = async () => {
-    if (!assignedToId || !deadlineAt) { setMessage('Select a new Sales Admin and deadline.'); return }
+    const modal = document.querySelector('section[aria-labelledby="reassign-pending-title"]')
+    const labels = modal ? Array.from(modal.querySelectorAll('label')) : []
+    labels.forEach((label) => label.removeAttribute('data-error'))
+    if (!branchId) labels[1]?.setAttribute('data-error', 'This field is required')
+    if (!assignedToId) labels[0]?.setAttribute('data-error', 'This field is required')
+    if (!deadlineAt) labels[2]?.setAttribute('data-error', 'This field is required')
+    if (!branchId || !assignedToId || !deadlineAt) return
     setBusy(true); setMessage('')
     try { await reassignLeadImport(batchId, { rowIds: pendingRows.map((row) => row.id), assignedToId, branchId: branchId || upload.branchId, deadlineAt }); setOpen(false); setMessage('Pending leads reassigned successfully.'); await load() } catch (reason) { setMessage(reason?.message || 'Unable to reassign pending leads.') } finally { setBusy(false) }
   }
