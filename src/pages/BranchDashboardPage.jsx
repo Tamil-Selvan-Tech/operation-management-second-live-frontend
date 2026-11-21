@@ -2953,6 +2953,7 @@ function getBranchDashboardSectionFromPath(pathname = '', search = '') {
   if (section === 'sales-crm-admissions') return 'sales-crm-admissions'
   if (section === 'sales-crm-admitted-students') return 'sales-crm-admitted-students'
   if (section === 'sales-admin-directory') return 'sales-admin-directory'
+  if (section === 'sales-admin') return 'sales-admin'
   if (section === 'sales-crm-reports') return 'sales-crm-reports'
   if (section === 'branch-reports') return 'branch-reports'
   if (section === 'calendar') return 'calendar'
@@ -2972,6 +2973,7 @@ function getBranchDashboardSectionFromPath(pathname = '', search = '') {
   if (section === 'sales-crm-admissions') return 'sales-crm-admissions'
   if (section === 'sales-crm-admitted-students') return 'sales-crm-admitted-students'
   if (section === 'sales-admin-directory') return 'sales-admin-directory'
+  if (section === 'sales-admin') return 'sales-admin'
   if (section === 'batches') return 'batches'
   if (section === 'payments') return 'payments'
   if (section === 'profile') return 'profile'
@@ -4329,7 +4331,7 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
   const [expandedSidebarGroups, setExpandedSidebarGroups] = useState(() => ({
     courses: false,
     academic: ['courses', 'course-import'].includes(sidebarActiveSection),
-    faculty: ['faculty', 'sales-admin-directory', 'sales-crm', 'sales-crm-admissions', 'batches'].includes(sidebarActiveSection),
+    faculty: ['faculty', 'sales-admin'].includes(sidebarActiveSection),
     students: ['students', 'student-management', 'completed-students', 'courses', 'batches', 'installments', 'progress-notifications', 'institute-leave', 'faculty-leave', 'discontinuations'].includes(sidebarActiveSection),
     management: ['institute-leave', 'faculty-leave', 'progress-notifications', 'faculty-edit-requests', 'discontinuations'].includes(sidebarActiveSection),
   }))
@@ -4401,14 +4403,14 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
   }, [isSidebarFlyoutMode, openSidebarFlyout])
 
   useEffect(() => {
-  const parentByChild = { faculty: 'faculty', 'sales-admin-directory': 'faculty', 'sales-crm-admitted-students': 'sales-crm', 'sales-crm-admissions': 'sales-crm', 'sales-crm-reports': 'sales-crm', 'lead-management': 'sales-crm', students: 'student-management', 'student-management': 'student-management', 'completed-students': 'student-management', courses: 'academic', batches: 'academic', installments: 'academic', payments: 'payments', 'exams-results': 'academic', 'academic-tests': 'academic', 'institute-leave': 'leave-management', 'faculty-leave': 'leave-management', 'progress-notifications': 'leave-management', 'faculty-edit-requests': 'leave-management', discontinuations: 'leave-management', 'helpdesk-tickets': 'helpdesk', 'helpdesk-knowledge-base': 'helpdesk', 'helpdesk-contact-support': 'helpdesk' }
-    const parent = parentByChild[sidebarActiveSection]
+  const parentByChild = { faculty: 'faculty', 'sales-admin-directory': 'sales-crm', 'sales-crm-admitted-students': 'sales-crm', 'sales-crm-admissions': 'sales-crm', 'sales-crm-reports': 'sales-crm', 'lead-management': 'sales-crm', students: 'student-management', 'student-management': 'student-management', 'completed-students': 'student-management', courses: 'academic', batches: 'academic', installments: 'academic', payments: 'academic', 'exams-results': 'academic', 'academic-tests': 'academic', 'institute-leave': 'leave-management', 'faculty-leave': 'leave-management', 'progress-notifications': 'leave-management', 'faculty-edit-requests': 'leave-management', discontinuations: 'leave-management', 'helpdesk-tickets': 'helpdesk', 'helpdesk-knowledge-base': 'helpdesk', 'helpdesk-contact-support': 'helpdesk' }
+    const parent = sidebarActiveSection === 'sales-admin' ? 'faculty' : parentByChild[sidebarActiveSection]
     if (!parent) return
     setExpandedSidebarGroups((current) => current[parent] ? current : { ...current, [parent]: true })
   }, [sidebarActiveSection])
 
   useEffect(() => {
-    if (activeSection === 'sales-crm' || activeSection === 'sales-crm-admitted-students') {
+    if (activeSection === 'sales-crm' || activeSection === 'sales-crm-admitted-students' || activeSection === 'sales-admin-directory') {
       setExpandedSidebarNestedGroups((current) => ({ ...current, 'sales-crm': true }))
     }
     if (activeSection === 'progress-notifications') {
@@ -11754,6 +11756,7 @@ useEffect(() => {
           { id: 'sales-crm', label: 'Sales & CRM', icon: BriefcaseBusiness, children: [
             { id: 'sales-crm-admitted-students', label: 'Admissions', icon: GraduationCap },
             { id: 'sales-crm-reports', label: 'Lead Monthly Report', icon: FileText },
+            { id: 'sales-admin-directory', label: 'Assigned Sales Admins', icon: BriefcaseBusiness },
             ...(hasLeadManagementAccess ? [
               { id: 'lead-management', label: 'Lead Management', icon: BriefcaseBusiness },
               { id: 'sales-crm-admissions', label: 'Student Admission', icon: GraduationCap },
@@ -11761,7 +11764,7 @@ useEffect(() => {
           ] },
           { id: 'faculty', label: 'User & Role Management', icon: Shield, children: [
             { id: 'faculty', label: 'Faculty Management', icon: UserRound },
-            { id: 'sales-admin-directory', label: 'Sales Admin', icon: BriefcaseBusiness },
+            { id: 'sales-admin', label: 'Sales Admin', icon: BriefcaseBusiness },
           ] },
           { id: 'payments', label: 'Fee & Accounts Management', icon: Wallet },
           { id: 'academic', label: 'Academic Operation', icon: LayoutGrid, children: [
@@ -15769,6 +15772,9 @@ if (paidProgress >= 100) {
               ) : null}
               {activeSection === 'sales-admin-directory' ? (
                 <BranchSalesCrmPage key={activeSection} view="admins" title="Sales Admin" showReportAction={false} showLeadImportAction={!hasLeadManagementAccess} />
+              ) : null}
+              {activeSection === 'sales-admin' ? (
+                <BranchSalesCrmPage key={activeSection} view="admins" title="Sales Admin" showReportAction={false} showLeadImportAction={false} showActionColumn={false} />
               ) : null}
             </div>
           </main>

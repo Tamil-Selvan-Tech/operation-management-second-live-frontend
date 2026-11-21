@@ -5,6 +5,7 @@ import { SalesCrmReportSubmissionModal } from '../components/SalesCrmReportSubmi
 import { LeadExcelUploadModal } from '../components/LeadExcelUploadModal'
 import { loadSession } from '../lib/session'
 import '../styles/BranchSalesCrmPage.css'
+import SalesAdminFullPageView from '../components/SalesAdminFullPageView'
 
 const PAGE_SIZE = 5
 const EMPTY = '—'
@@ -38,7 +39,7 @@ function workLogLabel(status) {
   return { LOGGED_IN: 'Logged In', WEBSITE_LOGGED_OUT_WORK_CLOCK_ACTIVE: 'Logged Out', WORK_CLOCK_COMPLETED: 'Completed', WORK_LOG_COMPLETED: 'Completed', AUTO_CLOSED: 'Auto Closed', NOT_LOGGED_IN: 'Not Logged In' }[status] || 'Not Logged In'
 }
 
-export default function BranchSalesCrmPage({ view = 'admins', title = 'Sales & CRM', showReportAction = true, showLeadImportAction = false }) {
+export default function BranchSalesCrmPage({ view = 'admins', title = 'Sales & CRM', showReportAction = true, showLeadImportAction = false, showActionColumn = true }) {
   const activeTab = view
   const [salesAdmins, setSalesAdmins] = useState([])
   const [admissions, setAdmissions] = useState([])
@@ -131,6 +132,10 @@ export default function BranchSalesCrmPage({ view = 'admins', title = 'Sales & C
   const error = activeTab === 'admins' ? adminsError : admissionsError
   const hasLoaded = activeTab === 'admins' ? adminsLoaded : admissionsLoaded
 
+  if (selectedAdmin && activeTab === 'admins') {
+    return <SalesAdminFullPageView admin={{ ...selectedAdmin, id: selectedAdmin.userId || selectedAdmin.id, fullName: selectedAdmin.name, email: selectedAdmin.email, phone: selectedAdmin.phone }} branchScoped showEdit={false} onBack={() => setSelectedAdmin(null)} />
+  }
+
   return (
     <section className="branch-sales-crm-page">
       <header className="branch-sales-crm-heading">
@@ -182,21 +187,21 @@ export default function BranchSalesCrmPage({ view = 'admins', title = 'Sales & C
       <div className="branch-sales-crm-table-wrap">
         {activeTab === 'admins' ? (
           <table>
-            <thead><tr><th>Sales Admin ID</th><th>Name</th><th>Email</th><th>Phone Number</th><th>Branch</th><th>Account Status</th><th>Action</th></tr></thead>
+            <thead><tr><th>Sales Admin ID</th><th>Name</th><th>Email</th><th>Phone Number</th><th>Branch</th><th>Account Status</th>{showActionColumn ? <th>Action</th> : null}</tr></thead>
             <tbody>
-              {loading ? Array.from({ length: PAGE_SIZE }, (_, index) => <tr key={`admin-skeleton-${index}`} className="branch-sales-crm-skeleton-row"><td colSpan="7"><span /></td></tr>)
-                : error ? <tr><td colSpan="7" className="branch-sales-crm-empty">Sales Admin details could not be loaded.</td></tr>
+              {loading ? Array.from({ length: PAGE_SIZE }, (_, index) => <tr key={`admin-skeleton-${index}`} className="branch-sales-crm-skeleton-row"><td colSpan={showActionColumn ? 7 : 6}><span /></td></tr>)
+                : error ? <tr><td colSpan={showActionColumn ? 7 : 6} className="branch-sales-crm-empty">Sales Admin details could not be loaded.</td></tr>
                   : pageRows.length ? pageRows.map((admin) => (
                     <tr
                       key={admin.userId || admin.id}
                       className="branch-sales-crm-admin-row"
                       role="button"
                       tabIndex={0}
-                      onClick={() => openActivity(admin)}
+                      onClick={() => { if (showActionColumn) openActivity(admin) }}
                       onKeyDown={(event) => {
                         if (event.key === 'Enter' || event.key === ' ') {
                           event.preventDefault()
-                          openActivity(admin)
+                          if (showActionColumn) openActivity(admin)
                         }
                       }}
                     >
@@ -206,9 +211,9 @@ export default function BranchSalesCrmPage({ view = 'admins', title = 'Sales & C
                       <td>{admin.phone ? <a href={`tel:${admin.phone}`} onClick={(event) => event.stopPropagation()}><Phone size={14} />{admin.phone}</a> : EMPTY}</td>
                       <td>{branch?.branchName || branch?.branchId || EMPTY}</td>
                       <td><span className={`branch-sales-crm-status${admin.status === 'ACTIVE' ? ' is-active' : ' is-inactive'}`}>{admin.status === 'ACTIVE' ? 'Active' : 'Inactive'}</span></td>
-                      <td><button type="button" className="branch-sales-crm-view-activity" onClick={() => openActivity(admin)}><Activity size={15} />View</button></td>
+                      {showActionColumn ? <td><button type="button" className="branch-sales-crm-view-activity" onClick={() => openActivity(admin)}><Activity size={15} />View</button></td> : null}
                     </tr>
-                  )) : <tr><td colSpan="7" className="branch-sales-crm-empty"><Users size={23} /><strong>{hasLoaded && salesAdmins.length ? 'No matching Sales Admins' : 'No Sales Admins assigned'}</strong><span>{hasLoaded && salesAdmins.length ? 'Try another Sales Admin ID or name.' : 'Sales Admins assigned to this branch by Super Admin will appear here.'}</span></td></tr>}
+                  )) : <tr><td colSpan={showActionColumn ? 7 : 6} className="branch-sales-crm-empty"><Users size={23} /><strong>{hasLoaded && salesAdmins.length ? 'No matching Sales Admins' : 'No Sales Admins assigned'}</strong><span>{hasLoaded && salesAdmins.length ? 'Try another Sales Admin ID or name.' : 'Sales Admins assigned to this branch by Super Admin will appear here.'}</span></td></tr>}
             </tbody>
           </table>
         ) : (
