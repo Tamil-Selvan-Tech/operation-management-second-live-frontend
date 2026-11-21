@@ -11756,11 +11756,11 @@ useEffect(() => {
           { id: 'sales-crm', label: 'Sales & CRM', icon: BriefcaseBusiness, children: [
             { id: 'sales-crm-admitted-students', label: 'Admissions', icon: GraduationCap },
             { id: 'sales-crm-reports', label: 'Lead Monthly Report', icon: FileText },
-            { id: 'sales-admin-directory', label: 'Assigned Sales Admins', icon: BriefcaseBusiness },
             ...(hasLeadManagementAccess ? [
               { id: 'lead-management', label: 'Lead Management', icon: BriefcaseBusiness },
               { id: 'sales-crm-admissions', label: 'Student Admission', icon: GraduationCap },
             ] : []),
+            { id: 'sales-admin-directory', label: 'Assigned Sales Admins', icon: BriefcaseBusiness },
           ] },
           { id: 'faculty', label: 'User & Role Management', icon: Shield, children: [
             { id: 'faculty', label: 'Faculty Management', icon: UserRound },
@@ -12690,7 +12690,7 @@ useEffect(() => {
               {activeSection === 'discontinuations' ? <BranchDiscontinuationManagementPage /> : null}
               {activeSection === 'lead-management' ? <LeadManagementPage branchId={branchData?.id || branchData?.branchId || branchProfile?.id || branchProfile?.branchId || ''} salesAdminId={branchData?.salesAdminId || ''} branchRoleAccess={resolvedBranchRoleAccess || branchData?.roleAccess || ''} superAdminView={isSuperAdminEmbeddedView} /> : null}
               {activeSection === 'sales-crm-admissions' ? <SalesAdminAdmissionsPage key={location.search} salesAdminId={branchData?.salesAdminId || ''} /> : null}
-              {activeSection === 'sales-crm-reports' ? <SalesCrmReportPage branchScoped branchId={branchProfile?.id || branchData?.id || ''} branchName={branchProfile?.branchName || branchData?.branchName || ''} pendingLeadsHref="/branch-dashboard?section=lead-management&tab=pending" /> : null}
+              {activeSection === 'sales-crm-reports' ? <SalesCrmReportPage branchScoped branchId={branchProfile?.id || branchData?.id || ''} branchName={branchProfile?.branchName || branchData?.branchName || ''} branchAdminId={branchProfile?.adminUserId || branchData?.adminUserId || user?.id || ''} branchAdminName={branchProfile?.branchAdminName || user?.name || 'Branch Admin'} pendingLeadsHref="/branch-dashboard?section=lead-management&tab=pending" /> : null}
               {activeSection === 'branch-reports' ? (
                 <BranchReportsAnalyticsPage
                   students={branchStudentsForDisplay}

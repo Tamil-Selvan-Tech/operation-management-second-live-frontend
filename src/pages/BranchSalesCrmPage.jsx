@@ -147,6 +147,9 @@ export default function BranchSalesCrmPage({ view = 'admins', title = 'Sales & C
           <p>{branch?.branchName ? `${title === 'Sales Admin' ? 'Sales Admin accounts assigned to' : 'Sales CRM records for'} ${branch.branchName}.` : 'Sales Admin and admission records for this branch.'}</p>
         </div>
         <div className="branch-sales-crm-heading-actions">
+          {showLeadDistributionAction && activeTab === 'admins' ? <button type="button" className="branch-sales-crm-distribute-button" onClick={() => setDistributionOpen(true)} disabled={loadingAdmins || !branch?.id}><ArrowRightLeft size={16} />Distribute Leads</button> : null}
+          {showLeadImportAction && activeTab === 'admins' ? <button type="button" className="branch-sales-crm-upload-button" onClick={() => setLeadImportOpen(true)} disabled={loadingAdmins || !branch?.id} aria-label="Upload lead Excel for this branch"><Upload size={16} />Upload Lead Excel</button> : null}
+          {showReportAction ? <button type="button" className="branch-sales-crm-report-button" onClick={() => setSendReportOpen(true)}><FileSpreadsheet size={16} />Send Report</button> : null}
           <div className="branch-sales-crm-summary">
             <span>{activeTab === 'admins' ? <Users size={18} /> : <GraduationCap size={19} />}</span>
             <div>
@@ -154,9 +157,6 @@ export default function BranchSalesCrmPage({ view = 'admins', title = 'Sales & C
               <strong>{loading ? '—' : activeTab === 'admins' ? salesAdmins.length : admissions.length}</strong>
             </div>
           </div>
-          {showLeadDistributionAction && activeTab === 'admins' ? <button type="button" className="branch-sales-crm-distribute-button" onClick={() => setDistributionOpen(true)} disabled={loadingAdmins || !branch?.id}><ArrowRightLeft size={16} />Distribute Leads</button> : null}
-          {showLeadImportAction && activeTab === 'admins' ? <button type="button" className="branch-sales-crm-upload-button" onClick={() => setLeadImportOpen(true)} disabled={loadingAdmins || !branch?.id} aria-label="Upload lead Excel for this branch"><Upload size={16} />Upload Lead Excel</button> : null}
-          {showReportAction ? <button type="button" className="branch-sales-crm-report-button" onClick={() => setSendReportOpen(true)}><FileSpreadsheet size={16} />Send Report</button> : null}
         </div>
       </header>
 

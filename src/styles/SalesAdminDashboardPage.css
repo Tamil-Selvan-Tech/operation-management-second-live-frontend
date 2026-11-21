@@ -284,6 +284,7 @@
 .sales-crm-report-stage.is-hot { --stage-accent: #e87527; --stage-soft: #fff4ec; --stage-border: #f5e2d4; }
 .sales-crm-report-stage.is-closed { --stage-accent: #68778b; --stage-soft: #f3f5f8; --stage-border: #e4e8ee; }
 .sales-crm-report-stage.is-other { --stage-accent: #7652d6; --stage-soft: #f5f1ff; --stage-border: #e7ddfb; }
+.sales-crm-report-stage.is-green { --stage-accent: #16966b; --stage-soft: #effaf5; --stage-border: #d6efe4; }
 .sales-crm-report-table-scroll { width: 100%; overflow-x: auto; border: 1px solid #e7edf5; border-radius: 11px; }
 .sales-crm-report-table { width: 100%; min-width: 780px; border-collapse: separate; border-spacing: 0; text-align: left; }
 .sales-crm-report-table th { padding: 11px 13px; border-bottom: 1px solid #e4ebf4; color: #71829a; background: #f6f8fc; font-size: 10px; font-weight: 850; letter-spacing: .055em; text-transform: uppercase; white-space: nowrap; }
@@ -1180,7 +1181,7 @@
 .sales-crm-report-section { margin-bottom: 16px; padding: 18px; border-radius: 15px; box-shadow: 0 7px 20px rgb(30 69 120 / 4%); }
 .sales-crm-report-section-heading { margin-bottom: 15px; }
 .sales-crm-report-section-count { padding: 5px 8px; border-radius: 999px; color: #6c7c92; background: #f4f7fb; font-size: 10px; font-weight: 800; }
-.sales-crm-report-stage-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 11px; }
+.sales-crm-report-stage-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 10px; }
 .sales-crm-report-stage { display: block; padding: 13px; border-radius: 12px; }
 .sales-crm-report-stage-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .sales-crm-report-stage > strong { font-size: 20px; }
