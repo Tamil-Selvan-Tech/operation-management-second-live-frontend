@@ -87,7 +87,7 @@ function statusMeta(status, exemption) {
   if (exemption?.exempt) {
     return [exemption.reason === 'APPROVED_LEAVE' ? 'Approved Leave' : 'Week Off', 'neutral']
   }
-  return { NOT_LOGGED_IN: ['Not Logged In', 'neutral'], LOGGED_IN: ['Logged In', 'success'], ON_PERMISSION: ['On Permission / Half Day', 'warning'], LOGIN_REQUIRED: ['Login Required', 'info'], LOGGED_OUT: ['Logged Out', 'danger'], WORKLOG_COMPLETED: ['Work Log Completed', 'success'], WEBSITE_LOGGED_OUT_WORKLOG_ACTIVE: ['Logged Out — Will Return', 'warning'], AUTO_CLOSED: ['Auto Closed', 'danger'] }[status] || ['Not Logged In', 'neutral']
+  return { NOT_LOGGED_IN: ['Not Logged In', 'neutral'], LOGGED_IN: ['Logged In', 'success'], ON_PERMISSION: ['On Permission / Half Day', 'warning'], LOGIN_REQUIRED: ['Login Required', 'info'], LOGGED_OUT: ['Logged Out', 'danger'], WORKLOG_COMPLETED: ['Work Log Completed', 'success'], WEBSITE_LOGGED_OUT_WORKLOG_ACTIVE: ['Logged In', 'success'], AUTO_CLOSED: ['Auto Closed', 'danger'] }[status] || ['Not Logged In', 'neutral']
 }
 
 export const FacultyAttendanceFlow = forwardRef(function FacultyAttendanceFlow({ profileName = 'Faculty', facultyId = '', onStatusChange, onWorkLogLogout }, ref) {

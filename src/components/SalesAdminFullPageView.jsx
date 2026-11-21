@@ -12,8 +12,8 @@ const formatDate = (value) => value ? new Date(value).toLocaleDateString('en-IN'
 const formatDateTime = (value) => value ? new Date(value).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }) : '-'
 const formatFollowUpTime = (value) => { if (!value) return ''; const [hours, minutes] = String(value).split(':').map(Number); if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return value; const date = new Date(); date.setHours(hours, minutes, 0, 0); return date.toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit', hour12: true }) }
 const formatDuration = (seconds) => { const total = Math.max(0, Number(seconds || 0)); const hours = Math.floor(total / 3600); const minutes = Math.floor((total % 3600) / 60); return hours ? `${hours}h ${minutes}m` : `${minutes}m` }
-const workStatusLabel = (value) => ({ LOGGED_IN: 'Logged In', WORK_CLOCK_COMPLETED: 'Logged Out', AUTO_CLOSED: 'Logged Out', WEBSITE_LOGGED_OUT_WORK_CLOCK_ACTIVE: 'Logged Out' }[String(value || '').toUpperCase()] || 'Logged Out')
-const workStatusTone = (value) => String(value || '').toUpperCase() === 'LOGGED_IN' ? 'logged-in' : 'logged-out'
+const workStatusLabel = (value) => ({ LOGGED_IN: 'Logged In', WORK_CLOCK_COMPLETED: 'Logged Out', AUTO_CLOSED: 'Logged Out', WEBSITE_LOGGED_OUT_WORK_CLOCK_ACTIVE: 'Logged In' }[String(value || '').toUpperCase()] || 'Logged Out')
+const workStatusTone = (value) => ['LOGGED_IN', 'WEBSITE_LOGGED_OUT_WORK_CLOCK_ACTIVE'].includes(String(value || '').toUpperCase()) ? 'logged-in' : 'logged-out'
 const tabFor = (value) => value === 'call-recordings' || value === 'reports' ? 'call-records' : value === 'lead-details' ? 'lead-details-table' : ['lead-details-table', 'excel-upload', 'call-records', 'deleted-leads', 'change-history'].includes(value) ? value : 'overview'
 
 function AudioPlayer({ recording }) {
