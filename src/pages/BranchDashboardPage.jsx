@@ -5730,7 +5730,7 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
     document.addEventListener('visibilitychange', handleVisibilityChange)
     const notificationPollTimer = window.setInterval(() => {
       if (document.visibilityState === 'visible') {
-        scheduleNotificationRefresh({ force: true })
+        scheduleNotificationRefresh()
       }
     }, BRANCH_NOTIFICATION_POLL_MS)
 
@@ -5752,7 +5752,7 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
   // becomes the active section.
   useEffect(() => {
     if (activeSection !== 'notifications') return
-    void loadBranchNotifications({ force: true })
+    void loadBranchNotifications()
   }, [activeSection, loadBranchNotifications])
 
   useEffect(() => {
