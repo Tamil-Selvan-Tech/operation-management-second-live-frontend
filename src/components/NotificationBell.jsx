@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth/useAuth'
 import { getNotificationItems, getUnreadNotificationCount } from '../data/notificationsData'
 import { request } from '../services/apiClient'
-import { filterNotificationsForDisplay, isNotificationAvailable, unwrapNotifications } from '../services/notificationService'
+import { filterNotificationsForDisplay, getNotifications, isNotificationAvailable, unwrapNotifications } from '../services/notificationService'
 
 export function NotificationBell({ targetUserId = '', readOnlyView = false }) {
   const { role } = useAuth()
@@ -31,8 +31,7 @@ export function NotificationBell({ targetUserId = '', readOnlyView = false }) {
     if (!isRemoteNotifications) return undefined
     let active = true
     const load = async () => {
-      const query = targetUserId ? `?limit=20&page=1&targetUserId=${encodeURIComponent(targetUserId)}` : '?limit=20&page=1'
-      const pending = remoteLoadRef.current || request(`/notifications${query}`).then(unwrapNotifications)
+      const pending = remoteLoadRef.current || getNotifications({ limit: 20, page: 1, targetUserId }).then(unwrapNotifications)
       remoteLoadRef.current = pending
       try {
         const body = await pending
