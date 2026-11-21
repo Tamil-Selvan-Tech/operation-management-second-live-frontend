@@ -498,6 +498,7 @@ export function AppRouter() {
           <Route element={<ProtectedRoute allowedRoles={['sales-admin']} />}>
             <Route path="/dashboard/sales-admin" element={<SalesAdminDashboardPage />} />
             <Route path="/dashboard/sales-admin/leads" element={<SalesAdminDashboardPage />} />
+            <Route path="/dashboard/sales-admin/uploads" element={<SalesAdminDashboardPage />} />
             <Route path="/dashboard/sales-admin/reports" element={<SalesAdminDashboardPage />} />
             <Route path="/dashboard/sales-admin/notifications" element={<SalesAdminDashboardPage />} />
             <Route path="/dashboard/sales-admin/admissions" element={<SalesAdminDashboardPage />} />

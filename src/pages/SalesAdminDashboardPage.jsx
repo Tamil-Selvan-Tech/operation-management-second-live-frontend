@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { AlertTriangle, ArrowUpRight, BarChart3, Bell, BookOpen, CalendarClock, CalendarDays, CheckCircle2, CircleX, Clock3, Flame, GraduationCap, Home, LayoutGrid, LogOut, PanelLeftClose, PanelLeftOpen, Percent, RefreshCw, UserRound, UserRoundCheck, UserRoundX, UsersRound, X } from 'lucide-react'
+import { AlertTriangle, ArrowUpRight, BarChart3, Bell, BookOpen, CalendarClock, CalendarDays, CheckCircle2, CircleX, Clock3, FileSpreadsheet, Flame, GraduationCap, Home, LayoutGrid, LogOut, PanelLeftClose, PanelLeftOpen, Percent, RefreshCw, UserRound, UserRoundCheck, UserRoundX, UsersRound, X } from 'lucide-react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { request } from '../services/apiClient'
 import { useAuth } from '../auth/useAuth'
@@ -11,9 +11,11 @@ import { logoutSalesAdminWebsite, logoutSalesAdminWorkClock } from '../services/
 import { SalesAdminNotificationsPage } from './SalesAdminNotificationsPage'
 import { SalesAdminAdmissionsPage } from './SalesAdminAdmissionsPage'
 import { SalesAdminProfilePage } from './SalesAdminProfilePage'
+import { SalesAdminUploadsPage } from './SalesAdminUploadsPage'
 import { UploadProgressIndicator } from '../components/UploadProgressIndicator'
 import '../styles/SuperAdminDashboardPage.css'
 import '../styles/SalesAdminDashboardPage.css'
+import '../styles/SalesAdminUploadsPage.css'
 const DASHBOARD_METRICS = [
   { key: 'newLeads', label: 'New leads', hint: 'Selected date range', icon: UsersRound, accent: 'blue' },
   { key: 'totalLeads', label: 'Total leads', hint: 'All active leads', icon: BarChart3, accent: 'slate' },
@@ -90,7 +92,8 @@ export function SalesAdminDashboardPage({ embeddedBranchAdmin = false, embeddedS
   const isNotifications = embeddedSuperAdmin ? embeddedSection === 'notifications' : location.pathname.endsWith('/notifications')
   const isAdmissions = embeddedSuperAdmin ? embeddedSection === 'admissions' : location.pathname.includes('/admissions')
   const isProfile = embeddedSuperAdmin ? embeddedSection === 'profile' : location.pathname.endsWith('/profile')
-  const isDashboard = !isLeadManagement && !isReports && !isNotifications && !isAdmissions && !isProfile
+  const isUploads = embeddedSuperAdmin ? embeddedSection === 'uploads' : location.pathname.endsWith('/uploads')
+  const isDashboard = !isLeadManagement && !isReports && !isNotifications && !isAdmissions && !isProfile && !isUploads
   const [dashboard, setDashboard] = useState(null)
   const [dashboardLoading, setDashboardLoading] = useState(true)
   const [dashboardReloadKey, setDashboardReloadKey] = useState(0)
@@ -239,6 +242,7 @@ export function SalesAdminDashboardPage({ embeddedBranchAdmin = false, embeddedS
               <div className="super-admin-sidebar-section"><button type="button" className={`super-admin-sidebar-item ${isLeadManagement ? 'is-active' : ''}`} data-tooltip="Lead Management" onClick={() => openSalesSection('leads', '/dashboard/sales-admin/leads')}><span className="super-admin-sidebar-icon"><LayoutGrid size={18} /></span><span>Lead Management</span></button></div>
               <div className="super-admin-sidebar-section"><button type="button" className={`super-admin-sidebar-item ${isAdmissions ? 'is-active' : ''}`} data-tooltip="Student Admission" onClick={() => openSalesSection('admissions', '/dashboard/sales-admin/admissions')}><span className="super-admin-sidebar-icon"><GraduationCap size={18} /></span><span>Student Admission</span></button></div>
               <div className="super-admin-sidebar-section"><button type="button" className={`super-admin-sidebar-item ${isReports ? 'is-active' : ''}`} data-tooltip="Monthly Reports" onClick={() => openSalesSection('reports', '/dashboard/sales-admin/reports')}><span className="super-admin-sidebar-icon"><LayoutGrid size={18} /></span><span>Monthly Reports</span></button></div>
+              <div className="super-admin-sidebar-section"><button type="button" className={`super-admin-sidebar-item ${isUploads ? 'is-active' : ''}`} data-tooltip="Uploads" onClick={() => openSalesSection('uploads', '/dashboard/sales-admin/uploads')}><span className="super-admin-sidebar-icon"><FileSpreadsheet size={18} /></span><span>Uploads</span></button></div>
               <div className="super-admin-sidebar-section"><button type="button" className={`super-admin-sidebar-item ${isNotifications ? 'is-active' : ''}`} data-tooltip="Notifications" onClick={() => openSalesSection('notifications', '/dashboard/sales-admin/notifications')}><span className="super-admin-sidebar-icon"><Bell size={18} /></span><span>Notifications</span></button></div>
               <div className="super-admin-sidebar-section"><button type="button" className={`super-admin-sidebar-item ${isProfile ? 'is-active' : ''}`} data-tooltip="My Profile" onClick={() => openSalesSection('profile', '/dashboard/sales-admin/profile')}><span className="super-admin-sidebar-icon"><UserRound size={18} /></span><span>My Profile</span></button></div>
             </> : null}
@@ -248,12 +252,12 @@ export function SalesAdminDashboardPage({ embeddedBranchAdmin = false, embeddedS
 
         <div className="super-admin-main">
           <header className="super-admin-topbar">
-            <div className="super-admin-topbar-left"><button type="button" className="super-admin-sidebar-toggle" aria-label="Open navigation menu" onClick={() => setIsMobileSidebarOpen(true)}><LayoutGrid size={19} /></button><h1 className="super-admin-header-title">{isLeadManagement ? 'Lead Management' : isReports ? 'Monthly Reports' : isNotifications ? 'Notifications' : isAdmissions ? 'Student Admission' : isProfile ? 'My Profile' : 'Sales Admin Dashboard'}</h1></div>
+            <div className="super-admin-topbar-left"><button type="button" className="super-admin-sidebar-toggle" aria-label="Open navigation menu" onClick={() => setIsMobileSidebarOpen(true)}><LayoutGrid size={19} /></button><h1 className="super-admin-header-title">{isLeadManagement ? 'Lead Management' : isUploads ? 'Uploads' : isReports ? 'Monthly Reports' : isNotifications ? 'Notifications' : isAdmissions ? 'Student Admission' : isProfile ? 'My Profile' : 'Sales Admin Dashboard'}</h1></div>
             <div className="super-admin-topbar-right"><UploadProgressIndicator />{!embeddedBranchAdmin ? <SalesAdminWorkClock name={embeddedSuperAdmin ? (embeddedSalesAdmin?.fullName || embeddedSalesAdmin?.name || 'Sales Admin') : (user?.name || 'Sales Admin')} salesAdminId={embeddedSuperAdmin ? (embeddedSalesAdmin?.salesAdminCode || embeddedSalesAdmin?.userCode || embeddedSalesAdmin?.salesAdminId || '') : (user?.userCode || user?.salesAdminId || '')} readOnlyStatus={embeddedSuperAdmin ? (embeddedWorkLog || embeddedSalesAdmin?.workClock) : null} /> : null}{!embeddedBranchAdmin ? <NotificationBell targetUserId={embeddedSuperAdmin ? embeddedSalesAdmin?.salesAdminId : ''} readOnlyView={false} /> : null}{!embeddedSuperAdmin ? <div className="super-admin-profile"><span className="super-admin-avatar"><span className="super-admin-avatar-mark"><UserRound size={19} /></span></span><div className="super-admin-profile-copy"><strong>{user?.name || 'Sales Admin'}</strong><span>{user?.email || 'salesadmin@cispro.com'}</span></div></div> : null}</div>
           </header>
 
           <main className="super-admin-content">
-            {isLeadManagement ? <LeadManagementPage salesAdminReadOnly={readOnlySalesAdmin} salesAdminId={embeddedSuperAdmin ? embeddedSalesAdmin?.salesAdminId : ''} superAdminView={embeddedSuperAdmin} salesAdminView initialPendingTab={embeddedSuperAdmin && embeddedPendingTab} /> : isReports ? <SalesCrmReportPage readOnlySalesAdmin={readOnlySalesAdmin} salesAdminId={embeddedSuperAdmin ? embeddedSalesAdmin?.salesAdminId : ''} onOpenPending={embeddedSuperAdmin ? () => { setEmbeddedPendingTab(true); setEmbeddedSection('leads') } : undefined} /> : isNotifications ? <SalesAdminNotificationsPage embeddedSalesAdmin={embeddedSalesAdmin} /> : isAdmissions ? <SalesAdminAdmissionsPage key={location.search} readOnlySalesAdmin={readOnlySalesAdmin} salesAdminId={embeddedSuperAdmin ? embeddedSalesAdmin?.salesAdminId : ''} /> : isProfile ? <SalesAdminProfilePage embeddedProfile={embeddedSalesAdmin} readOnly={Boolean(embeddedSuperAdmin)} /> : (
+            {isLeadManagement ? <LeadManagementPage salesAdminReadOnly={readOnlySalesAdmin} salesAdminId={embeddedSuperAdmin ? embeddedSalesAdmin?.salesAdminId : ''} superAdminView={embeddedSuperAdmin} salesAdminView initialPendingTab={embeddedSuperAdmin && embeddedPendingTab} /> : isUploads ? <SalesAdminUploadsPage /> : isReports ? <SalesCrmReportPage readOnlySalesAdmin={readOnlySalesAdmin} salesAdminId={embeddedSuperAdmin ? embeddedSalesAdmin?.salesAdminId : ''} onOpenPending={embeddedSuperAdmin ? () => { setEmbeddedPendingTab(true); setEmbeddedSection('leads') } : undefined} /> : isNotifications ? <SalesAdminNotificationsPage embeddedSalesAdmin={embeddedSalesAdmin} /> : isAdmissions ? <SalesAdminAdmissionsPage key={location.search} readOnlySalesAdmin={readOnlySalesAdmin} salesAdminId={embeddedSuperAdmin ? embeddedSalesAdmin?.salesAdminId : ''} /> : isProfile ? <SalesAdminProfilePage embeddedProfile={embeddedSalesAdmin} readOnly={Boolean(embeddedSuperAdmin)} /> : (
               <section className="sales-admin-dashboard-home">
                 <header className="sales-admin-dashboard-header">
                   <div className="sales-admin-dashboard-intro">
