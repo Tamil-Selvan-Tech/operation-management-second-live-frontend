@@ -209,8 +209,8 @@ function ExcelUploadFlowOverlay({ batchId, salesAdminId = '' }) {
     try {
       const result = await getLeadImportTargets(selectedBranchId || upload.branchId || '')
       const next = result?.data || result || {}
-      const targetOptions = (next.targets || []).filter((target) => String(target.role || '').toUpperCase() === 'SALES_ADMIN').map((target) => ({ ...target, role: String(target.role || 'Sales Admin').replaceAll('_', ' ') }))
-      setTargets({ ...next, targets: targetOptions })
+      const targetOptions = (next.targets || []).filter((target) => ['SALES_ADMIN', 'BRANCH_ADMIN'].includes(String(target.role || '').toUpperCase())).map((target) => ({ ...target, role: String(target.role || 'Sales Admin').replaceAll('_', ' ') }))
+      setTargets({ ...next, targets: targetOptions }); setAssignedToId((current) => targetOptions.some((target) => target.id === current) ? current : '')
     } catch (reason) {
       setTargets((current) => ({ ...current, targets: [] }))
       setMessage(reason?.message || 'Unable to load Sales Admins for the selected branch.')
@@ -226,12 +226,24 @@ function ExcelUploadFlowOverlay({ batchId, salesAdminId = '' }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [branchId, open, upload.branchId])
   const submit = async () => {
+    const nextErrors = {
+      branchId: '',
+      assignedToId: !assignedToId ? 'This field is required' : '',
+      deadlineAt: !deadlineAt ? 'This field is required' : '',
+    }
     const modal = document.querySelector('section[aria-labelledby="reassign-pending-title"]')
     const labels = modal ? Array.from(modal.querySelectorAll('label')) : []
-    labels.forEach((label) => label.removeAttribute('data-error'))
-    if (!assignedToId) labels[1]?.setAttribute('data-error', 'This field is required')
-    if (!deadlineAt) labels[2]?.setAttribute('data-error', 'This field is required')
-    if (!assignedToId || !deadlineAt) return
+    labels.forEach((label, index) => {
+      label.querySelector('.reassign-field-error')?.remove()
+      const key = ['branchId', 'assignedToId', 'deadlineAt'][index]
+      if (!nextErrors[key]) return
+      const error = document.createElement('small')
+      error.className = 'reassign-field-error'
+      error.textContent = nextErrors[key]
+      error.style.cssText = 'display:block;margin-top:4px;color:#dc2626;font-size:12px;font-weight:600;'
+      label.appendChild(error)
+    })
+    if (Object.values(nextErrors).some(Boolean)) return
     setBusy(true); setMessage('')
     try { await reassignLeadImport(batchId, { rowIds: pendingRows.map((row) => row.id), assignedToId, branchId: branchId || upload.branchId, deadlineAt }); setOpen(false); setMessage('Pending leads reassigned successfully.'); await load() } catch (reason) { setMessage(reason?.message || 'Unable to reassign pending leads.') } finally { setBusy(false) }
   }
