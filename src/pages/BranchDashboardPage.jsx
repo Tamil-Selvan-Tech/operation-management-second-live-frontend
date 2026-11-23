@@ -66,10 +66,11 @@ import { CourseExcelUpload } from '../components/CourseExcelUpload'
 import { CourseExcelExport } from '../components/CourseExcelExport'
 import { useCourseCalculations } from '../lib/useCourseCalculations'
 import { useAuth } from '../auth/useAuth'
+import { clearPersistedSuperAdminEmbeddedView } from '../lib/superAdminEmbeddedView'
 import { Button } from '../components/Button'
 import { BranchAdminAttendanceFlow } from '../components/BranchAdminAttendanceFlow'
 import { UploadProgressIndicator } from '../components/UploadProgressIndicator'
-import { request, setImpersonateBranchId } from '../services/apiClient'
+import { request, setImpersonateBranchId, setImpersonateSalesAdminId } from '../services/apiClient'
 import { logoutBranchAdminAttendance, logoutBranchAdminWebsite } from '../services/attendanceService'
 import { shareInFlightRequest } from '../lib/inFlightRequests'
 import { getNotifications, unwrapNotifications } from '../services/notificationService'
@@ -6106,6 +6107,11 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
           }
         }
         await logoutBranchAdminWebsite()
+      }
+      if (embeddedMode) {
+        clearPersistedSuperAdminEmbeddedView()
+        setImpersonateBranchId(null)
+        setImpersonateSalesAdminId(null)
       }
       setIsLogoutConfirmOpen(false)
       setIsProfileMenuOpen(false)

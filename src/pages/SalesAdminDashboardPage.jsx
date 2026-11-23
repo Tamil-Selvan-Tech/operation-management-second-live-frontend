@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import { AlertTriangle, ArrowUpRight, BarChart3, Bell, BookOpen, CalendarClock, CalendarDays, CheckCircle2, CircleX, Clock3, FileSpreadsheet, Flame, GraduationCap, Home, LayoutGrid, LogOut, PanelLeftClose, PanelLeftOpen, Percent, RefreshCw, UserRound, UserRoundCheck, UserRoundX, UsersRound, X } from 'lucide-react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { request } from '../services/apiClient'
+import { request, setImpersonateBranchId, setImpersonateSalesAdminId } from '../services/apiClient'
+import { clearPersistedSuperAdminEmbeddedView } from '../lib/superAdminEmbeddedView'
 import { useAuth } from '../auth/useAuth'
 import { LeadManagementPage } from './LeadManagementPage'
 import { SalesCrmReportPage } from './SalesCrmReportPage'
@@ -206,13 +207,19 @@ export function SalesAdminDashboardPage({ embeddedBranchAdmin = false, embeddedS
     setLogoutLoading(true)
     setLogoutError('')
     try {
-      if (mode === 'return') await logoutSalesAdminWebsite()
-      else {
-        try {
-          await logoutSalesAdminWorkClock()
-        } catch (reason) {
-          const message = String(reason?.body?.message || reason?.message || '')
-          if (!/already closed|no active sales admin work log/i.test(message)) throw reason
+      if (embeddedSuperAdmin) {
+        clearPersistedSuperAdminEmbeddedView()
+        setImpersonateBranchId(null)
+        setImpersonateSalesAdminId(null)
+      } else {
+        if (mode === 'return') await logoutSalesAdminWebsite()
+        else {
+          try {
+            await logoutSalesAdminWorkClock()
+          } catch (reason) {
+            const message = String(reason?.body?.message || reason?.message || '')
+            if (!/already closed|no active sales admin work log/i.test(message)) throw reason
+          }
         }
       }
       await signOut()

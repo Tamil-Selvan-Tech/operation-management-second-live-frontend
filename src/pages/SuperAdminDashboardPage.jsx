@@ -37,6 +37,7 @@ import {
   hasBranchNotification,
 } from '../lib/notificationStore'
 import { PaginationBar } from '../components/PaginationBar'
+import { clearPersistedSuperAdminEmbeddedView, SUPER_ADMIN_EMBEDDED_VIEW_STORAGE_KEY } from '../lib/superAdminEmbeddedView'
 import { SuperAdminNotificationBell } from '../components/SuperAdminNotificationBell'
 import { UploadProgressIndicator } from '../components/UploadProgressIndicator'
 import { BranchAttendanceReportModal } from '../components/BranchAttendanceReportModal'
@@ -679,8 +680,6 @@ function getInitialSuperAdminSection(search = '') {
   return ['branches', 'branch-admin', 'faculty', 'sales-admin', 'user-role', 'students', 'exams-results', 'academic-tests', 'leave-management', 'faculty-leave', 'discontinuations', 'helpdesk', 'settings', 'profile', 'reports', 'metric-branches', 'metric-students', 'metric-admissions', 'metric-total-payment', 'metric-month-payment', 'metric-outstanding', 'metric-month-due', 'metric-today-due', 'metric-overdue', 'metric-due-students', 'metric-today-collection'].includes(section) ? section : 'dashboard'
 }
 
-const SUPER_ADMIN_EMBEDDED_VIEW_STORAGE_KEY = 'cispro.super-admin-embedded-view'
-
 function readPersistedEmbeddedView() {
   if (typeof window === 'undefined') return null
   try {
@@ -715,10 +714,6 @@ function persistEmbeddedView(mode, target) {
   } catch { /* ignore storage failures */ }
 }
 
-function clearPersistedEmbeddedView() {
-  if (typeof window === 'undefined') return
-  try { window.sessionStorage.removeItem(SUPER_ADMIN_EMBEDDED_VIEW_STORAGE_KEY) } catch { /* ignore storage failures */ }
-}
 export function SuperAdminDashboardPage() {
   const navigate = useNavigate()
   const location = useLocation()
@@ -1851,7 +1846,7 @@ const filteredBranches = useMemo(() => {
   }
 
   const handleConfirmExitDashboard = () => {
-    clearPersistedEmbeddedView()
+    clearPersistedSuperAdminEmbeddedView()
     setEmbeddedBranch(null)
     setEmbeddedSalesAdmin(null)
     setEmbeddedStudentEditId('')
@@ -2131,7 +2126,7 @@ const filteredBranches = useMemo(() => {
   }
 
   const handleConfirmLogout = async () => {
-    clearPersistedEmbeddedView()
+    clearPersistedSuperAdminEmbeddedView()
     setImpersonateBranchId(null)
     setImpersonateSalesAdminId(null)
     closeLogoutConfirm()
@@ -2184,7 +2179,7 @@ const filteredBranches = useMemo(() => {
             setEmbeddedStudentEditId('')
           }}
           onEmbeddedStudent360Back={() => {
-            clearPersistedEmbeddedView()
+            clearPersistedSuperAdminEmbeddedView()
             setEmbeddedBranch(null)
             setEmbeddedStudentEditId('')
             setImpersonateBranchId(null)
