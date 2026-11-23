@@ -3,7 +3,12 @@ import { ArrowLeft, CheckCircle2, Clock3, Eye, FileSpreadsheet, Flame, RefreshCw
 import { request } from '../services/apiClient'
 
 const dateTime = (value) => value ? new Intl.DateTimeFormat('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }).format(new Date(value)) : '-'
-const dateOnly = (value) => value ? new Intl.DateTimeFormat('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(new Date(value)) : '-'
+const dateOnly = (value) => {
+  const dateKey = String(value || '').slice(0, 10)
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) return '-'
+  const [year, month, day] = dateKey.split('-').map(Number)
+  return new Intl.DateTimeFormat('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(new Date(year, month - 1, day))
+}
 const label = (value) => String(value || '').replaceAll('_', ' ').toLowerCase().replace(/\b\w/g, (letter) => letter.toUpperCase())
 const normalizedStatus = (value) => String(value || '').toUpperCase().replaceAll(' ', '_')
 

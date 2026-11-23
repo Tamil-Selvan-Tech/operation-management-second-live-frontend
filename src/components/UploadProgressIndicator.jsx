@@ -146,6 +146,7 @@ export function UploadProgressIndicator() {
 
   const sessionUser = loadSession()?.user || {}
   const currentUserId = String(sessionUser.id || sessionUser.userId || '')
+  const sessionRole = String(sessionUser.role || sessionUser.userRole || '').toLowerCase().replaceAll('_', '-')
   const remoteDismissKey = dismissedStorageKey(currentUserId)
 
   useEffect(() => {
@@ -156,18 +157,18 @@ export function UploadProgressIndicator() {
   const remoteLeadByUploadId = new Map(sharedLeadUploads.filter((job) => !job.sourceJobId).map((job) => [job.uploadId, job]))
   const localVisibleUploads = uploads.filter((item) => item.type !== 'lead' || ((currentUserId && item.visibleTo?.includes(currentUserId)) && !recipientGroupedUploadIds.has(item.uploadId))).map((item) => {
     const remote = item.type === 'lead' ? remoteLeadByUploadId.get(item.uploadId) : null
-    return remote ? { ...item, status: remote.status, progress: remote.progress, processed: remote.processedRows, total: remote.totalRows, completedAt: remote.completedAt, updatedAt: remote.updatedAt, error: remote.errorMessage || item.error } : item
+    const merged = remote ? { ...item, status: remote.status, progress: remote.progress, processed: remote.processedRows, total: remote.totalRows, completedAt: remote.completedAt, updatedAt: remote.updatedAt, error: remote.errorMessage || item.error } : item
+    return sessionRole === 'super-admin' && String(merged.status || '').toUpperCase() === 'AWAITING_DISTRIBUTION'
+      ? { ...merged, status: 'COMPLETED' }
+      : merged
   })
   const remoteVisibleUploads = [...sharedLeadUploads.map((job) => ({ id: 'server-' + job.id, type: 'lead', uploadId: job.uploadId, perRecipient: Boolean(job.sourceJobId), label: job.activityLabel || job.fileName || 'Lead workbook', status: job.status, progress: job.progress, processed: job.processedRows, total: job.totalRows, completedAt: job.completedAt, updatedAt: job.updatedAt })), ...sharedCourseUploads.map((job) => ({ id: 'server-course-' + job.id, jobId: job.id, type: 'course', uploadId: job.uploadId, label: 'Course upload - ' + (job.fileName || 'Course workbook'), status: job.status, error: job.errorMessage, progress: job.progress, processed: job.processedRows, total: job.totalRows, failed: job.failedRows, completedAt: job.completedAt, updatedAt: job.updatedAt }))].filter((item) => !dismissedRemoteIds.includes(item.id))
   const visibleUploads = [...localVisibleUploads, ...remoteVisibleUploads.filter((remote) => remote.perRecipient || !localVisibleUploads.some((local) => local.uploadId && local.uploadId === remote.uploadId))]
   const activeCount = visibleUploads.filter(isRunning).length
-  // A completed upload is not a waiting upload. Distribution is a separate
-  // branch workflow and must not keep the global header badge at "waiting".
-  const waitingCount = 0
-  const activityCount = activeCount
+  const waitingCount = visibleUploads.filter(isAwaitingDistribution).length
+  const activityCount = activeCount + waitingCount
   const activeUpload = visibleUploads.find(isRunning)
   const activeProgress = Math.max(0, Math.min(100, Number(activeUpload?.progress || 0)))
-  const sessionRole = String(sessionUser.role || sessionUser.userRole || '').toLowerCase().replaceAll('_', '-')
   const canOpenUploadActivity = ['branch-admin', 'super-admin', 'sales-admin', 'branch-admin-sales-admin'].includes(sessionRole)
   const visibleUploadsLength = visibleUploads.length
 
@@ -206,7 +207,7 @@ export function UploadProgressIndicator() {
   return <div className="upload-progress-menu">
     <button type="button" ref={triggerRef} className={`upload-progress-button${activeCount ? ' is-active' : waitingCount ? ' is-waiting' : ''}`} onClick={() => setOpen((value) => !value)} aria-expanded={open} aria-label="Upload progress">
       <CloudUpload size={17} />
-      <span>{activeCount ? `${activityCount} upload${activityCount === 1 ? '' : 's'}` : waitingCount ? `${waitingCount} waiting` : 'Uploads'}</span>
+      <span>{activeCount ? `${activeCount} active upload${activeCount === 1 ? '' : 's'}` : waitingCount ? `${waitingCount} waiting upload${waitingCount === 1 ? '' : 's'}` : 'Uploads'}</span>
       {activityCount ? <b>{activityCount}</b> : null}
       {activeCount ? <span className="upload-progress-button-meter" aria-hidden="true"><i style={{ width: `${activeProgress || 28}%` }} /></span> : null}
     </button>

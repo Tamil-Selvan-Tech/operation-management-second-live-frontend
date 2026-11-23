@@ -8,7 +8,12 @@ import '../styles/SalesAdminFullPageView.css'
 
 const todayKey = () => new Date().toISOString().slice(0, 10)
 const monthStartKey = () => { const date = new Date(); date.setDate(1); return date.toISOString().slice(0, 10) }
-const formatDate = (value) => value ? new Date(value).toLocaleDateString('en-IN', { dateStyle: 'medium' }) : '-'
+const formatDate = (value) => {
+  const dateKey = String(value || '').slice(0, 10)
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) return '-'
+  const [year, month, day] = dateKey.split('-').map(Number)
+  return new Intl.DateTimeFormat('en-IN', { dateStyle: 'medium' }).format(new Date(year, month - 1, day))
+}
 const formatDateTime = (value) => value ? new Date(value).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }) : '-'
 const formatFollowUpTime = (value) => { if (!value) return ''; const [hours, minutes] = String(value).split(':').map(Number); if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return value; const date = new Date(); date.setHours(hours, minutes, 0, 0); return date.toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit', hour12: true }) }
 const formatDuration = (seconds) => { const total = Math.max(0, Number(seconds || 0)); const hours = Math.floor(total / 3600); const minutes = Math.floor((total % 3600) / 60); return hours ? `${hours}h ${minutes}m` : `${minutes}m` }

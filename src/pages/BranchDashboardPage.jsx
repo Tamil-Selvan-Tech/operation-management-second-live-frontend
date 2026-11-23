@@ -5227,6 +5227,10 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
     if (!force && now - branchNotificationsLastLoadedAtRef.current < BRANCH_LIVE_REFRESH_DEDUPE_MS) {
       return branchNotificationsRequestRef.current || Promise.resolve([])
     }
+    // A forced refresh must also bypass the shared recent-result cache. The
+    // notifications page uses force on entry so a stale dashboard response
+    // cannot keep hiding a notification that was just created on the server.
+    if (force) recentBranchDashboardRequests.delete(requestKey)
     branchNotificationsLastLoadedAtRef.current = now
 
     return shareRecentBranchDashboardRequest(requestKey, () => {
@@ -5295,6 +5299,19 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
           const preservedNotifications = storedNotifications.filter((notification) => {
             const notificationId = String(notification.id || '').trim()
             if (mergedIds.has(notificationId)) return false
+            const notificationHasBranchScope = Boolean(
+              String(notification.targetBranchId || notification.branchId || '').trim() ||
+              String(notification.targetBranchEmail || '').trim(),
+            )
+            const belongsToActiveBranchOrCurrentUser = notificationHasBranchScope
+              ? doesBranchNotificationBelongToBranch(notification, activeBranchScope)
+              : String(notification.targetUserId || '').trim() === String(user?.id || '').trim()
+            // Browser notification storage is shared by sessions. Never carry
+            // a previous branch's records into a newly-created Branch Admin's
+            // notification feed.
+            if (!belongsToActiveBranchOrCurrentUser) return false
+            if (String(notification.kind || '').trim() === 'lead-import-completed') return false
+            if (String(notification.requestDescription || '').trim().startsWith('LEAD_IMPORT_ASSIGNMENT:')) return false
             if (['lead-follow-up-scheduled', 'lead-follow-up-due', 'lead-follow-up-overdue'].includes(String(notification.kind || '').trim())) return false
             if (String(notification.kind || '').trim() === 'branch-progress-status') {
               return storedProgressNotifications.includes(notification)
@@ -5332,6 +5349,16 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
           const hasBranchStudentSnapshot = !isBranchStudentsLoading
           const fallbackNotifications = mergeNotificationsWithStoredState(loadNotifications()).filter((notification) => {
             const kind = String(notification.kind || '').trim()
+            const notificationHasBranchScope = Boolean(
+              String(notification.targetBranchId || notification.branchId || '').trim() ||
+              String(notification.targetBranchEmail || '').trim(),
+            )
+            const belongsToActiveBranchOrCurrentUser = notificationHasBranchScope
+              ? doesBranchNotificationBelongToBranch(notification, activeBranchScope)
+              : String(notification.targetUserId || '').trim() === String(user?.id || '').trim()
+            if (!belongsToActiveBranchOrCurrentUser) return false
+            if (kind === 'lead-import-completed') return false
+            if (String(notification.requestDescription || '').trim().startsWith('LEAD_IMPORT_ASSIGNMENT:')) return false
             if (['lead-follow-up-scheduled', 'lead-follow-up-due', 'lead-follow-up-overdue'].includes(kind)) return false
             return kind !== 'branch-progress-status'
               || (!importedCompletedStudentIds.has(String(notification.studentId || '').trim().toLowerCase())
@@ -5409,7 +5436,7 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
             mergeBranchCoursesWithSnapshot(
               Array.isArray(coursesResult?.value?.data) ? coursesResult.value.data : [],
               branchData?.id || branchData?.branchId || '',
-            ),
+            )
           )
         } else {
           setBranchCourseCards([])
@@ -5748,7 +5775,7 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
   // becomes the active section.
   useEffect(() => {
     if (activeSection !== 'notifications') return
-    void loadBranchNotifications()
+    void loadBranchNotifications({ force: true })
   }, [activeSection, loadBranchNotifications])
 
   useEffect(() => {
@@ -6139,27 +6166,38 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
       return branchNotificationRecords
         .map(normalizeBranchNotification)
         .filter(
-          (notification) =>
-            !(String(notification.kind || '').trim().toLowerCase() === 'branch-progress-status'
+          (notification) => {
+            const kind = String(notification.kind || '').trim().toLowerCase()
+            const isCurrentBranchLeadImport = kind === 'lead-import-assigned' && (
+              doesBranchNotificationBelongToBranch(notification, branchScope) ||
+              (String(notification.targetUserId || '').trim() === currentBranchUserId &&
+                !String(notification.targetBranchId || notification.branchId || '').trim() &&
+                !String(notification.targetBranchEmail || '').trim())
+            )
+
+            return (
+            !(kind === 'branch-progress-status'
               && importedCompletedStudentIds.has(String(notification.studentId || '').trim().toLowerCase())) &&
-            !(String(notification.kind || '').trim().toLowerCase() === 'branch-progress-status'
+            !(kind === 'branch-progress-status'
               && hasBranchStudentSnapshot
               && !activeBranchStudentIds.has(String(notification.studentId || '').trim().toLowerCase())) &&
             !isProgressGeneratedCourseModuleNotification(notification) &&
-            String(notification.kind || '').trim() !== 'branch-login' && (
+            kind !== 'branch-login' && (
               String(notification.kind || '').startsWith('branch-') ||
               String(notification.kind || '').startsWith('faculty-') ||
               String(notification.kind || '').startsWith('course-edit-') ||
-              String(notification.kind || '').trim() === 'sales-crm-admission' ||
-              String(notification.kind || '').trim() === 'sales-crm-batch-request' ||
-              ['account-role-updated', 'email-changed', 'branch-admin-replaced'].includes(String(notification.kind || '').trim()) ||
-              String(notification.targetUserId || '').trim() === currentBranchUserId ||
-              (['lead-follow-up-due', 'lead-follow-up-overdue', 'lead-follow-up-scheduled'].includes(String(notification.kind || '').trim())) ||
-              (hasLeadManagementAccess && ['sales-crm-monthly-report', 'pending-student-admission-reminder', 'sales-crm-batch-request-update', 'lead-import-completed'].includes(String(notification.kind || '').trim())) ||
-              (String(notification.kind || '') === 'sequential-course-scheduling-required' ||
+              kind === 'sales-crm-admission' ||
+              kind === 'sales-crm-batch-request' ||
+              ['account-role-updated', 'email-changed', 'branch-admin-replaced'].includes(kind) ||
+              (String(notification.targetUserId || '').trim() === currentBranchUserId && kind !== 'lead-import-assigned') ||
+              ['lead-follow-up-due', 'lead-follow-up-overdue', 'lead-follow-up-scheduled'].includes(kind) ||
+              isCurrentBranchLeadImport ||
+              (hasLeadManagementAccess && ['sales-crm-monthly-report', 'pending-student-admission-reminder', 'sales-crm-batch-request-update', 'lead-import-completed'].includes(kind)) ||
+              (kind === 'sequential-course-scheduling-required' ||
                 String(notification.kind || '').startsWith('student-'))
-            ),
-        )
+            )
+          )
+        })
         .filter((notification) => {
           if (!hasLeadManagementAccess) return true
           const salesNotificationKinds = new Set([
@@ -6169,9 +6207,16 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
             'sales-crm-monthly-report',
             'pending-student-admission-reminder',
             'sales-crm-batch-request-update',
+            'lead-import-assigned',
             'lead-import-completed',
           ])
           const kind = String(notification.kind || '').trim()
+          if (kind === 'lead-import-assigned') {
+            return doesBranchNotificationBelongToBranch(notification, branchScope) ||
+              (String(notification.targetUserId || '').trim() === currentBranchUserId &&
+                !String(notification.targetBranchId || notification.branchId || '').trim() &&
+                !String(notification.targetBranchEmail || '').trim())
+          }
           return !salesNotificationKinds.has(kind) || String(notification.targetUserId || '').trim() === currentBranchUserId
         })
         .filter((notification) => {
@@ -6184,6 +6229,12 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
         // visible even for legacy rows that were saved before branch IDs were
         // normalized to the canonical branch primary key.
         .filter((notification) => (
+          (String(notification.kind || '').trim() === 'lead-import-assigned' && (
+            doesBranchNotificationBelongToBranch(notification, branchScope) ||
+            (String(notification.targetUserId || '').trim() === currentBranchUserId &&
+              !String(notification.targetBranchId || notification.branchId || '').trim() &&
+              !String(notification.targetBranchEmail || '').trim())
+          )) ||
           String(notification.kind || '').trim() === 'sequential-course-scheduling-required' ||
           String(notification.targetUserId || '').trim() === currentBranchUserId ||
           doesBranchNotificationBelongToBranch(notification, branchScope)
@@ -10884,7 +10935,8 @@ useEffect(() => {
     if (!branchProgressComparisonNotifications.length) {
       syncProgressComparisonNotifications([], 'branch')
       setBranchNotificationRecords((current) => {
-        const next = loadNotifications()
+        const localProgressNotifications = loadNotifications().filter((notification) => String(notification.kind || '').trim() === 'branch-progress-status')
+        const next = [...current.filter((notification) => String(notification.kind || '').trim() !== 'branch-progress-status'), ...localProgressNotifications]
         return JSON.stringify(current) === JSON.stringify(next) ? current : next
       })
       return
@@ -10909,7 +10961,8 @@ useEffect(() => {
     // state immediately so the newly-created item is visible without waiting
     // for a second API refresh.
     setBranchNotificationRecords((current) => {
-      const next = loadNotifications()
+      const localProgressNotifications = loadNotifications().filter((notification) => String(notification.kind || '').trim() === 'branch-progress-status')
+      const next = [...current.filter((notification) => String(notification.kind || '').trim() !== 'branch-progress-status'), ...localProgressNotifications]
       return JSON.stringify(current) === JSON.stringify(next) ? current : next
     })
   }, [branchProgressComparisonNotificationSignature])
