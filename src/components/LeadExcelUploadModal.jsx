@@ -4,7 +4,7 @@ import { downloadLeadImportTemplate, getLeadImportTargets, importLeadRows, previ
 import { completeUpload, failUpload, getUploadSnapshot, startUpload, updateUpload } from '../lib/uploadProgressStore'
 import '../styles/LeadExcelUploadModal.css'
 
-const PAGE_SIZE = 25
+const PAGE_SIZE = 5
 const PREVIEW_FIELDS = [
   ['studentName', 'Student Name'], ['phoneNumber', 'Mobile Number'], ['alternativeNumber', 'Alt. Mobile'],
   ['email', 'Email'], ['qualification', 'Qualification'], ['location', 'Location'], ['locationDistance', 'Location Distance'],
@@ -21,6 +21,12 @@ const errorMessage = (error) => error?.body?.message || error?.body?.error || er
 function statusLabel(status) {
   return ({ READY: 'Ready', PENDING_COMPLETION: 'Fresh Lead', DUPLICATE: 'Duplicate', INVALID: 'Invalid', IMPORTED: 'Imported', PENDING_EDIT: 'Edited - revalidate' })[status] || status || 'Review'
 }
+function normalizedImportStatus(row) {
+  const status = String(row?.status || '').trim().toUpperCase()
+  const hasDuplicateError = row?.errors?.some((error) => /duplicate|already exists|already imported/i.test(String(error)))
+  if (hasDuplicateError || status.includes('DUPLICATE')) return 'DUPLICATE'
+  return status
+}
 
 export function LeadExcelUploadModal({ isOpen, onClose, currentUser = {}, onImported, onPendingChanged }) {
   const inputRef = useRef(null)
@@ -36,6 +42,7 @@ export function LeadExcelUploadModal({ isOpen, onClose, currentUser = {}, onImpo
   const [notice, setNotice] = useState('')
   const [editingRow, setEditingRow] = useState(null)
   const [tablePage, setTablePage] = useState(1)
+  const [statusFilter, setStatusFilter] = useState('ALL')
   const [importStatus, setImportStatus] = useState(null)
   const [dragging, setDragging] = useState(false)
 
@@ -46,13 +53,14 @@ export function LeadExcelUploadModal({ isOpen, onClose, currentUser = {}, onImpo
   // to its branch when uploading. Only Sales Admin logins are locked to self.
   const targetLocked = role === 'SALES_ADMIN'
   const rows = useMemo(() => preview?.rows || [], [preview?.rows])
-  const visibleRows = useMemo(() => rows.slice((tablePage - 1) * PAGE_SIZE, tablePage * PAGE_SIZE), [rows, tablePage])
-  const totalPages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE))
+  const filteredRows = useMemo(() => statusFilter === 'ALL' ? rows : rows.filter((row) => normalizedImportStatus(row) === statusFilter), [rows, statusFilter])
+  const visibleRows = useMemo(() => filteredRows.slice((tablePage - 1) * PAGE_SIZE, tablePage * PAGE_SIZE), [filteredRows, tablePage])
+  const totalPages = Math.max(1, Math.ceil(filteredRows.length / PAGE_SIZE))
 
   useEffect(() => {
     if (!isOpen) return undefined
     const resetTimer = window.setTimeout(() => {
-      setStep(1); setFile(null); setPreview(null); setBusy(false); setError(''); setNotice(''); setEditingRow(null); setTablePage(1); setImportStatus(null); setDragging(false)
+      setStep(1); setFile(null); setPreview(null); setBusy(false); setError(''); setNotice(''); setEditingRow(null); setTablePage(1); setStatusFilter('ALL'); setImportStatus(null); setDragging(false)
       const initialBranch = currentUser?.branchId || ''
       const initialTarget = targetLocked ? currentUser?.id || currentUser?.userId || '' : ''
       setBranchId(initialBranch); setAssignedToId(initialTarget); setDeadlineAt('')
@@ -79,7 +87,7 @@ export function LeadExcelUploadModal({ isOpen, onClose, currentUser = {}, onImpo
   if (!isOpen) return null
 
   const selectFile = async (nextFile) => {
-    setError(''); setNotice(''); setPreview(null); setImportStatus(null); setEditingRow(null); setTablePage(1)
+    setError(''); setNotice(''); setPreview(null); setImportStatus(null); setEditingRow(null); setTablePage(1); setStatusFilter('ALL')
     if (!nextFile) return
     if (!/\.xlsx$/i.test(nextFile.name)) { setError('Only .xlsx files are supported.'); return }
     if (!branchId || !assignedToId) { setError('Select a branch and Sales Admin before uploading.'); return }
@@ -194,7 +202,7 @@ export function LeadExcelUploadModal({ isOpen, onClose, currentUser = {}, onImpo
       </div> : null}
       {step === 2 ? <div className="lead-import-body">
         <div className="lead-import-summary-grid"><div><span>Total rows</span><strong>{preview?.totalRows || 0}</strong></div><div className="is-ready"><span>Ready for active</span><strong>{preview?.readyRows || 0}</strong></div><div className="is-pending"><span>Fresh Leads</span><strong>{preview?.pendingRows || 0}</strong></div><div className="is-invalid"><span>Duplicates / invalid</span><strong>{(preview?.duplicateRows || 0) + (preview?.invalidRows || 0)}</strong></div></div>
-        <div className="lead-import-preview-head"><div><h3>Preview & validate</h3><p>Click Edit to change every field in a row. Saving a row validates it automatically.</p></div><button type="button" className="lead-import-secondary" onClick={() => void revalidate()} disabled={busy || Boolean(editingRow)}><RefreshCw size={15} /> Revalidate</button></div>
+        <div className="lead-import-preview-head"><div><h3>Preview & validate</h3><p>Click Edit to change every field in a row. Saving a row validates it automatically.</p></div><div className="lead-import-preview-tools"><label className="lead-import-status-filter">Status<select value={statusFilter} onChange={(event) => { setStatusFilter(event.target.value); setTablePage(1) }} disabled={busy || Boolean(editingRow)}><option value="ALL">All statuses</option><option value="READY">Ready</option><option value="PENDING_COMPLETION">Fresh Lead</option><option value="DUPLICATE">Duplicate</option><option value="INVALID">Invalid</option><option value="PENDING_EDIT">Edited - revalidate</option><option value="IMPORTED">Imported</option></select></label><button type="button" className="lead-import-secondary" onClick={() => void revalidate()} disabled={busy || Boolean(editingRow)}><RefreshCw size={15} /> Revalidate</button></div></div>
         <div className="lead-import-table-wrap"><table className="lead-import-table"><thead><tr><th>S.No</th>{PREVIEW_FIELDS.map(([, label]) => <th key={label}>{label}</th>)}<th>Status</th><th>Actions</th></tr></thead><tbody>{visibleRows.map((row, visibleIndex) => {
           const rowEditing = editingRow?.rowNumber === row.rowNumber
           return <tr key={row.rowNumber} className={'is-' + String(row.status || '').toLowerCase() + (rowEditing ? ' is-editing' : '')}><td>{(tablePage - 1) * PAGE_SIZE + visibleIndex + 1}</td>
@@ -208,7 +216,7 @@ export function LeadExcelUploadModal({ isOpen, onClose, currentUser = {}, onImpo
             </td>
           </tr>
         })}</tbody></table>{!visibleRows.length ? <p className="lead-import-empty">No rows in this preview.</p> : null}</div>
-        <div className="lead-import-pagination"><span>Showing {(tablePage - 1) * PAGE_SIZE + (visibleRows.length ? 1 : 0)}-{Math.min(tablePage * PAGE_SIZE, rows.length)} of {rows.length}</span><div><button type="button" onClick={() => setTablePage((page) => Math.max(1, page - 1))} disabled={tablePage <= 1}>Previous</button><button type="button" onClick={() => setTablePage((page) => Math.min(totalPages, page + 1))} disabled={tablePage >= totalPages}>Next</button></div></div>
+        <div className="lead-import-pagination"><span>Showing {filteredRows.length ? (tablePage - 1) * PAGE_SIZE + 1 : 0}-{Math.min(tablePage * PAGE_SIZE, filteredRows.length)} of {filteredRows.length}{statusFilter !== 'ALL' ? ` filtered from ${rows.length}` : ''}</span><div><button type="button" onClick={() => setTablePage((page) => Math.max(1, page - 1))} disabled={tablePage <= 1}>Previous</button><button type="button" onClick={() => setTablePage((page) => Math.min(totalPages, page + 1))} disabled={tablePage >= totalPages}>Next</button></div></div>
         <div className="lead-import-actions"><button type="button" className="lead-import-secondary" onClick={() => { setStep(1); setPreview(null); setFile(null); setEditingRow(null) }} disabled={busy || Boolean(editingRow)}>Choose another file</button><button type="button" className="lead-import-primary" onClick={() => void importWorkbook()} disabled={busy || Boolean(editingRow) || !rows.length || rows.some((row) => ['INVALID', 'DUPLICATE', 'PENDING_EDIT'].includes(row.status))}>{busy ? <><LoaderCircle className="lead-import-spin" size={16} /> Importing...</> : 'Import leads'}</button></div>
       </div> : null}
       {step === 3 ? <div className="lead-import-body lead-import-results"><div className="lead-import-result-icon"><CheckCircle2 size={32} /></div><h3>{importStatus?.status === 'AWAITING_DISTRIBUTION' ? 'Ready for branch distribution' : importStatus?.status === 'FAILED' ? 'Import failed' : importStatus?.status === 'COMPLETED' ? 'Import completed' : 'Import processing'}</h3><p>{importStatus?.status === 'AWAITING_DISTRIBUTION' ? 'The upload is ready. The Branch Admin can now assign each valid lead to themselves or a Sales Admin.' : importStatus?.status === 'FAILED' ? importStatus.errorMessage : 'You can close this window. Upload progress will continue in the header.'}</p><div className="lead-import-progress"><div><span>{importStatus?.status === 'AWAITING_DISTRIBUTION' ? 'Rows staged' : 'Rows processed'}</span><strong>{Number(importStatus?.processedRows || 0).toLocaleString()} of {Number(importStatus?.totalRows || preview?.rows?.length || 0).toLocaleString()} · {Math.max(0, Math.min(100, Number(importStatus?.progress || 0)))}%</strong></div><div className={`lead-import-progress-track${Number(importStatus?.progress || 0) <= 0 && importStatus?.status !== 'FAILED' ? ' is-indeterminate' : ''}`}><i style={{ width: `${Math.max(0, Math.min(100, Number(importStatus?.progress || 0))) || 28}%` }} /></div></div><div className="lead-import-result-grid"><div><span>Active leads</span><strong>{importStatus?.activeRows || 0}</strong></div><div><span>Fresh Leads</span><strong>{importStatus?.pendingRows || 0}</strong></div><div><span>Duplicates</span><strong>{importStatus?.duplicateRows || 0}</strong></div><div><span>Invalid</span><strong>{importStatus?.invalidRows || 0}</strong></div></div><div className="lead-import-actions"><button type="button" className="lead-import-primary" onClick={onClose}>Done</button></div></div> : null}
