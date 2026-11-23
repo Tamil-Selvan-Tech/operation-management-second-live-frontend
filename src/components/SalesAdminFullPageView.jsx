@@ -208,14 +208,15 @@ function ExcelUploadFlowOverlay({ batchId, salesAdminId = '' }) {
   const rows = data?.rows || []
   const pendingRows = rows.filter((row) => row.followUpStatus === 'NOT_FOLLOWED' && row.leadRecordId)
   const deadlinePassed = Boolean(upload.deadlineAt && new Date(`${String(upload.deadlineAt).slice(0, 10)}T23:59:59`) < new Date())
-  const status = pendingRows.length === 0 && rows.length ? 'Completed' : upload.progressStatus === 'OVERDUE' || upload.status === 'OVERDUE' ? 'Pending / Overdue' : 'In Progress'
+  const status = pendingRows.length === 0 && rows.length ? 'Completed' : upload.progressStatus === 'OVERDUE' || upload.status === 'OVERDUE' ? 'Overdue' : 'In Progress'
   const totalRows = rows.length
   const completedRows = Math.max(totalRows - pendingRows.length, 0)
   const progressPercent = totalRows ? Math.round((completedRows / totalRows) * 100) : 0
   const deadlineEnd = upload.deadlineAt ? new Date(`${String(upload.deadlineAt).slice(0, 10)}T23:59:59`) : null
   const daysRemaining = deadlineEnd ? Math.ceil((deadlineEnd.getTime() - new Date().getTime()) / 86400000) : null
-  const reassignAvailable = daysRemaining !== null && daysRemaining < 0
-  const remainingLabel = daysRemaining === null ? 'No deadline' : daysRemaining < 0 ? 'Overdue' : daysRemaining === 0 ? 'Due today' : `${daysRemaining} ${daysRemaining === 1 ? 'DAY' : 'DAYS'} LEFT`
+  const statusOverdue = status === 'Overdue' || upload.progressStatus === 'OVERDUE' || upload.status === 'OVERDUE'
+  const reassignAvailable = statusOverdue || (daysRemaining !== null && daysRemaining < 0)
+  const remainingLabel = statusOverdue ? 'Overdue' : daysRemaining === null ? 'No deadline' : daysRemaining < 0 ? 'Overdue' : daysRemaining === 0 ? 'Due today' : `${daysRemaining} ${daysRemaining === 1 ? 'DAY' : 'DAYS'} LEFT`
   const loadTargetsForBranch = async (selectedBranchId) => {
     setAssignedToId('')
     try {
