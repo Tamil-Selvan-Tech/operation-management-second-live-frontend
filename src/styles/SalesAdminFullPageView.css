@@ -80,3 +80,4 @@ body:has(.sales-admin-upload-report-back.is-super-admin) .sales-admin-upload-rep
 body.sales-admin-distribution-open header, body.sales-admin-distribution-open aside, body.sales-admin-distribution-open nav, body.sales-admin-distribution-open .business-topbar, body.sales-admin-distribution-open [class*="sidebar"] { filter: blur(5px); }
 .sales-admin-distribution-caption { display: block; margin-top: 4px; color: #64748b; font-size: 11px; }
 .distribution-waiting-row .sales-admin-lead-view-action:disabled { cursor: not-allowed; opacity: .55; background: #f1f5f9; color: #94a3b8; border-color: #e2e8f0; }
+.sales-admin-view-table-wrap tr:has(.sales-admin-upload-status.waiting) .sales-admin-lead-view-action { pointer-events: none; cursor: not-allowed; opacity: .55; background: #f1f5f9; color: #94a3b8; border-color: #e2e8f0; }
