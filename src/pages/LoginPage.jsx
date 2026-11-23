@@ -108,7 +108,7 @@ export function LoginPage({ form, setForm, onSubmit, errorMessage, fieldErrors =
           <p>Sign in to continue to your operation dashboard.</p>
         </div>
 
-        <form className="form login-form" onSubmit={onSubmit}>
+        <form className="form login-form" onSubmit={onSubmit} aria-busy={isSubmitting}>
           <FormField label="Email">
             <div className="field-with-icon">
               <span className="field-icon" aria-hidden="true">
@@ -118,6 +118,7 @@ export function LoginPage({ form, setForm, onSubmit, errorMessage, fieldErrors =
   ref={emailInputRef}
   className="login-input login-input-icon"
   value={form.email}
+  disabled={isSubmitting}
   onChange={(event) =>
     setForm((current) => ({ ...current, email: event.target.value }))
   }
@@ -148,6 +149,7 @@ export function LoginPage({ form, setForm, onSubmit, errorMessage, fieldErrors =
                 ref={passwordInputRef}
                 className="login-input login-input-icon login-input-password"
                 value={form.password}
+                disabled={isSubmitting}
                 onChange={(event) =>
                   setForm((current) => ({ ...current, password: event.target.value }))
                 }
@@ -162,6 +164,7 @@ export function LoginPage({ form, setForm, onSubmit, errorMessage, fieldErrors =
               <button
                 type="button"
                 className="password-toggle"
+                disabled={isSubmitting}
                 onClick={() => setShowPassword((current) => !current)}
                 aria-label={showPassword ? 'Hide password' : 'Show password'}
               >
