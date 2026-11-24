@@ -63,7 +63,7 @@ function UploadDetail({ upload: initialUpload, salesAdminId = '', onBack }) {
   const [followFilter, setFollowFilter] = useState('ALL')
   const [stageFilter, setStageFilter] = useState('ALL')
   const [detailPage, setDetailPage] = useState(1)
-  const filteredRows = useMemo(() => (upload.rows || []).filter((row) => (!leadSearch.trim() || `${row.leadName || ''} ${row.leadId || ''}`.toLowerCase().includes(leadSearch.trim().toLowerCase())) && (followFilter === 'ALL' || row.followUpStatus === followFilter) && (stageFilter === 'ALL' || String(row.leadStage || '').toUpperCase() === stageFilter)), [upload.rows, leadSearch, followFilter, stageFilter])
+  const filteredRows = useMemo(() => (upload.rows || []).filter((row) => (!leadSearch.trim() || `${row.leadName || ''} ${row.leadId || ''}`.toLowerCase().includes(leadSearch.trim().toLowerCase())) && (followFilter === 'ALL' || (followFilter === 'FOLLOWED' ? ['FOLLOWED', 'UPCOMING'].includes(row.followUpStatus) : row.followUpStatus === followFilter)) && (stageFilter === 'ALL' || String(row.leadStage || '').toUpperCase() === stageFilter)), [upload.rows, leadSearch, followFilter, stageFilter])
   const detailPageCount = Math.max(1, Math.ceil(filteredRows.length / 5))
   const visibleRows = filteredRows.slice((detailPage - 1) * 5, detailPage * 5)
   useEffect(() => { const timer = window.setTimeout(() => setDetailPage(1), 0); return () => window.clearTimeout(timer) }, [leadSearch, followFilter, stageFilter])

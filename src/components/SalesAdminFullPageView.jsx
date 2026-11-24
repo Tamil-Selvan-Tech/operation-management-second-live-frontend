@@ -176,7 +176,7 @@ function ExcelUploadPerformanceReport({ batchId, onBack, salesAdminId = '' }) {
     const query = leadSearch.trim().toLowerCase()
     const matchesSearch = !query || [row.leadId, row.leadName].some((value) => String(value || '').toLowerCase().includes(query))
     const matchesStage = stageFilter === 'ALL' || String(row.leadStage || '').toUpperCase() === stageFilter || (stageFilter === 'CLOSED' && String(row.leadStatus || '').toUpperCase() === 'CLOSED')
-    const matchesFollowUp = followUpFilter === 'ALL' || String(row.followUpStatus || '').toUpperCase() === followUpFilter
+    const matchesFollowUp = followUpFilter === 'ALL' || (followUpFilter === 'FOLLOWED' ? ['FOLLOWED', 'UPCOMING'].includes(String(row.followUpStatus || '').toUpperCase()) : String(row.followUpStatus || '').toUpperCase() === followUpFilter)
     return matchesSearch && matchesStage && matchesFollowUp
   }), [rows, leadSearch, stageFilter, followUpFilter])
   if (loading) return <main className="sales-admin-view-page"><div className="sales-admin-view-loading"><RefreshCw className="spin" /> Loading upload performance…</div></main>
@@ -216,8 +216,6 @@ function ExcelUploadFlowOverlay({ batchId, salesAdminId = '' }) {
   const deadlinePassed = reassignableRows.length > 0 || Boolean(upload.deadlineAt && new Date(`${String(upload.deadlineAt).slice(0, 10)}T23:59:59`) < new Date())
   const status = pendingRows.length === 0 && rows.length ? 'Completed' : reassignableRows.length > 0 || upload.progressStatus === 'OVERDUE' || upload.status === 'OVERDUE' ? 'Overdue' : 'In Progress'
   const totalRows = rows.length
-  const completedRows = Math.max(totalRows - pendingRows.length, 0)
-  const progressPercent = totalRows ? Math.round((completedRows / totalRows) * 100) : 0
   const deadlineEnd = upload.deadlineAt ? new Date(`${String(upload.deadlineAt).slice(0, 10)}T23:59:59`) : null
   const daysRemaining = deadlineEnd ? Math.ceil((deadlineEnd.getTime() - new Date().getTime()) / 86400000) : null
   const statusOverdue = status === 'Overdue' || upload.progressStatus === 'OVERDUE' || upload.status === 'OVERDUE'
@@ -280,9 +278,8 @@ function ExcelUploadFlowOverlay({ batchId, salesAdminId = '' }) {
     </div>
     <div className="deadline-workflow-metrics">
       <div><span>Total Leads</span><strong>{totalRows}</strong></div>
-      <div><span>Completed</span><strong>{completedRows}</strong></div>
-      <div><span>Fresh Leads</span><strong>{pendingRows.length}</strong></div>
-      <div><span>Progress</span><strong>{progressPercent}%</strong></div>
+      <div><span>Followed</span><strong>{rows.filter((row) => row.followUpStatus === 'FOLLOWED').length}</strong></div>
+      <div><span>Not Followed</span><strong>{rows.filter((row) => row.followUpStatus !== 'FOLLOWED').length}</strong></div>
     </div>
     {message ? <div className={message.includes('successfully') ? 'deadline-workflow-message is-success' : 'deadline-workflow-message'}>{message}</div> : null}
     <button type="button" className="sales-admin-lead-view-action" onClick={openDialog} disabled={!reassignAvailable}>Reassign Overdue Leads{reassignableRows.length ? ` (${reassignableRows.length})` : ''}</button>
