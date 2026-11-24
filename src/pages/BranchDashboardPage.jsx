@@ -2963,6 +2963,7 @@ function getBranchDashboardSectionFromPath(pathname = '', search = '') {
   if (section === 'reports') return 'branch-reports'
   if (section === 'institute-leave') return 'institute-leave'
   if (section === 'faculty-leave') return 'faculty-leave'
+  if (section === 'sales-admin-leave-requests') return 'sales-admin-leave-requests'
   if (section === 'progress-notifications') return 'progress-notifications'
   if (section === 'faculty-edit-requests') return 'faculty-edit-requests'
   if (section === 'discontinuations') return 'discontinuations'

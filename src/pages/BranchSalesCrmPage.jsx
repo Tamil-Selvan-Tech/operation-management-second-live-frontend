@@ -40,6 +40,23 @@ function workLogLabel(status) {
   return { LOGGED_IN: 'Logged In', WEBSITE_LOGGED_OUT_WORK_CLOCK_ACTIVE: 'Logged Out', WORK_CLOCK_COMPLETED: 'Completed', WORK_LOG_COMPLETED: 'Completed', AUTO_CLOSED: 'Auto Closed', NOT_LOGGED_IN: 'Not Logged In' }[status] || 'Not Logged In'
 }
 
+function leaveTypeLabel(value) {
+  return { FULL_DAY: 'Full Day Leave', HALF_DAY: 'Half Day Leave', PERMISSION: 'Permission' }[String(value || '').toUpperCase()] || 'Approved Leave'
+}
+
+function leaveDurationLabel(leave) {
+  if (!leave) return '-'
+  if (leave.leaveType === 'HALF_DAY') return 'Half day'
+  const value = Number(leave.duration) || 1
+  return leave.leaveType === 'PERMISSION' ? `${value} hour${value === 1 ? '' : 's'}` : `${value} day${value === 1 ? '' : 's'}`
+}
+
+function leaveTimeLabel(leave) {
+  if (!leave?.startTime || !leave?.endTime) return '-'
+  const to12Hour = (value) => { const [hours, minutes] = String(value).split(':').map(Number); const period = hours >= 12 ? 'PM' : 'AM'; return `${String(hours % 12 || 12).padStart(2, '0')}:${String(minutes).padStart(2, '0')} ${period}` }
+  return `${to12Hour(leave.startTime)} - ${to12Hour(leave.endTime)}`
+}
+
 export default function BranchSalesCrmPage({ view = 'admins', title = 'Sales & CRM', showReportAction = true, showLeadImportAction = false, showLeadDistributionAction = false, showActionColumn = true }) {
   const activeTab = view
   const [salesAdmins, setSalesAdmins] = useState([])
@@ -259,7 +276,7 @@ export default function BranchSalesCrmPage({ view = 'admins', title = 'Sales & C
       ) : null}
 
       {selectedAdmin ? (() => {
-        const todayStatus = selectedAdmin.workClock?.status || 'NOT_LOGGED_IN'
+        const activeLeave = selectedAdmin.workClock?.leaveRestrictions?.restrictions?.[0]; const todayStatus = activeLeave ? `${activeLeave.leaveType}_LEAVE` : (selectedAdmin.workClock?.status || 'NOT_LOGGED_IN')
         const todayLogin = selectedAdmin.workClock?.firstLoginAt
         const todayLogout = selectedAdmin.workClock?.finalLogoutAt
         const todayDuration = selectedAdmin.workClock?.workingSeconds ?? 0
@@ -268,7 +285,7 @@ export default function BranchSalesCrmPage({ view = 'admins', title = 'Sales & C
             <header className="branch-sales-crm-drawer-header"><div><span className="branch-sales-crm-eyebrow">SALES ADMIN ACTIVITY</span><h2 id="sales-admin-activity-title">{selectedAdmin.name || EMPTY}</h2><p>{selectedAdmin.id || selectedAdmin.userId || EMPTY}</p></div><button type="button" onClick={() => setSelectedAdmin(null)} aria-label="Close activity panel"><X size={19} /></button></header>
             <div className="branch-sales-crm-drawer-body">
               <section className="branch-sales-crm-drawer-section"><h3><BriefcaseBusiness size={17} />Sales Admin Profile</h3><div className="branch-sales-crm-profile-grid"><div><span>Name</span><strong>{selectedAdmin.name || EMPTY}</strong></div><div><span>Sales Admin ID</span><strong>{selectedAdmin.id || EMPTY}</strong></div><div><span>Email Address</span><strong>{selectedAdmin.email || EMPTY}</strong></div><div><span>Phone Number</span><strong>{selectedAdmin.phone || EMPTY}</strong></div><div><span>Assigned Branch</span><strong>{branch?.branchName || branch?.branchId || EMPTY}</strong></div><div><span>Account Status</span><strong className={selectedAdmin.status === 'ACTIVE' ? 'is-green' : 'is-muted'}>{selectedAdmin.status === 'ACTIVE' ? 'Active' : 'Inactive'}</strong></div></div></section>
-              <section className="branch-sales-crm-drawer-section"><h3><CalendarDays size={17} />Today's Work Log</h3><div className="branch-sales-crm-today-status"><span className={`branch-sales-crm-status is-${String(todayStatus).toLowerCase().replaceAll('_', '-')}`}>{workLogLabel(todayStatus)}</span></div><div className="branch-sales-crm-work-log-metrics"><div><span>Login Time</span><strong>{formatTime(todayLogin)}</strong></div><div><span>Logout Time</span><strong>{formatTime(todayLogout)}</strong></div><div><span>Total Duration</span><strong>{formatDurationHuman(todayDuration)}</strong></div></div></section>
+              <section className="branch-sales-crm-drawer-section"><h3><CalendarDays size={17} />Today's Work Log</h3><div className="branch-sales-crm-today-status"><span className={`branch-sales-crm-status is-${String(todayStatus).toLowerCase().replaceAll('_', '-')}`}>{activeLeave ? leaveTypeLabel(activeLeave.leaveType) : workLogLabel(todayStatus)}</span></div><div className="branch-sales-crm-work-log-metrics"><div><span>Login Time</span><strong>{formatTime(todayLogin)}</strong></div><div><span>Logout Time</span><strong>{formatTime(todayLogout)}</strong></div><div><span>Total Duration</span><strong>{formatDurationHuman(todayDuration)}</strong></div></div>{activeLeave ? <div className="branch-sales-crm-leave-work-log"><div><span>Leave Duration</span><strong>{leaveDurationLabel(activeLeave)}</strong></div><div><span>Leave Time</span><strong>{leaveTimeLabel(activeLeave)}</strong></div></div> : null}</section>
             </div>
           </aside>
         </div>

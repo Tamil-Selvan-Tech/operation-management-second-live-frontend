@@ -6,3 +6,17 @@
 .sales-work-clock-modal{min-height:470px}
 .sales-work-clock-backdrop{z-index:99999;background:rgb(15 23 42 / 45%);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px)}
 body.sales-work-log-open .sa-embedded-exit-btn{visibility:hidden;opacity:0;pointer-events:none}.sales-work-clock-backdrop{z-index:99999;background:rgb(15 23 42 / 45%);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px)}
+.sales-work-clock-leave-notice {
+  margin-top: 14px;
+  padding: 10px 12px;
+  border: 1px solid #f2d38a;
+  border-radius: 8px;
+  background: #fff8e6;
+  color: #8a5a00;
+  font-size: 12px;
+  line-height: 1.45;
+  width: min(520px, calc(100% - 48px));
+  margin-left: auto;
+  margin-right: auto;
+  box-sizing: border-box;
+}
