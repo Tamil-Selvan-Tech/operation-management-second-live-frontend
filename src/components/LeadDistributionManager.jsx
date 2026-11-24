@@ -10,10 +10,11 @@ const localToday = () => {
   const date = new Date()
   return [date.getFullYear(), String(date.getMonth() + 1).padStart(2, '0'), String(date.getDate()).padStart(2, '0')].join('-')
 }
-export function LeadDistributionManager({ currentUser = {}, onClose, onDistributed }) {
+export function LeadDistributionManager({ currentUser = {}, onClose, onDistributed, initialJobId = '' }) {
+  const isSuperAdmin = String(currentUser.role || currentUser.userRole || '').toUpperCase().replaceAll('-', '_') === 'SUPER_ADMIN'
   const [jobs, setJobs] = useState([])
   const [targets, setTargets] = useState([])
-  const [selectedId, setSelectedId] = useState('')
+  const [selectedId, setSelectedId] = useState(initialJobId)
   const [allocation, setAllocation] = useState({ jobId: '', counts: {} })
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -29,16 +30,19 @@ export function LeadDistributionManager({ currentUser = {}, onClose, onDistribut
   const selected = pendingJobs.find((job) => job.id === selectedId)
   const inheritedDeadline = dateInputValue(selected?.deadlineAt)
   const eligible = Number(selected?.distributableRows || 0)
-  const branchAdminId = String(currentUser.id || currentUser.userId || '')
-  const defaults = Object.fromEntries(targets.map((target) => [target.id, target.id === branchAdminId ? eligible : 0]))
+  const branchAdminId = isSuperAdmin ? '' : String(currentUser.id || currentUser.userId || '')
+  const defaults = Object.fromEntries(targets.map((target) => [target.id, !isSuperAdmin && target.id === branchAdminId ? eligible : 0]))
   const counts = allocation.jobId === selectedId ? allocation.counts : defaults
-  const salesTargets = targets.filter((target) => target.id !== branchAdminId)
-  const orderedTargets = [...salesTargets, ...targets.filter((target) => target.id === branchAdminId)]
+  const salesTargets = isSuperAdmin ? targets : targets.filter((target) => target.id !== branchAdminId)
+  const orderedTargets = isSuperAdmin ? [...targets.filter((target) => target.role === 'SALES_ADMIN'), ...targets.filter((target) => target.role === 'BRANCH_ADMIN')] : [...salesTargets, ...targets.filter((target) => target.id === branchAdminId)]
   const salesAssigned = salesTargets.reduce((total, target) => total + (Number(counts[target.id]) || 0), 0)
-  const branchBalance = Math.max(0, eligible - salesAssigned)
-  const overAllocated = salesAssigned > eligible
-  const validAllocation = Boolean(targets.some((target) => target.id === branchAdminId)) && !overAllocated && targets.filter((target) => Number(counts[target.id]) > 0).every((target) => Boolean(deadlines[target.id] ?? inheritedDeadline))
-  const salesPercent = eligible ? Math.min(100, (salesAssigned / eligible) * 100) : 0
+  const assignedTotal = targets.reduce((total, target) => total + (Number(counts[target.id]) || 0), 0)
+  const branchBalance = Math.max(0, eligible - (isSuperAdmin ? assignedTotal : salesAssigned))
+  const overAllocated = (isSuperAdmin ? assignedTotal : salesAssigned) > eligible
+  const validAllocation = isSuperAdmin
+    ? assignedTotal > 0 && !overAllocated && targets.filter((target) => Number(counts[target.id]) > 0).every((target) => Boolean(deadlines[target.id] ?? inheritedDeadline))
+    : Boolean(targets.some((target) => target.id === branchAdminId)) && !overAllocated && targets.filter((target) => Number(counts[target.id]) > 0).every((target) => Boolean(deadlines[target.id] ?? inheritedDeadline))
+  const salesPercent = eligible ? (((isSuperAdmin ? assignedTotal : salesAssigned) / eligible) * 100) : 0
 
   const setSalesAllocation = (targetId, value) => {
     // The fields start at 0. Normalize leading zeroes so typing 40 over that
@@ -47,24 +51,29 @@ export function LeadDistributionManager({ currentUser = {}, onClose, onDistribut
     const nextValue = digits.replace(/^0+(?=\d)/, '')
     setLastEditedTargetId(targetId)
     const nextCounts = { ...counts, [targetId]: nextValue }
-    const nextSalesAssigned = salesTargets.reduce((total, target) => total + (Number(nextCounts[target.id]) || 0), 0)
-    nextCounts[branchAdminId] = Math.max(0, eligible - nextSalesAssigned)
+    if (!isSuperAdmin) {
+      const nextSalesAssigned = salesTargets.reduce((total, target) => total + (Number(nextCounts[target.id]) || 0), 0)
+      nextCounts[branchAdminId] = Math.max(0, eligible - nextSalesAssigned)
+    }
     setAllocation({ jobId: selectedId, counts: nextCounts })
   }
 
   const refresh = useCallback(async () => {
     setLoading(true); setError('')
     try {
-      const [jobResponse, targetResponse] = await Promise.all([listLeadImportDistributionJobs(), getLeadImportTargets(currentUser.branchId || '')])
+      const jobResponse = await listLeadImportDistributionJobs()
       const nextJobs = unwrap(jobResponse) || []
+      const currentJob = nextJobs.find((job) => job.id === (selectedId || initialJobId))
+      const targetJob = currentJob || nextJobs.find((job) => String(job.status || '').toUpperCase() === 'AWAITING_DISTRIBUTION') || nextJobs[0]
+      const targetResponse = await getLeadImportTargets(isSuperAdmin ? (targetJob?.branchId || '') : (currentUser.branchId || ''))
       const targetData = unwrap(targetResponse)
       setJobs(Array.isArray(nextJobs) ? nextJobs : [])
       setTargets(targetData.targets || [])
-      setSelectedId((current) => nextJobs.some((job) => job.id === current && String(job.status || "").toUpperCase() === "AWAITING_DISTRIBUTION") ? current : nextJobs.find((job) => String(job.status || "").toUpperCase() === "AWAITING_DISTRIBUTION")?.id || "")
+      setSelectedId((current) => nextJobs.some((job) => job.id === current && String(job.status || "").toUpperCase() === "AWAITING_DISTRIBUTION") ? current : nextJobs.find((job) => job.id === (initialJobId || current))?.id || nextJobs.find((job) => String(job.status || "").toUpperCase() === "AWAITING_DISTRIBUTION")?.id || "")
       setActiveTab((current) => current === "" || (current === "pending" && !nextJobs.some((job) => String(job.status || "").toUpperCase() === "AWAITING_DISTRIBUTION")) ? (nextJobs.some((job) => String(job.status || "").toUpperCase() === "AWAITING_DISTRIBUTION") ? "pending" : "history") : current)
     } catch (requestError) { setError(requestError?.body?.message || requestError?.message || 'Could not load branch leads waiting for distribution.') }
     finally { setLoading(false) }
-  }, [currentUser.branchId])
+  }, [currentUser.branchId, currentUser.role, initialJobId, isSuperAdmin, selectedId])
   useEffect(() => { const timer = window.setTimeout(() => { void refresh() }, 0); return () => window.clearTimeout(timer) }, [refresh])
   useEffect(() => {
     if (!selectedId) return
@@ -91,7 +100,7 @@ export function LeadDistributionManager({ currentUser = {}, onClose, onDistribut
       setDistributionComplete({
         fileName: selected.fileName || selected.uploadId,
         allocations,
-        total: Number(result?.data?.distributableRows ?? eligible),
+        total: allocations.reduce((sum, item) => sum + item.count, 0),
       })
       window.dispatchEvent(new Event('cispro:lead-import-updated'))
       await onDistributed?.()
@@ -103,7 +112,7 @@ export function LeadDistributionManager({ currentUser = {}, onClose, onDistribut
   const recipientRole = (role) => String(role || "").toUpperCase().replaceAll("_", " ").includes("BRANCH") ? "Branch Admin" : "Sales Admin"
   return <div className="lead-distribution-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !saving) onClose?.() }}>
     <section className="lead-distribution-dialog" role="dialog" aria-modal="true" aria-labelledby="lead-distribution-title">
-      <header><div><span className="lead-distribution-icon"><ArrowRightLeft size={19} /></span><div><p>BRANCH LEADS</p><h2 id="lead-distribution-title">Lead distribution</h2><small>Assign incoming leads and review previous uploads shared with your branch.</small></div></div><button type="button" onClick={onClose} aria-label="Close" disabled={saving}><X size={18} /></button></header>
+      <header><div><span className="lead-distribution-icon"><ArrowRightLeft size={19} /></span><div><p>{isSuperAdmin ? 'SUPER ADMIN · DIRECT DISTRIBUTION' : 'BRANCH LEADS'}</p><h2 id="lead-distribution-title">Lead distribution</h2><small>{isSuperAdmin ? 'Assign remaining leads directly to accounts in the selected branch.' : 'Assign incoming leads and review previous uploads shared with your branch.'}</small></div></div><button type="button" onClick={onClose} aria-label="Close" disabled={saving}><X size={18} /></button></header>
       {error ? <div className="lead-distribution-error" role="alert">{error}</div> : null}
       {distributionComplete ? <div className="lead-distribution-success"><CheckCircle2 size={42} /><h3>Leads distributed</h3><p><strong>{distributionComplete.total.toLocaleString()}</strong> leads from <strong>{distributionComplete.fileName}</strong> were assigned successfully.</p><div>{distributionComplete.allocations.map((item) => { const target = targets.find((candidate) => candidate.id === item.userId); return <span key={item.userId}><strong>{target?.fullName || 'Account'}</strong><b>{item.count.toLocaleString()} leads</b></span> })}</div><small>Import continues in the background. Each recipient’s progress appears in Distribution history and Uploads.</small><button type="button" onClick={() => { setDistributionComplete(null); setActiveTab("history"); void refresh() }}>View distribution history</button></div> : loading ? <div className="lead-distribution-loading"><LoaderCircle className="lead-distribution-spin" /> Loading upload history…</div> : <>
         <nav className="lead-distribution-tabs" aria-label="Lead distribution views"><button type="button" className={activeTab === 'pending' ? 'is-active' : ''} onClick={() => setActiveTab('pending')}>Waiting to distribute <b>{pendingJobs.length}</b></button><button type="button" className={activeTab === 'history' ? 'is-active' : ''} onClick={() => setActiveTab('history')}>Distribution history <b>{historyJobs.length}</b></button><button type="button" className="lead-distribution-refresh" onClick={() => void refresh()} aria-label="Refresh uploads"><RefreshCw size={15} /></button></nav>
@@ -127,18 +136,18 @@ export function LeadDistributionManager({ currentUser = {}, onClose, onDistribut
             </article>
           }) : <div className="lead-distribution-empty"><Users size={26} /><strong>No distribution history yet</strong><span>Super Admin uploads and allocations to Sales Admins will appear here.</span><button type="button" onClick={() => void refresh()}><RefreshCw size={14} /> Refresh</button></div>}
         </div> : pendingJobs.length ? <div className="lead-distribution-content">
-          <label className="lead-distribution-job-select">Upload to distribute<select value={selectedId} onChange={(event) => { setSelectedId(event.target.value); setAllocation({ jobId: '', counts: {} }) }}>{pendingJobs.map((job) => <option key={job.id} value={job.id}>{job.fileName || job.uploadId} · {job.distributableRows} available</option>)}</select></label>
-          <div className="lead-distribution-summary"><div><span>Uploaded rows</span><strong>{selected?.totalRows || 0}</strong></div><div><span>Ready to assign</span><strong>{eligible}</strong></div><div><span>Sales Admin allocation</span><strong>{salesAssigned}</strong></div><div className="is-balance"><span>Branch Admin balance</span><strong>{branchBalance}</strong></div></div>
-          <div className="lead-distribution-meter" role="img" aria-label={`${salesAssigned} assigned to Sales Admins, ${branchBalance} retained by Branch Admin out of ${eligible} valid leads`}><span><i style={{ width: `${salesPercent}%` }} /></span><div><small>Sales Admins <strong>{salesAssigned}</strong></small><small>Branch Admin balance <strong>{branchBalance}</strong></small></div></div>
+          <label className="lead-distribution-job-select">{isSuperAdmin ? 'Upload with leads remaining' : 'Upload to distribute'}<select value={selectedId} onChange={(event) => { setSelectedId(event.target.value); setAllocation({ jobId: '', counts: {} }) }}>{pendingJobs.map((job) => <option key={job.id} value={job.id}>{job.fileName || job.uploadId} · {job.distributableRows} available{isSuperAdmin && job.branchName ? ` · ${job.branchName}` : ''}</option>)}</select></label>
+          <div className="lead-distribution-summary"><div><span>Uploaded rows</span><strong>{selected?.totalRows || 0}</strong></div><div><span>Ready to assign</span><strong>{eligible}</strong></div><div><span>{isSuperAdmin ? 'Assigned now' : 'Sales Admin allocation'}</span><strong>{isSuperAdmin ? assignedTotal : salesAssigned}</strong></div><div className="is-balance"><span>{isSuperAdmin ? 'Remaining unassigned' : 'Branch Admin balance'}</span><strong>{branchBalance}</strong></div></div>
+          <div className="lead-distribution-meter" role="img" aria-label={`${isSuperAdmin ? assignedTotal + ' assigned' : salesAssigned + ' assigned to Sales Admins'}, ${branchBalance} ${isSuperAdmin ? 'unassigned' : 'retained by Branch Admin'} out of ${eligible} valid leads`}><span><i style={{ width: `${salesPercent}%` }} /></span><div><small>{isSuperAdmin ? 'Assigned' : 'Sales Admins'} <strong>{isSuperAdmin ? assignedTotal : salesAssigned}</strong></small><small>{isSuperAdmin ? 'Unassigned' : 'Branch Admin balance'} <strong>{branchBalance}</strong></small></div></div>
           <div className="lead-distribution-table"><div className="lead-distribution-table-head"><span>Account</span><span>Leads</span><span>Completion deadline</span></div>{orderedTargets.map((target) => {
             const isBranchAdmin = target.id === branchAdminId
             const value = Number(counts[target.id] || 0)
             const availableForTarget = Math.max(0, eligible - (salesAssigned - value))
             const fieldError = !isBranchAdmin && value > availableForTarget && (value > eligible || target.id === lastEditedTargetId) ? `Maximum available: ${availableForTarget} leads` : ''
-            return <div className={`lead-distribution-row${isBranchAdmin ? ' is-branch-admin' : ''}`} key={target.id}><span><strong>{target.fullName}{isBranchAdmin ? ' (You · Branch Admin)' : ''}</strong><small>{isBranchAdmin ? 'Remaining leads stay with your branch account' : String(target.role || '').replaceAll('_', ' ')}</small></span>{isBranchAdmin ? <span className="lead-distribution-balance-value" aria-label={`Branch Admin balance: ${branchBalance}`}>{branchBalance}</span> : <div className="lead-distribution-input-wrap"><input type="text" inputMode="numeric" pattern="[0-9]*" value={counts[target.id] ?? 0} onFocus={(event) => event.currentTarget.select()} onChange={(event) => setSalesAllocation(target.id, event.target.value)} aria-label={'Lead count for ' + target.fullName} aria-invalid={Boolean(fieldError)} aria-describedby={fieldError ? `lead-distribution-error-${target.id}` : undefined} />{fieldError ? <small className="lead-distribution-field-error" id={`lead-distribution-error-${target.id}`} role="alert">{fieldError}</small> : null}</div>}<label className="lead-distribution-deadline"><span className="sr-only">Completion deadline for {target.fullName}</span><input type="date" value={deadlines[target.id] ?? inheritedDeadline} min={localToday()} onChange={(event) => setDeadlines((current) => ({ ...current, [target.id]: event.target.value }))} aria-label={`Completion deadline for ${target.fullName}`} /></label></div>
+            return <div className={`lead-distribution-row${isBranchAdmin && !isSuperAdmin ? ' is-branch-admin' : ''}`} key={target.id}><span><strong>{target.fullName}{isBranchAdmin && !isSuperAdmin ? ' (You · Branch Admin)' : ''}</strong><small>{isBranchAdmin && !isSuperAdmin ? 'Remaining leads stay with your branch account' : String(target.role || '').replaceAll('_', ' ')}</small></span>{isBranchAdmin && !isSuperAdmin ? <span className="lead-distribution-balance-value" aria-label={`Branch Admin balance: ${branchBalance}`}>{branchBalance}</span> : <div className="lead-distribution-input-wrap"><input type="text" inputMode="numeric" pattern="[0-9]*" value={counts[target.id] ?? 0} onFocus={(event) => event.currentTarget.select()} onChange={(event) => setSalesAllocation(target.id, event.target.value)} aria-label={'Lead count for ' + target.fullName} aria-invalid={Boolean(fieldError)} aria-describedby={fieldError ? `lead-distribution-error-${target.id}` : undefined} />{fieldError ? <small className="lead-distribution-field-error" id={`lead-distribution-error-${target.id}`} role="alert">{fieldError}</small> : null}</div>}<label className="lead-distribution-deadline"><span className="sr-only">Completion deadline for {target.fullName}</span><input type="date" value={deadlines[target.id] ?? inheritedDeadline} min={localToday()} onChange={(event) => setDeadlines((current) => ({ ...current, [target.id]: event.target.value }))} aria-label={`Completion deadline for ${target.fullName}`} /></label></div>
           })}</div>
-          <div className={'lead-distribution-total' + (validAllocation ? ' is-valid' : ' is-invalid')}><span>{overAllocated ? <>Reduce Sales Admin allocations by <strong>{salesAssigned - eligible}</strong></> : <>Branch Admin keeps <strong>{branchBalance}</strong> of <strong>{eligible}</strong> remaining leads</>}</span><small>Assign counts to Sales Admins; the unassigned balance stays with you. Fresh Leads are included. Lead IDs are created only for Active Leads.</small></div>
-          <footer><span>Original upload by Super Admin · Distribution by {currentUser.fullName || 'you'}</span><button type="button" onClick={() => void submit()} disabled={saving || !validAllocation || !eligible}>{saving ? <><LoaderCircle className="lead-distribution-spin" size={15} /> Distributing…</> : 'Confirm distribution'}</button></footer>
+          <div className={'lead-distribution-total' + (validAllocation ? ' is-valid' : ' is-invalid')}><span>{overAllocated ? <>Reduce assigned leads by <strong>{(isSuperAdmin ? assignedTotal : salesAssigned) - eligible}</strong></> : isSuperAdmin ? <>Leave <strong>{branchBalance}</strong> of <strong>{eligible}</strong> leads unassigned for later</> : <>Branch Admin keeps <strong>{branchBalance}</strong> of <strong>{eligible}</strong> remaining leads</>}</span><small>{isSuperAdmin ? 'Choose a role-labeled recipient and deadline for each allocation. Remaining leads stay in the Super Admin batch. Fresh Leads are included; IDs are created only for Active Leads.' : 'Assign counts to Sales Admins; the unassigned balance stays with you. Fresh Leads are included. Lead IDs are created only for Active Leads.'}</small></div>
+          <footer><span>{isSuperAdmin ? `Original upload by Super Admin · ${selected?.branchName || 'Selected branch'}` : `Original upload by Super Admin · Distribution by ${currentUser.fullName || 'you'}`}</span><button type="button" onClick={() => void submit()} disabled={saving || !validAllocation || !eligible}>{saving ? <><LoaderCircle className="lead-distribution-spin" size={15} /> Distributing…</> : isSuperAdmin ? 'Assign selected leads' : 'Confirm distribution'}</button></footer>
         </div> : <div className="lead-distribution-empty"><Users size={26} /><strong>No uploads are waiting for distribution</strong><span>Completed and previous allocations are available under Distribution history.</span><button type="button" onClick={() => setActiveTab('history')}>View distribution history</button></div>}
       </>}
     </section>

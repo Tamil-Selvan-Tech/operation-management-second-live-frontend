@@ -7,6 +7,7 @@ import { dismissUpload, getUploadSnapshot, subscribeUploadProgress } from '../li
 import { loadSession } from '../lib/session'
 import { listActiveLeadImports } from '../services/leadImportService'
 import { downloadCourseImportErrors, listCourseImportJobs, retryCourseImportJob } from '../services/courseImportService'
+import { LeadDistributionManager } from './LeadDistributionManager'
 
 function dismissedStorageKey(userId) {
   return `cispro.dismissedUploadProgressIds:${userId || 'anonymous'}`
@@ -26,6 +27,7 @@ function statusText(item) {
   if (String(item.status || '').toUpperCase() === 'AWAITING_DISTRIBUTION') {
     const processed = Number(item.processed || 0)
     const total = Number(item.total || 0)
+    if (item.directDistribution) return `${Number(item.unassignedRows ?? Math.max(0, total - processed)).toLocaleString()} leads remain unassigned · Waiting for Super Admin`
     return total
       ? `${processed.toLocaleString()} of ${total.toLocaleString()} rows staged · Waiting for Branch Admin distribution`
       : 'Waiting for Branch Admin distribution'
@@ -66,6 +68,8 @@ export function UploadProgressIndicator() {
     return readDismissedRemoteIds(String(user.id || user.userId || ''))
   })
   const [open, setOpen] = useState(false)
+  const [distributionManagerOpen, setDistributionManagerOpen] = useState(false)
+  const [distributionJobId, setDistributionJobId] = useState('')
   const [refreshVersion, setRefreshVersion] = useState(0)
   const [popoverPosition, setPopoverPosition] = useState(null)
   const triggerRef = useRef(null)
@@ -157,12 +161,12 @@ export function UploadProgressIndicator() {
   const remoteLeadByUploadId = new Map(sharedLeadUploads.filter((job) => !job.sourceJobId).map((job) => [job.uploadId, job]))
   const localVisibleUploads = uploads.filter((item) => item.type !== 'lead' || ((currentUserId && item.visibleTo?.includes(currentUserId)) && !recipientGroupedUploadIds.has(item.uploadId))).map((item) => {
     const remote = item.type === 'lead' ? remoteLeadByUploadId.get(item.uploadId) : null
-    const merged = remote ? { ...item, status: remote.status, progress: remote.progress, processed: remote.processedRows, total: remote.totalRows, completedAt: remote.completedAt, updatedAt: remote.updatedAt, error: remote.errorMessage || item.error } : item
-    return sessionRole === 'super-admin' && String(merged.status || '').toUpperCase() === 'AWAITING_DISTRIBUTION'
+    const merged = remote ? { ...item, jobId: remote.id, branchId: remote.branchId, directDistribution: Boolean(remote.directDistribution), unassignedRows: remote.unassignedRows, status: remote.status, progress: remote.progress, processed: remote.processedRows, total: remote.totalRows, completedAt: remote.completedAt, updatedAt: remote.updatedAt, error: remote.errorMessage || item.error } : item
+    return sessionRole === 'super-admin' && !merged.directDistribution && String(merged.status || '').toUpperCase() === 'AWAITING_DISTRIBUTION'
       ? { ...merged, status: 'COMPLETED' }
       : merged
   })
-  const remoteVisibleUploads = [...sharedLeadUploads.map((job) => ({ id: 'server-' + job.id, type: 'lead', uploadId: job.uploadId, perRecipient: Boolean(job.sourceJobId), label: job.activityLabel || job.fileName || 'Lead workbook', status: job.status, progress: job.progress, processed: job.processedRows, total: job.totalRows, completedAt: job.completedAt, updatedAt: job.updatedAt })), ...sharedCourseUploads.map((job) => ({ id: 'server-course-' + job.id, jobId: job.id, type: 'course', uploadId: job.uploadId, label: 'Course upload - ' + (job.fileName || 'Course workbook'), status: job.status, error: job.errorMessage, progress: job.progress, processed: job.processedRows, total: job.totalRows, failed: job.failedRows, completedAt: job.completedAt, updatedAt: job.updatedAt }))].filter((item) => !dismissedRemoteIds.includes(item.id))
+  const remoteVisibleUploads = [...sharedLeadUploads.map((job) => ({ id: 'server-' + job.id, jobId: job.id, branchId: job.branchId, directDistribution: Boolean(job.directDistribution), unassignedRows: job.unassignedRows, type: 'lead', uploadId: job.uploadId, perRecipient: Boolean(job.sourceJobId), label: job.activityLabel || job.fileName || 'Lead workbook', status: job.status, progress: job.progress, processed: job.processedRows, total: job.totalRows, completedAt: job.completedAt, updatedAt: job.updatedAt })), ...sharedCourseUploads.map((job) => ({ id: 'server-course-' + job.id, jobId: job.id, type: 'course', uploadId: job.uploadId, label: 'Course upload - ' + (job.fileName || 'Course workbook'), status: job.status, error: job.errorMessage, progress: job.progress, processed: job.processedRows, total: job.totalRows, failed: job.failedRows, completedAt: job.completedAt, updatedAt: job.updatedAt }))].filter((item) => !dismissedRemoteIds.includes(item.id))
   const visibleUploads = [...localVisibleUploads, ...remoteVisibleUploads.filter((remote) => remote.perRecipient || !localVisibleUploads.some((local) => local.uploadId && local.uploadId === remote.uploadId))]
   const activeCount = visibleUploads.filter(isRunning).length
   const waitingCount = visibleUploads.filter(isAwaitingDistribution).length
@@ -215,9 +219,10 @@ export function UploadProgressIndicator() {
       <div className="upload-progress-popover-head"><strong>Upload activity</strong><button type="button" onClick={() => setOpen(false)} aria-label="Close upload activity"><X size={16} strokeWidth={2} /></button></div>
       <div className="upload-progress-list">{visibleUploads.length ? visibleUploads.map((item) => <article key={item.id} className={`upload-progress-item is-${String(item.status || '').toLowerCase()}`}>
         <span className="upload-progress-item-icon">{isRunning(item) ? <LoaderCircle className="upload-progress-spin" size={16} /> : isAwaitingDistribution(item) ? <Clock3 size={16} /> : item.status === 'FAILED' ? <XCircle size={16} /> : <CheckCircle2 size={16} />}</span>
-        <div><strong title={item.label}>{item.label}</strong><small>{statusText(item)}</small>{item.type === 'course' && !isRunning(item) && item.failed > 0 ? <span className="upload-progress-item-actions"><button type="button" onClick={() => void handleCourseErrors(item)}>Download errors</button>{['COMPLETED_WITH_ERRORS', 'FAILED'].includes(String(item.status).toUpperCase()) ? <button type="button" onClick={() => void handleCourseRetry(item)}>Retry failed</button> : null}</span> : null}{isRunning(item) ? <div className={`upload-progress-track${Number(item.progress || 0) <= 0 ? ' is-indeterminate' : ''}`}><i style={{ width: `${Math.max(0, Math.min(100, Number(item.progress || 0))) || 28}%` }} /></div> : null}</div>
+        <div><strong title={item.label}>{item.label}</strong><small>{statusText(item)}</small>{item.type === 'course' && !isRunning(item) && item.failed > 0 ? <span className="upload-progress-item-actions"><button type="button" onClick={() => void handleCourseErrors(item)}>Download errors</button>{['COMPLETED_WITH_ERRORS', 'FAILED'].includes(String(item.status).toUpperCase()) ? <button type="button" onClick={() => void handleCourseRetry(item)}>Retry failed</button> : null}</span> : null}{isRunning(item) ? <div className={`upload-progress-track${Number(item.progress || 0) <= 0 ? ' is-indeterminate' : ''}`}><i style={{ width: `${Math.max(0, Math.min(100, Number(item.progress || 0))) || 28}%` }} /></div> : null}{sessionRole === 'super-admin' && item.type === 'lead' && item.directDistribution && isAwaitingDistribution(item) ? <span className="upload-progress-item-actions"><button type="button" onClick={() => { setDistributionJobId(item.jobId || ''); setDistributionManagerOpen(true); setOpen(false) }}>Distribute remaining leads</button></span> : null}</div>
         {!isRunning(item) ? <button type="button" onClick={() => item.id.startsWith('server-') ? setDismissedRemoteIds((current) => [...current, item.id]) : dismissUpload(item.id)} aria-label={`Dismiss ${item.label}`}><X size={14} strokeWidth={2} /></button> : null}
       </article>) : <p className="upload-progress-empty">No recent upload activity.</p>}</div>
     </div>, document.body) : null}
+    {distributionManagerOpen ? <LeadDistributionManager currentUser={sessionUser} initialJobId={distributionJobId} onClose={() => setDistributionManagerOpen(false)} onDistributed={() => setRefreshVersion((value) => value + 1)} /> : null}
   </div>
 }

@@ -31,6 +31,7 @@ export function previewLeadImport(file, options = {}) {
   body.append('branchId', options.branchId || '')
   body.append('assignedToId', options.assignedToId || '')
   body.append('distributionMode', options.distributionMode ? 'true' : 'false')
+  body.append('directDistribution', options.directDistribution ? 'true' : 'false')
   body.append('deadlineAt', options.deadlineAt || '')
   return request('/leads/import/preview', { method: 'POST', body, timeoutMs: IMPORT_TIMEOUT_MS })
 }
@@ -40,7 +41,7 @@ export function revalidateLeadImport(rows, options = {}) {
 }
 
 export function createLeadImportJob(rows, options = {}) {
-  return request('/leads/import/jobs', { method: 'POST', body: JSON.stringify({ ...bodyFor(options), distributionMode: Boolean(options.distributionMode), rows, fileName: options.fileName || null }), timeoutMs: IMPORT_TIMEOUT_MS })
+  return request('/leads/import/jobs', { method: 'POST', body: JSON.stringify({ ...bodyFor(options), distributionMode: Boolean(options.distributionMode), directDistribution: Boolean(options.directDistribution), allocations: options.allocations || [], rows, fileName: options.fileName || null }), timeoutMs: IMPORT_TIMEOUT_MS })
 }
 
 export function getLeadImportJob(jobId) {
