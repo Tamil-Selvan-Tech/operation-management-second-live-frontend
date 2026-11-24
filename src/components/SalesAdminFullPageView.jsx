@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import { ArrowLeft, CalendarDays, Download, Edit3, Eye, FileSpreadsheet, Headphones, Mail, Phone, ShieldCheck, UserRound, GitBranch, Clock3, LogIn, LogOut, Timer, RefreshCw, UsersRound, GraduationCap, Flame, Snowflake, Thermometer, ListTodo, BellRing, X } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { ArrowLeft, CalendarDays, ChevronDown, Download, Edit3, Eye, FileSpreadsheet, Headphones, Mail, Phone, ShieldCheck, UserRound, GitBranch, Clock3, LogIn, LogOut, Timer, RefreshCw, UsersRound, GraduationCap, Flame, Snowflake, Thermometer, ListTodo, BellRing, X } from 'lucide-react'
 import { API_BASE_URL, request } from '../services/apiClient'
 import { loadSession } from '../lib/session'
 import { downloadSalesCrmReportSubmission, listSalesCrmReportSubmissions } from '../services/salesCrmReportSubmissionService'
@@ -193,43 +193,52 @@ function ExcelUploadPerformanceReport({ batchId, onBack, salesAdminId = '' }) {
 }
 
 function ExcelUploadFlowOverlay({ batchId, salesAdminId = '' }) {
+  const targetRequestRef = useRef(0)
   const [data, setData] = useState(null)
   const [open, setOpen] = useState(false)
   const [targets, setTargets] = useState({ branches: [], targets: [] })
-  const [assignedToId, setAssignedToId] = useState('')
   const [branchId, setBranchId] = useState('')
-  const [deadlineAt, setDeadlineAt] = useState('')
+  const [branchEditable, setBranchEditable] = useState(false)
+  const [step, setStep] = useState(1)
+  const [distributionMode, setDistributionMode] = useState('single')
+  const [selectedRecipientIds, setSelectedRecipientIds] = useState([])
+  const [allocations, setAllocations] = useState({})
+  const [targetsLoading, setTargetsLoading] = useState(false)
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState('')
-  const [fieldErrors, setFieldErrors] = useState({})
+  const [allocationError, setAllocationError] = useState('')
   const load = useCallback(() => { const query = salesAdminId ? `?salesAdminId=${encodeURIComponent(salesAdminId)}` : ''; return request(`/sales-admins/uploads/${encodeURIComponent(batchId)}/performance${query}`).then((result) => setData(result?.data || null)).catch((reason) => setMessage(reason?.message || 'Unable to load upload progress.')) }, [batchId, salesAdminId])
   useEffect(() => { void load() }, [load])
   const upload = data?.upload || {}
   const rows = data?.rows || []
   const pendingRows = rows.filter((row) => row.followUpStatus === 'NOT_FOLLOWED' && row.leadRecordId)
-  const deadlinePassed = Boolean(upload.deadlineAt && new Date(`${String(upload.deadlineAt).slice(0, 10)}T23:59:59`) < new Date())
-  const status = pendingRows.length === 0 && rows.length ? 'Completed' : upload.progressStatus === 'OVERDUE' || upload.status === 'OVERDUE' ? 'Overdue' : 'In Progress'
+  const reassignableRows = rows.filter((row) => row.reassignEligible === true && row.leadRecordId)
+  const deadlinePassed = reassignableRows.length > 0 || Boolean(upload.deadlineAt && new Date(`${String(upload.deadlineAt).slice(0, 10)}T23:59:59`) < new Date())
+  const status = pendingRows.length === 0 && rows.length ? 'Completed' : reassignableRows.length > 0 || upload.progressStatus === 'OVERDUE' || upload.status === 'OVERDUE' ? 'Overdue' : 'In Progress'
   const totalRows = rows.length
   const completedRows = Math.max(totalRows - pendingRows.length, 0)
   const progressPercent = totalRows ? Math.round((completedRows / totalRows) * 100) : 0
   const deadlineEnd = upload.deadlineAt ? new Date(`${String(upload.deadlineAt).slice(0, 10)}T23:59:59`) : null
   const daysRemaining = deadlineEnd ? Math.ceil((deadlineEnd.getTime() - new Date().getTime()) / 86400000) : null
   const statusOverdue = status === 'Overdue' || upload.progressStatus === 'OVERDUE' || upload.status === 'OVERDUE'
-  const reassignAvailable = statusOverdue || (daysRemaining !== null && daysRemaining < 0)
+  const reassignAvailable = reassignableRows.length > 0
   const remainingLabel = statusOverdue ? 'Overdue' : daysRemaining === null ? 'No deadline' : daysRemaining < 0 ? 'Overdue' : daysRemaining === 0 ? 'Due today' : `${daysRemaining} ${daysRemaining === 1 ? 'DAY' : 'DAYS'} LEFT`
   const loadTargetsForBranch = async (selectedBranchId) => {
-    setAssignedToId('')
+    const requestId = ++targetRequestRef.current
+    setTargetsLoading(true)
+    setSelectedRecipientIds([])
+    setAllocations({})
+    setAllocationError('')
     try {
       const result = await getLeadImportTargets(selectedBranchId || upload.branchId || '')
       const next = result?.data || result || {}
       const targetOptions = (next.targets || []).filter((target) => ['SALES_ADMIN', 'BRANCH_ADMIN'].includes(String(target.role || '').toUpperCase())).map((target) => ({ ...target, role: String(target.role || 'Sales Admin').replaceAll('_', ' ') }))
-      setTargets({ ...next, targets: targetOptions }); setAssignedToId((current) => targetOptions.some((target) => target.id === current) ? current : '')
+      if (requestId === targetRequestRef.current) setTargets({ ...next, targets: targetOptions })
     } catch (reason) {
-      setTargets((current) => ({ ...current, targets: [] }))
-      setMessage(reason?.message || 'Unable to load Sales Admins for the selected branch.')
-    }
+      if (requestId === targetRequestRef.current) { setTargets((current) => ({ ...current, targets: [] })); setAllocationError(reason?.message || 'Unable to load recipients for this branch.') }
+    } finally { if (requestId === targetRequestRef.current) setTargetsLoading(false) }
   }
-  const openDialog = async () => { setMessage(''); setFieldErrors({}); setAssignedToId(''); setBranchId(''); setDeadlineAt(''); setOpen(true); await loadTargetsForBranch(upload.branchId || '') }
+  const openDialog = () => { setMessage(''); setAllocationError(''); setAllocations({}); setSelectedRecipientIds([]); setDistributionMode('single'); setStep(1); setBranchEditable(false); setBranchId(upload.branchId || ''); setOpen(true) }
   useEffect(() => {
     if (!open) return
     // Branch changes must refresh the available Sales Admin list.
@@ -238,15 +247,26 @@ function ExcelUploadFlowOverlay({ batchId, salesAdminId = '' }) {
     // The target loader is intentionally scoped to the selected branch.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [branchId, open, upload.branchId])
+  const selectedTargets = (targets.targets || []).filter((target) => selectedRecipientIds.includes(target.id))
+  const activeAllocations = selectedTargets.map((target) => ({ target, count: distributionMode === 'single' ? reassignableRows.length : Number(allocations[target.id]?.count || 0), deadlineAt: allocations[target.id]?.deadlineAt || '' })).filter((item) => item.count > 0)
+  const allocatedCount = activeAllocations.reduce((sum, item) => sum + item.count, 0)
+  const remainingCount = reassignableRows.length - allocatedCount
+  const allocationReady = activeAllocations.length > 0 && allocatedCount === reassignableRows.length && activeAllocations.every((item) => Boolean(item.deadlineAt))
+  const continueToAllocation = () => {
+    if (!selectedRecipientIds.length) { setAllocationError(distributionMode === 'single' ? 'Select one recipient to continue.' : 'Select at least one recipient to continue.'); return }
+    if (distributionMode === 'single' && selectedRecipientIds.length !== 1) { setAllocationError('Choose exactly one recipient for single distribution.'); return }
+    setAllocationError('')
+    setStep(2)
+  }
   const submit = async () => {
-    const nextErrors = {
-      assignedToId: assignedToId ? '' : 'Select a Sales Admin.',
-      deadlineAt: deadlineAt ? '' : 'Choose a new deadline.',
-    }
-    setFieldErrors(nextErrors)
-    if (Object.values(nextErrors).some(Boolean)) return
+    if (!activeAllocations.length) { setAllocationError('Enter a lead count for at least one recipient.'); return }
+    if (allocatedCount !== reassignableRows.length) { setAllocationError(`Allocate all ${reassignableRows.length} eligible leads. ${remainingCount > 0 ? `${remainingCount} remain unassigned.` : `${Math.abs(remainingCount)} are over-allocated.`}`); return }
+    if (activeAllocations.some((item) => !item.deadlineAt)) { setAllocationError('Choose a new deadline for every selected recipient.'); return }
     setBusy(true); setMessage('')
-    try { await reassignLeadImport(batchId, { rowIds: pendingRows.map((row) => row.id), assignedToId, branchId: branchId || upload.branchId, deadlineAt }); setOpen(false); setMessage('Fresh leads reassigned successfully.'); await load() } catch (reason) { setMessage(reason?.message || 'Unable to reassign fresh leads.') } finally { setBusy(false) }
+    try {
+      await reassignLeadImport(batchId, { rowIds: reassignableRows.map((row) => row.id), branchId: branchId || upload.branchId, allocations: activeAllocations.map((item) => ({ assignedToId: item.target.id, count: item.count, deadlineAt: item.deadlineAt })) })
+      setOpen(false); setMessage('Overdue leads reassigned successfully.'); await load()
+    } catch (reason) { setAllocationError(reason?.message || 'Unable to reassign overdue leads.') } finally { setBusy(false) }
   }
   return <div className={`deadline-workflow-banner${salesAdminId ? ' is-scoped-sales-admin' : ''}`}>
     <div className="deadline-workflow-header">
@@ -265,16 +285,41 @@ function ExcelUploadFlowOverlay({ batchId, salesAdminId = '' }) {
       <div><span>Progress</span><strong>{progressPercent}%</strong></div>
     </div>
     {message ? <div className={message.includes('successfully') ? 'deadline-workflow-message is-success' : 'deadline-workflow-message'}>{message}</div> : null}
-    <button type="button" className="sales-admin-lead-view-action" onClick={() => void openDialog()} disabled={!reassignAvailable || !pendingRows.length} style={{ display: reassignAvailable && pendingRows.length ? undefined : '', opacity: reassignAvailable && pendingRows.length ? 1 : 0.55, cursor: reassignAvailable && pendingRows.length ? 'pointer' : 'not-allowed' }}>Reassign Fresh Leads</button>
-    {open ? <div style={{ position: 'fixed', inset: 0, zIndex: 1400, display: 'grid', placeItems: 'center', padding: 20, background: 'rgba(15,23,42,.55)' }}>
-      <section role="dialog" aria-modal="true" aria-labelledby="reassign-pending-title" style={{ position: 'relative', width: 'min(480px,100%)', display: 'grid', gap: 14, padding: 24, borderRadius: 16, background: '#fff', boxShadow: '0 24px 80px rgba(15,23,42,.3)' }}>
-        <button type="button" aria-label="Close" onClick={() => setOpen(false)} disabled={busy} style={{ position: 'absolute', top: 12, right: 14, border: 0, background: 'transparent', fontSize: 24, lineHeight: 1, color: '#64748b', cursor: 'pointer' }}><X size={18} strokeWidth={2.2} /></button>
-        <h2 id="reassign-pending-title" style={{ margin: 0 }}>Reassign Fresh Leads</h2>
-        <p style={{ margin: 0, color: '#71839a' }}>{pendingRows.length} fresh leads will move to the new assignment.</p>
-        <label>Branch<select value={branchId} onChange={(event) => setBranchId(event.target.value)} style={{ display: 'block', width: '100%', marginTop: 6, padding: 9 }}><option value="">Keep current branch</option>{(targets.branches || []).map((branch) => <option key={branch.id} value={branch.id}>{branch.branchName}</option>)}</select></label>
-        <label>Assigned To<select value={assignedToId} onChange={(event) => { setAssignedToId(event.target.value); setFieldErrors((current) => ({ ...current, assignedToId: '' })) }} aria-invalid={Boolean(fieldErrors.assignedToId)} aria-describedby={fieldErrors.assignedToId ? 'reassign-assignee-error' : undefined} style={{ display: 'block', width: '100%', marginTop: 6, padding: 9 }}><option value="">Select Sales Admin</option>{(targets.targets || []).map((target) => <option key={target.id} value={target.id}>{target.fullName} - {target.role || 'Sales Admin'}</option>)}</select>{fieldErrors.assignedToId ? <small id="reassign-assignee-error" role="alert" style={{ color: '#dc2626', fontSize: 12, fontWeight: 600 }}>{fieldErrors.assignedToId}</small> : null}</label>
-        <label>New deadline<input type="date" min={todayKey()} value={deadlineAt} onChange={(event) => { setDeadlineAt(event.target.value); setFieldErrors((current) => ({ ...current, deadlineAt: '' })) }} aria-invalid={Boolean(fieldErrors.deadlineAt)} aria-describedby={fieldErrors.deadlineAt ? 'reassign-deadline-error' : undefined} style={{ display: 'block', width: '100%', marginTop: 6, padding: 9 }} />{fieldErrors.deadlineAt ? <small id="reassign-deadline-error" role="alert" style={{ color: '#dc2626', fontSize: 12, fontWeight: 600 }}>{fieldErrors.deadlineAt}</small> : null}</label>
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}><button type="button" onClick={() => setOpen(false)} disabled={busy}>Cancel</button><button type="button" className="sales-admin-lead-view-action" onClick={() => void submit()} disabled={busy}>{busy ? 'Reassigning...' : 'Confirm Reassignment'}</button></div>
+    <button type="button" className="sales-admin-lead-view-action" onClick={openDialog} disabled={!reassignAvailable}>Reassign Overdue Leads{reassignableRows.length ? ` (${reassignableRows.length})` : ''}</button>
+    {open ? <div className="lead-reassign-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !busy) setOpen(false) }}>
+      <section className={`lead-reassign-modal${step === 1 ? ' is-step-one' : ''}`} role="dialog" aria-modal="true" aria-labelledby="reassign-pending-title" aria-describedby="reassign-pending-description">
+        <header className="lead-reassign-modal-header"><div className="lead-reassign-modal-icon"><UsersRound size={20} /></div><div><p>DEADLINE FOLLOW-UP</p><h2 id="reassign-pending-title">Reassign overdue leads</h2><span id="reassign-pending-description">Only leads with an expired deadline and no follow-up are included.</span></div><button type="button" className="lead-reassign-modal-close" aria-label="Close" onClick={() => setOpen(false)} disabled={busy}><X size={18} /></button></header>
+        <div className="lead-reassign-modal-body">
+          <div className="lead-reassign-steps" aria-label="Reassignment steps"><button type="button" className={`lead-reassign-step-trigger${step === 1 ? ' is-current' : ' is-done'}`} onClick={() => { setStep(1); setAllocationError('') }} aria-current={step === 1 ? 'step' : undefined}><b>1</b><span>Choose recipients</span></button><i /><button type="button" className={`lead-reassign-step-trigger${step === 2 ? ' is-current' : ''}`} onClick={continueToAllocation} aria-current={step === 2 ? 'step' : undefined}><b>2</b><span>Set allocation</span></button></div>
+          <div className="lead-reassign-context-grid"><div className="lead-reassign-branch-card"><div><span>DESTINATION BRANCH</span><strong>{(targets.branches || []).find((branch) => branch.id === branchId)?.branchName || upload.branchName || 'Select branch'}</strong></div><button type="button" className="lead-reassign-branch-edit" aria-label={branchEditable ? 'Lock destination branch' : 'Change destination branch'} title={branchEditable ? 'Lock branch' : 'Change branch'} onClick={() => { setBranchEditable((value) => !value); setStep(1); setAllocationError('') }} disabled={busy || targetsLoading}><Edit3 size={15} /><span>{branchEditable ? 'Done' : 'Change'}</span></button>{branchEditable ? <select className="lead-reassign-branch-select" value={branchId} onChange={(event) => { setBranchId(event.target.value); setStep(1); setAllocationError('') }} disabled={busy || targetsLoading}><option value="">Select branch</option>{(targets.branches || []).map((branch) => <option key={branch.id} value={branch.id}>{branch.branchName}</option>)}</select> : null}</div><div className="lead-reassign-eligible-count"><span>Eligible to reassign</span><strong>{reassignableRows.length}</strong><small>Overdue · Not followed</small></div></div>
+          {step === 1 ? <>
+            <div className="lead-reassign-recipient-heading"><div><h3>How would you like to distribute?</h3><p>Choose one account or split the eligible leads across several.</p></div></div>
+            <div className="lead-reassign-mode-grid"><button type="button" className={`lead-reassign-mode-card${distributionMode === 'single' ? ' is-active' : ''}`} onClick={() => { setDistributionMode('single'); setSelectedRecipientIds((current) => current.slice(0, 1)); setAllocationError('') }}><strong>Single account</strong><span>Send all {reassignableRows.length} eligible leads to one account.</span></button><button type="button" className={`lead-reassign-mode-card${distributionMode === 'multiple' ? ' is-active' : ''}`} onClick={() => { setDistributionMode('multiple'); setSelectedRecipientIds([]); setAllocationError('') }}><strong>Multiple accounts</strong><span>Select branch admins or assigned sales admins and split the leads.</span></button></div>
+            <div className="lead-reassign-recipient-heading"><div><h3>{distributionMode === 'single' ? 'Select one recipient' : 'Select recipients'}</h3><p>{targets.targets.length} active account{targets.targets.length === 1 ? '' : 's'} assigned to this branch. {distributionMode === 'single' ? 'Choose one account.' : 'Choose one or more accounts.'}</p></div><span>{selectedRecipientIds.length} selected</span></div>
+            {targetsLoading ? <div className="lead-reassign-empty-state">Loading branch recipients...</div> : targets.targets.length ? <details className="lead-reassign-account-dropdown"><summary><strong>{selectedTargets.length ? distributionMode === 'single' ? `${selectedTargets[0].fullName} · ${selectedTargets[0].role}` : `${selectedTargets.length} accounts selected` : distributionMode === 'single' ? 'Choose one account' : 'Choose accounts'}</strong><span>{distributionMode === 'single' ? 'Select one recipient' : 'Select multiple recipients'}</span><ChevronDown size={18} aria-hidden="true" /></summary><div className="lead-reassign-choice-list">{targets.targets.map((target) => {
+              const checked = selectedRecipientIds.includes(target.id)
+              return <label className={`lead-reassign-choice${checked ? ' is-selected' : ''}`} key={target.id}>
+                <input type={distributionMode === 'single' ? 'radio' : 'checkbox'} name="lead-reassign-recipient" checked={checked} onChange={(event) => { setSelectedRecipientIds((current) => distributionMode === 'single' ? (event.target.checked ? [target.id] : []) : event.target.checked ? [...new Set([...current, target.id])] : current.filter((id) => id !== target.id)); setAllocationError('') }} disabled={busy} />
+                <strong>{target.fullName}</strong><span className={`lead-reassign-role-badge ${String(target.role).toLowerCase().replaceAll(' ', '-')}`}>{target.role}</span><small>{(targets.branches || []).find((branch) => branch.id === branchId)?.branchName || upload.branchName || ''}</small>
+              </label>
+            })}</div></details> : <div className="lead-reassign-empty-state">No active Sales Admin or Branch Admin accounts are assigned to this branch.</div>}
+          </> : <>
+            <div className="lead-reassign-recipient-heading"><div><h3>Set lead counts and new deadlines</h3><p>{distributionMode === 'single' ? 'All eligible leads go to the selected account.' : 'Counts must add up to the eligible lead total.'}</p></div><span>{selectedTargets.length} recipient{selectedTargets.length === 1 ? '' : 's'}</span></div>
+            <div className="lead-reassign-recipient-list">{selectedTargets.map((target) => {
+              const allocation = allocations[target.id] || {}
+              const count = distributionMode === 'single' ? reassignableRows.length : allocation.count ?? ''
+              const branchName = targets.branches.find((branch) => branch.id === branchId)?.branchName || upload.branchName || 'Selected branch'
+              return <article className={`lead-reassign-recipient${Number(count) > 0 ? ' is-selected' : ''}`} key={target.id}>
+                <div className="lead-reassign-recipient-identity"><span className={`lead-reassign-role-badge ${String(target.role).toLowerCase().replaceAll(' ', '-')}`}>{target.role}</span><strong>{target.fullName}</strong><small><GitBranch size={12} /> {branchName}</small></div>
+                <label>Leads<input type="text" inputMode="numeric" pattern="[0-9]*" placeholder="0" value={count} readOnly={distributionMode === 'single'} disabled={busy} onChange={(event) => { const value = event.target.value.replace(/\D/g, ''); setAllocations((current) => ({ ...current, [target.id]: { ...current[target.id], count: value } })); setAllocationError('') }} aria-label={`Lead count for ${target.fullName}`} aria-invalid={allocatedCount > reassignableRows.length} /></label>
+                <label>New deadline<input type="date" min={todayKey()} value={allocation.deadlineAt || ''} disabled={busy} onChange={(event) => { setAllocations((current) => ({ ...current, [target.id]: { ...current[target.id], deadlineAt: event.target.value } })); setAllocationError('') }} aria-label={`New deadline for ${target.fullName}`} /></label>
+              </article>
+            })}</div>
+            <div className={`lead-reassign-allocation-summary${remainingCount < 0 ? ' is-error' : remainingCount === 0 ? ' is-complete' : ''}`}><div><span>Assigned</span><strong>{allocatedCount} / {reassignableRows.length}</strong></div><div><span>{remainingCount >= 0 ? 'Remaining' : 'Over limit'}</span><strong>{Math.abs(remainingCount)}</strong></div><small>{remainingCount === 0 ? 'All eligible leads are allocated.' : remainingCount > 0 ? 'Allocate the remaining leads before confirming.' : 'Reduce the allocated counts to continue.'}</small></div>
+          </>}
+          {allocationError ? <p className="lead-reassign-error" role="alert">{allocationError}</p> : null}
+        </div>
+        <footer className="lead-reassign-modal-footer"><span>{step === 1 ? 'Only overdue, not-followed leads are eligible.' : 'Lead IDs stay the same. Assignment history will be recorded.'}</span><div>{step === 2 ? <button type="button" className="lead-reassign-cancel" onClick={() => { setStep(1); setAllocationError('') }} disabled={busy}>Back</button> : <button type="button" className="lead-reassign-cancel" onClick={() => setOpen(false)} disabled={busy}>Cancel</button>}{step === 1 ? <button type="button" className="lead-reassign-confirm" onClick={continueToAllocation} disabled={busy || targetsLoading || !selectedRecipientIds.length}>Next</button> : <button type="button" className="lead-reassign-confirm" onClick={() => void submit()} disabled={busy || targetsLoading}>{busy ? 'Reassigning...' : `Confirm ${allocatedCount || 0} leads`}</button>}</div></footer>
       </section>
     </div> : null}
   </div>
