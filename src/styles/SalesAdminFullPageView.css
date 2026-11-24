@@ -139,3 +139,7 @@ body.sales-admin-distribution-open header, body.sales-admin-distribution-open as
 .sales-admin-distribution-caption { display: block; margin-top: 4px; color: #64748b; font-size: 11px; }
 .distribution-waiting-row .sales-admin-lead-view-action:disabled { cursor: not-allowed; opacity: .55; background: #f1f5f9; color: #94a3b8; border-color: #e2e8f0; }
 .sales-admin-view-table-wrap tr:has(.sales-admin-upload-status.waiting) .sales-admin-lead-view-action { pointer-events: none; cursor: not-allowed; opacity: .55; background: #f1f5f9; color: #94a3b8; border-color: #e2e8f0; }
+.sales-admin-upload-summary-card.pending:before { content: '◷'; background: #fff7df; color: #c18811; }
+.sales-admin-upload-summary-card.upcoming:before { content: '◌'; background: #edf4ff; color: #4f7db9; }
+.sales-admin-upload-report-page .sales-admin-upload-summary-card.pending:before { content: '◷' !important; background-image: none !important; background-color: #fff7df !important; color: #c18811 !important; }
+.sales-admin-upload-report-page .sales-admin-upload-summary-card.upcoming:before { content: '◌' !important; background-image: none !important; background-color: #edf4ff !important; color: #4f7db9 !important; }
