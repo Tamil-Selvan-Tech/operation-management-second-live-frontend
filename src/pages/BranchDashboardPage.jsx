@@ -139,6 +139,7 @@ import { InstituteLeavePage } from './InstituteLeavePage'
 import { FacultyEditRequestsView, ProgressNotificationsView } from '../components/BranchManagementViews'
 import { BranchInstallmentTemplatesPage } from './BranchInstallmentTemplatesPage'
 import { BranchDiscontinuationManagementPage } from './BranchDiscontinuationManagementPage'
+import { BranchSalesAdminLeaveRequestsPage } from './BranchSalesAdminLeaveRequestsPage'
 import { Student360Page } from './Student360Page'
 import { getBranchStudentReportCompletionSummaries } from '../services/branchStudentReportSummaryService'
 import { calculateBatchCourseEndDate, getBatchAvailability } from '../lib/batchAllocation'
@@ -154,6 +155,7 @@ import { buildModernPaymentReceiptHtml } from '../components/payments/RecordPaym
 import { hasSalesCollectedAmount } from '../components/payments/receiptPaymentSource'
 import '../components/payments/RecordPayment.css'
 import '../styles/SalesAdminDashboardPage.css'
+import '../styles/BranchSalesAdminLeaveRequestsPage.css'
 import {
   groupByDate,
   doesBranchNotificationBelongToBranch,
@@ -4333,8 +4335,8 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
     courses: false,
     academic: ['courses', 'course-import'].includes(sidebarActiveSection),
     faculty: ['faculty', 'sales-admin'].includes(sidebarActiveSection),
-    students: ['students', 'student-management', 'completed-students', 'courses', 'batches', 'installments', 'progress-notifications', 'institute-leave', 'faculty-leave', 'discontinuations'].includes(sidebarActiveSection),
-    management: ['institute-leave', 'faculty-leave', 'progress-notifications', 'faculty-edit-requests', 'discontinuations'].includes(sidebarActiveSection),
+    students: ['students', 'student-management', 'completed-students', 'courses', 'batches', 'installments', 'progress-notifications', 'institute-leave', 'faculty-leave', 'sales-admin-leave-requests', 'discontinuations'].includes(sidebarActiveSection),
+    management: ['institute-leave', 'faculty-leave', 'sales-admin-leave-requests', 'progress-notifications', 'faculty-edit-requests', 'discontinuations'].includes(sidebarActiveSection),
   }))
   const [expandedSidebarNestedGroups, setExpandedSidebarNestedGroups] = useState({})
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
@@ -4404,7 +4406,7 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
   }, [isSidebarFlyoutMode, openSidebarFlyout])
 
   useEffect(() => {
-  const parentByChild = { faculty: 'faculty', 'sales-admin-directory': 'sales-crm', 'sales-crm-admitted-students': 'sales-crm', 'sales-crm-admissions': 'sales-crm', 'sales-crm-reports': 'sales-crm', 'lead-management': 'sales-crm', students: 'student-management', 'student-management': 'student-management', 'completed-students': 'student-management', courses: 'academic', batches: 'academic', installments: 'academic', payments: 'academic', 'exams-results': 'academic', 'academic-tests': 'academic', 'institute-leave': 'leave-management', 'faculty-leave': 'leave-management', 'progress-notifications': 'leave-management', 'faculty-edit-requests': 'leave-management', discontinuations: 'leave-management', 'helpdesk-tickets': 'helpdesk', 'helpdesk-knowledge-base': 'helpdesk', 'helpdesk-contact-support': 'helpdesk' }
+  const parentByChild = { faculty: 'faculty', 'sales-admin-directory': 'sales-crm', 'sales-crm-admitted-students': 'sales-crm', 'sales-crm-admissions': 'sales-crm', 'sales-crm-reports': 'sales-crm', 'lead-management': 'sales-crm', students: 'student-management', 'student-management': 'student-management', 'completed-students': 'student-management', courses: 'academic', batches: 'academic', installments: 'academic', payments: 'academic', 'exams-results': 'academic', 'academic-tests': 'academic', 'institute-leave': 'leave-management', 'faculty-leave': 'leave-management', 'sales-admin-leave-requests': 'leave-management', 'progress-notifications': 'leave-management', 'faculty-edit-requests': 'leave-management', discontinuations: 'leave-management', 'helpdesk-tickets': 'helpdesk', 'helpdesk-knowledge-base': 'helpdesk', 'helpdesk-contact-support': 'helpdesk' }
     const parent = sidebarActiveSection === 'sales-admin' ? 'faculty' : parentByChild[sidebarActiveSection]
     if (!parent) return
     setExpandedSidebarGroups((current) => current[parent] ? current : { ...current, [parent]: true })
@@ -4417,7 +4419,7 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
     if (activeSection === 'progress-notifications') {
       setExpandedSidebarNestedGroups((current) => ({ ...current, 'leave-management': true }))
     }
-    if (activeSection === 'institute-leave' || activeSection === 'faculty-leave' || activeSection === 'discontinuations') {
+    if (activeSection === 'institute-leave' || activeSection === 'faculty-leave' || activeSection === 'sales-admin-leave-requests' || activeSection === 'discontinuations') {
       setExpandedSidebarNestedGroups((current) => ({ ...current, 'leave-management': true }))
     }
   }, [activeSection])
@@ -6540,6 +6542,10 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
     }
     if (notificationKind === 'student-discontinuation' || requestDescription.startsWith('DISCONTINUATION_') || requestDescription.startsWith('MOTIVATION_')) {
       goToBranchSection('discontinuations')
+      return
+    }
+    if (notificationKind === 'faculty-leave-request' && requestDescription === 'SALES_ADMIN_LEAVE') {
+      goToBranchSection('sales-admin-leave-requests')
       return
     }
     if (notificationKind === 'faculty-leave-request') {
@@ -11839,6 +11845,7 @@ useEffect(() => {
           { id: 'leave-management', label: 'Leave Management', icon: CalendarDays, children: [
             { id: 'institute-leave', label: 'Institute Leave', icon: CalendarDays },
             { id: 'faculty-leave', label: 'Faculty Leave', icon: CalendarDays },
+            { id: 'sales-admin-leave-requests', label: 'Sales Admin Leave Requests', icon: BriefcaseBusiness },
             { id: 'progress-notifications', label: 'Progress Alerts', icon: Bell },
             { id: 'faculty-edit-requests', label: 'Faculty Edit Requests', icon: FileText },
             { id: 'discontinuations', label: 'Discontinuation', icon: PhoneCall },
@@ -12738,6 +12745,7 @@ useEffect(() => {
               ) : null}
 
               {activeSection === 'institute-leave' || activeSection === 'faculty-leave' ? <InstituteLeavePage key={activeSection} initialViewMode={activeSection === 'faculty-leave' ? 'faculty' : 'institute'} /> : null}
+              {activeSection === 'sales-admin-leave-requests' ? <BranchSalesAdminLeaveRequestsPage /> : null}
               {activeSection === 'progress-notifications' ? <ProgressNotificationsView branch={branchScope} /> : null}
               {activeSection === 'faculty-edit-requests' ? <FacultyEditRequestsView /> : null}
               {activeSection === 'discontinuations' ? <BranchDiscontinuationManagementPage /> : null}
