@@ -184,11 +184,13 @@ export function SalesAdminAdmissionsPage({ readOnlySalesAdmin = false, salesAdmi
     return () => { document.body.style.overflow = previousOverflow }
   }, [isStudentModalOpen])
 
-  const load = useCallback(async () => {
+  const load = useCallback(async ({ silent = false } = {}) => {
     if (loadInFlightRef.current) return
     loadInFlightRef.current = true
-    setLoading(true)
-    setError('')
+    if (!silent) {
+      setLoading(true)
+      setError('')
+    }
     try {
       const params = new URLSearchParams({ page: String(page), limit: '5', status, sortBy, sortOrder: sortBy === 'studentName' ? 'asc' : 'desc', ...(salesAdminId ? { salesAdminId } : {}) })
       if (branchId) params.set('branchId', branchId)
@@ -208,10 +210,10 @@ export function SalesAdminAdmissionsPage({ readOnlySalesAdmin = false, salesAdmi
       setCourses(Array.isArray(result.filters?.courses) ? result.filters.courses : [])
       setBatchRequests(requests)
     } catch (reason) {
-      setError(reason?.message || 'Unable to load student admissions.')
+      if (!silent) setError(reason?.message || 'Unable to load student admissions.')
     } finally {
       loadInFlightRef.current = false
-      setLoading(false)
+      if (!silent) setLoading(false)
     }
   }, [branchId, courseId, page, search, sortBy, status, salesAdminId])
   useEffect(() => {
@@ -221,7 +223,7 @@ export function SalesAdminAdmissionsPage({ readOnlySalesAdmin = false, salesAdmi
 
   useEffect(() => {
     const timer = window.setInterval(() => {
-      if (document.visibilityState === 'visible') void load()
+      if (document.visibilityState === 'visible') void load({ silent: true })
     }, 30000)
     return () => window.clearInterval(timer)
   }, [load])

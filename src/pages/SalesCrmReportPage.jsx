@@ -402,10 +402,10 @@ export function SalesCrmReportPage({ readOnlySalesAdmin = false, branchScoped = 
   const stageSnapshotTotal = totalStageLeads + pendingCompletionCount
   const snapshotStages = [...STAGES.map(([key, label, accent]) => ({ key, label, accent, count: Number(stageBreakdown[key] || 0) })), { key: "pending-completion", label: "Fresh Leads", accent: "green", count: pendingCompletionCount }]
   const metrics = [
-    { key: 'totalRecords', label: appliedFilters.scope === 'admissions' ? 'Admission Students' : 'Report Leads', icon: Users, accent: 'blue', helper: 'Matching selected period' },
+    { key: 'totalRecords', label: appliedFilters.scope === 'admissions' ? 'Admission Students' : 'Total Leads', icon: Users, accent: 'blue', helper: 'Matching selected period' },
     { key: 'convertedLeads', label: 'Admissions', icon: CheckCheck, accent: 'emerald', helper: 'Converted in this report' },
     { key: 'pendingCompletionLeads', label: 'Fresh Leads', icon: Users, accent: 'green', helper: 'New leads awaiting their first call' },
-    { key: 'activeLeads', label: 'Open Leads', icon: CircleDot, accent: 'purple', helper: 'Still in sales pipeline' },
+    { key: 'activeLeads', label: 'Active Leads', icon: CircleDot, accent: 'purple', helper: 'Still in sales pipeline' },
     { key: 'hotLeads', label: 'HOT Leads', icon: Flame, accent: 'orange', helper: 'Currently in HOT stage' },
     { key: 'missingLeads', label: 'Missing Leads', icon: AlertCircle, accent: 'red', helper: 'Open leads without a next follow-up date' },
     { key: 'pendingFollowUps', label: 'Next Follow-ups', icon: Clock3, accent: 'amber', helper: 'Open after period end' },
