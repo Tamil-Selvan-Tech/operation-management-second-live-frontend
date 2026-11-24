@@ -91,6 +91,10 @@ export function NotificationBell({ targetUserId = '', readOnlyView = false }) {
       navigate('/dashboard/sales-admin/admissions')
       return true
     }
+    if ((isSalesAdmin || isScopedSalesAdmin) && kind === 'INSTITUTE_LEAVE') {
+      navigate('/dashboard/sales-admin/calendar')
+      return true
+    }
     return false
   }
 

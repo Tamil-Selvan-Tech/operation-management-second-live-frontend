@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { ChevronLeft, ChevronRight, X } from 'lucide-react'
 import { getSalesAdminCalendarSummary } from '../services/salesAdminCalendarService'
+import { englishHolidayName } from './BranchCalendarPage'
 import '../styles/SalesAdminCalendarPage.css'
 
 const TYPES = { ATTENDANCE: 'Attendance', GOVERNMENT_HOLIDAY: 'Government Holiday', INSTITUTE_LEAVE: 'Institute Holiday', PERMISSION: 'Permission', HALF_DAY: 'Half Day Leave', FULL_DAY: 'Full Day Leave' }
@@ -14,7 +15,7 @@ function eventsForDate(summary, dateKey) {
   const events = []
   const attendance = (summary.attendance || []).find((item) => item.date === dateKey)
   if (attendance) events.push({ type: 'ATTENDANCE', label: `Login ${dateTimeLabel(attendance.firstLoginAt)}\n${attendance.finalLogoutAt ? `${attendance.lastLogoutType === 'WEBSITE_LOGOUT' ? 'Website Logout' : 'Logout'} ${dateTimeLabel(attendance.finalLogoutAt)}` : 'Currently Active'}`, data: attendance })
-  ;(summary.holidays || []).filter((item) => item.date === dateKey).forEach((item) => events.push({ type: item.type, label: item.name, data: item }))
+  ;(summary.holidays || []).filter((item) => item.date === dateKey).forEach((item) => events.push({ type: item.type, label: englishHolidayName(item.name, item.date), data: item }))
   ;(summary.instituteLeaves || []).filter((item) => item.date === dateKey).forEach((item) => events.push({ type: 'INSTITUTE_LEAVE', label: item.name, data: item }))
   ;(summary.leaves || []).filter((item) => item.startDate <= dateKey && item.endDate >= dateKey).forEach((item) => events.push({ type: item.leaveType, label: `${typeLabel(item.leaveType)} · ${item.status}`, data: item }))
   return events
