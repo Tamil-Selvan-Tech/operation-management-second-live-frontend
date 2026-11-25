@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useLocation } from 'react-router-dom'
 import { ArrowLeft, CalendarDays, CheckCircle2, Clock3, Eye, FileSpreadsheet, Flame, RefreshCw, XCircle } from 'lucide-react'
 import { request } from '../services/apiClient'
 
@@ -17,6 +18,7 @@ function Count({ icon: Icon, title, value, tone = 'blue' }) {
 }
 
 export function SalesAdminUploadsPage({ salesAdminId = '' } = {}) {
+  const location = useLocation()
   const [uploads, setUploads] = useState([])
   const [selected, setSelected] = useState(null)
   const [search, setSearch] = useState('')
@@ -33,6 +35,7 @@ export function SalesAdminUploadsPage({ salesAdminId = '' } = {}) {
     finally { setLoading(false) }
   }, [search, salesAdminId])
   useEffect(() => { const timer = window.setTimeout(() => { void load() }, 0); return () => window.clearTimeout(timer) }, [load])
+  useEffect(() => { const batchId = new URLSearchParams(location.search).get('batchId'); if (!batchId || !uploads.length) return; const target = uploads.find((upload) => String(upload.id) === batchId); if (target) setSelected(target) }, [location.search, uploads])
   const filtered = useMemo(() => uploads.filter((upload) => (!search.trim() || String(upload.fileName || '').toLowerCase().includes(search.trim().toLowerCase())) && (statusFilter === 'ALL' || normalizedStatus(upload.status) === statusFilter) && (uploaderFilter === 'ALL' || normalizedStatus(upload.uploadedByRole) === uploaderFilter)), [uploads, search, statusFilter, uploaderFilter])
   const pageCount = Math.max(1, Math.ceil(filtered.length / 5))
   const visibleUploads = filtered.slice((page - 1) * 5, page * 5)

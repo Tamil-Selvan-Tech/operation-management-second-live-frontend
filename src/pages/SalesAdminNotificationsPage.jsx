@@ -11,6 +11,7 @@ const blankMeta = { page: 1, limit: 20, total: 0, totalPages: 1, unreadCount: 0,
 function categoryFor(item) {
   const kind = String(item.kind || '').toUpperCase()
   const marker = String(item.requestDescription || '').toUpperCase()
+  if (String(item.requestDescription || '').startsWith('LEAD_IMPORT_DEADLINE_UPDATED:')) return { label: 'Deadline updated', Icon: CalendarClock, color: 'blue' }
   if (kind === 'PENDING_STUDENT_ADMISSION_REMINDER') return { label: 'Pending HOT Admissions', Icon: Bell, color: 'amber' }
   if (kind.includes('OVERDUE') || marker.startsWith('LEAD_FOLLOW_UP_OVERDUE:')) return { label: 'Overdue Follow-up', Icon: AlertCircle, color: 'red' }
   if (marker.startsWith('LEAD_FOLLOW_UP_DAILY:')) return { label: 'Daily Reminder', Icon: Repeat2, color: 'amber' }
@@ -119,8 +120,11 @@ export function SalesAdminNotificationsPage({ embeddedSalesAdmin = null }) {
   const openNotification = (item) => {
     if (!item.read) void markRead([item.id])
     const kind = String(item.kind || '').toUpperCase()
-    const leadId = String(item.requestDescription || '').split(':')[1]
-    if (['LEAD_FOLLOW_UP_DUE', 'LEAD_FOLLOW_UP_OVERDUE'].includes(kind) && leadId) navigate('/dashboard/sales-admin/leads', { state: { leadId } })
+    const description = String(item.requestDescription || '')
+    const leadId = description.split(':')[1]
+    const deadlineUpdateBatchId = description.startsWith('LEAD_IMPORT_DEADLINE_UPDATED:') ? description.split(':')[1] : ''
+    if (deadlineUpdateBatchId) navigate('/dashboard/sales-admin/uploads?batchId=' + encodeURIComponent(deadlineUpdateBatchId))
+    else if (['LEAD_FOLLOW_UP_DUE', 'LEAD_FOLLOW_UP_OVERDUE'].includes(kind) && leadId) navigate('/dashboard/sales-admin/leads', { state: { leadId } })
     else if (kind === 'SALES_CRM_MONTHLY_REPORT') navigate('/dashboard/sales-admin/reports')
     else if (kind === 'PENDING_STUDENT_ADMISSION_REMINDER') navigate('/dashboard/sales-admin/admissions?status=PENDING_HOT')
     else if (kind === 'SALES_CRM_BATCH_REQUEST_UPDATE') navigate('/dashboard/sales-admin/admissions')
@@ -153,6 +157,7 @@ export function SalesAdminNotificationsPage({ embeddedSalesAdmin = null }) {
       const { student, leadId } = notificationMetadata(item)
       const kind = String(item.kind || '').toUpperCase()
       const canOpenLead = ['LEAD_FOLLOW_UP_DUE', 'LEAD_FOLLOW_UP_OVERDUE'].includes(kind) && Boolean(String(item.requestDescription || '').split(':')[1])
+      const canOpenUpload = String(item.requestDescription || '').startsWith('LEAD_IMPORT_DEADLINE_UPDATED:')
       const canOpenReport = kind === 'SALES_CRM_MONTHLY_REPORT'
       const canOpenPendingAdmissions = kind === 'PENDING_STUDENT_ADMISSION_REMINDER'
       return <article key={item.id} className={`sales-admin-notification-card${item.read ? '' : ' is-unread'}`}>
@@ -161,7 +166,7 @@ export function SalesAdminNotificationsPage({ embeddedSalesAdmin = null }) {
           <div className="sales-admin-notification-title-row"><h3>{item.title}</h3><span className={`sales-admin-notification-state${item.read ? '' : ' is-unread'}`}>{item.read ? 'Read' : 'Unread'}</span></div>
           {student || leadId ? <div className="sales-admin-notification-context">{student ? <strong>{student}</strong> : null}{leadId ? <span>Lead ID: {leadId}</span> : null}</div> : null}
           <p>{item.message}</p>
-          <div className="sales-admin-notification-card-footer"><span className={`sales-admin-notification-category is-${color}`}>{label}</span><div>{!embeddedView && !item.read ? <button type="button" className="sales-admin-notification-mark-one" onClick={() => void markRead([item.id])} disabled={actionLoading}><Check size={14} />Mark as read</button> : null}{canOpenLead || canOpenReport || canOpenPendingAdmissions ? <button type="button" className="sales-admin-notification-view" onClick={() => openNotification(item)}>{canOpenLead ? 'View Lead' : canOpenReport ? 'View Report' : (item.actionLabel || 'View Pending Admissions')} <ExternalLink size={14} /></button> : null}</div></div>
+          <div className="sales-admin-notification-card-footer"><span className={`sales-admin-notification-category is-${color}`}>{label}</span><div>{!embeddedView && !item.read ? <button type="button" className="sales-admin-notification-mark-one" onClick={() => void markRead([item.id])} disabled={actionLoading}><Check size={14} />Mark as read</button> : null}{canOpenLead || canOpenUpload || canOpenReport || canOpenPendingAdmissions ? <button type="button" className="sales-admin-notification-view" onClick={() => openNotification(item)}>{canOpenLead ? 'View Lead' : canOpenUpload ? 'View Upload' : canOpenReport ? 'View Report' : (item.actionLabel || 'View Pending Admissions')} <ExternalLink size={14} /></button> : null}</div></div>
         </div>
         <time className="sales-admin-notification-created" dateTime={item.createdAt || undefined}>{formattedCreatedAt(item.createdAt, item.timezone)}</time>
         {!item.read ? <span className="sales-admin-notification-dot" aria-label="Unread notification" /> : null}

@@ -4471,9 +4471,11 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
       }
 
       setIsMobileSidebarOpen(false)
+      const params = new URLSearchParams({ section: nextSection })
       const view = String(options?.view || '').trim()
-      navigate(`/branch-dashboard?section=${encodeURIComponent(nextSection)}${view ? `&view=${encodeURIComponent(view)}` : ''}`, { replace })
-    },
+      if (view) params.set('view', view)
+      for (const key of ['adminId', 'batchId']) { const value = String(options?.[key] || '').trim(); if (value) params.set(key, value) }
+      navigate(`/branch-dashboard?${params.toString()}`, { replace })    },
     [embeddedMode, location.pathname, navigate],
   )
   const [branchProfile, setBranchProfile] = useState(null)
@@ -6527,6 +6529,13 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
 
     setIsNotificationMenuOpen(false)
     const requestDescription = String(notification?.requestDescription || '').trim()
+    if (notificationKind === 'lead-import-assigned' && requestDescription.startsWith('LEAD_IMPORT_DEADLINE_UPDATED:')) {
+      const [, batchId, , salesAdminIds = ''] = requestDescription.split(':')
+      const salesAdminId = salesAdminIds.split(',').map((value) => value.trim()).find(Boolean)
+      if (salesAdminId && batchId) goToBranchSection('sales-admin-directory', { adminId: salesAdminId, batchId })
+      else goToBranchSection('lead-management')
+      return
+    }
     if (notificationKind === 'sales-crm-admission' || requestDescription.startsWith('BRANCH_STUDENT:')) {
       const studentKey = requestDescription.replace(/^BRANCH_STUDENT:/, '').trim().toLowerCase()
       goToBranchSection('students')
