@@ -8,6 +8,7 @@ const errorText = (error) => error?.body?.message || error?.message || 'Unable t
 const dateText = (value) => value ? new Date(value).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'UTC' }) : '-'
 const inputDate = (value) => value ? new Date(value).toISOString().slice(0, 10) : ''
 const today = () => new Date().toISOString().slice(0, 10)
+const PAGE_SIZE = 5
 
 export function LeadUploadHistory({ onClose, canEdit = true }) {
   const [items, setItems] = useState([])
@@ -17,13 +18,16 @@ export function LeadUploadHistory({ onClose, canEdit = true }) {
   const [draftDeadline, setDraftDeadline] = useState('')
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
+  const [page, setPage] = useState(1)
 
   const load = useCallback(async () => {
     setLoading(true)
     setError('')
     try {
       const result = unwrap(await listLeadImportHistory())
-      setItems(Array.isArray(result) ? result : [])
+      const nextItems = Array.isArray(result) ? result : []
+      setItems(nextItems)
+      setPage((current) => Math.min(current, Math.max(1, Math.ceil(nextItems.length / PAGE_SIZE))))
     } catch (reason) {
       setError(errorText(reason))
     } finally {
@@ -35,6 +39,9 @@ export function LeadUploadHistory({ onClose, canEdit = true }) {
     const timer = window.setTimeout(() => { void load() }, 0)
     return () => window.clearTimeout(timer)
   }, [load])
+
+  const pageCount = Math.max(1, Math.ceil(items.length / PAGE_SIZE))
+  const visibleItems = items.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
 
   const beginEdit = (item) => {
     setNotice('')
@@ -63,10 +70,10 @@ export function LeadUploadHistory({ onClose, canEdit = true }) {
   return (
     <div className="lead-history-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose?.() }}>
       <section className="lead-history-dialog" role="dialog" aria-modal="true" aria-labelledby="lead-history-title">
-        <header className="lead-history-header"><div><p>SALES CRM</p><h2 id="lead-history-title">Excel Upload History</h2><span>Review progress and edit the active deadline for pending leads.</span></div><div className="lead-history-actions"><button type="button" onClick={() => void load()} disabled={loading} aria-label="Refresh history"><RefreshCw size={16} className={loading ? 'lead-history-spin' : ''} /></button><button type="button" onClick={onClose} aria-label="Close"><X size={19} /></button></div></header>
+        <header className="lead-history-header"><div><p>SALES CRM</p><h2 id="lead-history-title">Excel Upload History</h2><span>Review upload progress, deadlines and assignment history.</span></div><div className="lead-history-actions"><button type="button" onClick={() => void load()} disabled={loading} aria-label="Refresh history"><RefreshCw size={16} className={loading ? 'lead-history-spin' : ''} /></button><button type="button" onClick={onClose} aria-label="Close"><X size={19} /></button></div></header>
         {error ? <div className="lead-history-message is-error" role="alert">{error}</div> : null}
         {notice ? <div className="lead-history-message is-success">{notice}</div> : null}
-        {loading ? <div className="lead-history-empty">Loading upload history...</div> : items.length ? <div className="lead-history-list">{items.map((item) => {
+        {loading ? <div className="lead-history-empty">Loading upload history...</div> : items.length ? (<><div className="lead-history-list">{visibleItems.map((item) => {
           const pending = Number(item.pendingLeadCount ?? item.pendingRows ?? 0)
           const completed = Number(item.completedLeadCount ?? item.activeRows ?? 0)
           const editing = editingId === item.id
@@ -76,7 +83,7 @@ export function LeadUploadHistory({ onClose, canEdit = true }) {
             {canEdit ? <div className="lead-history-edit">{editing ? <><input type="date" value={draftDeadline} min={today()} onChange={(event) => setDraftDeadline(event.target.value)} aria-label="New completion deadline" /><button type="button" className="is-primary" onClick={() => void save(item)} disabled={!draftDeadline || savingId === item.id}><Save size={15} />{savingId === item.id ? 'Saving...' : 'Save deadline'}</button><button type="button" onClick={() => setEditingId('')} disabled={Boolean(savingId)}>Cancel</button></> : <button type="button" onClick={() => beginEdit(item)} disabled={!pending}><Pencil size={15} />{pending ? 'Edit / Extend deadline' : 'All leads completed'}</button>}</div> : null}
             {item.history?.length ? <details className="lead-history-changes"><summary>View deadline / assignment history ({item.history.length})</summary>{item.history.map((change) => <div key={change.id}><span>{dateText(change.createdAt)}</span><span>{dateText(change.previousDeadlineAt)} → {dateText(change.newDeadlineAt)}</span><b>{change.leadCount} leads</b></div>)}</details> : null}
           </article>
-        })}</div> : <div className="lead-history-empty">No Excel uploads found.</div>}
+        })}</div>{pageCount > 1 ? <div className="lead-history-pagination"><span>Page {page} of {pageCount}</span><div><button type="button" onClick={() => setPage((current) => Math.max(1, current - 1))} disabled={page === 1}>Previous</button><button type="button" onClick={() => setPage((current) => Math.min(pageCount, current + 1))} disabled={page === pageCount}>Next</button></div></div> : null}</>) : <div className="lead-history-empty">No Excel uploads found.</div>}
       </section>
     </div>
   )
