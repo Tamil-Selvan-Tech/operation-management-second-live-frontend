@@ -52,6 +52,17 @@ export function listActiveLeadImports() {
   return request('/leads/import/jobs/active')
 }
 
+export function listLeadImportHistory() {
+  return request('/leads/import/history')
+}
+
+export function updateLeadImportDeadline(batchId, deadlineAt) {
+  return request(`/leads/import/batches/${encodeURIComponent(batchId)}/deadline`, {
+    method: 'PATCH',
+    body: JSON.stringify({ deadlineAt }),
+  })
+}
+
 export async function importLeadRows(rows, options = {}) {
   const createdResponse = await createLeadImportJob(rows, options)
   const created = createdResponse?.data || createdResponse || {}

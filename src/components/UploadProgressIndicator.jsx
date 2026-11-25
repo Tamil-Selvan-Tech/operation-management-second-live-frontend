@@ -8,6 +8,7 @@ import { loadSession } from '../lib/session'
 import { listActiveLeadImports } from '../services/leadImportService'
 import { downloadCourseImportErrors, listCourseImportJobs, retryCourseImportJob } from '../services/courseImportService'
 import { LeadDistributionManager } from './LeadDistributionManager'
+import { LeadUploadHistory } from './LeadUploadHistory'
 
 function dismissedStorageKey(userId) {
   return `cispro.dismissedUploadProgressIds:${userId || 'anonymous'}`
@@ -69,6 +70,7 @@ export function UploadProgressIndicator() {
   })
   const [open, setOpen] = useState(false)
   const [distributionManagerOpen, setDistributionManagerOpen] = useState(false)
+  const [uploadHistoryOpen, setUploadHistoryOpen] = useState(false)
   const [distributionJobId, setDistributionJobId] = useState('')
   const [refreshVersion, setRefreshVersion] = useState(0)
   const [popoverPosition, setPopoverPosition] = useState(null)
@@ -216,7 +218,7 @@ export function UploadProgressIndicator() {
       {activeCount ? <span className="upload-progress-button-meter" aria-hidden="true"><i style={{ width: `${activeProgress || 28}%` }} /></span> : null}
     </button>
     {open ? createPortal(<div ref={popoverRef} className="upload-progress-popover" role="status" style={{ position: 'fixed', left: popoverPosition?.left ?? 0, top: popoverPosition?.top ?? 0, right: 'auto', transform: 'none', visibility: popoverPosition ? 'visible' : 'hidden', zIndex: 2147483647 }}>
-      <div className="upload-progress-popover-head"><strong>Upload activity</strong><button type="button" onClick={() => setOpen(false)} aria-label="Close upload activity"><X size={16} strokeWidth={2} /></button></div>
+      <div className="upload-progress-popover-head"><strong>Upload activity</strong><span><button type="button" onClick={() => { setUploadHistoryOpen(true); setOpen(false) }}>Excel history</button><button type="button" onClick={() => setOpen(false)} aria-label="Close upload activity"><X size={16} strokeWidth={2} /></button></span></div>
       <div className="upload-progress-list">{visibleUploads.length ? visibleUploads.map((item) => <article key={item.id} className={`upload-progress-item is-${String(item.status || '').toLowerCase()}`}>
         <span className="upload-progress-item-icon">{isRunning(item) ? <LoaderCircle className="upload-progress-spin" size={16} /> : isAwaitingDistribution(item) ? <Clock3 size={16} /> : item.status === 'FAILED' ? <XCircle size={16} /> : <CheckCircle2 size={16} />}</span>
         <div><strong title={item.label}>{item.label}</strong><small>{statusText(item)}</small>{item.type === 'course' && !isRunning(item) && item.failed > 0 ? <span className="upload-progress-item-actions"><button type="button" onClick={() => void handleCourseErrors(item)}>Download errors</button>{['COMPLETED_WITH_ERRORS', 'FAILED'].includes(String(item.status).toUpperCase()) ? <button type="button" onClick={() => void handleCourseRetry(item)}>Retry failed</button> : null}</span> : null}{isRunning(item) ? <div className={`upload-progress-track${Number(item.progress || 0) <= 0 ? ' is-indeterminate' : ''}`}><i style={{ width: `${Math.max(0, Math.min(100, Number(item.progress || 0))) || 28}%` }} /></div> : null}{sessionRole === 'super-admin' && item.type === 'lead' && item.directDistribution && isAwaitingDistribution(item) ? <span className="upload-progress-item-actions"><button type="button" onClick={() => { setDistributionJobId(item.jobId || ''); setDistributionManagerOpen(true); setOpen(false) }}>Distribute remaining leads</button></span> : null}</div>
@@ -224,5 +226,6 @@ export function UploadProgressIndicator() {
       </article>) : <p className="upload-progress-empty">No recent upload activity.</p>}</div>
     </div>, document.body) : null}
     {distributionManagerOpen ? <LeadDistributionManager currentUser={sessionUser} initialJobId={distributionJobId} onClose={() => setDistributionManagerOpen(false)} onDistributed={() => setRefreshVersion((value) => value + 1)} /> : null}
+    {uploadHistoryOpen ? <LeadUploadHistory canEdit={sessionRole === 'super-admin'} onClose={() => setUploadHistoryOpen(false)} /> : null}
   </div>
 }

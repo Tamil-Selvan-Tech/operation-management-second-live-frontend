@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Download, RefreshCw, Search, Upload } from 'lucide-react'
+import { ClipboardList, Download, RefreshCw, Search, Upload } from 'lucide-react'
 import { request, requestBlob } from '../services/apiClient'
 import { LeadExcelUploadModal } from './LeadExcelUploadModal'
+import { LeadUploadHistory } from './LeadUploadHistory'
 
 const text = (value, fallback = '-') => String(value ?? '').trim() || fallback
 const dateLabel = (value) => {
@@ -38,6 +39,7 @@ export function SuperAdminSalesCrmPanel({ view = 'leads', students = [], student
   const [downloadBranchFilter, setDownloadBranchFilter] = useState('all')
   const [downloadError, setDownloadError] = useState('')
   const [leadImportOpen, setLeadImportOpen] = useState(false)
+  const [uploadHistoryOpen, setUploadHistoryOpen] = useState(false)
   const admissionRows = useMemo(() => students.filter((student) => student?.admissionDate || student?.sourceLeadId || student?.admissionSource), [students])
 
   useEffect(() => {
@@ -124,7 +126,7 @@ export function SuperAdminSalesCrmPanel({ view = 'leads', students = [], student
         <div><p className="branch-management-kicker">Sales &amp; CRM</p><h1 id="super-admin-sales-crm-title">{title}</h1><p>{description}</p></div>
         <div className="super-admin-sales-crm-actions">
           <button type="button" className="super-admin-outline-action" onClick={() => { setError(''); setLoading(true); setReloadKey((value) => value + 1) }} disabled={loading}><RefreshCw size={16} className={loading ? 'is-spinning' : ''} /> Refresh</button>
-          {!isAdmissions ? <button type="button" className="super-admin-primary-action" onClick={() => setLeadImportOpen(true)}><Upload size={16} /> Upload Lead Excel</button> : null}
+          {!isAdmissions ? <><button type="button" className="super-admin-outline-action" onClick={() => setUploadHistoryOpen(true)}><ClipboardList size={16} /> Upload History</button><button type="button" className="super-admin-primary-action" onClick={() => setLeadImportOpen(true)}><Upload size={16} /> Upload Lead Excel</button></> : null}
           <button type="button" className="super-admin-primary-action" onClick={() => { setDownloadError(''); setDownloadBranchFilter(branchFilter); setIsDownloadOpen(true) }} disabled={downloading}><Download size={16} /> Download Excel</button>
         </div>
       </header>
@@ -146,6 +148,7 @@ export function SuperAdminSalesCrmPanel({ view = 'leads', students = [], student
       )}
       {!(isAdmissions ? studentsLoading : loading) && !error && filteredRows.length > pageSize ? <div className="super-admin-sales-crm-pagination"><span>Page {safePage} of {totalPages}</span><div><button type="button" onClick={() => setCurrentPage((page) => Math.max(1, page - 1))} disabled={safePage === 1}>Previous</button><button type="button" onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))} disabled={safePage === totalPages}>Next</button></div></div> : null}
       {!isAdmissions ? <LeadExcelUploadModal isOpen={leadImportOpen} onClose={() => setLeadImportOpen(false)} currentUser={{ role: 'SUPER_ADMIN', ...(currentUser || {}) }} onImported={() => { setError(''); setLoading(true); setReloadKey((value) => value + 1) }} /> : null}
+      {!isAdmissions && uploadHistoryOpen ? <LeadUploadHistory onClose={() => setUploadHistoryOpen(false)} /> : null}
       {isDownloadOpen ? <div className="super-admin-sales-crm-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !downloading) setIsDownloadOpen(false) }}><section className="super-admin-sales-crm-download-modal" role="dialog" aria-modal="true" aria-labelledby="sales-crm-download-title"><div className="super-admin-sales-crm-download-heading"><div><p>DOWNLOAD REPORT</p><h2 id="sales-crm-download-title">{isAdmissions ? 'Admission Students Excel' : 'Lead Management Excel'}</h2></div><button type="button" onClick={() => setIsDownloadOpen(false)} disabled={downloading} aria-label="Close">×</button></div><div className="super-admin-sales-crm-date-fields"><label>From Date<input type="date" value={fromDate} onChange={(event) => setFromDate(event.target.value)} /></label><label>To Date<input type="date" value={toDate} onChange={(event) => setToDate(event.target.value)} /></label><label className="super-admin-sales-crm-download-branch">Branch<select value={downloadBranchFilter} onChange={(event) => setDownloadBranchFilter(event.target.value)}><option value="all">All branches</option>{branches.map((branch) => { const value = branch.id || branch.branchId; return <option key={value} value={value}>{branch.branchName || branch.branchId || 'Unnamed branch'}</option> })}</select></label></div>{downloadError ? <p className="super-admin-sales-crm-download-error" role="alert">{downloadError}</p> : null}<div className="super-admin-sales-crm-download-actions"><button type="button" onClick={() => setIsDownloadOpen(false)} disabled={downloading}>Cancel</button><button type="button" className="super-admin-primary-action" onClick={() => void downloadReport()} disabled={downloading}>{downloading ? 'Preparing...' : 'Download Excel'}</button></div></section></div> : null}
     </section>
   )
