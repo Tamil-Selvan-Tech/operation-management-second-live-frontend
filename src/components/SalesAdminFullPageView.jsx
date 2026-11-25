@@ -89,9 +89,40 @@ function UploadDeadlineAction({ upload, onUpdated, onView }) {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [menuOpen, setMenuOpen] = useState(false)
+  const [clickLocked, setClickLocked] = useState(false)
+  const [menuPosition, setMenuPosition] = useState({ left: 8, top: 8 })
+  const menuRef = useRef(null)
   const uploadStatus = String(upload.status || '').toUpperCase()
   const canEditDeadline = !['COMPLETED', 'COMPLETED_WITH_ERRORS', 'REASSIGNED'].includes(uploadStatus) && !uploadStatus.includes('REASSIGN')
   const pending = Number(upload.pendingLeadCount ?? upload.pendingRows ?? 0) > 0 || canEditDeadline
+  const positionMenu = () => {
+    const trigger = menuRef.current?.querySelector('.sales-admin-actions-trigger')
+    if (!trigger) return
+    const rect = trigger.getBoundingClientRect()
+    const menuWidth = 204
+    setMenuPosition({ left: Math.max(8, Math.min(rect.left - menuWidth - 6, window.innerWidth - menuWidth - 8)), top: Math.max(8, rect.top) })
+  }
+  useEffect(() => {
+    if (!menuOpen) return undefined
+    positionMenu()
+    window.addEventListener('scroll', positionMenu, true)
+    window.addEventListener('resize', positionMenu)
+    return () => {
+      window.removeEventListener('scroll', positionMenu, true)
+      window.removeEventListener('resize', positionMenu)
+    }
+  }, [menuOpen])
+  useEffect(() => {
+    if (!clickLocked) return undefined
+    const closeOnOutsideClick = (event) => {
+      if (!menuRef.current?.contains(event.target)) {
+        setClickLocked(false)
+        setMenuOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', closeOnOutsideClick)
+    return () => document.removeEventListener('mousedown', closeOnOutsideClick)
+  }, [clickLocked])
   const save = async () => {
     if (!value || saving || !upload.id) return
     setSaving(true); setError('')
@@ -104,7 +135,8 @@ function UploadDeadlineAction({ upload, onUpdated, onView }) {
     } finally { setSaving(false) }
   }
   if (editing) return <span className="sales-admin-deadline-editor" onClick={(event) => event.stopPropagation()}><input type="date" value={value} min={todayKey()} onClick={(event) => event.stopPropagation()} onChange={(event) => setValue(event.target.value)} aria-label="New completion deadline" /><button type="button" className="sales-admin-lead-view-action" onClick={(event) => { event.stopPropagation(); void save() }} disabled={!value || saving}>{saving ? 'Saving...' : 'Save'}</button><button type="button" className="sales-admin-lead-view-action" onClick={(event) => { event.stopPropagation(); setEditing(false) }} disabled={saving}>Cancel</button>{error ? <small role="alert">{error}</small> : null}</span>
-  return <span className="sales-admin-actions-menu" onClick={(event) => event.stopPropagation()} onMouseEnter={() => setMenuOpen(true)} onMouseLeave={() => setMenuOpen(false)}><button type="button" className="sales-admin-actions-trigger" aria-label="More upload actions" aria-expanded={menuOpen} onClick={() => setMenuOpen((current) => !current)}><MoreVertical size={18} /></button>{menuOpen ? <span className="sales-admin-actions-dropdown" role="menu">{canEditDeadline ? <button type="button" onClick={() => { setMenuOpen(false); setValue(deadlineInputValue(upload.deadlineAt)); setEditing(true) }} disabled={!pending}><Edit3 size={14} /> Edit / Extend deadline</button> : null}<button type="button" onClick={() => { setMenuOpen(false); onView?.(upload) }}><Eye size={14} /> View</button></span> : null}</span>
+  const closeMenu = () => { setClickLocked(false); setMenuOpen(false) }
+  return <span ref={menuRef} className="sales-admin-actions-menu" onClick={(event) => event.stopPropagation()} onMouseEnter={() => { setMenuOpen(true); positionMenu() }} onMouseLeave={() => { if (!clickLocked) setMenuOpen(false) }}><button type="button" className="sales-admin-actions-trigger" aria-label="More upload actions" aria-expanded={menuOpen} onClick={() => { setClickLocked((current) => !current); setMenuOpen(true); positionMenu() }}><MoreVertical size={18} /></button>{menuOpen ? <span className="sales-admin-actions-dropdown" style={{ '--menu-left': `${menuPosition.left}px`, '--menu-top': `${menuPosition.top}px` }} role="menu">{canEditDeadline ? <button type="button" onClick={() => { closeMenu(); setValue(deadlineInputValue(upload.deadlineAt)); setEditing(true) }} disabled={!pending}><Edit3 size={14} /> Edit / Extend deadline</button> : null}<button type="button" onClick={() => { closeMenu(); onView?.(upload) }}><Eye size={14} /> View</button></span> : null}</span>
 }
 function leadStageLabel(lead) { return lead.status === 'CONVERTED' ? 'Admission' : String(lead.stage || '—').replaceAll('_', ' ') }
 function LeadDetailsSection({ leadDetails, branches = [] }) {
