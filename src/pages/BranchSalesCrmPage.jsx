@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useLocation } from 'react-router-dom'
 import { Activity, ArrowRightLeft, BriefcaseBusiness, CalendarDays, FileSpreadsheet, GraduationCap, Mail, Phone, Search, Upload, Users, X } from 'lucide-react'
 import { request } from '../services/apiClient'
 import { SalesCrmReportSubmissionModal } from '../components/SalesCrmReportSubmissionModal'
@@ -108,6 +109,18 @@ export default function BranchSalesCrmPage({ view = 'admins', title = 'Sales & C
     }
   }, [activeTab, loadAdmissions, loadSalesAdmins])
 
+  useEffect(() => {
+    if (activeTab !== 'admins' || !adminsLoaded) return
+    const params = new URLSearchParams(location.search)
+    const adminId = params.get('adminId')
+    const batchId = params.get('batchId')
+    if (!adminId || !batchId) return
+    const target = salesAdmins.find((admin) => [admin.userId, admin.id].some((value) => String(value || '') === adminId))
+    if (!target) return
+    setSelectedUploadId(batchId)
+    setSelectedAdmin(target)
+  }, [activeTab, adminsLoaded, location.search, salesAdmins])
+
   const query = search.trim().toLowerCase()
   const filteredRows = useMemo(() => {
     const rows = activeTab === 'admins' ? salesAdmins : admissions.filter((item) => item.status === 'ADMITTED')
@@ -135,7 +148,7 @@ export default function BranchSalesCrmPage({ view = 'admins', title = 'Sales & C
   const hasLoaded = activeTab === 'admins' ? adminsLoaded : admissionsLoaded
 
   if (selectedAdmin && activeTab === 'admins') {
-    return <SalesAdminFullPageView admin={{ ...selectedAdmin, id: selectedAdmin.userId || selectedAdmin.id, fullName: selectedAdmin.name, email: selectedAdmin.email, phone: selectedAdmin.phone }} branchScoped showEdit={false} onBack={() => setSelectedAdmin(null)} />
+    return <SalesAdminFullPageView admin={{ ...selectedAdmin, id: selectedAdmin.userId || selectedAdmin.id, fullName: selectedAdmin.name, email: selectedAdmin.email, phone: selectedAdmin.phone }} branchScoped showEdit={false} initialTab={selectedUploadId ? 'excel-upload' : 'overview'} initialUploadId={selectedUploadId} onBack={() => { setSelectedAdmin(null); setSelectedUploadId('') }} />
   }
 
   return (

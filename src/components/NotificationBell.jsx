@@ -83,6 +83,11 @@ export function NotificationBell({ targetUserId = '', readOnlyView = false }) {
       navigate('/dashboard/sales-admin/admissions?status=PENDING_HOT')
       return true
     }
+    if ((isSalesAdmin || isScopedSalesAdmin) && kind === 'LEAD_IMPORT_ASSIGNED' && description.startsWith('LEAD_IMPORT_DEADLINE_UPDATED:')) {
+      const batchId = description.split(':')[1]
+      if (batchId) navigate('/dashboard/sales-admin/uploads?batchId=' + encodeURIComponent(batchId))
+      return true
+    }
     if ((isSalesAdmin || isScopedSalesAdmin) && kind === 'LEAD_IMPORT_COMPLETED') {
       navigate('/dashboard/sales-admin/leads')
       return true
