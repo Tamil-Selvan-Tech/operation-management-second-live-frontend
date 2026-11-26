@@ -6196,7 +6196,7 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
               String(notification.kind || '').startsWith('course-edit-') ||
               kind === 'sales-crm-admission' ||
               kind === 'sales-crm-batch-request' ||
-              ['account-role-updated', 'email-changed', 'branch-admin-replaced'].includes(kind) ||
+              ['account-role-updated', 'email-changed', 'branch-admin-replaced', 'sales-admin-branch-transfer', 'sales-admin-lead-handover'].includes(kind) ||
               (String(notification.targetUserId || '').trim() === currentBranchUserId && kind !== 'lead-import-assigned') ||
               ['lead-follow-up-due', 'lead-follow-up-overdue', 'lead-follow-up-scheduled'].includes(kind) ||
               isCurrentBranchLeadImport ||
@@ -6529,6 +6529,10 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
 
     setIsNotificationMenuOpen(false)
     const requestDescription = String(notification?.requestDescription || '').trim()
+    if (['sales-admin-branch-transfer', 'sales-admin-lead-handover'].includes(notificationKind)) {
+      goToBranchSection(notificationKind === 'sales-admin-branch-transfer' ? 'sales-admin-directory' : 'lead-management')
+      return
+    }
     if (notificationKind === 'lead-import-assigned' && requestDescription.startsWith('LEAD_IMPORT_DEADLINE_UPDATED:')) {
       const [, batchId, , salesAdminIds = ''] = requestDescription.split(':')
       const salesAdminId = salesAdminIds.split(',').map((value) => value.trim()).find(Boolean)

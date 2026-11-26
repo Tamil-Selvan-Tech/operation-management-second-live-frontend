@@ -12,6 +12,7 @@ import { logoutSalesAdminWebsite, logoutSalesAdminWorkClock } from '../services/
 import { SalesAdminNotificationsPage } from './SalesAdminNotificationsPage'
 import { SalesAdminAdmissionsPage } from './SalesAdminAdmissionsPage'
 import { SalesAdminProfilePage } from './SalesAdminProfilePage'
+import SalesAdminBranchContext from '../components/SalesAdminBranchContext'
 import { SalesAdminUploadsPage } from './SalesAdminUploadsPage'
 import { UploadProgressIndicator } from '../components/UploadProgressIndicator'
 import '../styles/SuperAdminDashboardPage.css'
@@ -102,6 +103,7 @@ export function SalesAdminDashboardPage({ embeddedBranchAdmin = false, embeddedS
   const [datePreset, setDatePreset] = useState('THIS_MONTH')
   const [dateRange, setDateRange] = useState(() => dateRangeForPreset('THIS_MONTH'))
   const [selectedBranchId, setSelectedBranchId] = useState('')
+  const [branchContextVersion, setBranchContextVersion] = useState(0)
   const [error, setError] = useState('')
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false)
@@ -264,7 +266,8 @@ export function SalesAdminDashboardPage({ embeddedBranchAdmin = false, embeddedS
           </header>
 
           <main className="super-admin-content">
-            {isLeadManagement ? <LeadManagementPage salesAdminReadOnly={readOnlySalesAdmin} salesAdminId={embeddedSuperAdmin ? embeddedSalesAdmin?.salesAdminId : ''} superAdminView={embeddedSuperAdmin} salesAdminView initialPendingTab={embeddedSuperAdmin && embeddedPendingTab} /> : isUploads ? <SalesAdminUploadsPage salesAdminId={embeddedSuperAdmin ? (embeddedSalesAdmin?.salesAdminId || '') : ''} /> : isReports ? <SalesCrmReportPage readOnlySalesAdmin={readOnlySalesAdmin} salesAdminId={embeddedSuperAdmin ? embeddedSalesAdmin?.salesAdminId : ''} onOpenPending={embeddedSuperAdmin ? () => { setEmbeddedPendingTab(true); setEmbeddedSection('leads') } : undefined} /> : isNotifications ? <SalesAdminNotificationsPage embeddedSalesAdmin={embeddedSalesAdmin} /> : isAdmissions ? <SalesAdminAdmissionsPage key={location.search} readOnlySalesAdmin={readOnlySalesAdmin} salesAdminId={embeddedSuperAdmin ? embeddedSalesAdmin?.salesAdminId : ''} /> : isProfile ? <SalesAdminProfilePage embeddedProfile={embeddedSalesAdmin} readOnly={Boolean(embeddedSuperAdmin)} /> : (
+            <SalesAdminBranchContext key={embeddedSalesAdmin?.salesAdminId || 'self'} enabled={!embeddedBranchAdmin} onChanged={() => { setSelectedBranchId(''); setDashboardReloadKey((key) => key + 1); setBranchContextVersion((key) => key + 1) }} />
+            {isLeadManagement ? <LeadManagementPage key={branchContextVersion} salesAdminReadOnly={readOnlySalesAdmin} salesAdminId={embeddedSuperAdmin ? embeddedSalesAdmin?.salesAdminId : ''} superAdminView={embeddedSuperAdmin} salesAdminView initialPendingTab={embeddedSuperAdmin && embeddedPendingTab} /> : isUploads ? <SalesAdminUploadsPage key={branchContextVersion} salesAdminId={embeddedSuperAdmin ? (embeddedSalesAdmin?.salesAdminId || '') : ''} /> : isReports ? <SalesCrmReportPage key={branchContextVersion} readOnlySalesAdmin={readOnlySalesAdmin} salesAdminId={embeddedSuperAdmin ? embeddedSalesAdmin?.salesAdminId : ''} onOpenPending={embeddedSuperAdmin ? () => { setEmbeddedPendingTab(true); setEmbeddedSection('leads') } : undefined} /> : isNotifications ? <SalesAdminNotificationsPage embeddedSalesAdmin={embeddedSalesAdmin} /> : isAdmissions ? <SalesAdminAdmissionsPage key={location.search + branchContextVersion} readOnlySalesAdmin={readOnlySalesAdmin} salesAdminId={embeddedSuperAdmin ? embeddedSalesAdmin?.salesAdminId : ''} /> : isProfile ? <SalesAdminProfilePage key={branchContextVersion} embeddedProfile={embeddedSalesAdmin} readOnly={Boolean(embeddedSuperAdmin)} /> : (
               <section className="sales-admin-dashboard-home">
                 <header className="sales-admin-dashboard-header">
                   <div className="sales-admin-dashboard-intro">

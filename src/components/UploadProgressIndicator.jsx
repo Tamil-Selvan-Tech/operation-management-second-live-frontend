@@ -59,6 +59,8 @@ function isAwaitingDistribution(item) {
 
 export function UploadProgressIndicator() {
   const [uploads, setUploads] = useState(getUploadSnapshot())
+  const [allowedSalesBranches, setAllowedSalesBranches] = useState(null)
+  const previousSalesBranches = useRef(null)
   const [sharedLeadUploads, setSharedLeadUploads] = useState([])
   const [sharedCourseUploads, setSharedCourseUploads] = useState([])
   const previousLeadStatuses = useRef(new Map())
@@ -75,6 +77,18 @@ export function UploadProgressIndicator() {
   const triggerRef = useRef(null)
   const popoverRef = useRef(null)
   const [, setClock] = useState(0)
+
+  useEffect(() => {
+    const updateBranches = (event) => {
+      const next = event.detail?.branchIds || []
+      const signature = [...next].sort().join(':')
+      if (previousSalesBranches.current !== null && previousSalesBranches.current !== signature) setRefreshVersion((value) => value + 1)
+      previousSalesBranches.current = signature
+      setAllowedSalesBranches(next)
+    }
+    window.addEventListener('cispro:sales-branch-context', updateBranches)
+    return () => window.removeEventListener('cispro:sales-branch-context', updateBranches)
+  }, [])
 
   useEffect(() => subscribeUploadProgress(() => setUploads([...getUploadSnapshot()])), [])
 
@@ -159,14 +173,20 @@ export function UploadProgressIndicator() {
 
   const recipientGroupedUploadIds = new Set(sharedLeadUploads.filter((job) => job.sourceJobId).map((job) => job.uploadId).filter(Boolean))
   const remoteLeadByUploadId = new Map(sharedLeadUploads.filter((job) => !job.sourceJobId).map((job) => [job.uploadId, job]))
-  const localVisibleUploads = uploads.filter((item) => item.type !== 'lead' || ((currentUserId && item.visibleTo?.includes(currentUserId)) && !recipientGroupedUploadIds.has(item.uploadId))).map((item) => {
+  const branchScopedUploads = uploads.filter((item) => {
+    if (sessionRole !== 'sales-admin' || !allowedSalesBranches || item.type !== 'lead') return true
+    const branchId = item.branchId || item.result?.branchId || remoteLeadByUploadId.get(item.uploadId)?.branchId
+    return branchId ? allowedSalesBranches.includes(branchId) : isRunning(item)
+  })
+  const localVisibleUploads = branchScopedUploads.filter((item) => item.type !== 'lead' || ((currentUserId && item.visibleTo?.includes(currentUserId)) && !recipientGroupedUploadIds.has(item.uploadId))).map((item) => {
     const remote = item.type === 'lead' ? remoteLeadByUploadId.get(item.uploadId) : null
     const merged = remote ? { ...item, jobId: remote.id, branchId: remote.branchId, directDistribution: Boolean(remote.directDistribution), unassignedRows: remote.unassignedRows, status: remote.status, progress: remote.progress, processed: remote.processedRows, total: remote.totalRows, completedAt: remote.completedAt, updatedAt: remote.updatedAt, error: remote.errorMessage || item.error } : item
     return sessionRole === 'super-admin' && !merged.directDistribution && String(merged.status || '').toUpperCase() === 'AWAITING_DISTRIBUTION'
       ? { ...merged, status: 'COMPLETED' }
       : merged
   })
-  const remoteVisibleUploads = [...sharedLeadUploads.map((job) => ({ id: 'server-' + job.id, jobId: job.id, branchId: job.branchId, directDistribution: Boolean(job.directDistribution), unassignedRows: job.unassignedRows, type: 'lead', uploadId: job.uploadId, perRecipient: Boolean(job.sourceJobId), label: job.activityLabel || job.fileName || 'Lead workbook', status: job.status, progress: job.progress, processed: job.processedRows, total: job.totalRows, completedAt: job.completedAt, updatedAt: job.updatedAt })), ...sharedCourseUploads.map((job) => ({ id: 'server-course-' + job.id, jobId: job.id, type: 'course', uploadId: job.uploadId, label: 'Course upload - ' + (job.fileName || 'Course workbook'), status: job.status, error: job.errorMessage, progress: job.progress, processed: job.processedRows, total: job.totalRows, failed: job.failedRows, completedAt: job.completedAt, updatedAt: job.updatedAt }))].filter((item) => !dismissedRemoteIds.includes(item.id))
+  const scopedLeadUploads = sessionRole === 'sales-admin' && allowedSalesBranches ? sharedLeadUploads.filter((job) => allowedSalesBranches.includes(job.branchId)) : sharedLeadUploads
+  const remoteVisibleUploads = [...scopedLeadUploads.map((job) => ({ id: 'server-' + job.id, jobId: job.id, branchId: job.branchId, directDistribution: Boolean(job.directDistribution), unassignedRows: job.unassignedRows, type: 'lead', uploadId: job.uploadId, perRecipient: Boolean(job.sourceJobId), label: job.activityLabel || job.fileName || 'Lead workbook', status: job.status, progress: job.progress, processed: job.processedRows, total: job.totalRows, completedAt: job.completedAt, updatedAt: job.updatedAt })), ...sharedCourseUploads.map((job) => ({ id: 'server-course-' + job.id, jobId: job.id, type: 'course', uploadId: job.uploadId, label: 'Course upload - ' + (job.fileName || 'Course workbook'), status: job.status, error: job.errorMessage, progress: job.progress, processed: job.processedRows, total: job.totalRows, failed: job.failedRows, completedAt: job.completedAt, updatedAt: job.updatedAt }))].filter((item) => !dismissedRemoteIds.includes(item.id))
   const visibleUploads = [...localVisibleUploads, ...remoteVisibleUploads.filter((remote) => remote.perRecipient || !localVisibleUploads.some((local) => local.uploadId && local.uploadId === remote.uploadId))]
   const activeCount = visibleUploads.filter(isRunning).length
   const waitingCount = visibleUploads.filter(isAwaitingDistribution).length
