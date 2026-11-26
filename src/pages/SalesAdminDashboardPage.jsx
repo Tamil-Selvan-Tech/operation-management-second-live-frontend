@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { AlertTriangle, ArrowUpRight, BarChart3, Bell, BookOpen, CalendarClock, CalendarDays, CheckCircle2, CircleX, Clock3, FileSpreadsheet, Flame, GraduationCap, Home, LayoutGrid, LogOut, PanelLeftClose, PanelLeftOpen, Percent, RefreshCw, UserRound, UserRoundCheck, UserRoundX, UsersRound, X } from 'lucide-react'
+import { AlertTriangle, ArrowUpRight, BarChart3, Bell, BookOpen, CalendarClock, CalendarDays, CheckCircle2, CircleX, Clock3, FileSpreadsheet, Flame, GraduationCap, Home, LayoutGrid, LogOut, Mail, PanelLeftClose, PanelLeftOpen, Percent, RefreshCw, Shield, UserRound, UserRoundCheck, UserRoundX, UsersRound, X } from 'lucide-react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { request, setImpersonateBranchId, setImpersonateSalesAdminId } from '../services/apiClient'
 import { clearPersistedSuperAdminEmbeddedView } from '../lib/superAdminEmbeddedView'
@@ -108,6 +108,7 @@ export function SalesAdminDashboardPage({ embeddedBranchAdmin = false, embeddedS
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false)
   const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false)
+  const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false)
   const [logoutLoading, setLogoutLoading] = useState(false)
   const [logoutError, setLogoutError] = useState('')
   const [embeddedWorkLog, setEmbeddedWorkLog] = useState(null)
@@ -262,7 +263,21 @@ export function SalesAdminDashboardPage({ embeddedBranchAdmin = false, embeddedS
         <div className="super-admin-main">
           <header className="super-admin-topbar">
             <div className="super-admin-topbar-left"><button type="button" className="super-admin-sidebar-toggle" aria-label="Open navigation menu" onClick={() => setIsMobileSidebarOpen(true)}><LayoutGrid size={19} /></button><h1 className="super-admin-header-title">{isLeadManagement ? 'Lead Management' : isUploads ? 'Uploads' : isReports ? 'Monthly Reports' : isNotifications ? 'Notifications' : isAdmissions ? 'Student Admission' : isProfile ? 'My Profile' : 'Sales Admin Dashboard'}</h1></div>
-            <div className="super-admin-topbar-right"><UploadProgressIndicator />{!embeddedBranchAdmin ? <SalesAdminWorkClock name={embeddedSuperAdmin ? (embeddedSalesAdmin?.fullName || embeddedSalesAdmin?.name || 'Sales Admin') : (user?.name || 'Sales Admin')} salesAdminId={embeddedSuperAdmin ? (embeddedSalesAdmin?.salesAdminCode || embeddedSalesAdmin?.userCode || embeddedSalesAdmin?.salesAdminId || '') : (user?.userCode || user?.salesAdminId || '')} readOnlyStatus={embeddedSuperAdmin ? (embeddedWorkLog || embeddedSalesAdmin?.workClock) : null} /> : null}{!embeddedBranchAdmin ? <NotificationBell targetUserId={embeddedSuperAdmin ? embeddedSalesAdmin?.salesAdminId : ''} readOnlyView={false} /> : null}{!embeddedSuperAdmin ? <div className="super-admin-profile"><span className="super-admin-avatar"><span className="super-admin-avatar-mark"><UserRound size={19} /></span></span><div className="super-admin-profile-copy"><strong>{user?.name || 'Sales Admin'}</strong><span>{user?.email || 'salesadmin@cispro.com'}</span></div></div> : null}</div>
+            <div className="super-admin-topbar-right"><UploadProgressIndicator />{!embeddedBranchAdmin ? <SalesAdminWorkClock name={embeddedSuperAdmin ? (embeddedSalesAdmin?.fullName || embeddedSalesAdmin?.name || 'Sales Admin') : (user?.name || 'Sales Admin')} salesAdminId={embeddedSuperAdmin ? (embeddedSalesAdmin?.salesAdminCode || embeddedSalesAdmin?.userCode || embeddedSalesAdmin?.salesAdminId || '') : (user?.userCode || user?.salesAdminId || '')} readOnlyStatus={embeddedSuperAdmin ? (embeddedWorkLog || embeddedSalesAdmin?.workClock) : null} /> : null}{!embeddedBranchAdmin ? <NotificationBell targetUserId={embeddedSuperAdmin ? embeddedSalesAdmin?.salesAdminId : ''} readOnlyView={false} /> : null}{!embeddedSuperAdmin ? <div className="super-admin-profile">
+              <button type="button" className="super-admin-profile-trigger" onClick={() => setIsProfileMenuOpen((current) => !current)} aria-haspopup="dialog" aria-expanded={isProfileMenuOpen}>
+                <span className="super-admin-avatar"><span className="super-admin-avatar-mark"><UserRound size={19} /></span></span>
+                <div className="super-admin-profile-copy"><strong>{user?.name || 'Sales Admin'}</strong><span>{user?.email || 'salesadmin@cispro.com'}</span></div>
+              </button>
+              {isProfileMenuOpen ? <>
+                <button type="button" className="super-admin-profile-backdrop" aria-label="Close profile popup" onClick={() => setIsProfileMenuOpen(false)} />
+                <div className="super-admin-profile-dropdown">
+                  <button type="button" className="super-admin-profile-close" aria-label="Close profile" onClick={() => setIsProfileMenuOpen(false)}><X size={18} strokeWidth={2.4} /></button>
+                  <div className="super-admin-profile-dropdown-header"><span className="super-admin-avatar"><span className="super-admin-avatar-mark"><UserRound size={19} /></span></span><div><strong>{user?.name || 'Sales Admin'}</strong><span>Sales Admin</span></div></div>
+                  <div className="super-admin-profile-details"><div className="super-admin-profile-detail"><Mail size={16} strokeWidth={2} /><div><span>Email</span><strong>{user?.email || 'salesadmin@cispro.com'}</strong></div></div><div className="super-admin-profile-detail"><Shield size={16} strokeWidth={2} /><div><span>Role</span><strong>Sales Admin</strong></div></div></div>
+                  <div className="super-admin-profile-dropdown-actions"><button type="button" onClick={() => { setIsProfileMenuOpen(false); setIsLogoutConfirmOpen(true) }}><LogOut size={16} strokeWidth={2.2} />Logout</button></div>
+                </div>
+              </> : null}
+            </div> : null}</div>
           </header>
 
           <main className="super-admin-content">

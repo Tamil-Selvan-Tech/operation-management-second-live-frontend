@@ -193,7 +193,6 @@ export function UploadProgressIndicator() {
   const activityCount = activeCount + waitingCount
   const activeUpload = visibleUploads.find(isRunning)
   const activeProgress = Math.max(0, Math.min(100, Number(activeUpload?.progress || 0)))
-  const canOpenUploadActivity = ['branch-admin', 'super-admin', 'sales-admin', 'branch-admin-sales-admin'].includes(sessionRole)
   const visibleUploadsLength = visibleUploads.length
 
   useLayoutEffect(() => {
@@ -226,7 +225,10 @@ export function UploadProgressIndicator() {
     document.addEventListener('pointerdown', closeWhenClickingOutside)
     return () => document.removeEventListener('pointerdown', closeWhenClickingOutside)
   }, [open])
-  if (!visibleUploads.length && !canOpenUploadActivity) return null
+  // Keep the header shortcut contextual: once every upload has completed (or
+  // failed and is no longer running), there is no active upload flow to show.
+  // A staged lead import still counts as active until it is distributed.
+  if (!activityCount) return null
 
   return <div className="upload-progress-menu">
     <button type="button" ref={triggerRef} className={`upload-progress-button${activeCount ? ' is-active' : waitingCount ? ' is-waiting' : ''}`} onClick={() => setOpen((value) => !value)} aria-expanded={open} aria-label="Upload progress">
