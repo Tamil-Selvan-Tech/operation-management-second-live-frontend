@@ -1,8 +1,38 @@
 import { useEffect, useRef, useState } from 'react'
-import { ArrowLeft, ArrowRight, ArrowRightLeft, Building2, Check, CheckCircle2, RefreshCw, X } from 'lucide-react'
+import { ArrowLeft, ArrowRight, ArrowRightLeft, Building2, Check, CheckCircle2, ChevronDown, RefreshCw, X } from 'lucide-react'
 import { createPortal } from 'react-dom'
 import { request } from '../services/apiClient'
 import '../styles/SalesAdminBranchTransfer.css'
+
+function BranchDropdown({ value, options, placeholder, onChange, disabled = false }) {
+  const [isOpen, setIsOpen] = useState(false)
+  const rootRef = useRef(null)
+  const selected = options.find((option) => option.value === value)
+
+  useEffect(() => {
+    const closeOnOutsideClick = (event) => {
+      if (!rootRef.current?.contains(event.target)) setIsOpen(false)
+    }
+    const closeOnEscape = (event) => {
+      if (event.key === 'Escape') setIsOpen(false)
+    }
+    document.addEventListener('pointerdown', closeOnOutsideClick)
+    document.addEventListener('keydown', closeOnEscape)
+    return () => {
+      document.removeEventListener('pointerdown', closeOnOutsideClick)
+      document.removeEventListener('keydown', closeOnEscape)
+    }
+  }, [])
+
+  return <div ref={rootRef} className={'sales-transfer-filter-wrap' + (isOpen ? ' is-open' : '')}>
+    <button type="button" className="sales-transfer-filter-trigger" aria-haspopup="listbox" aria-expanded={isOpen} disabled={disabled} onClick={() => setIsOpen((open) => !open)}>
+      <span title={selected?.label || placeholder}>{selected?.label || placeholder}</span><ChevronDown size={17} aria-hidden="true" />
+    </button>
+    {isOpen ? <div className="sales-transfer-filter-menu" role="listbox">
+      {options.map((option) => <button key={option.value} type="button" role="option" aria-selected={option.value === value} className={option.value === value ? 'is-selected' : ''} onClick={() => { onChange(option.value); setIsOpen(false) }}>{option.label}</button>)}
+    </div> : null}
+  </div>
+}
 
 export default function SalesAdminBranchTransfer({ user, onClose, onComplete }) {
   const [preview, setPreview] = useState(null)
@@ -40,6 +70,12 @@ export default function SalesAdminBranchTransfer({ user, onClose, onComplete }) 
   const remaining = total - assigned
   const destination = preview?.destinations?.find((branch) => branch.id === destinationId)
   const validAllocation = assigned === total && (total === 0 || selected.length > 0) && selected.every((recipient) => Number.isSafeInteger(Number(allocations[recipient.id])) && Number(allocations[recipient.id]) > 0)
+  const toggleRecipient = (recipientId) => setAllocations((current) => {
+    const next = { ...current }
+    if (Object.hasOwn(current, recipientId)) delete next[recipientId]
+    else next[recipientId] = ''
+    return next
+  })
   const next = () => {
     setError('')
     if (step === 1 && (!destination || preview?.blockedReason)) { setError(preview?.blockedReason || 'Select a destination branch.'); return }
@@ -73,11 +109,11 @@ export default function SalesAdminBranchTransfer({ user, onClose, onComplete }) 
   return createPortal(<div className="sales-transfer-backdrop" onKeyDown={onKeyDown}>
     <section ref={dialogRef} className="sales-transfer-dialog" role="dialog" aria-modal="true" aria-labelledby="sales-transfer-title" aria-busy={saving}>
       <header className="sales-transfer-header"><span className="sales-transfer-icon"><ArrowRightLeft size={22} /></span><div><p>ACCOUNT TRANSFER</p><h2 id="sales-transfer-title">Move Sales Admin</h2><span>{user.fullName} {user.userCode ? '(' + user.userCode + ')' : ''}</span></div><button ref={closeRef} type="button" onClick={close} disabled={saving} aria-label="Close transfer"><X size={19} /></button></header>
-      {!result ? <nav className="sales-transfer-steps" aria-label="Transfer steps">{['Choose branch', 'Hand over leads', 'Review & move'].map((name, index) => <span key={name} className={step === index + 1 ? 'is-current' : step > index + 1 ? 'is-done' : ''} aria-current={step === index + 1 ? 'step' : undefined}><i>{step > index + 1 ? <Check size={13} /> : index + 1}</i>{name}</span>)}</nav> : null}
+      {!result ? <nav className="sales-transfer-steps" aria-label="Transfer steps">{['Choose branch', 'Hand over leads', 'Review & move'].map((name, index) => { const targetStep = index + 1; const canNavigate = targetStep <= step || targetStep === step + 1; return <span key={name} className={step === targetStep ? 'is-current' : step > targetStep ? 'is-done' : ''} aria-current={step === targetStep ? 'step' : undefined} role="button" tabIndex={canNavigate ? 0 : -1} onClick={() => { if (targetStep < step) { setStep(targetStep); setError('') } else if (targetStep === step + 1) next() }} onKeyDown={(event) => { if ((event.key === 'Enter' || event.key === ' ') && canNavigate) { event.preventDefault(); if (targetStep < step) { setStep(targetStep); setError('') } else next() } }}><i>{step > targetStep ? <Check size={13} /> : targetStep}</i>{name}</span> })}</nav> : null}
       <div className="sales-transfer-body">
         {loading ? <p className="sales-transfer-state"><RefreshCw size={18} className="spin" /> Loading branch and lead details...</p> : result ? <div className="sales-transfer-success"><CheckCircle2 size={42} /><h3>Branch move completed</h3><p>{user.fullName} is now assigned to <strong>{result.destination.branchName}</strong>.</p><p>{result.totalLeads} leads were handed over within {result.source.branchName}.</p></div> : preview ? <>
           {step === 1 ? <>
-            <div className="sales-transfer-branch-grid"><label><span>Current branch</span>{preview.branches.length > 1 ? <select value={preview.source.id} onChange={(event) => { setLoading(true); setError(''); setSourceId(event.target.value) }}>{preview.branches.map((branch) => <option key={branch.id} value={branch.id}>{branch.branchName}</option>)}</select> : <strong><Building2 size={17} />{preview.source.branchName}</strong>}</label><ArrowRight className="sales-transfer-branch-arrow" size={20} /><label><span>Move to branch <b>*</b></span><select value={destinationId} onChange={(event) => setDestinationId(event.target.value)}><option value="">Select destination branch</option>{preview.destinations.map((branch) => <option key={branch.id} value={branch.id}>{branch.branchName}</option>)}</select></label></div>
+            <div className="sales-transfer-branch-grid"><label><span>Current branch</span>{preview.branches.length > 1 ? <BranchDropdown value={preview.source.id} options={preview.branches.map((branch) => ({ value: branch.id, label: branch.branchName }))} placeholder="Select current branch" onChange={(id) => { setLoading(true); setError(''); setSourceId(id) }} /> : <div className="sales-transfer-filter-value" title={preview.source.branchName}><Building2 size={17} /><strong>{preview.source.branchName}</strong></div>}</label><span className="sales-transfer-direction" aria-hidden="true"><ArrowRight size={23} strokeWidth={2.7} /></span><label><span>Move to branch <b>*</b></span><BranchDropdown value={destinationId} options={preview.destinations.map((branch) => ({ value: branch.id, label: branch.branchName }))} placeholder="Select destination branch" onChange={setDestinationId} /></label></div>
             {!preview.destinations.length ? <p className="sales-transfer-warning">No other active branch is available.</p> : null}
             <div className="sales-transfer-summary"><div><span>Total to hand over</span><strong>{total}</strong></div><div><span>Fresh Leads</span><strong>{preview.summary.fresh}</strong></div><div><span>Active / in progress</span><strong>{preview.summary.active}</strong></div><div><span>Closed</span><strong>{preview.summary.closed}</strong></div><div><span>Converted</span><strong>{preview.summary.converted}</strong></div></div>
             <p className="sales-transfer-note">All assigned leads stay in the current branch and will be handed over to its other admins. Call history, stages, follow-up dates, admission records and existing deadlines are retained.</p>
@@ -86,7 +122,7 @@ export default function SalesAdminBranchTransfer({ user, onClose, onComplete }) 
             <div className="sales-transfer-section-title"><div><h3>Hand over leads in {preview.source.branchName}</h3><p>Select recipients and enter how many leads each will receive.</p></div><span>{total} total leads</span></div>
             {total === 0 ? <div className="sales-transfer-empty"><CheckCircle2 size={25} /><p>No assigned leads to hand over. You can continue with the branch move.</p></div> : recipients.length ? <div className="sales-transfer-recipients">{recipients.map((recipient) => {
               const checked = Object.hasOwn(allocations, recipient.id)
-              return <div key={recipient.id} className={'sales-transfer-recipient' + (checked ? ' is-selected' : '')}><label><input type="checkbox" checked={checked} onChange={() => setAllocations((current) => { const next = { ...current }; if (checked) delete next[recipient.id]; else next[recipient.id] = ''; return next })} /><span><strong>{recipient.fullName}</strong><small>{recipient.role === 'BRANCH_ADMIN' ? 'Branch Admin' : 'Sales Admin'}{recipient.userCode ? ' | ' + recipient.userCode : ''}</small></span></label><label className="sales-transfer-count"><span>Leads</span><input aria-label={'Leads for ' + recipient.fullName} type="number" min="1" step="1" inputMode="numeric" disabled={!checked} value={checked ? allocations[recipient.id] : ''} placeholder="0" onChange={(event) => setAllocations((current) => ({ ...current, [recipient.id]: event.target.value }))} /></label></div>
+              return <div key={recipient.id} className={'sales-transfer-recipient' + (checked ? ' is-selected' : '')} role="button" tabIndex="0" aria-pressed={checked} onClick={() => toggleRecipient(recipient.id)} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); toggleRecipient(recipient.id) } }}><label onClick={(event) => event.stopPropagation()}><input type="checkbox" checked={checked} onClick={(event) => event.stopPropagation()} onChange={() => toggleRecipient(recipient.id)} /><span><strong>{recipient.fullName}</strong><small>{recipient.role === 'BRANCH_ADMIN' ? 'Branch Admin' : 'Sales Admin'}{recipient.userCode ? ' | ' + recipient.userCode : ''}</small></span></label><label className="sales-transfer-count" onClick={(event) => event.stopPropagation()}><span>Leads</span><input aria-label={'Leads for ' + recipient.fullName} type="text" inputMode="numeric" pattern="[0-9]*" disabled={!checked} value={checked ? allocations[recipient.id] : ''} placeholder="0" onChange={(event) => setAllocations((current) => ({ ...current, [recipient.id]: event.target.value.replace(/\D/g, '') }))} /></label></div>
             })}</div> : <p className="sales-transfer-warning">There are no other active Sales Admins or Branch Admin available in this branch. Assign one before moving this account.</p>}
             <div className={'sales-transfer-balance' + (remaining === 0 ? ' is-balanced' : remaining < 0 ? ' is-over' : '')}><span>Allocated <strong>{assigned} / {total}</strong></span><span>{remaining < 0 ? 'Over-allocated' : 'Remaining'} <strong>{Math.abs(remaining)}</strong></span></div>
           </> : <>
