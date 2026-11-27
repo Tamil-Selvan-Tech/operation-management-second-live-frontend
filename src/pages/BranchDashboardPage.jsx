@@ -5230,7 +5230,12 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
       }
 
       const requestPromise = (async () => {
-        setIsBranchNotificationsLoading(true)
+        // Keep already loaded notifications visible during a background refresh.
+        // Showing the full-page skeleton on every refresh makes the page look
+        // like it is loading from scratch even when we already have data.
+        if (branchNotificationRecords.length === 0) {
+          setIsBranchNotificationsLoading(true)
+        }
         try {
           // The dashboard only needs the latest notifications for its bell
           // and summary. Load the full page only when the user opens the
@@ -5248,7 +5253,8 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
           if (error?.name !== 'AbortError' && error?.status !== 408) {
             console.error('Failed to load branch notifications:', error)
           }
-          setBranchNotificationRecords([])
+          // A transient refresh failure should not blank the last successful
+          // notification list. The next focus/entry refresh can retry it.
         } finally {
           branchNotificationsRequestRef.current = null
           setIsBranchNotificationsLoading(false)
@@ -5261,6 +5267,7 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
   }, [
     admissionOnlyMode,
     activeSection,
+    branchNotificationRecords.length,
     branchData?.branchEmail,
     branchData?.branchId,
     branchData?.id,
