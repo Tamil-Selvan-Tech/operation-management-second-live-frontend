@@ -447,7 +447,7 @@ export function SalesCrmReportPage({ readOnlySalesAdmin = false, branchScoped = 
       </div>
     </header>
 
-    <SalesCrmReportSubmissionModal isOpen={sendReportOpen} onClose={() => setSendReportOpen(false)} branches={reportBranches} initialFromDate={appliedFilters.fromDate} initialToDate={appliedFilters.toDate} onSubmitted={() => { setSendReportOpen(false); setDownloadNotice('Report sent to Super Admin successfully.'); setReloadKey((value) => value + 1) }} />
+    <SalesCrmReportSubmissionModal isOpen={sendReportOpen} onClose={() => setSendReportOpen(false)} branches={reportBranches} initialFromDate={appliedFilters.fromDate} initialToDate={appliedFilters.toDate} onSubmitted={(result) => { setSendReportOpen(false); setDownloadNotice(result?.recipientRole === 'BRANCH_ADMIN' ? 'Report sent to Branch Admin' + (result?.branchName ? ' (' + result.branchName + ')' : '') + ' successfully.' : 'Report sent to Super Admin successfully.'); setReloadKey((value) => value + 1) }} />
 
     {downloadOpen ? <div className="sales-crm-report-download-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) closeDownloadReport() }}><form className="sales-crm-report-download-modal" onSubmit={downloadReport} role="dialog" aria-modal="true" aria-labelledby="sales-crm-download-title">
       <header className="sales-crm-report-download-modal-header"><div><p className="eyebrow">REPORT DOWNLOAD</p><h2 id="sales-crm-download-title">Download Report</h2><p>Choose the branch and period for the Excel export.</p></div><button type="button" className="sales-crm-report-download-close" onClick={closeDownloadReport} disabled={downloading} aria-label="Close"><X size={17} /></button></header>
