@@ -5024,9 +5024,22 @@ const BRANCH_PAYMENT_HISTORY_PER_PAGE = 5
       })
 
     const activeBranchId = String(
-      branchScopeId || branchData?.id || branchData?.branchId || '',
+      branchScopeId || branchProfile?.id || branchProfile?.branchId || branchData?.id || branchData?.branchId || '',
     ).trim()
-    const nextCourses = mergeBranchCoursesWithSnapshot(Array.isArray(result?.data) ? result.data : [], activeBranchId)
+    const branchScopeIds = new Set([
+      branchScopeId,
+      branchProfile?.id,
+      branchProfile?.branchId,
+      branchData?.id,
+      branchData?.branchId,
+    ].filter(Boolean).map((value) => String(value).trim().toLowerCase()))
+    const branchScopedCourses = (Array.isArray(result?.data) ? result.data : []).filter((course) => {
+      if (!branchScopeIds.size) return true
+      const courseBranchId = String(course?.branchId || course?.branch?.id || '').trim().toLowerCase()
+      const courseBranchCode = String(course?.branchCode || course?.branch?.branchId || '').trim().toLowerCase()
+      return branchScopeIds.has(courseBranchId) || branchScopeIds.has(courseBranchCode)
+    })
+    const nextCourses = mergeBranchCoursesWithSnapshot(branchScopedCourses, activeBranchId)
     saveBranchCourseSnapshot(nextCourses)
     const sourceCourses = Array.isArray(fallbackCourses) ? fallbackCourses : null
     setBranchCourseCards((currentCourses) => {
