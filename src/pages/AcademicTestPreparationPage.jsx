@@ -19,6 +19,8 @@ function AcademicPreparationLoadingSkeleton() {
   return <section className="academic-preparation-page academic-preparation-page--loading" aria-label="Loading preparation details" aria-busy="true"><div className="academic-preparation-loading-heading"><span /><span /><span /></div><div className="academic-preparation-loading-table">{Array.from({ length: 5 }, (_, rowIndex) => <div key={rowIndex} className="academic-preparation-loading-row">{Array.from({ length: 7 }, (_, columnIndex) => <span key={columnIndex} className={columnIndex === 0 ? 'is-wide' : ''} />)}</div>)}</div></section>
 }
 
+ 
+
 const scheduleDateLabel = (value) => value ? new Intl.DateTimeFormat('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).format(new Date(`${value}T00:00:00`)) : '-'
 const scheduleTimeLabel = (value) => { const [hours, minutes] = String(value || '').split(':').map(Number); if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return value || '-'; const period = hours >= 12 ? 'PM' : 'AM'; return `${hours % 12 || 12}:${String(minutes).padStart(2, '0')} ${period}` }
 const scheduleIsStarted = (schedule) => { const startTime = schedule?.rawStartTime || schedule?.startTime; return schedule && startTime ? new Date(`${schedule.testDate}T${startTime}:00+05:30`).getTime() <= Date.now() : false }
