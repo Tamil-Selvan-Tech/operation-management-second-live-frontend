@@ -4562,7 +4562,7 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
   ).trim()
 
   const loadApprovedDiscontinuationRequests = useCallback((options = {}) => {
-    if (activeSection !== 'dashboard' || admissionOnlyMode) return Promise.resolve([])
+    if (!['dashboard', 'payments'].includes(activeSection) || admissionOnlyMode) return Promise.resolve([])
     if ((!embeddedMode && role !== "branch-admin") || !embeddedBranchProfileReady) return Promise.resolve([])
 
     const force = options?.force === true
@@ -9235,6 +9235,51 @@ const studentCourseOptions = useMemo(() => {
   [operationalBranchStudents],
 )
 
+const discontinuedBranchPaymentRows = useMemo(() => {
+  const isDiscontinued = (student = {}) => {
+    const lifecycleStatuses = [
+      student.status,
+      student.currentStatus,
+      student.studentStatus,
+      student.recordStatus,
+      student.lifecycleStatus,
+      student.studentLifecycleStatus,
+      student.discontinuationStatus,
+      ...(Array.isArray(student.courseEnrollments)
+        ? student.courseEnrollments.flatMap((enrollment) => [enrollment?.status, enrollment?.recordStatus, enrollment?.studentStatus, enrollment?.courseCompletionStatus])
+        : []),
+    ].map((value) => String(value || '').trim().toUpperCase().replace(/[\s-]+/g, '_'))
+    return Boolean(student.isDiscontinued)
+      || lifecycleStatuses.some((status) => ['DISCONTINUED', 'APPROVED'].includes(status))
+  }
+  const requestStudentKeys = new Set(approvedDiscontinuationRequests.flatMap((requestItem) => [
+    requestItem?.branchStudentId,
+    requestItem?.student?.id,
+    requestItem?.student?.studentId,
+    requestItem?.student?.studentCode,
+  ]).map((value) => String(value || '').trim().toLowerCase()).filter(Boolean))
+  const rows = branchPaymentRows.filter(({ student }) => {
+    const keys = [student?.id, student?._id, student?.studentId, student?.studentCode]
+      .map((value) => String(value || '').trim().toLowerCase()).filter(Boolean)
+    return isDiscontinued(student) || keys.some((key) => requestStudentKeys.has(key))
+  })
+  const includedStudentKeys = new Set(rows.flatMap(({ student }) => [
+    student?.id, student?._id, student?.studentId, student?.studentCode,
+  ]).map((value) => String(value || '').trim().toLowerCase()).filter(Boolean))
+  approvedDiscontinuationRequests.forEach((requestItem) => {
+    const student = requestItem?.student
+    if (!student || typeof student !== 'object') return
+    const keys = [requestItem?.branchStudentId, student.id, student._id, student.studentId, student.studentCode]
+      .map((value) => String(value || '').trim().toLowerCase()).filter(Boolean)
+    if (keys.some((key) => includedStudentKeys.has(key))) return
+    const discontinuedStudent = { ...student, isDiscontinued: true, status: 'DISCONTINUED' }
+    const studentRows = getBranchStudentCourseRows(discontinuedStudent)
+    rows.push(...studentRows)
+    keys.forEach((key) => includedStudentKeys.add(key))
+  })
+  return rows
+}, [approvedDiscontinuationRequests, branchPaymentRows])
+
   const allPaymentHistoryRecords = useMemo(() => {
     const records = new Map()
     const importedStudentKeys = new Set(
@@ -9777,7 +9822,8 @@ const filteredBranchPaymentRows = useMemo(() => {
   weekEndDate.setDate(weekEndDate.getDate() + 7)
   const weekEndStr = getDashboardDateValue(weekEndDate)
 
-  return branchPaymentRows.filter(({ student, summary }) => {
+  const rowsToFilter = paymentStatusFilter === 'discontinued' ? discontinuedBranchPaymentRows : branchPaymentRows
+  return rowsToFilter.filter(({ student, summary }) => {
     const matchesSearch =
       !q ||
       String(student.studentId || '').toLowerCase().includes(q) ||
@@ -9786,6 +9832,7 @@ const filteredBranchPaymentRows = useMemo(() => {
 
     const matchesStatus =
       paymentStatusFilter === 'all' ||
+      paymentStatusFilter === 'discontinued' ||
       summary.paymentStatus.toLowerCase().replace(/\s+/g, '-') === paymentStatusFilter ||
       (paymentStatusFilter === 'paid' && summary.paymentStatus === 'Completed')
 
@@ -9805,9 +9852,9 @@ const filteredBranchPaymentRows = useMemo(() => {
       return paymentDateStr >= weekStartStr && paymentDateStr < weekEndStr
     })
 
-    return matchesSearch && matchesStatus && paidThisWeek
+    return matchesSearch && matchesStatus && (paymentStatusFilter === 'discontinued' || paidThisWeek)
   })
-}, [branchPaymentRows, paymentSearchTerm, paymentStatusFilter])
+}, [branchPaymentRows, discontinuedBranchPaymentRows, paymentSearchTerm, paymentStatusFilter])
 const totalPaymentPages = Math.max(1, Math.ceil(filteredBranchPaymentRows.length / BRANCH_PAYMENTS_PER_PAGE))
 const safePaymentPage = Math.min(paymentPage, totalPaymentPages)
 const visibleBranchPaymentRows = useMemo(() => {
@@ -12431,7 +12478,7 @@ useEffect(() => {
               {activeSection === 'progress-notifications' ? <ProgressNotificationsView branch={branchScope} /> : null}
               {activeSection === 'faculty-edit-requests' ? <FacultyEditRequestsView /> : null}
               {activeSection === 'discontinuations' ? <BranchDiscontinuationManagementPage /> : null}
-              {activeSection === 'lead-management' ? <LeadManagementPage branchId={branchData?.id || branchData?.branchId || branchProfile?.id || branchProfile?.branchId || ''} salesAdminId={branchData?.salesAdminId || ''} branchRoleAccess={resolvedBranchRoleAccess || branchData?.roleAccess || ''} superAdminView={isSuperAdminEmbeddedView} /> : null}
+              {activeSection === 'lead-management' ? <LeadManagementPage branchId={branchData?.id || branchData?.branchId || branchProfile?.id || branchProfile?.branchId || ''} branchAdminView={!isSuperAdminEmbeddedView && String(role || '').toUpperCase().replace(/[^A-Z0-9]/g, '') === 'BRANCHADMIN'} salesAdminId={branchData?.salesAdminId || ''} branchRoleAccess={resolvedBranchRoleAccess || branchData?.roleAccess || ''} superAdminView={isSuperAdminEmbeddedView} /> : null}
               {activeSection === 'admissions' ? <BranchAdmissionsHub key={location.search} branchData={branchData} branchAdminName={branchProfile?.branchAdminName || user?.name || branchData?.branchAdminName || 'Branch Admin'} canViewSalesAdmissionPipeline={hasLeadManagementAccess} /> : null}
               {activeSection === 'sales-crm-reports' ? <SalesCrmReportPage branchScoped branchId={branchProfile?.id || branchData?.id || ''} branchName={branchProfile?.branchName || branchData?.branchName || ''} branchAdminId={branchProfile?.adminUserId || branchData?.adminUserId || user?.id || ''} branchAdminName={branchProfile?.branchAdminName || user?.name || 'Branch Admin'} pendingLeadsHref="/branch-dashboard?section=lead-management&tab=pending" /> : null}
               {activeSection === 'branch-reports' ? (
@@ -15142,6 +15189,7 @@ if (paidProgress >= 100) {
             { value: 'completed', label: 'Completed' },
             { value: 'partially-paid', label: 'Partially Paid' },
             { value: 'pending', label: 'Pending' },
+            { value: 'discontinued', label: 'Discontinued' },
           ]}
           onChange={(value) => {
             setPaymentStatusFilter(value)

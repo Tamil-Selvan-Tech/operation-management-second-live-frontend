@@ -29,14 +29,17 @@ function duration(value = 0) {
   return [Math.floor(total / 3600), Math.floor((total % 3600) / 60), total % 60].map((part) => String(part).padStart(2, '0')).join(':')
 }
 
-export function SalesAdminWorkClock({ name = 'Sales Admin', salesAdminId = '', onStatusChange, readOnlyStatus = null }) {
+export function SalesAdminWorkClock({ name = 'Sales Admin', salesAdminId = '', onStatusChange, readOnlyStatus = null, readOnly = false }) {
   const [open, setOpen] = useState(false)
   const [status, setStatus] = useState(() => readOnlyStatus ? { ...readOnlyStatus, _receivedAt: Date.now() } : null)
   const [now, setNow] = useState(() => Date.now())
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [leaveRestrictions, setLeaveRestrictions] = useState(null)
-  const isReadOnly = Boolean(readOnlyStatus)
+  // Embedded Super Admin views are read-only even before the target user's
+  // work-log snapshot arrives. Otherwise the component can fetch the current
+  // Super Admin's status and auto-open the Sales Admin login prompt.
+  const isReadOnly = readOnly || Boolean(readOnlyStatus)
 
   const refreshLeaveRestrictions = useCallback(async () => {
     if (isReadOnly) return
@@ -140,6 +143,7 @@ export function SalesAdminWorkClock({ name = 'Sales Admin', salesAdminId = '', o
   ) : null
 
   const workLogDisabled = !isReadOnly && leaveRestrictions?.workLogDisabled
-  return <><button type="button" className={`sales-work-clock-button${status?.status === 'LOGGED_IN' ? ' is-active' : ''}`} onClick={() => { if (!workLogDisabled) { setOpen(true); setNow(Date.now()) } }} disabled={workLogDisabled} title={workLogDisabled ? leaveRestrictions.message : 'Open Work Log'}><Clock3 size={17} /><span>Work Log</span>{status?.status === 'LOGGED_IN' ? <i aria-label="Work Log active" /> : null}</button>{modal}</>
+  const readOnlyStatusUnavailable = isReadOnly && !status
+  return <><button type="button" className={`sales-work-clock-button${status?.status === 'LOGGED_IN' ? ' is-active' : ''}`} onClick={() => { if (!workLogDisabled && !readOnlyStatusUnavailable) { setOpen(true); setNow(Date.now()) } }} disabled={workLogDisabled || readOnlyStatusUnavailable} title={workLogDisabled ? leaveRestrictions.message : readOnlyStatusUnavailable ? 'Loading Sales Admin Work Log status' : 'Open Work Log'}><Clock3 size={17} /><span>Work Log</span>{status?.status === 'LOGGED_IN' ? <i aria-label="Work Log active" /> : null}</button>{modal}</>
 }
 

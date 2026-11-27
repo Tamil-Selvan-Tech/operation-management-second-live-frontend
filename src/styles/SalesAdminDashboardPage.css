@@ -385,7 +385,7 @@
 .sales-admin-notification-card-footer button:disabled { opacity: .5; cursor: not-allowed; }
 .sales-admin-notification-card-footer .sales-admin-notification-mark-one { color: #475569; }
 .sales-admin-notification-created { justify-self: end; color: #64748b; font-size: 11px; font-weight: 650; white-space: nowrap; }
-.sales-admin-notification-dot { position: absolute; top: 17px; right: 15px; width: 7px; height: 7px; border-radius: 50%; background: #2563eb; }
+.sales-admin-notification-dot { position: static; flex: 0 0 7px; width: 7px; height: 7px; margin-left: auto; border-radius: 50%; background: #2563eb; }
 .sales-admin-notification-empty { display: grid; justify-items: center; align-content: center; gap: 8px; min-height: 200px; padding: 24px; border: 1px dashed #cbd5e1; border-radius: 11px; color: #64748b; background: #fff; text-align: center; }
 .sales-admin-notification-empty > svg { color: #94a3b8; }
 .sales-admin-notification-empty strong { color: #0f172a; font-size: 14px; }
@@ -408,7 +408,7 @@
 .sales-admin-notification-pagination > div { display: flex; gap: 7px; }
 .sales-admin-notification-pagination button { min-height: 32px; padding: 6px 10px; border: 1px solid #e2e8f0; border-radius: 8px; color: #334155; background: #fff; font: inherit; cursor: pointer; }
 .sales-admin-notification-pagination button:disabled { color: #a8b2c0; background: #f8fafc; cursor: not-allowed; }
-@media (max-width: 900px) { .sales-admin-notification-card { grid-template-columns: 38px minmax(0, 1fr); }.sales-admin-notification-created { grid-column: 2; justify-self: start; grid-row: 2; }.sales-admin-notification-dot { right: 14px; }.sales-admin-notification-title-row { padding-right: 12px; } }
+@media (max-width: 900px) { .sales-admin-notification-card { grid-template-columns: 38px minmax(0, 1fr); }.sales-admin-notification-created { grid-column: 2; justify-self: start; grid-row: 2; }.sales-admin-notification-title-row { padding-right: 0; } }
 @media (max-width: 720px) { .sales-admin-notifications-page { padding: 19px 16px 27px; }.sales-admin-notifications-header { align-items: flex-start; flex-direction: column; }.sales-admin-notification-date-toolbar, .sales-admin-notification-toolbar { align-items: flex-start; flex-direction: column; }.sales-admin-notification-date-range { flex-wrap: wrap; }.sales-admin-notification-toolbar-actions { width: 100%; justify-content: space-between; }.sales-admin-notification-copy > p { font-size: 12px; } }
 @media (max-width: 480px) { .sales-admin-notifications-page { padding: 16px 11px 23px; }.sales-admin-notification-date-filters { width: 100%; overflow-x: auto; flex-wrap: nowrap; padding-bottom: 3px; }.sales-admin-notification-date-filters button { flex: 0 0 auto; }.sales-admin-notification-card { grid-template-columns: 32px minmax(0, 1fr); gap: 9px; padding: 11px; }.sales-admin-notification-icon { width: 32px; height: 32px; }.sales-admin-notification-created { grid-column: 2; }.sales-admin-notification-card-footer { align-items: flex-start; flex-direction: column; }.sales-admin-notification-card-footer > div { flex-wrap: wrap; }.sales-admin-notification-summary { width: 100%; }.sales-admin-notification-summary > span { flex: 1; }.sales-admin-notification-pagination { align-items: flex-start; flex-direction: column; } }
 

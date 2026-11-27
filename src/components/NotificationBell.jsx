@@ -7,7 +7,7 @@ import { getNotificationItems, getUnreadNotificationCount } from '../data/notifi
 import { request } from '../services/apiClient'
 import { filterNotificationsForDisplay, getNotifications, isNotificationAvailable, unwrapNotifications } from '../services/notificationService'
 
-export function NotificationBell({ targetUserId = '', readOnlyView = false }) {
+export function NotificationBell({ targetUserId = '', readOnlyView = false, onViewAll }) {
   const { role } = useAuth()
   const navigate = useNavigate()
   const [isOpen, setIsOpen] = useState(false)
@@ -212,7 +212,11 @@ export function NotificationBell({ targetUserId = '', readOnlyView = false }) {
             type="button"
             onClick={() => {
               setIsOpen(false)
-              navigate(isStudent ? '/student-new-dashboard/notifications' : isSalesAdmin ? '/dashboard/sales-admin/notifications' : '/notifications')
+              if (onViewAll) {
+                onViewAll()
+                return
+              }
+              navigate(isStudent ? '/student-new-dashboard/notifications' : (isSalesAdmin || isScopedSalesAdmin) ? '/dashboard/sales-admin/notifications' : '/notifications')
             }}
           >
             View all notifications

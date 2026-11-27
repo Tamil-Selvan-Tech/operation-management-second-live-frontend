@@ -575,8 +575,12 @@ body:has(.lead-followup-backdrop) .branch-dashboard-app-shell .super-admin-sideb
 
 .lead-management-page.is-profile-view > .lead-management-heading,
 .lead-management-page.is-profile-view > .lead-notice,
+.lead-management-page.is-profile-view > .lead-list-tabs,
+.lead-management-page.is-profile-view > .lead-tab-description,
 .lead-management-page.is-profile-view > .lead-filter-toolbar,
-.lead-management-page.is-profile-view > .lead-table-card {
+.lead-management-page.is-profile-view > .lead-table-card,
+.lead-management-page.is-profile-view > .lead-pending-table-card,
+.lead-management-page.is-profile-view > .lead-pagination {
   display: none !important;
 }
 

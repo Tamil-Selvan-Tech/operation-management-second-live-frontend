@@ -171,13 +171,12 @@ export function SalesAdminNotificationsPage({ embeddedSalesAdmin = null }) {
       return <article key={item.id} className={`sales-admin-notification-card${item.read ? '' : ' is-unread'}`}>
         <span className={`sales-admin-notification-icon is-${color}`}><Icon size={18} strokeWidth={2} /></span>
         <div className="sales-admin-notification-copy">
-          <div className="sales-admin-notification-title-row"><h3>{item.title}</h3><span className={`sales-admin-notification-state${item.read ? '' : ' is-unread'}`}>{item.read ? 'Read' : 'Unread'}</span></div>
+          <div className="sales-admin-notification-title-row"><h3>{item.title}</h3><span className={`sales-admin-notification-state${item.read ? '' : ' is-unread'}`}>{item.read ? 'Read' : 'Unread'}</span>{!item.read ? <span className="sales-admin-notification-dot" aria-label="Unread notification" /> : null}</div>
           {student || leadId ? <div className="sales-admin-notification-context">{student ? <strong>{student}</strong> : null}{leadId ? <span>Lead ID: {leadId}</span> : null}</div> : null}
           <p>{item.message}</p>
           <div className="sales-admin-notification-card-footer"><span className={`sales-admin-notification-category is-${color}`}>{label}</span><div>{!embeddedView && !item.read ? <button type="button" className="sales-admin-notification-mark-one" onClick={() => void markRead([item.id])} disabled={actionLoading}><Check size={14} />Mark as read</button> : null}{canOpenLead || canOpenUpload || canOpenReport || canOpenPendingAdmissions || canOpenTransfer || canOpenCalendar ? <button type="button" className="sales-admin-notification-view" onClick={() => openNotification(item)}>{canOpenLead ? 'View Lead' : canOpenUpload ? 'View Upload' : canOpenReport ? 'View Report' : canOpenCalendar ? 'View Calendar' : (item.actionLabel || 'View Pending Admissions')} <ExternalLink size={14} /></button> : null}</div></div>
         </div>
         <time className="sales-admin-notification-created" dateTime={item.createdAt || undefined}>{formattedCreatedAt(item.createdAt, item.timezone)}</time>
-        {!item.read ? <span className="sales-admin-notification-dot" aria-label="Unread notification" /> : null}
       </article>
     })}</div>}
 
