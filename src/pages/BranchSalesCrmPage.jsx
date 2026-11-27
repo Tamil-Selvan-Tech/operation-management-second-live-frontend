@@ -60,6 +60,7 @@ function leaveTimeLabel(leave) {
 
 export default function BranchSalesCrmPage({ view = 'admins', title = 'Sales & CRM', showReportAction = true, showLeadImportAction = false, showLeadDistributionAction = false, showActionColumn = true }) {
   const activeTab = view
+  const location = useLocation()
   const [salesAdmins, setSalesAdmins] = useState([])
   const [admissions, setAdmissions] = useState([])
   const [branch, setBranch] = useState(null)
@@ -76,6 +77,7 @@ export default function BranchSalesCrmPage({ view = 'admins', title = 'Sales & C
   const [sortBy, setSortBy] = useState('name')
   const [sendReportOpen, setSendReportOpen] = useState(false)
   const [selectedAdmin, setSelectedAdmin] = useState(null)
+  const [selectedUploadId, setSelectedUploadId] = useState('')
   const [leadImportOpen, setLeadImportOpen] = useState(false)
   const [distributionOpen, setDistributionOpen] = useState(false)
   const sessionUser = loadSession()?.user || {}
