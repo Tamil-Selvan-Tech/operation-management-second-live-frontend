@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Clock3, LogIn, LogOut, RefreshCw, X } from 'lucide-react'
 import {
   getSalesAdminWorkClockStatus,
+  getSalesAdminLeaveRestrictions,
   loginSalesAdminWorkClock,
   logoutSalesAdminWorkClock,
 } from '../services/salesAdminWorkClockService'
@@ -34,7 +35,13 @@ export function SalesAdminWorkClock({ name = 'Sales Admin', salesAdminId = '', o
   const [now, setNow] = useState(() => Date.now())
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [leaveRestrictions, setLeaveRestrictions] = useState(null)
   const isReadOnly = Boolean(readOnlyStatus)
+
+  const refreshLeaveRestrictions = useCallback(async () => {
+    if (isReadOnly) return
+    try { setLeaveRestrictions(await getSalesAdminLeaveRestrictions()) } catch { /* Work Log remains usable if the optional restriction check is unavailable. */ }
+  }, [isReadOnly])
 
   const refresh = useCallback(async () => {
     try {
@@ -58,6 +65,15 @@ export function SalesAdminWorkClock({ name = 'Sales Admin', salesAdminId = '', o
     return () => window.clearTimeout(refreshId)
   }, [isReadOnly, readOnlyStatus, refresh])
   useEffect(() => {
+    if (isReadOnly) return undefined
+    const refreshNow = () => { void refreshLeaveRestrictions() }
+    refreshNow()
+    const pollId = window.setInterval(refreshNow, 30000)
+    window.addEventListener('focus', refreshNow)
+    document.addEventListener('visibilitychange', refreshNow)
+    return () => { window.clearInterval(pollId); window.removeEventListener('focus', refreshNow); document.removeEventListener('visibilitychange', refreshNow) }
+  }, [isReadOnly, refreshLeaveRestrictions])
+  useEffect(() => {
     if (!open) return undefined
     const clockId = window.setInterval(() => setNow(Date.now()), 1000)
     const pollId = window.setInterval(() => { void refresh() }, 15000)
@@ -77,7 +93,7 @@ export function SalesAdminWorkClock({ name = 'Sales Admin', salesAdminId = '', o
     return base + Math.max(0, Math.floor((now - status._receivedAt) / 1000))
   }, [now, status])
   const handleLogin = async () => {
-    if (loading || !status?.canLogin) return
+    if (loading || !status?.canLogin || leaveRestrictions?.workLogDisabled) return
     setLoading(true); setError('')
     try {
       const next = await loginSalesAdminWorkClock()
@@ -92,7 +108,7 @@ export function SalesAdminWorkClock({ name = 'Sales Admin', salesAdminId = '', o
   }
 
   const handleLogout = async () => {
-    if (loading || !status?.canLogout) return
+    if (loading || !status?.canLogout || leaveRestrictions?.logoutDisabled) return
     setLoading(true); setError('')
     try {
       const next = await logoutSalesAdminWorkClock()
@@ -116,12 +132,14 @@ export function SalesAdminWorkClock({ name = 'Sales Admin', salesAdminId = '', o
         {!status ? <div className="sales-work-clock-loading"><RefreshCw size={17} className="is-spinning" /> Loading Work Log...</div> : <>
           <div className="sales-work-clock-identity"><div><span>Sales Admin</span><strong>{status?.salesAdmin?.name || name}</strong></div><div><span>Sales Admin ID</span><strong>{status?.salesAdmin?.salesAdminId || salesAdminId || '-'}</strong></div><div><span>Date</span><strong>{dateLabel(status.attendanceDate)}</strong></div><div><span>Current Time</span><strong>{timeLabel(status.currentServerTime || now, true)}</strong></div></div>
           <div className="sales-work-clock-metrics"><div><span>Login Time</span><strong>{timeLabel(status.firstLoginAt)}</strong></div><div><span>Logout Time</span><strong>{timeLabel(status.finalLogoutAt)}</strong></div><div><span>Working Time</span><strong>{duration(liveWorkingSeconds)}</strong></div></div>
-          {!isReadOnly ? <div className="sales-work-clock-actions">{status.canLogin ? <button type="button" onClick={handleLogin} disabled={loading}><LogIn size={16} />{loading ? 'Saving...' : 'Login Work Log'}</button> : null}{status.canLogout ? <button type="button" className="is-logout" onClick={handleLogout} disabled={loading}><LogOut size={16} />{loading ? 'Saving...' : 'Logout Work Log'}</button> : null}</div> : null}
+          {!isReadOnly ? <div className="sales-work-clock-actions">{status.canLogin ? <button type="button" onClick={handleLogin} disabled={loading || leaveRestrictions?.workLogDisabled} title={leaveRestrictions?.workLogDisabled ? leaveRestrictions.message : undefined}><LogIn size={16} />{loading ? 'Saving...' : 'Login Work Log'}</button> : null}{status.canLogout ? <button type="button" className="is-logout" onClick={handleLogout} disabled={loading || leaveRestrictions?.logoutDisabled} title={leaveRestrictions?.logoutDisabled ? leaveRestrictions.message : undefined}><LogOut size={16} />{loading ? 'Saving...' : 'Logout Work Log'}</button> : null}</div> : null}
+          {leaveRestrictions?.message ? <div className="sales-work-clock-leave-notice" role="status">{leaveRestrictions.message}</div> : null}
         </>}
       </section>
     </div>
   ) : null
 
-  return <><button type="button" className={`sales-work-clock-button${status?.status === 'LOGGED_IN' ? ' is-active' : ''}`} onClick={() => { setOpen(true); setNow(Date.now()) }}><Clock3 size={17} /><span>Work Log</span>{status?.status === 'LOGGED_IN' ? <i aria-label="Work Log active" /> : null}</button>{modal}</>
+  const workLogDisabled = !isReadOnly && leaveRestrictions?.workLogDisabled
+  return <><button type="button" className={`sales-work-clock-button${status?.status === 'LOGGED_IN' ? ' is-active' : ''}`} onClick={() => { if (!workLogDisabled) { setOpen(true); setNow(Date.now()) } }} disabled={workLogDisabled} title={workLogDisabled ? leaveRestrictions.message : 'Open Work Log'}><Clock3 size={17} /><span>Work Log</span>{status?.status === 'LOGGED_IN' ? <i aria-label="Work Log active" /> : null}</button>{modal}</>
 }
 

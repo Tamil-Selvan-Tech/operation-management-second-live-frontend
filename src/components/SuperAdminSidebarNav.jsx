@@ -114,6 +114,7 @@ export function SuperAdminSidebarNav({ branches = [], isSidebarCollapsed, onClos
           children: [
             { id: 'faculty-leave', label: 'Faculty Leave', icon: CalendarDays, section: 'faculty-leave' },
             { id: 'institute-leave', label: 'Institute Leave', icon: CalendarDays, section: 'leave-management', view: 'institute' },
+            { id: 'sales-admin-leave', label: 'Sales Admin Leave', icon: BriefcaseBusiness, section: 'sales-admin-leave' },
             { id: 'discontinuations', label: 'Student Discontinuation', icon: FileText, section: 'discontinuations' },
           ],
         },

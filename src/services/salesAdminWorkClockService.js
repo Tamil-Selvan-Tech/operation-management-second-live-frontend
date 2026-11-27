@@ -8,6 +8,10 @@ export async function getSalesAdminWorkClockStatus() {
   return unwrap(await request('/sales-admin/work-clock/status'))
 }
 
+export async function getSalesAdminLeaveRestrictions() {
+  return unwrap(await request('/sales-admin/leave-requests/active-restrictions'))
+}
+
 export async function loginSalesAdminWorkClock() {
   return unwrap(await request('/sales-admin/work-clock/login', { method: 'POST' }))
 }
