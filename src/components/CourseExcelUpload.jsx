@@ -5,6 +5,7 @@ import { downloadCourseErrors, downloadCourseTemplate, queueCourseImportWorkbook
 import { completeUpload, failUpload, startUpload, updateUpload } from '../lib/uploadProgressStore'
 import { friendlyCourseImportMessage } from '../lib/courseImportMessages'
 import CourseImportSheetTable from './CourseImportSheetTable'
+import { CourseExcelExport } from './CourseExcelExport'
 import '../styles/CourseExcelUpload.css'
 
 const money = (value) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(Number(value || 0))
@@ -62,7 +63,7 @@ function CourseImportCourseDetails({ course }) {
   </>
 }
 
-export function CourseExcelUpload({ onImported, onView, onStart, onClose, pageMode = false, latestCourseCode = '' }) {
+export function CourseExcelUpload({ onImported, onView, onStart, onClose, branchCourses = [], pageMode = false, latestCourseCode = '' }) {
   const [open, setOpen] = useState(pageMode)
   const [file, setFile] = useState(null)
   const [preview, setPreview] = useState(null)
@@ -400,7 +401,7 @@ export function CourseExcelUpload({ onImported, onView, onStart, onClose, pageMo
               ) : (
                 <>
                   {(!preview || (!pageMode && busy !== 'preview')) ? <div className={'course-import-upload-options' + (preview && busy !== 'preview' ? ' has-preview' : '')}>
-                    {(!preview || (pageMode && busy === 'preview')) ? <div className="course-import-instructions"><strong>Before you upload</strong><p>Complete all four template sheets, then upload the .xlsx file.</p><button type="button" className="button button-ghost" disabled={Boolean(busy)} onClick={() => void run('template', downloadCourseTemplate)}><Download size={15} /> Download template</button></div> : null}
+                    {(!preview || (pageMode && busy === 'preview')) ? <div className="course-import-instructions"><strong>Before you upload</strong><p>Use the four-sheet template to add courses, or download this branch’s course list for reference.</p><div className="course-import-download-actions"><button type="button" className="button button-ghost" disabled={Boolean(busy)} onClick={() => void run('template', downloadCourseTemplate)}><Download size={15} /> Download template</button><CourseExcelExport courses={branchCourses} /></div></div> : null}
                     <label className={"course-import-file" + (file ? " has-file" : "") + (busy === 'preview' ? " is-loading" : "")} aria-busy={busy === 'preview'}><>{busy === 'preview' ? <div className="course-import-file-progress" role="status" aria-live="polite"><Loader2 size={23} className="course-import-spinner" aria-hidden="true" /><strong>Uploading course workbook...</strong><span>{file?.name || 'Please wait while we validate the workbook.'}</span></div> : <><Upload size={23} /><strong>{file?.name || 'Choose an Excel workbook'}</strong><span>{file ? (file.size / 1024).toFixed(1) + ' KB | .xlsx' : '.xlsx Excel workbook | no course-count cap'}</span></>}</><input aria-label="Choose course Excel workbook" type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" disabled={Boolean(busy)} onChange={(event) => { if (event.target.files?.[0]) choose(event.target.files[0]); event.target.value = '' }} /></label>
                   </div> : null}
                   {preview ? (

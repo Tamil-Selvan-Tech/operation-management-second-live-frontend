@@ -789,3 +789,4 @@
 .course-import-table-review-area[aria-busy="true"] { pointer-events:none }
 .course-import-table-loading { position:absolute; inset:0; z-index:30; display:flex; align-items:center; justify-content:center; gap:8px; min-height:88px; background:rgba(248,251,255,.78); color:#28558f; font-size:.78rem; font-weight:750; backdrop-filter:blur(1px) }
 .course-import-table-loading .course-import-spinner { animation:course-import-spin .8s linear infinite }
+.course-import-download-actions{display:flex;align-items:center;flex-wrap:wrap;gap:10px;margin-top:4px}.course-import-download-actions .button,.course-import-download-actions .course-export-trigger{margin-top:0;min-height:42px}

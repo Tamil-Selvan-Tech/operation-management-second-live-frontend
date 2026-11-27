@@ -13909,6 +13909,7 @@ if (paidProgress >= 100) {
                 <CourseExcelUpload
                   pageMode
                   latestCourseCode={latestBranchCourseCode}
+                  branchCourses={branchCourseCards}
                   onClose={() => goToBranchSection('courses')}
                   onImported={async () => {
                     clearBranchCourseListCache()
@@ -13940,6 +13941,7 @@ if (paidProgress >= 100) {
 
                       <CourseExcelUpload
                         latestCourseCode={latestBranchCourseCode}
+                        branchCourses={branchCourseCards}
                         onStart={() => goToBranchSection('course-import')}
                         onImported={async () => {
                           clearBranchCourseListCache()
