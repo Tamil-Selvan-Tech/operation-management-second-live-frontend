@@ -7272,6 +7272,14 @@ body.super-admin-sidebar-open {
 .super-admin-global-status.status-rejected { color: #b4233f; background: #fff0f3; }
 .super-admin-global-status.status-super-admin-review, .super-admin-global-status.status-super-admin-wait { color: #9a6700; background: #fff7df; }
 .super-admin-global-status.status-cancelled { color: #64748b; background: #f1f5f9; }
+.super-admin-global-status.is-approved { color: #087f5b; background: #e6f8ef; }
+.super-admin-global-status.is-pending { color: #a15c00; background: #fff3d6; }
+.super-admin-global-status.is-rejected { color: #b4233f; background: #fff0f3; }
+.super-admin-global-status.is-cancelled { color: #7f1d1d; background: #f7e4e4; }
+.super-admin-global-status.approved { color: #087f5b; background: #e6f8ef; }
+.super-admin-global-status.pending { color: #a15c00; background: #fff3d6; }
+.super-admin-global-status.rejected { color: #b4233f; background: #fff0f3; }
+.super-admin-global-status.cancelled { color: #7f1d1d; background: #f7e4e4; }
 .super-admin-global-empty, .super-admin-global-state { padding: 42px 20px !important; color: #8291a7; text-align: center !important; }
 
 .super-admin-discontinuation-actions { align-items: center; flex-wrap: wrap; }
@@ -7340,6 +7348,7 @@ body.super-admin-sidebar-open {
 @media (max-width: 720px) {
   .super-admin-global-header { align-items: flex-start; flex-direction: column; }
   .super-admin-global-header-actions { width: 100%; align-items: stretch; justify-content: space-between; }
+  .super-admin-global-header-actions > .super-admin-student-search { width: 100%; }
   .super-admin-global-count { align-self: flex-start; }
   .super-admin-global-filter-bar { align-items: stretch; flex-direction: column; gap: 10px; }
   .super-admin-global-filter-field { min-width: 0; }
@@ -7611,10 +7620,12 @@ body.super-admin-sidebar-open {
 .super-admin-detail-table td.is-highlighted-amount { color: #166534; background: #f0fdf4; font-weight: 800; }
 .super-admin-detail-table th.is-highlighted-amount { color: #166534; background: #dcfce7; }
 .super-admin-detail-multiline { display: grid; gap: 4px; white-space: normal; }
-.super-admin-global-header-actions > .super-admin-student-search { display: inline-flex; align-items: center; gap: 8px; width: 260px; min-height: 42px; box-sizing: border-box; padding: 0 12px; border: 1px solid #cbd9ea; border-radius: 10px; background: #fff; }
+.super-admin-global-header-actions > .super-admin-student-search { display: inline-flex; align-items: center; gap: 8px; width: 360px; min-height: 42px; box-sizing: border-box; padding: 0 12px; border: 1px solid #cbd9ea; border-radius: 10px; background: #fff; }
 .super-admin-global-header-actions > .super-admin-student-search svg { flex: 0 0 auto; color: #7890ad; }
 .super-admin-global-header-actions > .super-admin-student-search input { width: 100%; min-width: 0; min-height: 40px; padding: 0; border: 0; box-shadow: none; }
 .super-admin-global-header-actions > .super-admin-student-search:focus-within { border-color: #4b8ff5; box-shadow: none; }
+.super-admin-global-header:has(.super-admin-global-select) { flex-wrap: wrap; }
+.super-admin-global-header:has(.super-admin-global-select) > .super-admin-global-header-actions { flex: 1 1 100%; justify-content: flex-start; }
 .super-admin-global-header-actions > .super-admin-student-search input:focus { outline: none; box-shadow: none; }
 
 .super-admin-page .super-admin-notification-modal-message{white-space:pre-line}.super-admin-deleted-lead-notification-details{margin-top:18px;padding-top:14px;border-top:1px solid #e5eaf1}.super-admin-deleted-lead-notification-details h3,.super-admin-deleted-lead-notification-details h4{margin:0 0 10px;color:#1e3a5f}.super-admin-deleted-lead-notification-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 14px}.super-admin-deleted-lead-notification-grid>div{padding:8px 10px;border-radius:8px;background:#f7f9fc}.super-admin-deleted-lead-notification-grid span,.super-admin-deleted-lead-notification-grid strong{display:block}.super-admin-deleted-lead-notification-grid span{color:#75859c;font-size:11px}.super-admin-deleted-lead-notification-grid strong{margin-top:3px;color:#17385f;font-size:12px;overflow-wrap:anywhere}.super-admin-deleted-lead-notification-details article{margin:8px 0;padding:10px;border:1px solid #e5eaf1;border-radius:8px}.super-admin-deleted-lead-notification-details article p{margin:5px 0 0;white-space:pre-line}

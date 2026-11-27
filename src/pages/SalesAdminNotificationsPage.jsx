@@ -9,10 +9,13 @@ const statusFilters = [['all', 'All'], ['unread', 'Unread'], ['read', 'Read']]
 const blankMeta = { page: 1, limit: 20, total: 0, totalPages: 1, unreadCount: 0, filteredUnreadCount: 0 }
 
 function categoryFor(item) {
-  const kind = String(item.kind || '').toUpperCase()
+  const kind = String(item.kind || '').toUpperCase().replaceAll('-', '_')
+  if (kind === 'SALES_ADMIN_BRANCH_TRANSFER') return { label: 'Branch changed', Icon: Repeat2, color: 'blue' }
+  if (kind === 'SALES_ADMIN_LEAD_HANDOVER') return { label: 'Lead handover', Icon: Repeat2, color: 'blue' }
   const marker = String(item.requestDescription || '').toUpperCase()
   if (String(item.requestDescription || '').startsWith('LEAD_IMPORT_DEADLINE_UPDATED:')) return { label: 'Deadline updated', Icon: CalendarClock, color: 'blue' }
   if (kind === 'PENDING_STUDENT_ADMISSION_REMINDER') return { label: 'Pending HOT Admissions', Icon: Bell, color: 'amber' }
+  if (kind === 'INSTITUTE_LEAVE') return { label: 'Institute Leave', Icon: CalendarClock, color: 'amber' }
   if (kind.includes('OVERDUE') || marker.startsWith('LEAD_FOLLOW_UP_OVERDUE:')) return { label: 'Overdue Follow-up', Icon: AlertCircle, color: 'red' }
   if (marker.startsWith('LEAD_FOLLOW_UP_DAILY:')) return { label: 'Daily Reminder', Icon: Repeat2, color: 'amber' }
   if (/^LEAD_FOLLOW_UP_REMINDER:[^:]+:\d{4}-\d{2}-\d{2}:\d{2}:\d{2}$/i.test(item.requestDescription || '')) return { label: 'Same-day Timed Reminder', Icon: Clock3, color: 'purple' }
@@ -119,16 +122,19 @@ export function SalesAdminNotificationsPage({ embeddedSalesAdmin = null }) {
 
   const openNotification = (item) => {
     if (!item.read) void markRead([item.id])
-    const kind = String(item.kind || '').toUpperCase()
+    const kind = String(item.kind || '').toUpperCase().replaceAll('-', '_')
     const description = String(item.requestDescription || '')
     const leadId = description.split(':')[1]
     const deadlineUpdateBatchId = description.startsWith('LEAD_IMPORT_DEADLINE_UPDATED:') ? description.split(':')[1] : ''
-    if (deadlineUpdateBatchId) navigate('/dashboard/sales-admin/uploads?batchId=' + encodeURIComponent(deadlineUpdateBatchId))
+    if (kind === 'SALES_ADMIN_BRANCH_TRANSFER') navigate('/dashboard/sales-admin')
+    else if (kind === 'SALES_ADMIN_LEAD_HANDOVER') navigate('/dashboard/sales-admin/leads')
+    else if (deadlineUpdateBatchId) navigate('/dashboard/sales-admin/uploads?batchId=' + encodeURIComponent(deadlineUpdateBatchId))
     else if (['LEAD_FOLLOW_UP_DUE', 'LEAD_FOLLOW_UP_OVERDUE'].includes(kind) && leadId) navigate('/dashboard/sales-admin/leads', { state: { leadId } })
     else if (kind === 'SALES_CRM_MONTHLY_REPORT') navigate('/dashboard/sales-admin/reports')
     else if (kind === 'PENDING_STUDENT_ADMISSION_REMINDER') navigate('/dashboard/sales-admin/admissions?status=PENDING_HOT')
     else if (kind === 'SALES_CRM_BATCH_REQUEST_UPDATE') navigate('/dashboard/sales-admin/admissions')
     else if (kind === 'LEAD_IMPORT_COMPLETED') navigate('/dashboard/sales-admin/leads')
+    else if (kind === 'INSTITUTE_LEAVE') navigate('/dashboard/sales-admin/calendar')
   }
 
   return <section className="sales-admin-notifications-page">
@@ -155,18 +161,20 @@ export function SalesAdminNotificationsPage({ embeddedSalesAdmin = null }) {
     {loading ? <NotificationSkeleton /> : customDateIncomplete ? <div className="sales-admin-notification-empty"><CalendarClock size={26} /><strong>Choose a date range</strong><span>Select both From Date and To Date to filter notifications.</span></div> : !visibleItems.length ? <div className="sales-admin-notification-empty"><BellOff size={27} /><strong>No notifications found</strong><span>No notifications match the selected filters.</span><button type="button" onClick={resetFilters}>Reset Filters</button></div> : <div className="sales-admin-notification-list">{visibleItems.map((item) => {
       const { label, Icon, color } = categoryFor(item)
       const { student, leadId } = notificationMetadata(item)
-      const kind = String(item.kind || '').toUpperCase()
+      const kind = String(item.kind || '').toUpperCase().replaceAll('-', '_')
       const canOpenLead = ['LEAD_FOLLOW_UP_DUE', 'LEAD_FOLLOW_UP_OVERDUE'].includes(kind) && Boolean(String(item.requestDescription || '').split(':')[1])
       const canOpenUpload = String(item.requestDescription || '').startsWith('LEAD_IMPORT_DEADLINE_UPDATED:')
       const canOpenReport = kind === 'SALES_CRM_MONTHLY_REPORT'
+      const canOpenTransfer = ['SALES_ADMIN_BRANCH_TRANSFER', 'SALES_ADMIN_LEAD_HANDOVER'].includes(kind)
       const canOpenPendingAdmissions = kind === 'PENDING_STUDENT_ADMISSION_REMINDER'
+      const canOpenCalendar = kind === 'INSTITUTE_LEAVE'
       return <article key={item.id} className={`sales-admin-notification-card${item.read ? '' : ' is-unread'}`}>
         <span className={`sales-admin-notification-icon is-${color}`}><Icon size={18} strokeWidth={2} /></span>
         <div className="sales-admin-notification-copy">
           <div className="sales-admin-notification-title-row"><h3>{item.title}</h3><span className={`sales-admin-notification-state${item.read ? '' : ' is-unread'}`}>{item.read ? 'Read' : 'Unread'}</span></div>
           {student || leadId ? <div className="sales-admin-notification-context">{student ? <strong>{student}</strong> : null}{leadId ? <span>Lead ID: {leadId}</span> : null}</div> : null}
           <p>{item.message}</p>
-          <div className="sales-admin-notification-card-footer"><span className={`sales-admin-notification-category is-${color}`}>{label}</span><div>{!embeddedView && !item.read ? <button type="button" className="sales-admin-notification-mark-one" onClick={() => void markRead([item.id])} disabled={actionLoading}><Check size={14} />Mark as read</button> : null}{canOpenLead || canOpenUpload || canOpenReport || canOpenPendingAdmissions ? <button type="button" className="sales-admin-notification-view" onClick={() => openNotification(item)}>{canOpenLead ? 'View Lead' : canOpenUpload ? 'View Upload' : canOpenReport ? 'View Report' : (item.actionLabel || 'View Pending Admissions')} <ExternalLink size={14} /></button> : null}</div></div>
+          <div className="sales-admin-notification-card-footer"><span className={`sales-admin-notification-category is-${color}`}>{label}</span><div>{!embeddedView && !item.read ? <button type="button" className="sales-admin-notification-mark-one" onClick={() => void markRead([item.id])} disabled={actionLoading}><Check size={14} />Mark as read</button> : null}{canOpenLead || canOpenUpload || canOpenReport || canOpenPendingAdmissions || canOpenTransfer || canOpenCalendar ? <button type="button" className="sales-admin-notification-view" onClick={() => openNotification(item)}>{canOpenLead ? 'View Lead' : canOpenUpload ? 'View Upload' : canOpenReport ? 'View Report' : canOpenCalendar ? 'View Calendar' : (item.actionLabel || 'View Pending Admissions')} <ExternalLink size={14} /></button> : null}</div></div>
         </div>
         <time className="sales-admin-notification-created" dateTime={item.createdAt || undefined}>{formattedCreatedAt(item.createdAt, item.timezone)}</time>
         {!item.read ? <span className="sales-admin-notification-dot" aria-label="Unread notification" /> : null}

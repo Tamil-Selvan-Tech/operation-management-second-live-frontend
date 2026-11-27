@@ -67,7 +67,9 @@ const officialHolidayNamesByDate = {
   '2027-10-28': 'Deepavali',
   '2027-12-25': 'Christmas',
 }
-function englishHolidayName(value, date) {
+// Shared with the Sales Admin calendar so holiday names stay consistent.
+// eslint-disable-next-line react-refresh/only-export-components
+export function englishHolidayName(value, date) {
   if (officialHolidayNamesByDate[date]) return officialHolidayNamesByDate[date]
   const source = String(value || '').trim()
   const match = tamilHolidayNames.find(([pattern]) => pattern.test(source))

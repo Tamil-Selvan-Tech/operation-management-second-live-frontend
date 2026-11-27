@@ -77,8 +77,8 @@ import { getNotifications, unwrapNotifications } from '../services/notificationS
 import { getCurrentBranchProfile } from '../services/branchService'
 import BranchExamResultsPage from './BranchExamResultsPage'
 import BranchSalesCrmPage from './BranchSalesCrmPage'
+import BranchAdmissionsHub from './BranchAdmissionsHub'
 import { LeadManagementPage } from './LeadManagementPage'
-import { SalesAdminAdmissionsPage } from './SalesAdminAdmissionsPage'
 import { SalesAdminDashboardPage } from './SalesAdminDashboardPage'
 import { SalesCrmReportPage } from './SalesCrmReportPage'
 import { FacultySkillsUpgradePage } from './FacultySkillsUpgradePage'
@@ -139,6 +139,7 @@ import { InstituteLeavePage } from './InstituteLeavePage'
 import { FacultyEditRequestsView, ProgressNotificationsView } from '../components/BranchManagementViews'
 import { BranchInstallmentTemplatesPage } from './BranchInstallmentTemplatesPage'
 import { BranchDiscontinuationManagementPage } from './BranchDiscontinuationManagementPage'
+import { BranchSalesAdminLeaveRequestsPage } from './BranchSalesAdminLeaveRequestsPage'
 import { Student360Page } from './Student360Page'
 import { getBranchStudentReportCompletionSummaries } from '../services/branchStudentReportSummaryService'
 import { calculateBatchCourseEndDate, getBatchAvailability } from '../lib/batchAllocation'
@@ -154,6 +155,7 @@ import { buildModernPaymentReceiptHtml } from '../components/payments/RecordPaym
 import { hasSalesCollectedAmount } from '../components/payments/receiptPaymentSource'
 import '../components/payments/RecordPayment.css'
 import '../styles/SalesAdminDashboardPage.css'
+import '../styles/BranchSalesAdminLeaveRequestsPage.css'
 import {
   groupByDate,
   doesBranchNotificationBelongToBranch,
@@ -2951,8 +2953,7 @@ function getBranchDashboardSectionFromPath(pathname = '', search = '') {
 
   if (section === 'notifications') return 'notifications'
   if (section === 'lead-management') return 'lead-management'
-  if (section === 'sales-crm-admissions') return 'sales-crm-admissions'
-  if (section === 'sales-crm-admitted-students') return 'sales-crm-admitted-students'
+  if (section === 'sales-crm-admissions' || section === 'sales-crm-admitted-students' || section === 'admissions') return 'admissions'
   if (section === 'sales-admin-directory') return 'sales-admin-directory'
   if (section === 'sales-admin') return 'sales-admin'
   if (section === 'sales-crm-reports') return 'sales-crm-reports'
@@ -2961,6 +2962,7 @@ function getBranchDashboardSectionFromPath(pathname = '', search = '') {
   if (section === 'reports') return 'branch-reports'
   if (section === 'institute-leave') return 'institute-leave'
   if (section === 'faculty-leave') return 'faculty-leave'
+  if (section === 'sales-admin-leave-requests') return 'sales-admin-leave-requests'
   if (section === 'progress-notifications') return 'progress-notifications'
   if (section === 'faculty-edit-requests') return 'faculty-edit-requests'
   if (section === 'discontinuations') return 'discontinuations'
@@ -2971,8 +2973,7 @@ function getBranchDashboardSectionFromPath(pathname = '', search = '') {
   if (section === 'installments') return 'installments'
   if (section === 'faculty') return 'faculty'
   if (section === 'sales-crm') return 'sales-crm'
-  if (section === 'sales-crm-admissions') return 'sales-crm-admissions'
-  if (section === 'sales-crm-admitted-students') return 'sales-crm-admitted-students'
+  if (section === 'sales-crm-admissions' || section === 'sales-crm-admitted-students' || section === 'admissions') return 'admissions'
   if (section === 'sales-admin-directory') return 'sales-admin-directory'
   if (section === 'sales-admin') return 'sales-admin'
   if (section === 'batches') return 'batches'
@@ -4321,7 +4322,7 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
 
 
   useEffect(() => {
-    if (['lead-management', 'sales-crm-admissions'].includes(activeSection) && !hasLeadManagementAccess) {
+    if (activeSection === 'lead-management' && !hasLeadManagementAccess) {
       navigate('/branch-dashboard', { replace: true })
     }
   }, [activeSection, hasLeadManagementAccess, navigate])
@@ -4333,8 +4334,8 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
     courses: false,
     academic: ['courses', 'course-import'].includes(sidebarActiveSection),
     faculty: ['faculty', 'sales-admin'].includes(sidebarActiveSection),
-    students: ['students', 'student-management', 'completed-students', 'courses', 'batches', 'installments', 'progress-notifications', 'institute-leave', 'faculty-leave', 'discontinuations'].includes(sidebarActiveSection),
-    management: ['institute-leave', 'faculty-leave', 'progress-notifications', 'faculty-edit-requests', 'discontinuations'].includes(sidebarActiveSection),
+    students: ['students', 'student-management', 'completed-students', 'courses', 'batches', 'installments', 'progress-notifications', 'institute-leave', 'faculty-leave', 'sales-admin-leave-requests', 'discontinuations'].includes(sidebarActiveSection),
+    management: ['institute-leave', 'faculty-leave', 'sales-admin-leave-requests', 'progress-notifications', 'faculty-edit-requests', 'discontinuations'].includes(sidebarActiveSection),
   }))
   const [expandedSidebarNestedGroups, setExpandedSidebarNestedGroups] = useState({})
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
@@ -4404,20 +4405,20 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
   }, [isSidebarFlyoutMode, openSidebarFlyout])
 
   useEffect(() => {
-  const parentByChild = { faculty: 'faculty', 'sales-admin-directory': 'sales-crm', 'sales-crm-admitted-students': 'sales-crm', 'sales-crm-admissions': 'sales-crm', 'sales-crm-reports': 'sales-crm', 'lead-management': 'sales-crm', students: 'student-management', 'student-management': 'student-management', 'completed-students': 'student-management', courses: 'academic', batches: 'academic', installments: 'academic', payments: 'academic', 'exams-results': 'academic', 'academic-tests': 'academic', 'institute-leave': 'leave-management', 'faculty-leave': 'leave-management', 'progress-notifications': 'leave-management', 'faculty-edit-requests': 'leave-management', discontinuations: 'leave-management', 'helpdesk-tickets': 'helpdesk', 'helpdesk-knowledge-base': 'helpdesk', 'helpdesk-contact-support': 'helpdesk' }
+  const parentByChild = { faculty: 'faculty', 'sales-admin-directory': 'sales-crm', admissions: 'sales-crm', 'sales-crm-admitted-students': 'sales-crm', 'sales-crm-admissions': 'sales-crm', 'sales-crm-reports': 'sales-crm', 'lead-management': 'sales-crm', students: 'student-management', 'student-management': 'student-management', 'completed-students': 'student-management', courses: 'academic', batches: 'academic', installments: 'academic', payments: 'academic', 'exams-results': 'academic', 'academic-tests': 'academic', 'institute-leave': 'leave-management', 'faculty-leave': 'leave-management', 'sales-admin-leave-requests': 'leave-management', 'progress-notifications': 'leave-management', 'faculty-edit-requests': 'leave-management', discontinuations: 'leave-management', 'helpdesk-tickets': 'helpdesk', 'helpdesk-knowledge-base': 'helpdesk', 'helpdesk-contact-support': 'helpdesk' }
     const parent = sidebarActiveSection === 'sales-admin' ? 'faculty' : parentByChild[sidebarActiveSection]
     if (!parent) return
     setExpandedSidebarGroups((current) => current[parent] ? current : { ...current, [parent]: true })
   }, [sidebarActiveSection])
 
   useEffect(() => {
-    if (activeSection === 'sales-crm' || activeSection === 'sales-crm-admitted-students' || activeSection === 'sales-admin-directory') {
+    if (activeSection === 'sales-crm' || activeSection === 'admissions' || activeSection === 'sales-admin-directory') {
       setExpandedSidebarNestedGroups((current) => ({ ...current, 'sales-crm': true }))
     }
     if (activeSection === 'progress-notifications') {
       setExpandedSidebarNestedGroups((current) => ({ ...current, 'leave-management': true }))
     }
-    if (activeSection === 'institute-leave' || activeSection === 'faculty-leave' || activeSection === 'discontinuations') {
+    if (activeSection === 'institute-leave' || activeSection === 'faculty-leave' || activeSection === 'sales-admin-leave-requests' || activeSection === 'discontinuations') {
       setExpandedSidebarNestedGroups((current) => ({ ...current, 'leave-management': true }))
     }
   }, [activeSection])
@@ -6196,7 +6197,7 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
               String(notification.kind || '').startsWith('course-edit-') ||
               kind === 'sales-crm-admission' ||
               kind === 'sales-crm-batch-request' ||
-              ['account-role-updated', 'email-changed', 'branch-admin-replaced'].includes(kind) ||
+              ['account-role-updated', 'email-changed', 'branch-admin-replaced', 'sales-admin-branch-transfer', 'sales-admin-lead-handover'].includes(kind) ||
               (String(notification.targetUserId || '').trim() === currentBranchUserId && kind !== 'lead-import-assigned') ||
               ['lead-follow-up-due', 'lead-follow-up-overdue', 'lead-follow-up-scheduled'].includes(kind) ||
               isCurrentBranchLeadImport ||
@@ -6529,6 +6530,10 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
 
     setIsNotificationMenuOpen(false)
     const requestDescription = String(notification?.requestDescription || '').trim()
+    if (['sales-admin-branch-transfer', 'sales-admin-lead-handover'].includes(notificationKind)) {
+      goToBranchSection(notificationKind === 'sales-admin-branch-transfer' ? 'sales-admin-directory' : 'lead-management')
+      return
+    }
     if (notificationKind === 'lead-import-assigned' && requestDescription.startsWith('LEAD_IMPORT_DEADLINE_UPDATED:')) {
       const [, batchId, , salesAdminIds = ''] = requestDescription.split(':')
       const salesAdminId = salesAdminIds.split(',').map((value) => value.trim()).find(Boolean)
@@ -6549,6 +6554,10 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
     }
     if (notificationKind === 'student-discontinuation' || requestDescription.startsWith('DISCONTINUATION_') || requestDescription.startsWith('MOTIVATION_')) {
       goToBranchSection('discontinuations')
+      return
+    }
+    if (notificationKind === 'faculty-leave-request' && requestDescription === 'SALES_ADMIN_LEAVE') {
+      goToBranchSection('sales-admin-leave-requests')
       return
     }
     if (notificationKind === 'faculty-leave-request') {
@@ -11816,12 +11825,11 @@ useEffect(() => {
         {[
           { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
           { id: 'sales-crm', label: 'Sales & CRM', icon: BriefcaseBusiness, children: [
-            { id: 'sales-crm-admitted-students', label: 'Admissions', icon: GraduationCap },
-            { id: 'sales-crm-reports', label: 'Lead Monthly Report', icon: FileText },
             ...(hasLeadManagementAccess ? [
               { id: 'lead-management', label: 'Lead Management', icon: BriefcaseBusiness },
-              { id: 'sales-crm-admissions', label: 'Student Admission', icon: GraduationCap },
             ] : []),
+            { id: 'admissions', label: 'Admission', icon: GraduationCap },
+            { id: 'sales-crm-reports', label: 'Lead Monthly Report', icon: FileText },
             { id: 'sales-admin-directory', label: 'Assigned Sales Admins', icon: BriefcaseBusiness },
           ] },
           { id: 'faculty', label: 'User & Role Management', icon: Shield, children: [
@@ -11848,6 +11856,7 @@ useEffect(() => {
           { id: 'leave-management', label: 'Leave Management', icon: CalendarDays, children: [
             { id: 'institute-leave', label: 'Institute Leave', icon: CalendarDays },
             { id: 'faculty-leave', label: 'Faculty Leave', icon: CalendarDays },
+            { id: 'sales-admin-leave-requests', label: 'Sales Admin Leave Requests', icon: BriefcaseBusiness },
             { id: 'progress-notifications', label: 'Progress Alerts', icon: Bell },
             { id: 'faculty-edit-requests', label: 'Faculty Edit Requests', icon: FileText },
             { id: 'discontinuations', label: 'Discontinuation', icon: PhoneCall },
@@ -12747,11 +12756,12 @@ useEffect(() => {
               ) : null}
 
               {activeSection === 'institute-leave' || activeSection === 'faculty-leave' ? <InstituteLeavePage key={activeSection} initialViewMode={activeSection === 'faculty-leave' ? 'faculty' : 'institute'} /> : null}
+              {activeSection === 'sales-admin-leave-requests' ? <BranchSalesAdminLeaveRequestsPage /> : null}
               {activeSection === 'progress-notifications' ? <ProgressNotificationsView branch={branchScope} /> : null}
               {activeSection === 'faculty-edit-requests' ? <FacultyEditRequestsView /> : null}
               {activeSection === 'discontinuations' ? <BranchDiscontinuationManagementPage /> : null}
               {activeSection === 'lead-management' ? <LeadManagementPage branchId={branchData?.id || branchData?.branchId || branchProfile?.id || branchProfile?.branchId || ''} salesAdminId={branchData?.salesAdminId || ''} branchRoleAccess={resolvedBranchRoleAccess || branchData?.roleAccess || ''} superAdminView={isSuperAdminEmbeddedView} /> : null}
-              {activeSection === 'sales-crm-admissions' ? <SalesAdminAdmissionsPage key={location.search} salesAdminId={branchData?.salesAdminId || ''} /> : null}
+              {activeSection === 'admissions' ? <BranchAdmissionsHub key={location.search} branchData={branchData} branchAdminName={branchProfile?.branchAdminName || user?.name || branchData?.branchAdminName || 'Branch Admin'} canViewSalesAdmissionPipeline={hasLeadManagementAccess} /> : null}
               {activeSection === 'sales-crm-reports' ? <SalesCrmReportPage branchScoped branchId={branchProfile?.id || branchData?.id || ''} branchName={branchProfile?.branchName || branchData?.branchName || ''} branchAdminId={branchProfile?.adminUserId || branchData?.adminUserId || user?.id || ''} branchAdminName={branchProfile?.branchAdminName || user?.name || 'Branch Admin'} pendingLeadsHref="/branch-dashboard?section=lead-management&tab=pending" /> : null}
               {activeSection === 'branch-reports' ? (
                 <BranchReportsAnalyticsPage
@@ -15829,8 +15839,8 @@ if (paidProgress >= 100) {
                   branchStudents={branchStudents}
                 />
               ) : null}
-              {activeSection === 'sales-crm' || activeSection === 'sales-crm-admitted-students' ? (
-                <BranchSalesCrmPage key={activeSection} view={activeSection === 'sales-crm-admitted-students' ? 'admissions' : 'admins'} />
+              {activeSection === 'sales-crm' ? (
+                <BranchSalesCrmPage key={activeSection} view="admins" />
               ) : null}
               {activeSection === 'sales-admin-directory' ? (
                 <BranchSalesCrmPage key={activeSection} view="admins" title="Sales Admin" showReportAction={false} showLeadImportAction={!isSuperAdminEmbeddedView} showLeadDistributionAction />

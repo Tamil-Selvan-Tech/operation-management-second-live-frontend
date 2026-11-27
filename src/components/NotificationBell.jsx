@@ -64,8 +64,12 @@ export function NotificationBell({ targetUserId = '', readOnlyView = false }) {
   }
 
   const openStudentNotification = (item) => {
-    const kind = String(item?.kind || '').toUpperCase()
+    const kind = String(item?.kind || '').toUpperCase().replaceAll('-', '_')
     const description = String(item?.requestDescription || '').toUpperCase()
+    if ((isSalesAdmin || isScopedSalesAdmin) && ['SALES_ADMIN_BRANCH_TRANSFER', 'SALES_ADMIN_LEAD_HANDOVER'].includes(kind)) {
+      navigate(kind === 'SALES_ADMIN_BRANCH_TRANSFER' ? '/dashboard/sales-admin' : '/dashboard/sales-admin/leads')
+      return true
+    }
     if (isStudent && (kind === 'STUDENT_DISCONTINUATION' || description.startsWith('DISCONTINUATION_'))) {
       navigate('/student-new-dashboard?section=profile&open=discontinuation')
       return true
@@ -94,6 +98,10 @@ export function NotificationBell({ targetUserId = '', readOnlyView = false }) {
     }
     if ((isSalesAdmin || isScopedSalesAdmin) && kind === 'SALES_CRM_BATCH_REQUEST_UPDATE') {
       navigate('/dashboard/sales-admin/admissions')
+      return true
+    }
+    if ((isSalesAdmin || isScopedSalesAdmin) && kind === 'INSTITUTE_LEAVE') {
+      navigate('/dashboard/sales-admin/calendar')
       return true
     }
     return false
@@ -190,8 +198,8 @@ export function NotificationBell({ targetUserId = '', readOnlyView = false }) {
                   <div className="notification-copy">
                     <p>{item.title}</p>
                     <span>{item.message}</span>
-                    {String(item.kind || '').toUpperCase() === 'PENDING_STUDENT_ADMISSION_REMINDER' ? <small className="notification-dropdown-action">{item.actionLabel || 'View Pending Admissions'}</small> : null}
-                    {String(item.kind || '').toUpperCase() === 'SALES_CRM_BATCH_REQUEST_UPDATE' ? <small className="notification-dropdown-action">{item.actionLabel || 'View Request Status'}</small> : null}
+                    {String(item.kind || '').toUpperCase().replaceAll('-', '_') === 'PENDING_STUDENT_ADMISSION_REMINDER' ? <small className="notification-dropdown-action">{item.actionLabel || 'View Pending Admissions'}</small> : null}
+                    {String(item.kind || '').toUpperCase().replaceAll('-', '_') === 'SALES_CRM_BATCH_REQUEST_UPDATE' ? <small className="notification-dropdown-action">{item.actionLabel || 'View Request Status'}</small> : null}
                     <small>{item.time}</small>
                   </div>
                 </button>
