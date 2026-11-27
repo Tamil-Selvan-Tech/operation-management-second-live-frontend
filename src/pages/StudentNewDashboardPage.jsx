@@ -30,6 +30,7 @@ import {
 } from 'lucide-react'
 
 import '../styles/StudentNewDashboardPage.css'
+import { positionCollapsedSidebarOverlays } from '../utils/sidebarLayout'
 import {
   loadBranchStudents,
   refreshBranchStudents,
@@ -1288,7 +1289,7 @@ const handleLogoutConfirm = async () => {
           </div>
 
           {/* Sidebar Navigation */}
-          <nav className="student-new-sidebar-nav">
+          <nav className="student-new-sidebar-nav" onPointerOver={(event) => positionCollapsedSidebarOverlays(event, isSidebarCollapsed)} onFocusCapture={(event) => positionCollapsedSidebarOverlays(event, isSidebarCollapsed)}>
 
             {/* MAIN */}
             <div className="student-new-sidebar-section">

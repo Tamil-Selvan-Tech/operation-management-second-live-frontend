@@ -14861,7 +14861,10 @@ body.branch-notification-menu-open .main-area {
 
   /* Let collapsed parent flyouts escape the narrow navigation column. */
   .branch-dashboard-app-shell.is-sidebar-collapsed .super-admin-sidebar-nav {
-    overflow: visible;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: none;
   }
 
   .branch-dashboard-app-shell.is-sidebar-collapsed .super-admin-sidebar-group {

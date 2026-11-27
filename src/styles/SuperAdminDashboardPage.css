@@ -1722,7 +1722,10 @@ body.super-admin-notification-menu-open .super-admin-content {
 
   .super-admin-page.is-sidebar-collapsed .super-admin-sidebar-nav,
   .super-admin-sidebar.is-sidebar-collapsed .super-admin-sidebar-nav {
-    overflow: visible;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: none;
   }
 
   .super-admin-page.is-sidebar-collapsed .super-admin-sidebar-section-label,
@@ -1868,7 +1871,7 @@ body.super-admin-notification-menu-open .super-admin-content {
   }
 
   .super-admin-sidebar-collapsed-group-flyout {
-    position: absolute;
+    position: fixed;
     top: -4px;
     left: calc(100% + 8px);
     z-index: 1210;
@@ -1971,7 +1974,7 @@ body.super-admin-notification-menu-open .super-admin-content {
   .super-admin-sidebar.is-sidebar-collapsed .super-admin-sidebar-item-group:hover > .super-admin-sidebar-submenu,
   .super-admin-page.is-sidebar-collapsed .super-admin-sidebar-branch-nav:not(.is-flyout-dismissed):hover > .super-admin-sidebar-branch-list,
   .super-admin-sidebar.is-sidebar-collapsed .super-admin-sidebar-branch-nav:not(.is-flyout-dismissed):hover > .super-admin-sidebar-branch-list {
-    position: absolute;
+    position: fixed;
     top: -4px;
     left: calc(100% + 8px);
     z-index: 1200;
@@ -2067,9 +2070,9 @@ body.super-admin-notification-menu-open .super-admin-content {
 
   .super-admin-page.is-sidebar-collapsed .super-admin-sidebar-item[data-tooltip]::after,
   .super-admin-sidebar.is-sidebar-collapsed .super-admin-sidebar-item[data-tooltip]::after {
-    position: absolute;
-    top: 50%;
-    left: calc(100% + 12px);
+    position: fixed;
+    top: var(--sidebar-tooltip-top, 50%);
+    left: var(--sidebar-tooltip-left, calc(100% + 12px));
     z-index: 1250;
     padding: 6px 9px;
     border-radius: 7px;

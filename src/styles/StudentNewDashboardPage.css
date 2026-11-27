@@ -555,7 +555,10 @@ body.student-notification-menu-open .student-new-content { overscroll-behavior: 
   }
 
   .student-new-shell.is-sidebar-collapsed .student-new-sidebar-nav {
-    overflow: visible;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: none;
     padding-right: 8px;
     padding-left: 8px;
   }
@@ -587,9 +590,9 @@ body.student-notification-menu-open .student-new-content { overscroll-behavior: 
   }
 
   .student-new-shell.is-sidebar-collapsed .student-new-sidebar-item[data-tooltip]::after {
-    position: absolute;
-    top: 50%;
-    left: calc(100% + 12px);
+    position: fixed;
+    top: var(--sidebar-tooltip-top, 50%);
+    left: var(--sidebar-tooltip-left, calc(100% + 12px));
     z-index: 1250;
     padding: 6px 9px;
     border-radius: 7px;

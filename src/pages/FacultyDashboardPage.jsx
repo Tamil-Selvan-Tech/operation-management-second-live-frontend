@@ -114,6 +114,7 @@ import { getCourseStatusFromProgress, getCourseStatusLabel } from '../lib/course
 import FacultyExamsPage from './FacultyExamsPage'
 import FacultyAssessmentsPage from './FacultyAssessmentsPage'
 import FacultyExamCourseGate from '../components/FacultyExamCourseGate'
+import { positionCollapsedSidebarOverlays } from '../utils/sidebarLayout'
 import FacultyExamReportsPage from './FacultyExamReportsPage'
 import FacultyStudentExamReportPage from './FacultyStudentExamReportPage'
 import AcademicTestPage from './AcademicTestPage'
@@ -6526,7 +6527,7 @@ const nextName = trimmedValue
         </button>
       </div>
 
-      <nav className="super-admin-sidebar-nav">
+      <nav className="super-admin-sidebar-nav" onPointerOver={(event) => positionCollapsedSidebarOverlays(event, isSidebarCollapsed)} onFocusCapture={(event) => positionCollapsedSidebarOverlays(event, isSidebarCollapsed)}>
         {[
           { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
           { id: 'my-courses', label: 'Course', icon: BookOpen },

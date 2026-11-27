@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
+import { positionCollapsedSidebarOverlays } from '../utils/sidebarLayout'
 import {
   Bell,
   BriefcaseBusiness,
@@ -59,6 +60,20 @@ export function SuperAdminSidebarNav({ branches = [], isSidebarCollapsed, onClos
   })
   const [isBranchExpanded, setIsBranchExpanded] = useState(false)
   const [isFlyoutDismissed, setIsFlyoutDismissed] = useState(false)
+
+  const positionCollapsedFlyout = (container, selector) => {
+    if (!isSidebarCollapsed) return
+    const flyout = container?.querySelector(selector)
+    if (!flyout) return
+    const bounds = container.getBoundingClientRect()
+    const height = flyout.scrollHeight || flyout.offsetHeight || 220
+    const top = Math.max(8, Math.min(window.innerHeight - height - 8, bounds.top - 4))
+    flyout.style.position = 'fixed'
+    flyout.style.left = `${bounds.right + 8}px`
+    flyout.style.top = `${top}px`
+    flyout.style.right = 'auto'
+    flyout.style.bottom = 'auto'
+  }
 
   useEffect(() => {
     try { window.localStorage.setItem('cispro.super-admin-sidebar-expanded-groups', JSON.stringify(expandedGroups)) } catch { /* storage may be unavailable */ }
@@ -183,7 +198,7 @@ export function SuperAdminSidebarNav({ branches = [], isSidebarCollapsed, onClos
     const expanded = expandedGroups[group.id] ?? groupActive
     return (
       <div key={group.id} className={`super-admin-sidebar-section super-admin-sidebar-group ${groupActive ? 'is-active' : ''}`.trim()}>
-        <div className={`super-admin-sidebar-collapsed-group ${isFlyoutDismissed ? 'is-flyout-dismissed' : ''}`.trim()} onMouseEnter={() => setIsFlyoutDismissed(false)} onMouseLeave={() => setIsFlyoutDismissed(true)}>
+        <div className={`super-admin-sidebar-collapsed-group ${isFlyoutDismissed ? 'is-flyout-dismissed' : ''}`.trim()} onMouseEnter={(event) => { setIsFlyoutDismissed(false); positionCollapsedFlyout(event.currentTarget, '.super-admin-sidebar-collapsed-group-flyout') }} onMouseLeave={() => setIsFlyoutDismissed(true)}>
           <button type="button" className="super-admin-sidebar-collapsed-group-trigger" data-tooltip={group.label} aria-label={group.label} onClick={() => setExpandedGroups((current) => ({ ...current, [group.id]: !current[group.id] }))}><Icon size={18} strokeWidth={2.2} aria-hidden="true" /></button>
           <div className="super-admin-sidebar-collapsed-group-flyout" role="menu" aria-label={`${group.label} submenu`}>
             <div className="super-admin-sidebar-collapsed-group-title">{group.label}</div>
@@ -200,13 +215,13 @@ export function SuperAdminSidebarNav({ branches = [], isSidebarCollapsed, onClos
   }
 
   return (
-    <nav className="super-admin-sidebar-nav">
+    <nav className="super-admin-sidebar-nav" onPointerOver={(event) => positionCollapsedSidebarOverlays(event, isSidebarCollapsed)} onFocusCapture={(event) => positionCollapsedSidebarOverlays(event, isSidebarCollapsed)}>
       <div className="super-admin-sidebar-section">
         <button type="button" className={`super-admin-sidebar-item ${!isNotifications && activeSection === 'dashboard' ? 'is-active' : ''}`.trim()} data-tooltip="Dashboard" onClick={() => go('/dashboard/super-admin')}><span className="super-admin-sidebar-icon" aria-hidden="true"><LayoutDashboard size={18} strokeWidth={2.2} /></span><span>Dashboard</span></button>
       </div>
 
       <div className="super-admin-sidebar-section">
-        <div className={`super-admin-sidebar-branch-nav ${isFlyoutDismissed ? 'is-flyout-dismissed' : ''}`.trim()} onMouseLeave={() => setIsFlyoutDismissed(false)}>
+        <div className={`super-admin-sidebar-branch-nav ${isFlyoutDismissed ? 'is-flyout-dismissed' : ''}`.trim()} onMouseEnter={(event) => positionCollapsedFlyout(event.currentTarget, '.super-admin-sidebar-branch-list')} onMouseLeave={() => setIsFlyoutDismissed(false)}>
           <div className={`super-admin-sidebar-item ${!isNotifications && activeSection === 'branches' ? 'is-active' : ''}`.trim()} data-tooltip="Branch Management">
             <button type="button" className="super-admin-sidebar-branch-link" onClick={() => { if (activeSection !== 'branches') go('/dashboard/super-admin?section=branches'); else setIsBranchExpanded((current) => !current) }}><span className="super-admin-sidebar-icon" aria-hidden="true"><Shield size={18} strokeWidth={2.2} /></span><span>Branch Management</span></button>
             <button type="button" className="super-admin-sidebar-branch-toggle" aria-label={`${isBranchExpanded ? 'Collapse' : 'Expand'} branch management`} aria-expanded={isBranchExpanded} onClick={() => setIsBranchExpanded((current) => !current)}><ChevronDown size={16} strokeWidth={2.3} className={isBranchExpanded ? 'is-expanded' : ''} aria-hidden="true" /></button>

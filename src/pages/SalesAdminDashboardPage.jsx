@@ -17,6 +17,7 @@ import { SalesAdminUploadsPage } from './SalesAdminUploadsPage'
 import SalesAdminLeaveManagementPage from './SalesAdminLeaveManagementPageV13'
 import SalesAdminCalendarPage from './SalesAdminCalendarPage'
 import { UploadProgressIndicator } from '../components/UploadProgressIndicator'
+import { positionCollapsedSidebarOverlays } from '../utils/sidebarLayout'
 import '../styles/SuperAdminDashboardPage.css'
 import '../styles/SalesAdminDashboardPage.css'
 import '../styles/SalesAdminUploadsPage.css'
@@ -250,7 +251,7 @@ export function SalesAdminDashboardPage({ embeddedBranchAdmin = false, embeddedS
             </button>
             <button type="button" className="super-admin-sidebar-close" aria-label="Close navigation menu" onClick={closeMobileSidebar}><X size={18} /></button>
           </div>
-          <nav className="super-admin-sidebar-nav">
+          <nav className="super-admin-sidebar-nav" onPointerOver={(event) => positionCollapsedSidebarOverlays(event, isSidebarCollapsed)} onFocusCapture={(event) => positionCollapsedSidebarOverlays(event, isSidebarCollapsed)}>
             <div className="super-admin-sidebar-section"><button type="button" className={`super-admin-sidebar-item ${isDashboard ? 'is-active' : ''}`} data-tooltip="Dashboard" onClick={() => { if (!embeddedBranchAdmin) openSalesSection('dashboard', '/dashboard/sales-admin') }}><span className="super-admin-sidebar-icon"><Home size={18} /></span><span>Dashboard</span></button></div>
             {!embeddedBranchAdmin ? <>
               <div className="super-admin-sidebar-section"><button type="button" className={`super-admin-sidebar-item ${isLeadManagement ? 'is-active' : ''}`} data-tooltip="Lead Management" onClick={() => openSalesSection('leads', '/dashboard/sales-admin/leads')}><span className="super-admin-sidebar-icon"><LayoutGrid size={18} /></span><span>Lead Management</span></button></div>
