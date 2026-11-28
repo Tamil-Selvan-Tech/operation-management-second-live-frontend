@@ -193,18 +193,6 @@ export function LeadManagementPage({ branchId = '', branchAdminView = false, sal
   const openPendingLead = async (row) => { if (blockInactiveAction()) return; setViewing(null); setSaving(true); setError(''); try { const result = await getPendingLeadNextId(row.id); const nextLeadId = result?.data?.leadId || ''; if (!nextLeadId) throw new Error('Unable to generate the next Lead ID. Please retry.'); const data = row?.data || {}; setPendingRow(row); setEditing(null); setRecordings([]); setForm({ ...emptyForm, ...data, leadId: nextLeadId, branchId: row.batch?.branchId || data.branchId || '', courseId: data.courseId || '', assignedToId: row.assignedToId || row.batch?.assignedToId || data.assignedToId || currentUserId, leadDate: data.leadDate || new Date().toISOString().slice(0, 10), paymentStatus: data.paymentStatus || 'NOT_PAID', status: data.status || 'DRAFT', stage: data.stage || 'COLD', callType: data.callType || 'NEW_LEAD', leadSource: data.leadSource || 'OUTBOUND_DB', classSchedule: data.classSchedule || '', courseMode: data.courseMode || '' }); setFieldErrors({}); setValidatedSteps({}); setStep(1); setModal(true) } catch (reason) { setError(reason?.message || 'Unable to prepare the pending lead form') } finally { setSaving(false) } }
   const openView = async (lead) => {
     setFollowUpSuccess(false)
-    // Branch Admin lead lists are already branch-scoped and include the row
-    // fields permitted for review. The detail endpoint rejects records owned
-    // by another Sales Admin, so open the available read-only row directly.
-    const branchScopedReadAccess = branchAdminView
-      || isCombinedBranchAdmin
-      || effectiveRoleAccess.replace(/[^A-Z0-9]/g, '').includes('BRANCHADMIN')
-      || (Boolean(scopedBranchId) && !superAdminView && !salesAdminView)
-    if (branchScopedReadAccess) {
-      setError('')
-      setViewing(lead)
-      return
-    }
     try {
       const result = await request(`/leads/${lead.id}${lead.deletedAt ? '?includeDeleted=true' : ''}`)
       setViewing(result?.data || lead)

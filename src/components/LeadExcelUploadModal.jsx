@@ -4,7 +4,7 @@ import { downloadLeadImportTemplate, getLeadImportTargets, importLeadRows, previ
 import { completeUpload, failUpload, getUploadSnapshot, startUpload, updateUpload } from '../lib/uploadProgressStore'
 import '../styles/LeadExcelUploadModal.css'
 
-const PAGE_SIZE = 5
+const PAGE_SIZE = 15
 const PREVIEW_FIELDS = [
   ['studentName', 'Student Name'], ['phoneNumber', 'Mobile Number'], ['alternativeNumber', 'Alt. Mobile'],
   ['email', 'Email'], ['qualification', 'Qualification'], ['location', 'Location'], ['locationDistance', 'Location Distance'],
@@ -221,7 +221,7 @@ export function LeadExcelUploadModal({ isOpen, onClose, currentUser = {}, onImpo
         </div>
       </div> : null}
       {step === 2 ? <div className="lead-import-body">
-        <div className="lead-import-summary-grid"><div><span>Total rows</span><strong>{preview?.totalRows || 0}</strong></div><div className="is-ready"><span>Ready for active</span><strong>{preview?.readyRows || 0}</strong></div><div className="is-pending"><span>Fresh Leads</span><strong>{preview?.pendingRows || 0}</strong></div><div className="is-invalid"><span>Duplicates / invalid</span><strong>{(preview?.duplicateRows || 0) + (preview?.invalidRows || 0)}</strong></div></div>
+        <div className="lead-import-summary-grid"><div><span>Total rows</span><strong>{preview?.totalRows || 0}</strong></div><div className="is-ready"><span>Ready for active</span><strong>{preview?.readyRows || 0}</strong></div><div className="is-pending"><span>Fresh Leads</span><strong>{preview?.pendingRows || 0}</strong></div><button type="button" className={`lead-import-summary-card is-invalid${statusFilter === 'DUPLICATE' ? ' is-selected' : ''}`} onClick={() => { setStatusFilter('DUPLICATE'); setTablePage(1) }} disabled={busy || Boolean(editingRow)}><span>Duplicates / invalid</span><strong>{(preview?.duplicateRows || 0) + (preview?.invalidRows || 0)}</strong></button></div>
         {directDistributionMode && (Number(preview?.duplicateRows || 0) + Number(preview?.invalidRows || 0) > 0) ? <div className="lead-import-review-warning" role="status">Remove or edit all duplicate and invalid rows, then revalidate before continuing to distribution.</div> : null}
         <div className="lead-import-preview-head"><div><h3>Preview & validate</h3><p>Click Edit to change every field in a row. Saving a row validates it automatically.</p></div><div className="lead-import-preview-tools"><label className="lead-import-status-filter">Status<select value={statusFilter} onChange={(event) => { setStatusFilter(event.target.value); setTablePage(1) }} disabled={busy || Boolean(editingRow)}><option value="ALL">All statuses</option><option value="READY">Ready</option><option value="PENDING_COMPLETION">Fresh Lead</option><option value="DUPLICATE">Duplicate</option><option value="INVALID">Invalid</option><option value="PENDING_EDIT">Edited - revalidate</option><option value="IMPORTED">Imported</option></select></label><button type="button" className="lead-import-secondary" onClick={() => void revalidate()} disabled={busy || Boolean(editingRow)}><RefreshCw size={15} /> Revalidate</button></div></div>
         <div className="lead-import-table-wrap"><table className="lead-import-table"><thead><tr><th>S.No</th>{PREVIEW_FIELDS.map(([, label]) => <th key={label}>{label}</th>)}<th>Status</th><th>Actions</th></tr></thead><tbody>{visibleRows.map((row, visibleIndex) => {
